@@ -40,9 +40,9 @@ Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 - [x] Each harness carries a control case proving it detects the failure it tests
 - [ ] **`lan-peer-sync` executed on a real branch network** (B-03) — can force the hardware decision
 - [ ] **`ios-durability` executed on real devices**
-- [ ] `offline-sync` sustained-load run passed
-- [ ] `print-queue` run passed
-- [ ] `shift-conflict` run passed
+- [x] `offline-sync` sustained-load run passed — zero lost, zero duplicated at 245/h per branch
+- [x] `print-queue` run passed — no lost kitchen slips, no silent duplicate invoice
+- [x] `shift-conflict` run passed — 7/7 properties hold
 - [ ] **ADR-0004 hardware decision evidenced** (OFF-014 forbids approving hardware without this)
 
 ## Estate
@@ -78,7 +78,7 @@ Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 - [x] Review requirements by change type
 - [x] Blocked list and open questions maintained
 - [ ] Process owners appointed per domain (PRD §3.2)
-- [ ] **B-01 put to executive management** with its lead time stated
+- [x] **B-01 put to executive management** with its lead time stated — [`executive-decision-pack.md`](./executive-decision-pack.md) D-1
 
 ---
 
@@ -92,3 +92,7 @@ Everything above matters. These three stop F1 if unresolved:
    than preference. OFF-014 is explicit about this.
 3. **B-01 escalated.** Not resolved — escalated. If executive management knows the
    cost and chooses to wait, that is a decision. Discovering it in month 7 is not.
+
+All three are presented for decision in
+[`executive-decision-pack.md`](./executive-decision-pack.md), as D-2, D-3 and D-1
+respectively.

@@ -5,7 +5,9 @@ Work that cannot proceed, what unblocks it, and what it costs to stay blocked.
 **This document exists so blockers are visible in month 1 rather than discovered
 in month 7.** Every entry names who can unblock it.
 
-Reviewed at every phase gate.
+Reviewed at every phase gate. The blockers needing an executive decision are
+presented together in
+[`executive-decision-pack.md`](./executive-decision-pack.md).
 
 ---
 
@@ -55,6 +57,11 @@ replaceable adapter. When selection happens, the work is integration, not design
 
 **Put this to executive management now.** The decision has a nine-month lead time
 attached to it, and the PRD's own milestone depends on it.
+
+Presented as **D-1** in
+[`executive-decision-pack.md`](./executive-decision-pack.md), with the
+query-by-reference question, the cost of the human-attestation fallback, and the
+month-5 deadline stated.
 
 ---
 
