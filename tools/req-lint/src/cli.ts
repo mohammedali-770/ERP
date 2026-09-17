@@ -12,7 +12,8 @@ import { extractFromDocx } from '../../prd-extract/src/extract.ts';
 import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
-  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, type Finding, type LintContext,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve,
+  type Finding, type LintContext,
 } from './rules.ts';
 
 const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
@@ -22,6 +23,34 @@ const ADR_DIR = 'docs/adr';
 
 /** The twelve open decisions the PRD itself records in section 10.2. */
 const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1).padStart(3, '0')}`);
+
+/**
+ * Prefixes that look like a requirement identifier but are not one: decision
+ * records, open decisions, acceptance scenarios, risks, blockers, open questions,
+ * invariants, workstreams, phases, spikes and common technical abbreviations.
+ */
+const NOT_A_REQUIREMENT = /^(ADR|OPN|T|R|B|Q|I|D|W|F|P|SHA|SPIKE|UAT|RFC|SDK|ES|HTTP|TLS|JSON|SQL|API|MDM|NTP|HLC|WAL|AP|EGS|VAT|PDPL|ZATCA|IT|CI)-/;
+const CITATION = /\b([A-Z]{2,4}-\d{3})\b/g;
+
+function collectCitations(dir: string): Array<{ file: string; id: string }> {
+  const out: Array<{ file: string; id: string }> = [];
+  const walk = (d: string): void => {
+    if (!existsSync(d)) return;
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (entry.name.endsWith('.md')) {
+        const text = readFileSync(p, 'utf8');
+        for (const m of text.matchAll(CITATION)) {
+          const id = m[1]!;
+          if (!NOT_A_REQUIREMENT.test(id)) out.push({ file: p, id });
+        }
+      }
+    }
+  };
+  walk(dir);
+  return out;
+}
 
 function loadAdrs(): { ids: Set<string>; corpus: string } {
   const ids = new Set<string>();
@@ -56,6 +85,7 @@ function main(): void {
     ...ruleAdrRefsResolve(ctx),
     ...ruleF1Coverage(ctx, gateActive),
     ...ruleOpenDecisionsHaveAdrs(ctx, OPEN_DECISIONS),
+    ...ruleCitationsResolve(ctx, [...collectCitations('docs'), ...collectCitations('spikes')]),
   ];
 
   const errors = findings.filter((f) => f.severity === 'error');

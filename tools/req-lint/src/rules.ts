@@ -105,6 +105,26 @@ export function ruleF1Coverage(ctx: LintContext, gateActive: boolean): Finding[]
   return findings;
 }
 
+/**
+ * Every requirement identifier cited in a document must exist in the catalogue.
+ *
+ * A citation to a requirement that does not exist reads as though the design is
+ * grounded in an obligation nobody actually wrote down. This rule was added after
+ * a real instance: the print design cited PRN-019 for the reprint label, but that
+ * requirement is POS-019 — PRN stops at 015.
+ */
+export function ruleCitationsResolve(ctx: LintContext, citations: ReadonlyArray<{ file: string; id: string }>): Finding[] {
+  const known = new Set(ctx.requirements.map((r) => r.id));
+  return citations
+    .filter((c) => !known.has(c.id))
+    .map((c) => ({
+      rule: 'citations-resolve',
+      severity: 'error' as const,
+      requirement: c.id,
+      message: `${c.file} cites ${c.id}, which is not in the requirement catalogue.`,
+    }));
+}
+
 /** Every PRD open decision (OPN-*) must map to an ADR that records how it was closed. */
 export function ruleOpenDecisionsHaveAdrs(ctx: LintContext, openDecisionIds: string[]): Finding[] {
   const findings: Finding[] = [];

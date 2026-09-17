@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
-  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, type LintContext,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, type LintContext,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
 
@@ -81,4 +81,32 @@ test('open-decisions-have-adrs flags an unreferenced decision', () => {
   const findings = ruleOpenDecisionsHaveAdrs(ctx({ adrCorpus: 'closes OPN-001' }), ['OPN-001', 'OPN-002']);
   assert.equal(findings.length, 1);
   assert.equal(findings[0]!.requirement, 'OPN-002');
+});
+
+test('citations-resolve flags a reference to a requirement that does not exist', () => {
+  // The real instance this rule was written for: the print design cited PRN-019
+  // for the reprint label, but PRN stops at 015 — the requirement is POS-019.
+  const findings = ruleCitationsResolve(
+    ctx({ requirements: [req({ id: 'POS-019' })] }),
+    [{ file: 'docs/architecture/core-transaction-design.md', id: 'PRN-019' }],
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'error');
+  assert.match(findings[0]!.message, /not in the requirement catalogue/);
+});
+
+test('citations-resolve accepts a reference that exists', () => {
+  const findings = ruleCitationsResolve(
+    ctx({ requirements: [req({ id: 'POS-019' })] }),
+    [{ file: 'docs/x.md', id: 'POS-019' }],
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('citations-resolve reports each bad citation separately', () => {
+  const findings = ruleCitationsResolve(ctx(), [
+    { file: 'a.md', id: 'XXX-001' },
+    { file: 'b.md', id: 'YYY-002' },
+  ]);
+  assert.equal(findings.length, 2);
 });

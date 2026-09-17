@@ -495,7 +495,7 @@ The rules that deliver PRN-002 through PRN-013:
   what the kitchen already committed to producing — the same immutability principle
   as order snapshots (I-7).
 - **Reprints are new jobs**, linked by `reprint_of` and marked "REPRINT #n"
-  (PRN-019 at POS level, PRN-006 for changes). The original is never mutated.
+  (POS-019 for the reprint label, PRN-006 for order changes). The original is never mutated.
 - **Unknown print outcomes are handled per document type**, as configuration
   rather than hardcoded logic:
   - *Kitchen slip* — auto-retry. A duplicate costs seconds of confusion; a missing
