@@ -18,10 +18,16 @@ mechanism under test and asserts the harness detects it. A run that passes its
 scenario but whose control case also passes reports **FAIL** — because it has
 proved nothing.
 
-This is not hypothetical. The offline-sync control case did not fail on its first
-run, which exposed that the prefix-acknowledgement check short-circuited before
-the idempotency key was ever reached. The scenario had been passing without ever
-exercising the mechanism it claimed to prove.
+This is not hypothetical, and it has now caught two real defects:
+
+- The **offline-sync** control case did not fail on its first run, which exposed
+  that the prefix-acknowledgement check short-circuited before the idempotency key
+  was ever reached. The scenario had been passing without exercising the mechanism
+  it claimed to prove.
+- The **payment-reconciliation** spike surfaced an unsafe short-reference
+  derivation: truncating a UUIDv7 keeps only its timestamp, so two intents in one
+  millisecond receive the same payment reference — a payment attached to the wrong
+  order. See that spike's README.
 
 ---
 
@@ -32,6 +38,7 @@ exercising the mechanism it claimed to prove.
 | [`offline-sync`](./offline-sync) | **R-02 (Critical)** | Zero lost, zero duplicated business orders at 250 orders/h across 3 branches with link flapping, crashes, clock skew and lost responses | `npm run spike:offline-sync` |
 | [`print-queue`](./print-queue) | **R-01 (High)** | Zero lost kitchen slips, no silent duplicate invoice, every document identifiable | `npm run spike:print-queue` |
 | [`shift-conflict`](./shift-conflict) | T-08 | Deterministic merge, zero cash lost, append-only correction, tamper-evident blind count | `npm run spike:shift-conflict` |
+| [`payment-reconciliation`](./payment-reconciliation) | **D-1 design risk** | Zero double charges and zero misattribution under induced ambiguity; refunds idempotent | `npm run spike:payment-reconciliation` |
 
 Each writes a machine-readable report to `<spike>/out/report.json`, so the
 executive evidence package is assembled from artifacts rather than written up.

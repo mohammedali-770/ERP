@@ -108,10 +108,16 @@ rather than discovered after a contract is signed.
 ### What proceeds regardless
 
 The payment state machine, the intent-attempt-outcome model, refund idempotency
-and the reconciliation ladder are all designed and can be built and tested against
-a simulator. The provider is a replaceable adapter. **When the decision lands, the
-work is integration, not design.** That is deliberate, and it is what keeps this
-blocker from stopping everything else.
+and the reconciliation ladder are **built and proven against a simulator**
+(`spikes/payment-reconciliation/`). The provider is a replaceable adapter. **When
+the decision lands, the work is integration, not design.**
+
+That spike also puts a number on the A1 question above. Measured during an
+outage — the case where it matters — a terminal that can be queried by our
+reference leaves roughly **8 ambiguous transactions per 500 needing a cashier to
+stop and check a printed slip. One that cannot leaves all ~51.** Customers are
+never charged twice either way; what changes is service interruption, repeated
+in every branch, every outage.
 
 **Reference:** `docs/adr/ADR-0008` · `docs/program/blocked.md` B-01 ·
 `docs/program/open-questions.md` Q-05, Q-09

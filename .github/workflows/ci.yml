@@ -92,6 +92,9 @@ jobs:
       - name: Shift conflict (T-08)
         run: npm run spike:shift-conflict
 
+      - name: Payment reconciliation (D-1 design risk)
+        run: npm run spike:payment-reconciliation
+
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
