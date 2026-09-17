@@ -28,9 +28,15 @@ definition, and it works — 185 tests and nine CI workflows across one repo.
 - `apps/*` are delivery surfaces (POS, management console) and hold no domain logic.
 - `spikes/*` are throwaway proving code, excluded from production builds.
 
-Boundaries are enforced by TypeScript project references rather than convention:
-a service cannot import another service's internals because the reference graph
-does not permit it.
+Boundaries are enforced by `tools/boundary-check`, which parses every import in
+the repository and fails CI on a violation. It is a check, not a convention:
+a service that reaches into another service's internals breaks the build.
+
+TypeScript project references were considered for this and rejected. Node 22 runs
+the TypeScript sources directly by stripping types, so there is no emit step for
+references to hang off; adding one purely to police imports would mean maintaining
+a build pipeline the runtime does not use. An explicit check is both simpler and
+more honest about what is actually enforced.
 
 ## Consequences
 
@@ -39,8 +45,8 @@ does not permit it.
 - Independent deployment stays available without being paid for now.
 - The monorepo will eventually need build caching. That is a tooling problem with
   known answers, and is cheaper than premature repository splitting.
-- **Risk:** monorepos erode boundaries under deadline pressure. The project-reference
-  graph is the guard, and it is checked by `npm run typecheck` in CI.
+- **Risk:** monorepos erode boundaries under deadline pressure. `npm run boundary:check`
+  is the guard, and it runs in CI.
 
 ## Alternatives
 

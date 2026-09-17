@@ -1,0 +1,8 @@
+{
+  "name": "@firsttaste/boundary-check",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Enforces the bounded-context dependency rule",
+  "type": "module",
+  "main": "./src/cli.ts"
+}

@@ -5,8 +5,8 @@ other's tables.** Cross-context reads go through published events or an explicit
 query interface.
 
 This is the rule that keeps the monorepo (ADR-0001) from becoming a single tangled
-application, and it is enforced by the TypeScript project-reference graph rather
-than by review discipline.
+application. It is enforced by `npm run boundary:check`, which parses every import
+and fails CI on a violation — not by review discipline, which erodes.
 
 ---
 

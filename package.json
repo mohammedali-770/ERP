@@ -2,9 +2,11 @@
   "name": "@firsttaste/erp",
   "version": "0.0.0",
   "private": true,
-  "description": "First Taste ERP — company-level platform. F0 planning pack and foundation.",
+  "description": "First Taste ERP \u2014 company-level platform. F0 planning pack and foundation.",
   "license": "UNLICENSED",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "workspaces": [
     "packages/*",
     "services/*",
@@ -13,8 +15,8 @@
     "spikes/*"
   ],
   "scripts": {
-    "build": "tsc --build",
-    "typecheck": "tsc --build --force",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
     "prd:extract": "node --experimental-strip-types tools/prd-extract/src/cli.ts",
     "req:lint": "node --experimental-strip-types tools/req-lint/src/cli.ts",
@@ -22,7 +24,8 @@
     "spike:offline-sync": "node --experimental-strip-types spikes/offline-sync/src/cli.ts",
     "spike:print-queue": "node --experimental-strip-types spikes/print-queue/src/cli.ts",
     "spike:shift-conflict": "node --experimental-strip-types spikes/shift-conflict/src/cli.ts",
-    "verify": "npm run req:lint && npm run typecheck && npm test"
+    "verify": "npm run req:lint && npm run boundary:check && npm run typecheck && npm test",
+    "boundary:check": "node --experimental-strip-types tools/boundary-check/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
