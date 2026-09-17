@@ -26,7 +26,8 @@
     "spike:shift-conflict": "node --experimental-strip-types spikes/shift-conflict/src/cli.ts",
     "verify": "npm run req:lint && npm run boundary:check && npm run typecheck && npm test",
     "boundary:check": "node --experimental-strip-types tools/boundary-check/src/cli.ts",
-    "spike:payment-reconciliation": "node --experimental-strip-types spikes/payment-reconciliation/src/cli.ts"
+    "spike:payment-reconciliation": "node --experimental-strip-types spikes/payment-reconciliation/src/cli.ts",
+    "spike:callback-engine": "node --experimental-strip-types spikes/callback-engine/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

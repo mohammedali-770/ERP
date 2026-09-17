@@ -13,6 +13,7 @@ import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
+  ruleProposedRegister,
   type Finding, type LintContext,
 } from './rules.ts';
 
@@ -21,6 +22,7 @@ const ANNOTATIONS = 'docs/requirements/annotations.yaml';
 const BASELINE = 'docs/requirements/baseline.txt';
 const ADR_DIR = 'docs/adr';
 const F1_BACKLOG = 'docs/program/f1-backlog.md';
+const PROPOSED = 'docs/requirements/proposed.yaml';
 
 /** The twelve open decisions the PRD itself records in section 10.2. */
 const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1).padStart(3, '0')}`);
@@ -32,6 +34,7 @@ const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1)
  */
 const NOT_A_REQUIREMENT = /^(ADR|OPN|T|R|B|Q|I|D|W|F|P|SHA|SPIKE|UAT|RFC|SDK|ES|HTTP|TLS|JSON|SQL|API|MDM|NTP|HLC|WAL|AP|EGS|VAT|PDPL|ZATCA|IT|CI)-/;
 const CITATION = /\b([A-Z]{2,4}-\d{3})\b/g;
+const PROPOSED_CITATION = /\b([A-Z]{2,4}-P\d{2})\b/g;
 
 function collectCitations(dir: string): Array<{ file: string; id: string }> {
   const out: Array<{ file: string; id: string }> = [];
@@ -46,10 +49,39 @@ function collectCitations(dir: string): Array<{ file: string; id: string }> {
           const id = m[1]!;
           if (!NOT_A_REQUIREMENT.test(id)) out.push({ file: p, id });
         }
+        for (const m of text.matchAll(PROPOSED_CITATION)) out.push({ file: p, id: m[1]! });
       }
     }
   };
   walk(dir);
+  return out;
+}
+
+interface ProposedRequirement { id: string; module: string; text_en: string; text_ar: string }
+
+/**
+ * Reads the proposed register. Deliberately minimal — the file is hand-maintained
+ * and small, and adding a YAML dependency for one file would widen the supply
+ * chain of the tooling that defines our requirement baseline.
+ */
+function loadProposed(): ProposedRequirement[] | null {
+  if (!existsSync(PROPOSED)) return null;
+  const out: ProposedRequirement[] = [];
+  let current: Partial<ProposedRequirement> | null = null;
+  for (const line of readFileSync(PROPOSED, 'utf8').split('\n')) {
+    const id = /^  - id: "([^"]+)"/.exec(line);
+    if (id) {
+      if (current?.id) out.push(current as ProposedRequirement);
+      current = { id: id[1]!, module: '', text_en: '', text_ar: '' };
+      continue;
+    }
+    if (!current) continue;
+    for (const field of ['module', 'text_en', 'text_ar'] as const) {
+      const m = new RegExp(`^    ${field}: "(.*)"$`).exec(line);
+      if (m) current[field] = m[1]!;
+    }
+  }
+  if (current?.id) out.push(current as ProposedRequirement);
   return out;
 }
 
@@ -77,6 +109,8 @@ function main(): void {
     ? new Set(readFileSync(BASELINE, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')))
     : null;
 
+  const proposed = loadProposed();
+  const proposedIds = new Set((proposed ?? []).map((p) => p.id));
   const ctx: LintContext = { requirements, annotations, adrIds, baseline, adrCorpus };
 
   const findings: Finding[] = [
@@ -86,7 +120,8 @@ function main(): void {
     ...ruleAdrRefsResolve(ctx),
     ...ruleF1Coverage(ctx, gateActive),
     ...ruleOpenDecisionsHaveAdrs(ctx, OPEN_DECISIONS),
-    ...ruleCitationsResolve(ctx, [...collectCitations('docs'), ...collectCitations('spikes')]),
+    ...ruleCitationsResolve(ctx, [...collectCitations('docs'), ...collectCitations('spikes')], proposedIds),
+    ...ruleProposedRegister(ctx, proposed),
     ...ruleF1BacklogCoverage(ctx, existsSync(F1_BACKLOG) ? readFileSync(F1_BACKLOG, 'utf8') : null),
   ];
 
@@ -101,7 +136,7 @@ function main(): void {
     byRule.set(f.rule, bucket);
   }
 
-  console.log(`req-lint: ${requirements.length} requirements, ${adrIds.size} ADRs, gate=${gateActive ? 'f0-exit' : 'off'}`);
+  console.log(`req-lint: ${requirements.length} requirements, ${proposedIds.size} proposed, ${adrIds.size} ADRs, gate=${gateActive ? 'f0-exit' : 'off'}`);
   for (const [rule, items] of byRule) {
     const sev = items[0]!.severity;
     console.log(`\n  ${sev === 'error' ? 'ERROR' : 'warn '} ${rule} (${items.length})`);

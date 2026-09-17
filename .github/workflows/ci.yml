@@ -95,6 +95,9 @@ jobs:
       - name: Payment reconciliation (D-1 design risk)
         run: npm run spike:payment-reconciliation
 
+      - name: Callback engine (CC-P01..P08)
+        run: npm run spike:callback-engine
+
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4

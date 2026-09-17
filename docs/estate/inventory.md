@@ -53,6 +53,26 @@ What it already does that F1 also specifies:
 - The automatic refund worker's schedule is **disabled** — deliberately, under the
   payment freeze.
 
+### The PBX
+
+*Verified from the diagnostic bundle in the `yeastarissue` repository.*
+
+| | |
+|---|---|
+| Model | **Yeastar P560** — not a P650; no such model exists |
+| Firmware | 37.23.0.123 (above the 37.7.0.16 the API requires) |
+| Hardware | NXP i.MX8MM, 2 GB RAM |
+| Reachable from the ERP | **OpenAPI over HTTPS only** |
+| Not reachable | AMI (loopback ACL), CDR feed (loopback Redis), internal web API |
+| Access path | Yeastar RAS cloud tunnel, not a direct address |
+| Stability | **Three Asterisk segfaults in one captured day**; `get_token` returning errors. No vendor resolution on record |
+
+The P650 designation appears to originate from a Saudi reseller publishing a
+`/yeastar-p650/` URL for what is a P560 product page.
+
+Constraints and consequences: [ADR-0016](../adr/ADR-0016-call-centre-integration.md).
+Blockers: B-06 (credentials), B-07 (stability).
+
 ### Security observation
 
 *Verified.* In `whatsapp-inbox-simple`, four dated backup tables have row-level

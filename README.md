@@ -17,6 +17,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | What the system must do | [`docs/requirements/INDEX.md`](docs/requirements/INDEX.md) — 387 requirements |
 | Why it is shaped this way | [`docs/architecture/overview.md`](docs/architecture/overview.md) and [`invariants.md`](docs/architecture/invariants.md) |
 | How order and payment integrity works | [`docs/architecture/core-transaction-design.md`](docs/architecture/core-transaction-design.md) |
+| How the call centre integrates | [`docs/architecture/call-centre-integration.md`](docs/architecture/call-centre-integration.md) |
 | What has been decided, and what has not | [`docs/adr/`](docs/adr/) |
 | What already exists and must not be rebuilt | [`docs/estate/migration-map.md`](docs/estate/migration-map.md) |
 | **What needs a decision from you** | [`docs/program/executive-decision-pack.md`](docs/program/executive-decision-pack.md) |

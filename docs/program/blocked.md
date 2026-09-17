@@ -138,6 +138,62 @@ never passed by inertia.
 
 ---
 
+## B-06 — Credentials exposed in a repository's git history · **URGENT**
+
+**Blocks:** Any call-centre integration work (do not build against known-exposed credentials)
+**Unblocked by:** IT, by rotating them
+**Related:** ADR-0016 · `../compliance/pdpl-assessment.md`
+
+The `yeastarissue` repository contains a PBX diagnostic bundle with plaintext
+credentials:
+
+| Configuration | Exposed |
+|---|---|
+| `openapi.log` | OpenAPI client identifier **and secret** |
+| `asterisk/manager.conf` | Both AMI account secrets |
+| `asterisk/cdr_redis.conf` | Redis password |
+| `asterisk/pjsip_auth.conf`, `users.conf` | SIP authentication |
+| `res_config_mysql.conf`, `voicemail.conf` | Database and voicemail credentials |
+
+The repository is private, which limits exposure — but these are in **git
+history**, so deleting the file does not remove them. Every one should be rotated.
+
+**There is a second exposure in the same bundle.** It contains three Asterisk core
+dumps of 202–451 MB. A core dump is a snapshot of process memory, which for a PBX
+can contain SIP credentials, call audio buffers and customer telephone numbers.
+That makes this a personal-data question as well as a security one, and it is
+recorded in the privacy assessment rather than treated as purely an IT matter.
+
+**Cost of staying blocked:** building an integration against credentials already
+known to be compromised means doing the work twice.
+
+---
+
+## B-07 — PBX platform stability unresolved
+
+**Blocks:** Meaningful start on CC-001..CC-008 and the callback feature
+**Unblocked by:** IT, with a vendor support ticket and a resolution
+**Related:** ADR-0016
+
+On the captured day the PBX's Asterisk process **segfaulted three times**. The
+watchdog restarted it at 05:01, 15:42 and 20:57, and each time every softphone
+client dropped simultaneously. Separately, `POST /openapi/v1.0/get_token` — the
+call every integration begins with — was returning `INTERNAL SERVER ERROR`.
+
+**No vendor reply, ticket or resolution appears anywhere on record.**
+
+**Why this blocks rather than merely complicates:** building a screen pop on a
+platform that crashes daily produces an ERP that appears broken when it is not,
+and makes every integration defect ambiguous — ours or theirs? The design already
+assumes reconnection and backfills after an outage, so the architecture survives
+this. The *diagnosis* of future problems does not.
+
+**Cost of staying blocked:** low today, because CC work is F2. It becomes the
+critical path the moment call-centre work starts, and a vendor ticket has lead
+time.
+
+---
+
 ## Not blocked, but frequently assumed to be
 
 | Thing | Status |

@@ -147,6 +147,48 @@ Related: ADR-0007.
 
 ---
 
+## Q-13 — Who owns the WhatsApp channel: Yeastar, or the existing inbox?
+
+**Decides:** Product Owner · **Expensive after:** either system is wired to customers
+
+The Yeastar PBX ships its own omnichannel messaging — WhatsApp channels, message
+sessions, campaigns, templates. The estate **already runs a separate WhatsApp
+inbox** with its own knowledge base, FAQ and guardrails.
+
+Two systems can both claim that channel, and a WhatsApp number can only be
+connected to one Business API endpoint at a time. Left undecided, this is
+discovered as a collision when somebody tries to connect the second one.
+
+Worth noting the existing inbox is the more capable product for customer service;
+the PBX's messaging is more useful if the goal is one agent workspace handling
+calls and messages together. That is a product decision, not a technical one.
+
+Related: ADR-0013, ADR-0016.
+
+---
+
+## Q-14 — Is the call identifier stored on orders?
+
+**Decides:** Product Owner · **Expensive after:** the first call-centre order
+
+`CC-007` requires reporting **order conversion** — what share of calls became
+orders. That needs the call identifier stored **on the order at the moment it is
+created**.
+
+It cannot be reconstructed afterwards. A call and an order that happened at
+roughly the same time are not evidence that one caused the other, and no amount of
+later analysis recovers the link.
+
+This is the same class as `business_date` (Q-06) and the payment reference
+derivation: a single field, free to add now, impossible to backfill. The decision
+is simply whether to add it — and the answer should almost certainly be yes, even
+if conversion reporting is never built, because the cost of being wrong is
+asymmetric.
+
+Related: `CC-007`, ADR-0016.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

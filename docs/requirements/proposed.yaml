@@ -1,0 +1,120 @@
+# Proposed requirements — originating outside the PRD
+#
+# HAND-MAINTAINED. This file is not generated.
+#
+# requirements.yaml is generated from the source PRD, so a requirement that did
+# not come from the PRD cannot be added to it. This register holds those, with
+# the same validation, until the Product Owner folds them into the next PRD
+# revision — at which point they receive permanent identifiers and are removed
+# from here.
+#
+# Identifier form: <MODULE>-P<NN>. The `P` marks it as PROPOSED and NOT YET
+# APPROVED, and the form cannot collide with the PRD's <MODULE>-<NNN>.
+#
+# A proposed requirement carries no authority. It is a specified intention,
+# traceable and reviewable, awaiting approval through the same route as any other
+# requirement (PRG-015).
+
+version: 1
+
+requirements:
+
+  # ---------------------------------------------------------------------------
+  # Abandoned-call automatic callback
+  #
+  # Requested 2026-09-17. Recovers callers who gave up waiting in a queue by
+  # calling them back once an agent is free — unless they have since ordered
+  # through any channel, and only while the intent is still fresh.
+  #
+  # The PRD mentions abandoned calls only as a metric (CC-007). This is new
+  # behaviour and is therefore proposed rather than assumed.
+  # ---------------------------------------------------------------------------
+
+  - id: "CC-P01"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "The system shall record an abandoned call when a caller leaves a queue before being connected to an agent, retaining the caller's number, the time of abandonment, the queue and the wait duration."
+    text_ar: "يجب أن يسجل النظام المكالمة المتروكة عندما يغادر المتصل قائمة الانتظار قبل توصيله بموظف، مع الاحتفاظ برقم المتصل ووقت الترك وقائمة الانتظار ومدة الانتظار."
+    relates_to:
+      - CC-007
+
+  - id: "CC-P02"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "An abandoned call shall be queued for automatic callback, and at most one open callback entry shall exist for a caller number at any time."
+    text_ar: "يجب إدراج المكالمة المتروكة في قائمة معاودة اتصال تلقائية، وألا يوجد أكثر من سجل معاودة مفتوح واحد لرقم المتصل في أي وقت."
+    relates_to:
+      - CC-P01
+
+  - id: "CC-P03"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall not be placed if an order has been received from the same normalized mobile number through any channel since the time of abandonment, and this condition shall be evaluated immediately before dialling rather than when the entry is queued."
+    text_ar: "يجب عدم إجراء معاودة الاتصال إذا استلم طلب من رقم الجوال المعياري نفسه عبر أي قناة منذ وقت ترك المكالمة، ويجب التحقق من هذا الشرط مباشرة قبل الاتصال وليس عند إدراج السجل."
+    relates_to:
+      - APP-004
+      - OMS-001
+
+  - id: "CC-P04"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall not be placed once a configurable staleness window has elapsed since the abandonment; expired entries shall be closed with a reason and retained for reporting."
+    text_ar: "يجب عدم إجراء معاودة الاتصال بعد انقضاء مهلة قابلة للضبط منذ ترك المكالمة، وتغلق السجلات المنتهية مع بيان السبب وتحفظ لأغراض التقارير."
+    relates_to:
+      - CC-P02
+
+  - id: "CC-P05"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall be placed only when an agent is available, and shall connect the agent before dialling the customer so that the customer does not answer to silence."
+    text_ar: "يجب ألا تجرى معاودة الاتصال إلا عند توفر موظف، وأن يوصل الموظف قبل الاتصال بالعميل حتى لا يرد العميل على صمت."
+    relates_to:
+      - CC-005
+
+  - id: "CC-P06"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Each abandoned call shall receive at most one automatic callback attempt; an unanswered attempt shall be closed and recorded rather than retried."
+    text_ar: "يجب ألا تتلقى المكالمة المتروكة أكثر من محاولة معاودة تلقائية واحدة، وتغلق المحاولة غير المجابة وتسجل بدلا من إعادة المحاولة."
+    relates_to:
+      - CC-P02
+
+  - id: "CC-P07"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Callbacks shall not be placed outside configured operating hours, and an entry whose staleness window elapses outside those hours shall expire rather than being deferred."
+    text_ar: "يجب عدم إجراء معاودات الاتصال خارج ساعات العمل المضبوطة، وينتهي السجل الذي تنقضي مهلته خارج تلك الساعات بدلا من تأجيله."
+    relates_to:
+      - CC-P04
+
+  - id: "CC-P08"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P2"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Callback outcomes shall be reportable alongside abandoned-call metrics, including the recovery rate and the reason each entry was closed."
+    text_ar: "يجب أن تكون نتائج معاودة الاتصال قابلة للتقرير مع مقاييس المكالمات المتروكة، بما في ذلك نسبة الاسترجاع وسبب إغلاق كل سجل."
+    relates_to:
+      - CC-007

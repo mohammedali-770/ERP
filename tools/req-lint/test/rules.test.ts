@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
-  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage, type LintContext,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
+  ruleProposedRegister, type LintContext,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
 
@@ -92,7 +93,7 @@ test('citations-resolve flags a reference to a requirement that does not exist',
   );
   assert.equal(findings.length, 1);
   assert.equal(findings[0]!.severity, 'error');
-  assert.match(findings[0]!.message, /not in the requirement catalogue/);
+  assert.match(findings[0]!.message, /neither the requirement catalogue nor the proposed register/);
 });
 
 test('citations-resolve accepts a reference that exists', () => {
@@ -141,4 +142,51 @@ test('f1-backlog-coverage ignores requirements outside F1', () => {
 
 test('f1-backlog-coverage is inert before the backlog exists', () => {
   assert.deepEqual(ruleF1BacklogCoverage(ctx(), null), []);
+});
+
+const proposed = (over: Partial<{ id: string; module: string; text_en: string; text_ar: string }> = {}) => ({
+  id: 'CC-P01', module: 'CC', text_en: 'English.', text_ar: 'عربي.', ...over,
+});
+
+test('proposed-register accepts a well-formed entry', () => {
+  assert.deepEqual(ruleProposedRegister(ctx(), [proposed()]), []);
+});
+
+test('proposed-register rejects an identifier in the approved form', () => {
+  // A proposal must be visibly provisional; CC-001 would read as approved.
+  const findings = ruleProposedRegister(ctx(), [proposed({ id: 'CC-001' })]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /not a valid proposed identifier/);
+});
+
+test('proposed-register rejects a malformed identifier', () => {
+  assert.equal(ruleProposedRegister(ctx(), [proposed({ id: 'CC-PROPOSED-1' })]).length, 1);
+  assert.equal(ruleProposedRegister(ctx(), [proposed({ id: 'CCP01' })]).length, 1);
+});
+
+test('proposed-register flags a duplicate', () => {
+  const findings = ruleProposedRegister(ctx(), [proposed(), proposed()]);
+  assert.ok(findings.some((f) => /more than once/.test(f.message)));
+});
+
+test('proposed-register enforces both languages (PRG-014)', () => {
+  assert.ok(ruleProposedRegister(ctx(), [proposed({ text_ar: '' })]).some((f) => /Arabic/.test(f.message)));
+  assert.ok(ruleProposedRegister(ctx(), [proposed({ text_en: '' })]).some((f) => /English/.test(f.message)));
+});
+
+test('proposed-register is inert before the register exists', () => {
+  assert.deepEqual(ruleProposedRegister(ctx(), null), []);
+});
+
+test('citations-resolve accepts a proposed identifier that is registered', () => {
+  // Before this, CC-P01 was silently ignored by the citation rule, so a typo in
+  // a proposed identifier went uncaught.
+  const findings = ruleCitationsResolve(ctx(), [{ file: 'a.md', id: 'CC-P01' }], new Set(['CC-P01']));
+  assert.deepEqual(findings, []);
+});
+
+test('citations-resolve rejects a proposed identifier that is not registered', () => {
+  const findings = ruleCitationsResolve(ctx(), [{ file: 'a.md', id: 'CC-P99' }], new Set(['CC-P01']));
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /neither the requirement catalogue nor the proposed register/);
 });

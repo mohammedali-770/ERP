@@ -2,7 +2,7 @@
 
 | Directory | Contents |
 |---|---|
-| [`requirements/`](./requirements) | The 387-requirement baseline, generated from the source PRD, plus hand-maintained ownership and traceability annotations |
+| [`requirements/`](./requirements) | The 387-requirement baseline, generated from the source PRD, plus hand-maintained ownership annotations and a register of **proposed** requirements originating outside the PRD |
 | [`architecture/`](./architecture) | Layered overview, the invariants every design must preserve, and the core transactional design |
 | [`adr/`](./adr) | Architecture decision records, including all twelve of the PRD's open decisions |
 | [`estate/`](./estate) | What already exists, what to absorb, what to supersede |

@@ -77,6 +77,29 @@ layer (AI-002) rather than by prompt instruction.
 
 ---
 
+## A known exposure the assessment must cover
+
+**Asterisk core dumps in a repository's git history.** The `yeastarissue`
+repository contains three process-memory snapshots of 202–451 MB taken from the
+PBX. A core dump captures whatever was in memory at the moment of the crash, which
+for a telephony platform can include **customer telephone numbers, call audio
+buffers and SIP credentials**.
+
+This is recorded here, and not only in `blocked.md` (B-06), because the security
+remedy and the privacy remedy differ:
+
+| Concern | Remedy |
+|---|---|
+| Security | Rotate every credential — they are in git history, so deleting the file is not enough |
+| **Privacy** | Determine whether personal data was contained, what categories, and what the retention and deletion obligations are |
+
+The privacy question cannot be answered by assuming the answer. Somebody has to
+establish what those dumps actually contain before deciding whether this is a
+notifiable matter, and that determination belongs with whoever advises on Saudi
+personal-data requirements rather than with engineering.
+
+---
+
 ## Questions the assessment must answer
 
 1. **Is one person one customer across brands?** (Q-07, ADR-0012) Determines
@@ -91,6 +114,9 @@ layer (AI-002) rather than by prompt instruction.
 5. **Call recording (CC-006)** — what notice, retention and access rules apply?
 6. **Cross-border transfer** — if any processor sits outside the Kingdom, what
    safeguards are required?
+7. **Diagnostic bundles and core dumps** (above) — what obligations attach to
+   process-memory snapshots that may contain customer data, and what is the
+   correct handling and retention rule for vendor diagnostics generally?
 
 ---
 

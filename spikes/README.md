@@ -28,6 +28,10 @@ This is not hypothetical, and it has now caught two real defects:
   derivation: truncating a UUIDv7 keeps only its timestamp, so two intents in one
   millisecond receive the same payment reference — a payment attached to the wrong
   order. See that spike's README.
+- The **callback-engine** control was a no-op on its first run, because the broken
+  path still ran the correct check alongside it. Its measurement was also
+  number-scoped where the requirement is per abandoned call, reporting correct
+  behaviour as a defect. Both are written up in that spike's README.
 
 ---
 
@@ -39,6 +43,7 @@ This is not hypothetical, and it has now caught two real defects:
 | [`print-queue`](./print-queue) | **R-01 (High)** | Zero lost kitchen slips, no silent duplicate invoice, every document identifiable | `npm run spike:print-queue` |
 | [`shift-conflict`](./shift-conflict) | T-08 | Deterministic merge, zero cash lost, append-only correction, tamper-evident blind count | `npm run spike:shift-conflict` |
 | [`payment-reconciliation`](./payment-reconciliation) | **D-1 design risk** | Zero double charges and zero misattribution under induced ambiguity; refunds idempotent | `npm run spike:payment-reconciliation` |
+| [`callback-engine`](./callback-engine) | CC-P01..P08 design risk | Nobody called after ordering; no duplicates, stale or out-of-hours calls | `npm run spike:callback-engine` |
 
 Each writes a machine-readable report to `<spike>/out/report.json`, so the
 executive evidence package is assembled from artifacts rather than written up.

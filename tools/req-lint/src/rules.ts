@@ -106,6 +106,53 @@ export function ruleF1Coverage(ctx: LintContext, gateActive: boolean): Finding[]
 }
 
 /**
+ * The proposed register must be well formed, and its identifiers must never
+ * collide with the approved baseline.
+ *
+ * A proposed requirement carries no authority. If one could take an identifier
+ * that an approved requirement already uses — or that a future PRD revision would
+ * assign — a reader could mistake a proposal for a decision, which is precisely
+ * what the separate `<MODULE>-P<NN>` form exists to prevent.
+ */
+export function ruleProposedRegister(
+  ctx: LintContext,
+  proposed: ReadonlyArray<{ id: string; module: string; text_en: string; text_ar: string }> | null,
+): Finding[] {
+  if (proposed === null) return [];
+  const findings: Finding[] = [];
+  const approved = new Set(ctx.requirements.map((r) => r.id));
+  const seen = new Set<string>();
+
+  for (const p of proposed) {
+    if (!PROPOSED_ID.test(p.id)) {
+      findings.push({ rule: 'proposed-register', severity: 'error', requirement: p.id,
+        message: `${p.id} is not a valid proposed identifier. Use <MODULE>-P<NN>, which cannot collide with an approved requirement.` });
+      continue;
+    }
+    // Unreachable while approved identifiers are always <MODULE>-<NNN> and
+    // proposed ones <MODULE>-P<NN>, since the format check above already rejects
+    // anything else. Kept deliberately: if the approved format ever widens, this
+    // is what stops a proposal quietly occupying an approved identifier, and the
+    // cost of keeping it is one set lookup.
+    if (approved.has(p.id)) {
+      findings.push({ rule: 'proposed-register', severity: 'error', requirement: p.id,
+        message: `${p.id} collides with an approved requirement. A proposal must never occupy an approved identifier.` });
+    }
+    if (seen.has(p.id)) {
+      findings.push({ rule: 'proposed-register', severity: 'error', requirement: p.id,
+        message: `${p.id} appears more than once in the proposed register.` });
+    }
+    seen.add(p.id);
+    if (!p.text_en) findings.push({ rule: 'proposed-register', severity: 'error', requirement: p.id, message: `${p.id} has no English text (PRG-014).` });
+    if (!p.text_ar) findings.push({ rule: 'proposed-register', severity: 'error', requirement: p.id, message: `${p.id} has no Arabic text (PRG-014).` });
+  }
+  return findings;
+}
+
+/** `<MODULE>-P<NN>` — the proposed identifier form. */
+export const PROPOSED_ID = /^[A-Z]{2,4}-P\d{2}$/;
+
+/**
  * Every requirement identifier cited in a document must exist in the catalogue.
  *
  * A citation to a requirement that does not exist reads as though the design is
@@ -113,15 +160,19 @@ export function ruleF1Coverage(ctx: LintContext, gateActive: boolean): Finding[]
  * a real instance: the print design cited PRN-019 for the reprint label, but that
  * requirement is POS-019 — PRN stops at 015.
  */
-export function ruleCitationsResolve(ctx: LintContext, citations: ReadonlyArray<{ file: string; id: string }>): Finding[] {
+export function ruleCitationsResolve(
+  ctx: LintContext,
+  citations: ReadonlyArray<{ file: string; id: string }>,
+  proposedIds: ReadonlySet<string> = new Set(),
+): Finding[] {
   const known = new Set(ctx.requirements.map((r) => r.id));
   return citations
-    .filter((c) => !known.has(c.id))
+    .filter((c) => !known.has(c.id) && !proposedIds.has(c.id))
     .map((c) => ({
       rule: 'citations-resolve',
       severity: 'error' as const,
       requirement: c.id,
-      message: `${c.file} cites ${c.id}, which is not in the requirement catalogue.`,
+      message: `${c.file} cites ${c.id}, which is in neither the requirement catalogue nor the proposed register.`,
     }));
 }
 
