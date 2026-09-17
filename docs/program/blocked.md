@@ -7,7 +7,9 @@ in month 7.** Every entry names who can unblock it.
 
 Reviewed at every phase gate. The blockers needing an executive decision are
 presented together in
-[`executive-decision-pack.md`](./executive-decision-pack.md).
+[`executive-decision-pack.md`](./executive-decision-pack.md), and the
+[`enablement/`](./enablement/) pack hands each blocker's owner something they can
+act on without engineering present.
 
 ---
 
@@ -97,8 +99,11 @@ default.** If it cannot be disabled on the production estate, peer replication i
 impossible and a branch controller becomes mandatory.
 
 **This is the cheapest high-value test in the programme and should run in week 1–2.**
-It is a network configuration check, not an engineering effort, and it can change
-the hardware budget.
+
+The decisive part needs **two laptops and half an hour** — no iPads, no device
+management, none of the till software. Written up for IT as
+[`enablement/01-network-capability-check.md`](./enablement/01-network-capability-check.md).
+The full device-level spike does need the application and comes later.
 
 **Cost of staying blocked:** the hardware decision drifts toward month 8, where
 OFF-014 requires it to be settled by evidence anyway — at which point changing

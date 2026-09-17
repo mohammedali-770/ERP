@@ -20,6 +20,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | What has been decided, and what has not | [`docs/adr/`](docs/adr/) |
 | What already exists and must not be rebuilt | [`docs/estate/migration-map.md`](docs/estate/migration-map.md) |
 | **What needs a decision from you** | [`docs/program/executive-decision-pack.md`](docs/program/executive-decision-pack.md) |
+| **What others can start today, without engineering** | [`docs/program/enablement/`](docs/program/enablement/README.md) |
 | **What is blocking work right now** | [`docs/program/blocked.md`](docs/program/blocked.md) |
 | What still needs a human decision | [`docs/program/open-questions.md`](docs/program/open-questions.md) |
 | When things happen | [`docs/program/roadmap.md`](docs/program/roadmap.md) |

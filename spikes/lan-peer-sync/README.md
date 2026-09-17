@@ -22,6 +22,23 @@ This is a network configuration check, not an engineering effort. It is the
 cheapest decisive test in the programme, and running it in week 2 rather than
 month 8 is the difference between a fact and an expensive surprise.
 
+## Before this can run
+
+**This procedure needs the till software, which does not exist yet.** Steps 2 to 7
+exercise device discovery, peer sessions, event convergence and hash chains — all
+of which are application behaviour.
+
+**Step 1 is separable, and it is the step that actually decides the outcome.**
+Whether the access point permits client-to-client traffic and mDNS can be
+established with two ordinary laptops in half an hour, with no application, no
+iPads and no device management. If the answer is "isolation is on and cannot be
+disabled", a branch controller becomes mandatory and this full procedure never
+needs to run.
+
+That check is written up for IT as
+[`docs/program/enablement/01-network-capability-check.md`](../../docs/program/enablement/01-network-capability-check.md)
+and should be done first.
+
 ## Setup
 
 - 3 iPads, MDM-enrolled, with peer certificates provisioned

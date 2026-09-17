@@ -190,8 +190,12 @@ The first is a network configuration check — **half a day of somebody's time**
 not an engineering project. It is the cheapest decisive test in the programme and
 it can change the hardware budget.
 
-**What is needed: access to a real branch network and three devices.** Nobody has
-been asked for this.
+**What is needed to start: two laptops and half an hour at one branch.** The
+decisive question — does the access point let devices reach each other — needs
+none of the till software, and is written up for IT as
+[`enablement/01-network-capability-check.md`](./enablement/01-network-capability-check.md).
+The fuller device-level test does need the application and comes later. Nobody has
+been asked for either.
 
 ### Why the timing matters
 
@@ -296,20 +300,25 @@ has a recommended answer — the ask is **confirm or correct**, not research.
 The largest single category of blocked work is not waiting for judgement. It is
 waiting for somebody to be named.
 
-| Task | Plausible owner | Unblocks | Effort |
-|---|---|---|---|
-| Grant access to a real branch network and three devices | IT | **D-3, the hardware standard** | Half a day |
-| Confirm which payment provider is actually configured today | IT / Finance | Clean start on D-1 | Ten minutes |
-| Obtain tax-authority sandbox credentials | Finance | ZATCA testing, `ACC-005`, `T-09` | Days |
-| Identify the warehouse system's database | IT | Scoping the factory and warehouse phase | Minutes, once asked |
-| Appoint a process owner per business domain | Executive | Requirement sign-off, user testing | An email |
-| Name representative cashier and kitchen users for testing | Operations | `ACC-006` | An email |
-| Confirm requirement ownership | Domain owners | The F0 exit gate | An hour each |
-| Commission specialist tax-invoicing review | Finance | Certification readiness | Weeks of lead time |
-| Obtain privacy advice on cross-brand customer identity | Executive | Future brand expansion | Weeks of lead time |
+Each of the first five has been written up as a short document the named person
+can act on **without engineering present** — see
+[`enablement/`](./enablement/README.md).
 
-**Nine tasks. Most take under a day. Together they unblock more than any
-engineering effort available this month.**
+| Task | Plausible owner | Unblocks | Effort | Ready |
+|---|---|---|---|---|
+| Check whether branch Wi-Fi lets devices talk to each other | IT | **D-3, the hardware standard** | **30 min, two laptops** | [✓](./enablement/01-network-capability-check.md) |
+| Ask candidate payment providers the questions that matter | Finance | D-1 becomes a comparison | Send and wait | [✓](./enablement/02-acquirer-questionnaire.md) |
+| Instruct counsel on data residency | Executive | D-4 | Weeks of lead time | [✓](./enablement/03-counsel-brief-data-residency.md) |
+| Request tax-authority sandbox access | Finance | `ACC-005`, `T-09` | Days | [✓](./enablement/04-zatca-sandbox-request.md) |
+| Gather hosting and recovery quotes | Whoever owns infrastructure | `PRG-010`, `PRG-012` | Ongoing | [✓](./enablement/05-cost-comparison-template.md) |
+| Confirm which payment provider is actually configured today | IT / Finance | Clean start on D-1 | Ten minutes | |
+| Identify the warehouse system's database | IT | Scoping the factory and warehouse phase | Minutes, once asked | |
+| Appoint a process owner per business domain | Executive | Requirement sign-off, user testing | An email | |
+| Name representative cashier and kitchen users for testing | Operations | `ACC-006` | An email | |
+| Confirm requirement ownership | Domain owners | The F0 exit gate | An hour each | |
+
+**Ten tasks. Most take under a day, and five already have the paperwork written.
+Together they unblock more than any engineering effort available this month.**
 
 ---
 
