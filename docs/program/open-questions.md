@@ -1,0 +1,160 @@
+# Open questions
+
+Decisions the PRD does not settle, surfaced during F0. Each is **cheap now and
+expensive later**, which is why they are recorded rather than left to be discovered
+during implementation.
+
+These extend the PRD's own twelve open decisions (OPN-001..012), which are tracked
+in [`../adr/README.md`](../adr/README.md).
+
+Format: question · who decides · when it gets expensive.
+
+---
+
+## Q-01 — Are receipt numbers per-device or branch-gapless?
+
+**Decides:** Finance · **Expensive after:** first production branch
+
+The design mints human-readable order numbers as per-device sequences, so three
+iPads never collide without coordinating. A **gapless per-branch** sequence needs
+a branch coordinator and is incompatible with pure iPad-only offline operation.
+
+ZATCA's own gapless requirement is satisfied separately by the per-EGS invoice
+counter (ADR-0006), so **this is a finance preference, not a compliance
+constraint** — but changing it after branches are live means renumbering history.
+
+---
+
+## Q-02 — What happens when a B2B customer wants a tax invoice during an outage?
+
+**Decides:** Finance and Product Owner · **Expensive after:** F1 UAT
+
+Standard B2B invoices require ZATCA clearance *before* issuance, so they cannot be
+issued offline. Simplified B2C invoices report within 24 hours and are fine.
+
+The PRD (PAY-016, PAY-017) reads as though all document types behave alike. They do
+not. Someone must decide whether an offline B2B request queues or is refused, and
+what the cashier is told to say. This is a customer-facing policy, not an
+engineering detail.
+
+Related: ADR-0006, B-02.
+
+---
+
+## Q-03 — Does "void" win over "add" on concurrent order edits?
+
+**Decides:** Operations and Finance · **Expensive after:** F1 build
+
+When two devices edit one order during a partition, the merge rule decides the
+bias. **"Void wins" means under-charging rather than charging customers for items
+they cancelled.**
+
+Defensible, and the recommended default — but it is a business policy that should
+be signed off, not absorbed as an implementation accident.
+
+---
+
+## Q-04 — LAN printers, not Bluetooth?
+
+**Decides:** IT and Operations · **Expensive after:** hardware procurement
+
+A LAN thermal printer is reachable from all three iPads, which is the precondition
+for print-job failover between devices. **Bluetooth pairing is effectively
+one-to-one and eliminates failover entirely.**
+
+Cheap to decide now. An estate-wide swap later.
+
+---
+
+## Q-05 — Does the acquirer's terminal support query-by-reference?
+
+**Decides:** Finance, during provider selection · **Expensive after:** provider contract
+
+The single most important question in payment provider selection. See B-01 and
+ADR-0008. If the answer is no, the operational cost of human attestation must be
+priced into the business case before signing, not discovered afterwards.
+
+---
+
+## Q-06 — Is `business_date` set at shift open?
+
+**Decides:** Finance · **Expensive after:** first month-end close
+
+A branch closing at 02:00 books those sales to the prior business day. Deriving
+the business date from calendar midnight is a classic mistake, and unwinding it
+means reinterpreting stored history.
+
+The design assumes shift-open. Confirm it.
+
+---
+
+## Q-07 — Is one person one customer across brands?
+
+**Decides:** Product Owner, with privacy advice · **Expensive after:** second brand launch
+
+PRG-004 requires per-domain cross-brand sharing rules, and OPN-009 defers them. The
+customer-identity question is the sharpest one, because it determines whether a
+person's order history and personal data cross a brand boundary — a privacy
+question under Saudi personal-data requirements, not only a product one.
+
+Related: ADR-0012.
+
+---
+
+## Q-08 — Where is the warehouse system's database?
+
+**Decides:** IT · **Expensive after:** F3 planning starts
+
+See B-04. A question, not a project — but F3 cannot be scoped without it.
+
+---
+
+## Q-09 — What is the actual payment provider state today?
+
+**Decides:** IT and Finance · **Expensive after:** any payment planning
+
+Reconnaissance found one provider configured in the live database in test mode and
+disabled, while the operations console ships administration for a different
+provider. **Nothing should be planned on top of that ambiguity.** Confirm which is
+real before B-01 is even discussed.
+
+---
+
+## Q-10 — Should the paused Supabase projects be archived?
+
+**Decides:** IT · **Expensive after:** never, but they accumulate risk
+
+Three paused projects and several superseded repositories. Confirm abandonment,
+export and checksum the data (ADR-0011 principle 2), then archive — so nobody
+reads the wrong system a year from now.
+
+Separately: four backup tables in the WhatsApp inbox project have row-level
+security disabled and are readable with the anonymous key. They are backups, so
+dropping or archiving them is the cheap remedy. **Not acted on** — that project is
+outside this repository's scope, and any change there is an owner-approved action.
+
+---
+
+## Q-11 — Is whole-order kitchen readiness acceptable for the branches in scope?
+
+**Decides:** Operations · **Expensive after:** F1 UAT
+
+PRN-009 fixes whole-order readiness for the first workflow and defers station-level
+readiness (OPN-010). Multi-station kitchens get no partial visibility in F1.
+Operations should confirm that is acceptable **before** UAT rather than during it.
+
+Related: ADR-0007.
+
+---
+
+## Q-12 — Who owns each requirement, really?
+
+**Decides:** Product Owner · **Expensive after:** F0 exit gate
+
+`docs/requirements/annotations.yaml` carries a **seeded** initial assignment of
+owners and acceptance tests for all 160 F1/P0 requirements, derived from the PRD's
+role table. It satisfies the gate mechanically.
+
+It has not been confirmed by the named owners. Module-level test fallbacks in
+particular are a starting point, not a coverage claim. **Confirming these is F0
+exit work**, and `npm run req:lint -- --gate f0-exit` is what holds the line.
