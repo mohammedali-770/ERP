@@ -22,6 +22,10 @@ assumes is available.
 
 ## Workstreams
 
+The requirement-level decomposition of these is [`f1-backlog.md`](./f1-backlog.md),
+which assigns every one of the 164 F1 requirements to an epic and is checked in CI.
+
+
 Parallel, with dependencies noted. Not phases — several run throughout.
 
 ### W1 · Foundation *(months 1–3)*

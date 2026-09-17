@@ -12,7 +12,7 @@ import { extractFromDocx } from '../../prd-extract/src/extract.ts';
 import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
-  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
   type Finding, type LintContext,
 } from './rules.ts';
 
@@ -20,6 +20,7 @@ const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
 const ANNOTATIONS = 'docs/requirements/annotations.yaml';
 const BASELINE = 'docs/requirements/baseline.txt';
 const ADR_DIR = 'docs/adr';
+const F1_BACKLOG = 'docs/program/f1-backlog.md';
 
 /** The twelve open decisions the PRD itself records in section 10.2. */
 const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1).padStart(3, '0')}`);
@@ -86,6 +87,7 @@ function main(): void {
     ...ruleF1Coverage(ctx, gateActive),
     ...ruleOpenDecisionsHaveAdrs(ctx, OPEN_DECISIONS),
     ...ruleCitationsResolve(ctx, [...collectCitations('docs'), ...collectCitations('spikes')]),
+    ...ruleF1BacklogCoverage(ctx, existsSync(F1_BACKLOG) ? readFileSync(F1_BACKLOG, 'utf8') : null),
   ];
 
   const errors = findings.filter((f) => f.severity === 'error');

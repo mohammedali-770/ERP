@@ -15,7 +15,7 @@ Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 - [x] Requirement IDs unique, and stability enforced in CI (PRG-015)
 - [x] Every F1/P0 requirement names an owner and an acceptance test
 - [ ] **Owners have confirmed their assignments** — currently seeded, not confirmed (Q-12)
-- [ ] Baseline frozen: `docs/requirements/baseline.txt` written and approved
+- [x] Baseline frozen: [`baseline.txt`](../requirements/baseline.txt) written — 387 identifiers, enforced in CI
 
 ## Architecture
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
-  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, type LintContext,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage, type LintContext,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
 
@@ -109,4 +109,36 @@ test('citations-resolve reports each bad citation separately', () => {
     { file: 'b.md', id: 'YYY-002' },
   ]);
   assert.equal(findings.length, 2);
+});
+
+test('f1-backlog-coverage flags an F1 requirement belonging to no epic', () => {
+  // The backlog claims complete coverage; without this the claim decays the first
+  // time a requirement is added or an epic reshaped.
+  const findings = ruleF1BacklogCoverage(
+    ctx({ requirements: [req({ id: 'POS-001' }), req({ id: 'POS-002' })] }),
+    'Epic E6 covers `POS-001`.',
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.requirement, 'POS-002');
+  assert.equal(findings[0]!.severity, 'error');
+});
+
+test('f1-backlog-coverage passes when every F1 requirement is present', () => {
+  const findings = ruleF1BacklogCoverage(
+    ctx({ requirements: [req({ id: 'POS-001' })] }),
+    'Epic E6 covers `POS-001`.',
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('f1-backlog-coverage ignores requirements outside F1', () => {
+  const findings = ruleF1BacklogCoverage(
+    ctx({ requirements: [req({ id: 'FIN-001', phase: 'F4' })] }),
+    'nothing here',
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('f1-backlog-coverage is inert before the backlog exists', () => {
+  assert.deepEqual(ruleF1BacklogCoverage(ctx(), null), []);
 });

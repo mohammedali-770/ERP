@@ -125,6 +125,26 @@ export function ruleCitationsResolve(ctx: LintContext, citations: ReadonlyArray<
     }));
 }
 
+/**
+ * Every F1 requirement must appear in the F1 backlog.
+ *
+ * The backlog claims complete coverage. Without a check, that claim decays the
+ * first time a requirement is added or an epic is reshaped, and a requirement
+ * silently belonging to no epic is one nobody is building.
+ */
+export function ruleF1BacklogCoverage(ctx: LintContext, backlog: string | null): Finding[] {
+  if (backlog === null) return [];
+  return ctx.requirements
+    .filter((r) => r.phase === 'F1')
+    .filter((r) => !backlog.includes(r.id))
+    .map((r) => ({
+      rule: 'f1-backlog-coverage',
+      severity: 'error' as const,
+      requirement: r.id,
+      message: `${r.id} (F1) does not appear in the F1 backlog — it belongs to no epic.`,
+    }));
+}
+
 /** Every PRD open decision (OPN-*) must map to an ADR that records how it was closed. */
 export function ruleOpenDecisionsHaveAdrs(ctx: LintContext, openDecisionIds: string[]): Finding[] {
   const findings: Finding[] = [];

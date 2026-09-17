@@ -24,6 +24,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | **What is blocking work right now** | [`docs/program/blocked.md`](docs/program/blocked.md) |
 | What still needs a human decision | [`docs/program/open-questions.md`](docs/program/open-questions.md) |
 | When things happen | [`docs/program/roadmap.md`](docs/program/roadmap.md) |
+| What F1 actually involves | [`docs/program/f1-backlog.md`](docs/program/f1-backlog.md) |
 | How to work in this repository | [`docs/program/governance.md`](docs/program/governance.md) |
 
 ## Three things worth knowing immediately
