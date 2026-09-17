@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  requirements:
+    name: Requirement baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # The catalogue is generated from the vendored PRD. If it drifts, the
+      # baseline everything else traces to is no longer trustworthy.
+      - name: Catalogue is current
+        run: npm run prd:extract -- --check
+
+      - name: Index is current
+        run: npm run req:index -- --check
+
+      # PRG-014/015: stable bilingual identifiers, resolvable ADR references.
+      - name: Traceability
+        run: npm run req:lint
+
+  boundaries:
+    name: Bounded-context boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # A boundary described only in a document erodes under deadline pressure.
+      - name: Dependency rule
+        run: npm run boundary:check
+
+  build:
+    name: Typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+
+  spikes:
+    name: Risk spikes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # T-01 is a permanent load test, not a one-off milestone. Each spike also
+      # runs its control case and FAILS if the control does not detect its
+      # deliberate sabotage — a harness that cannot fail is not evidence.
+      - name: Offline sync (R-02, Critical)
+        run: npm run spike:offline-sync -- --minutes 240
+
+      - name: Print queue (R-01, High)
+        run: npm run spike:print-queue -- --jobs 500
+
+      - name: Shift conflict (T-08)
+        run: npm run spike:shift-conflict
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-reports
+          path: spikes/*/out/report.json
+          if-no-files-found: error
