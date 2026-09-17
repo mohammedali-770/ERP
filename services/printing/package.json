@@ -1,0 +1,10 @@
+{
+  "name": "@firsttaste/service-printing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Service boundary: printing (contracts and tests only at F0)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@firsttaste/erp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "First Taste ERP — company-level platform. F0 planning pack and foundation.",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=22.0.0" },
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*",
+    "tools/*",
+    "spikes/*"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build --force",
+    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
+    "prd:extract": "node --experimental-strip-types tools/prd-extract/src/cli.ts",
+    "req:lint": "node --experimental-strip-types tools/req-lint/src/cli.ts",
+    "req:index": "node --experimental-strip-types tools/req-lint/src/index-gen.ts",
+    "spike:offline-sync": "node --experimental-strip-types spikes/offline-sync/src/cli.ts",
+    "spike:print-queue": "node --experimental-strip-types spikes/print-queue/src/cli.ts",
+    "spike:shift-conflict": "node --experimental-strip-types spikes/shift-conflict/src/cli.ts",
+    "verify": "npm run req:lint && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

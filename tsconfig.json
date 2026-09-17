@@ -1,0 +1,47 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./tools/prd-extract"
+    },
+    {
+      "path": "./tools/req-lint"
+    },
+    {
+      "path": "./services/identity"
+    },
+    {
+      "path": "./services/menu"
+    },
+    {
+      "path": "./services/orders"
+    },
+    {
+      "path": "./services/payments"
+    },
+    {
+      "path": "./services/printing"
+    },
+    {
+      "path": "./services/sync-gateway"
+    },
+    {
+      "path": "./apps/pos"
+    },
+    {
+      "path": "./apps/console"
+    },
+    {
+      "path": "./spikes/offline-sync"
+    },
+    {
+      "path": "./spikes/print-queue"
+    },
+    {
+      "path": "./spikes/shift-conflict"
+    }
+  ]
+}

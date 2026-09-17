@@ -1,0 +1,10 @@
+{
+  "name": "@firsttaste/app-pos",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Application boundary: pos (contracts only at F0)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+}

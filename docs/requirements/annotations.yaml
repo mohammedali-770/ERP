@@ -1,0 +1,1021 @@
+# Requirement annotations — ownership and traceability
+#
+# Hand-maintained. The generated catalogue (requirements.yaml) merges these in.
+# Owners follow the role table in PRD section 3.1. Test references point at the
+# acceptance scenarios in PRD section 8.2 (T-01..T-10), the F0 risk spikes
+# (SPIKE-*), or a named UAT pack (UAT-*).
+#
+# SEEDED 2026-09-17 as an initial assignment covering the F1/P0 gate. Every entry
+# needs confirmation by the named owner before the F0 exit gate is declared;
+# module-level fallbacks in particular are a starting point, not a coverage claim.
+
+IAM-001:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-002:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-003:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-004:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-005:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-006:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+IAM-008:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+POS-001:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-002:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-003:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-004:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-005:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-006:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-007:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-008:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - SPIKE-lan-peer-sync
+    - SPIKE-ios-durability
+
+POS-009:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+POS-010:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+POS-011:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+POS-012:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+POS-013:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-014:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-015:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-10
+
+POS-016:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-017:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-018:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-019:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-020:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-021:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-022:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-08
+    - SPIKE-shift-conflict
+
+POS-023:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-08
+    - SPIKE-shift-conflict
+
+POS-024:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-08
+    - SPIKE-shift-conflict
+
+POS-025:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-08
+    - SPIKE-shift-conflict
+
+POS-026:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-08
+    - SPIKE-shift-conflict
+
+POS-027:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-028:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+POS-030:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-cashier
+
+MNU-001:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-002:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-06
+
+MNU-003:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-06
+
+MNU-004:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-06
+
+MNU-005:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-006:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-007:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-008:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-009:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-010:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-011:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+MNU-012:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-06
+
+MNU-013:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-06
+
+MNU-015:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-menu
+
+OMS-001:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+OMS-003:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-005:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+OMS-006:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-007:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-008:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-009:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+OMS-010:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+OMS-011:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-04
+
+OMS-012:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-013:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-014:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+OMS-015:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-016:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+
+OMS-018:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+PRN-001:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-07
+    - SPIKE-print-queue
+
+PRN-002:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-003:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-004:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-005:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-006:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-007:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-07
+    - SPIKE-print-queue
+
+PRN-008:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-07
+    - SPIKE-print-queue
+
+PRN-009:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-07
+    - SPIKE-print-queue
+
+PRN-010:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-07
+    - SPIKE-print-queue
+
+PRN-012:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-013:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+PRN-014:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-lan-peer-sync
+    - SPIKE-ios-durability
+
+PAY-001:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-002:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-003:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-004:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-005:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-006:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-007:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-008:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-009:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-04
+
+PAY-010:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-05
+
+PAY-011:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-05
+
+PAY-012:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-05
+
+PAY-016:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-09
+
+PAY-017:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-09
+
+PAY-018:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-09
+
+PAY-019:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - T-09
+
+OFF-001:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-002:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-003:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+
+OFF-004:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-005:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-006:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-007:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-008:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-009:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-010:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+OFF-011:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+OFF-012:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-lan-peer-sync
+    - SPIKE-ios-durability
+
+OFF-013:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-lan-peer-sync
+    - SPIKE-ios-durability
+
+OFF-014:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-lan-peer-sync
+    - SPIKE-ios-durability
+
+APP-001:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-002:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-003:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-004:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-005:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-006:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-007:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-008:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-009:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-010:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-011:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-012:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-04
+
+APP-013:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-04
+
+APP-014:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+APP-015:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-customer-app
+
+RPT-001:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - UAT-reporting
+
+RPT-003:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - UAT-reporting
+
+RPT-006:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - UAT-reporting
+
+RPT-008:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - UAT-reporting
+
+RPT-009:
+  status: "baselined"
+  owner: "Finance and accounting"
+  test_refs:
+    - UAT-reporting
+
+SUP-004:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+SUP-005:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+SUP-006:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+SUP-007:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+SUP-008:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+SUP-009:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - UAT-support
+
+NFR-001:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+NFR-002:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+NFR-003:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+NFR-004:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-04
+
+NFR-005:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+NFR-008:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-009:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-010:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-013:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-014:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-015:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - SPIKE-offline-sync
+
+NFR-016:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+SEC-010:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+SEC-011:
+  status: "baselined"
+  owner: "IT and system administration"
+  test_refs:
+    - T-10
+
+LAB-003:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-lab-readiness
+
+LAB-004:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-lab-readiness
+
+LAB-005:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-lab-readiness
+
+REL-004:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-release-gate
+
+ACC-001:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync
+
+ACC-002:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-03
+    - SPIKE-print-queue
+
+ACC-003:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-05
+
+ACC-004:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-02
+    - SPIKE-offline-sync
+
+ACC-005:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-09
+
+ACC-006:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-executive-acceptance
+
+ACC-007:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - UAT-executive-acceptance
+
+ACC-008:
+  status: "baselined"
+  owner: "Product Owner"
+  test_refs:
+    - T-01
+    - SPIKE-offline-sync

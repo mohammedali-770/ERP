@@ -1,0 +1,10 @@
+{
+  "name": "@firsttaste/req-lint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Requirement traceability validator",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+}

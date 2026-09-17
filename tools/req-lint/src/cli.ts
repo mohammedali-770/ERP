@@ -1,0 +1,84 @@
+/**
+ * Requirement traceability validator.
+ *
+ *   npm run req:lint                  # errors fail, gate rules warn
+ *   npm run req:lint -- --gate f0-exit # promote F0 exit-gate rules to errors
+ *
+ * Run in CI so the requirement baseline cannot drift silently.
+ */
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { extractFromDocx } from '../../prd-extract/src/extract.ts';
+import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
+import {
+  ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, type Finding, type LintContext,
+} from './rules.ts';
+
+const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
+const ANNOTATIONS = 'docs/requirements/annotations.yaml';
+const BASELINE = 'docs/requirements/baseline.txt';
+const ADR_DIR = 'docs/adr';
+
+/** The twelve open decisions the PRD itself records in section 10.2. */
+const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1).padStart(3, '0')}`);
+
+function loadAdrs(): { ids: Set<string>; corpus: string } {
+  const ids = new Set<string>();
+  let corpus = '';
+  if (!existsSync(ADR_DIR)) return { ids, corpus };
+  for (const file of readdirSync(ADR_DIR)) {
+    if (!file.endsWith('.md')) continue;
+    const id = /^(ADR-\d{4})/.exec(file)?.[1];
+    if (id) ids.add(id);
+    corpus += readFileSync(join(ADR_DIR, file), 'utf8');
+  }
+  return { ids, corpus };
+}
+
+function main(): void {
+  const gateActive = process.argv.includes('--gate') &&
+    process.argv[process.argv.indexOf('--gate') + 1] === 'f0-exit';
+
+  const { requirements } = extractFromDocx(DOCX);
+  const annotations = existsSync(ANNOTATIONS) ? parseAnnotations(readFileSync(ANNOTATIONS, 'utf8')) : {};
+  const { ids: adrIds, corpus: adrCorpus } = loadAdrs();
+  const baseline = existsSync(BASELINE)
+    ? new Set(readFileSync(BASELINE, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')))
+    : null;
+
+  const ctx: LintContext = { requirements, annotations, adrIds, baseline, adrCorpus };
+
+  const findings: Finding[] = [
+    ...ruleUniqueIds(ctx),
+    ...ruleStableIds(ctx),
+    ...ruleBilingual(ctx),
+    ...ruleAdrRefsResolve(ctx),
+    ...ruleF1Coverage(ctx, gateActive),
+    ...ruleOpenDecisionsHaveAdrs(ctx, OPEN_DECISIONS),
+  ];
+
+  const errors = findings.filter((f) => f.severity === 'error');
+  const warnings = findings.filter((f) => f.severity === 'warning');
+
+  // Group by rule so a hundred identical findings read as one actionable item.
+  const byRule = new Map<string, Finding[]>();
+  for (const f of findings) {
+    const bucket = byRule.get(f.rule) ?? [];
+    bucket.push(f);
+    byRule.set(f.rule, bucket);
+  }
+
+  console.log(`req-lint: ${requirements.length} requirements, ${adrIds.size} ADRs, gate=${gateActive ? 'f0-exit' : 'off'}`);
+  for (const [rule, items] of byRule) {
+    const sev = items[0]!.severity;
+    console.log(`\n  ${sev === 'error' ? 'ERROR' : 'warn '} ${rule} (${items.length})`);
+    for (const f of items.slice(0, 5)) console.log(`      ${f.message}`);
+    if (items.length > 5) console.log(`      ... and ${items.length - 5} more`);
+  }
+
+  console.log(`\nreq-lint: ${errors.length} error(s), ${warnings.length} warning(s)`);
+  if (errors.length > 0) process.exit(1);
+}
+
+main();

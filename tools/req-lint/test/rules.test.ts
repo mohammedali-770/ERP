@@ -1,0 +1,84 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
+  ruleF1Coverage, ruleOpenDecisionsHaveAdrs, type LintContext,
+} from '../src/rules.ts';
+import type { Requirement } from '../../prd-extract/src/extract.ts';
+
+function req(over: Partial<Requirement> = {}): Requirement {
+  return {
+    id: 'POS-001', module: 'POS', phase: 'F1', priority: 'P0',
+    prd_section: '5.3 Point of sale', text_en: 'English.', text_ar: 'عربي.', ...over,
+  };
+}
+
+function ctx(over: Partial<LintContext> = {}): LintContext {
+  return { requirements: [req()], annotations: {}, adrIds: new Set(), baseline: null, adrCorpus: '', ...over };
+}
+
+test('unique-ids flags a duplicated requirement', () => {
+  const findings = ruleUniqueIds(ctx({ requirements: [req(), req()] }));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'error');
+  assert.match(findings[0]!.message, /appears 2 times/);
+});
+
+test('unique-ids passes a clean catalogue', () => {
+  assert.deepEqual(ruleUniqueIds(ctx({ requirements: [req(), req({ id: 'POS-002' })] })), []);
+});
+
+test('stable-ids flags a requirement dropped from an approved baseline', () => {
+  const findings = ruleStableIds(ctx({ baseline: new Set(['POS-001', 'POS-999']) }));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.requirement, 'POS-999');
+  assert.match(findings[0]!.message, /PRG-015/);
+});
+
+test('stable-ids is inert before a baseline is frozen', () => {
+  assert.deepEqual(ruleStableIds(ctx({ baseline: null })), []);
+});
+
+test('bilingual flags a missing Arabic translation', () => {
+  const findings = ruleBilingual(ctx({ requirements: [req({ text_ar: '' })] }));
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /Arabic/);
+});
+
+test('adr-refs-resolve flags a dangling ADR reference', () => {
+  const findings = ruleAdrRefsResolve(ctx({
+    annotations: { 'POS-001': { adr_refs: ['ADR-0099'] } },
+    adrIds: new Set(['ADR-0001']),
+  }));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'error');
+});
+
+test('adr-refs-resolve accepts a reference that exists', () => {
+  assert.deepEqual(ruleAdrRefsResolve(ctx({
+    annotations: { 'POS-001': { adr_refs: ['ADR-0001'] } },
+    adrIds: new Set(['ADR-0001']),
+  })), []);
+});
+
+test('f1-coverage warns by default and errors under the F0 exit gate', () => {
+  const bare = ctx();
+  assert.equal(ruleF1Coverage(bare, false).every((f) => f.severity === 'warning'), true);
+  assert.equal(ruleF1Coverage(bare, true).every((f) => f.severity === 'error'), true);
+});
+
+test('f1-coverage is satisfied by an owner plus a test reference', () => {
+  const complete = ctx({ annotations: { 'POS-001': { owner: 'Ops', test_refs: ['T-01'] } } });
+  assert.deepEqual(ruleF1Coverage(complete, true), []);
+});
+
+test('f1-coverage ignores requirements outside F1/P0', () => {
+  assert.deepEqual(ruleF1Coverage(ctx({ requirements: [req({ phase: 'F4' })] }), true), []);
+  assert.deepEqual(ruleF1Coverage(ctx({ requirements: [req({ priority: 'P1' })] }), true), []);
+});
+
+test('open-decisions-have-adrs flags an unreferenced decision', () => {
+  const findings = ruleOpenDecisionsHaveAdrs(ctx({ adrCorpus: 'closes OPN-001' }), ['OPN-001', 'OPN-002']);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.requirement, 'OPN-002');
+});
