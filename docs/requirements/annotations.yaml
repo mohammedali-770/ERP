@@ -547,12 +547,14 @@ PAY-006:
   owner: "Finance and accounting"
   test_refs:
     - T-04
+    - SPIKE-payment-reconciliation
 
 PAY-007:
   status: "baselined"
   owner: "Finance and accounting"
   test_refs:
     - T-04
+    - SPIKE-payment-reconciliation
 
 PAY-008:
   status: "baselined"
@@ -571,12 +573,14 @@ PAY-010:
   owner: "Finance and accounting"
   test_refs:
     - T-05
+    - SPIKE-payment-reconciliation
 
 PAY-011:
   status: "baselined"
   owner: "Finance and accounting"
   test_refs:
     - T-05
+    - SPIKE-payment-reconciliation
 
 PAY-012:
   status: "baselined"
@@ -887,6 +891,7 @@ NFR-004:
   owner: "IT and system administration"
   test_refs:
     - T-04
+    - SPIKE-payment-reconciliation
 
 NFR-005:
   status: "baselined"

@@ -38,6 +38,8 @@ requirements:
     status: "proposed"
     text_en: "The system shall record an abandoned call when a caller leaves a queue before being connected to an agent, retaining the caller's number, the time of abandonment, the queue and the wait duration."
     text_ar: "يجب أن يسجل النظام المكالمة المتروكة عندما يغادر المتصل قائمة الانتظار قبل توصيله بموظف، مع الاحتفاظ برقم المتصل ووقت الترك وقائمة الانتظار ومدة الانتظار."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-007
 
@@ -49,6 +51,8 @@ requirements:
     status: "proposed"
     text_en: "An abandoned call shall be queued for automatic callback, and at most one open callback entry shall exist for a caller number at any time."
     text_ar: "يجب إدراج المكالمة المتروكة في قائمة معاودة اتصال تلقائية، وألا يوجد أكثر من سجل معاودة مفتوح واحد لرقم المتصل في أي وقت."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-P01
 
@@ -60,6 +64,8 @@ requirements:
     status: "proposed"
     text_en: "A callback shall not be placed if an order has been received from the same normalized mobile number through any channel since the time of abandonment, and this condition shall be evaluated immediately before dialling rather than when the entry is queued."
     text_ar: "يجب عدم إجراء معاودة الاتصال إذا استلم طلب من رقم الجوال المعياري نفسه عبر أي قناة منذ وقت ترك المكالمة، ويجب التحقق من هذا الشرط مباشرة قبل الاتصال وليس عند إدراج السجل."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - APP-004
       - OMS-001
@@ -72,6 +78,8 @@ requirements:
     status: "proposed"
     text_en: "A callback shall not be placed once a configurable staleness window has elapsed since the abandonment; expired entries shall be closed with a reason and retained for reporting."
     text_ar: "يجب عدم إجراء معاودة الاتصال بعد انقضاء مهلة قابلة للضبط منذ ترك المكالمة، وتغلق السجلات المنتهية مع بيان السبب وتحفظ لأغراض التقارير."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-P02
 
@@ -83,6 +91,8 @@ requirements:
     status: "proposed"
     text_en: "A callback shall be placed only when an agent is available, and shall connect the agent before dialling the customer so that the customer does not answer to silence."
     text_ar: "يجب ألا تجرى معاودة الاتصال إلا عند توفر موظف، وأن يوصل الموظف قبل الاتصال بالعميل حتى لا يرد العميل على صمت."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-005
 
@@ -94,6 +104,8 @@ requirements:
     status: "proposed"
     text_en: "Each abandoned call shall receive at most one automatic callback attempt; an unanswered attempt shall be closed and recorded rather than retried."
     text_ar: "يجب ألا تتلقى المكالمة المتروكة أكثر من محاولة معاودة تلقائية واحدة، وتغلق المحاولة غير المجابة وتسجل بدلا من إعادة المحاولة."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-P02
 
@@ -105,6 +117,8 @@ requirements:
     status: "proposed"
     text_en: "Callbacks shall not be placed outside configured operating hours, and an entry whose staleness window elapses outside those hours shall expire rather than being deferred."
     text_ar: "يجب عدم إجراء معاودات الاتصال خارج ساعات العمل المضبوطة، وينتهي السجل الذي تنقضي مهلته خارج تلك الساعات بدلا من تأجيله."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-P04
 
@@ -116,6 +130,8 @@ requirements:
     status: "proposed"
     text_en: "Callback outcomes shall be reportable alongside abandoned-call metrics, including the recovery rate and the reason each entry was closed."
     text_ar: "يجب أن تكون نتائج معاودة الاتصال قابلة للتقرير مع مقاييس المكالمات المتروكة، بما في ذلك نسبة الاسترجاع وسبب إغلاق كل سجل."
+    test_refs:
+      - SPIKE-callback-engine
     relates_to:
       - CC-007
 
@@ -165,6 +181,8 @@ requirements:
     status: "proposed"
     text_en: "Each rating dimension shall attribute only to the roles that could affect it, using a recorded and configurable mapping, so that no role is scored on an outcome outside its control."
     text_ar: "يجب أن ينسب كل بعد من أبعاد التقييم إلى الأدوار القادرة على التأثير فيه فقط، وفق ربط موثق وقابل للضبط، بحيث لا يقيم أي دور على نتيجة خارجة عن سيطرته."
+    test_refs:
+      - SPIKE-rating-statistics
     relates_to:
       - DLV-009
 
@@ -176,6 +194,8 @@ requirements:
     status: "proposed"
     text_en: "No score shall be displayed for an individual until a configurable minimum number of ratings has been received; below that threshold the system shall report insufficient data rather than a score."
     text_ar: "يجب عدم عرض أي تقييم لفرد قبل بلوغ حد أدنى قابل للضبط من عدد التقييمات، ويعرض النظام دون هذا الحد عبارة بيانات غير كافية بدلا من درجة."
+    test_refs:
+      - SPIKE-rating-statistics
     relates_to:
       - RPT-011
 
@@ -187,6 +207,8 @@ requirements:
     status: "proposed"
     text_en: "Every displayed aggregate shall carry its sample size and a measure of uncertainty, and comparison or ranking shall never be based on a raw mean alone."
     text_ar: "يجب أن يصاحب كل متوسط معروض حجم العينة ومقياس لعدم اليقين، وألا تعتمد المقارنة أو الترتيب على المتوسط الحسابي وحده."
+    test_refs:
+      - SPIKE-rating-statistics
     relates_to:
       - RPT-011
       - RPT-012

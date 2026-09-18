@@ -98,10 +98,13 @@ npm run verify        # traceability + boundaries + typecheck + tests
 | Every F1 requirement belongs to an epic | `req:lint` against `f1-backlog.md` |
 | Every requirement cited in a document exists | `req:lint` |
 | **Every test reference resolves to a real artifact** | `req:lint` |
+| **A requirement's evidence can actually be produced** | `req:lint` — error under `--gate f0-exit` |
+| Every runnable spike and UAT pack is named by a requirement | `req:lint` |
+| Every risk cited in a document exists | `req:lint` against `risk-register.md` |
 | Proposed requirement identifiers are well formed and never collide | `req:lint` against `proposed.yaml` |
 | Services do not import each other | `boundary:check` |
 | Every PRD open decision maps to an ADR | `req:lint` |
-| The catalogue matches the source PRD | `prd:extract -- --check` |
+| The catalogue and the risk register match the source PRD | `prd:extract -- --check` |
 
 If one of these fails, **fix the cause rather than the check.** Each exists
 because the failure it catches actually happened.

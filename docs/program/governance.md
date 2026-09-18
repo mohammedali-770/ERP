@@ -130,7 +130,9 @@ approval authority** (REL-003) — no development milestone confers it.
 ## 8. Definition of done for a change
 
 1. Requirement IDs referenced in the pull request description.
-2. `npm run verify` green — requirement lint, typecheck, tests.
+2. `npm run verify` green — requirement lint, **bounded-context boundaries**,
+   typecheck, tests. The boundary check is what enforces §6 mechanically; a
+   review that skips it is checking the rule by eye.
 3. Tests that would fail without the change.
 4. Documentation updated where behaviour or a decision changed.
 5. Review per §6.

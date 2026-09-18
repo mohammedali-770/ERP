@@ -1,8 +1,9 @@
 /**
- * Regenerates docs/requirements/requirements.yaml from the vendored PRD.
+ * Regenerates the two files derived from the vendored PRD: the requirement
+ * catalogue and the risk register.
  *
- *   npm run prd:extract            # write the catalogue
- *   npm run prd:extract -- --check # fail if the committed catalogue is stale
+ *   npm run prd:extract            # write both
+ *   npm run prd:extract -- --check # fail if either committed file is stale
  *
  * Extraction owns the immutable facts (id, bilingual text, phase, priority,
  * section). Human judgement — ownership, status, ADR and test links — lives in
@@ -10,12 +11,15 @@
  * never discards that work.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { extractFromDocx, type Requirement } from './extract.ts';
+import { extractFromDocx, readBlocks, type Requirement } from './extract.ts';
+import { extractRisks } from './risks.ts';
+import { renderRiskRegister } from './risk-register.ts';
 import { parseAnnotations, emitScalar, emitList, type Node } from './yaml.ts';
 
 const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
 const ANNOTATIONS = 'docs/requirements/annotations.yaml';
 const OUTPUT = 'docs/requirements/requirements.yaml';
+const RISK_OUTPUT = 'docs/program/risk-register.md';
 
 const LIST_FIELDS = ['adr_refs', 'test_refs', 'estate_refs'] as const;
 const SCALAR_FIELDS = ['status', 'owner'] as const;
@@ -90,19 +94,32 @@ function main(): void {
   }
 
   const rendered = render(requirements, annotations, sourceSha256);
+  const risks = extractRisks(readBlocks(DOCX).blocks);
+  const renderedRisks = renderRiskRegister(risks, DOCX, sourceSha256);
+
+  const outputs: Array<[string, string, string]> = [
+    [OUTPUT, rendered, `${requirements.length} requirements`],
+    [RISK_OUTPUT, renderedRisks, `${risks.length} risks`],
+  ];
 
   if (check) {
-    const existing = existsSync(OUTPUT) ? readFileSync(OUTPUT, 'utf8') : '';
-    if (existing !== rendered) {
-      console.error(`${OUTPUT} is stale. Run: npm run prd:extract`);
-      process.exit(1);
+    let stale = false;
+    for (const [path, content] of outputs) {
+      const existing = existsSync(path) ? readFileSync(path, 'utf8') : '';
+      if (existing !== content) {
+        console.error(`${path} is stale. Run: npm run prd:extract`);
+        stale = true;
+      }
     }
-    console.log(`prd-extract: ${OUTPUT} is up to date (${requirements.length} requirements).`);
+    if (stale) process.exit(1);
+    console.log(`prd-extract: ${OUTPUT} and ${RISK_OUTPUT} are up to date (${requirements.length} requirements, ${risks.length} risks).`);
     return;
   }
 
-  writeFileSync(OUTPUT, rendered);
-  console.log(`prd-extract: wrote ${requirements.length} requirements to ${OUTPUT}`);
+  for (const [path, content, what] of outputs) {
+    writeFileSync(path, content);
+    console.log(`prd-extract: wrote ${what} to ${path}`);
+  }
 }
 
 main();

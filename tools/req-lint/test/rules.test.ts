@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
-  ruleProposedRegister, ruleTestRefsResolve, type LintContext, type TestArtifacts,
+  ruleProposedRegister, ruleTestRefsResolve, ruleEvidenceIsProducible,
+  ruleArtifactsAreReferenced, ruleRiskCitationsResolve,
+  type LintContext, type TestArtifacts,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
 
@@ -193,7 +195,8 @@ test('citations-resolve rejects a proposed identifier that is not registered', (
 
 const artifacts = (over: Partial<TestArtifacts> = {}): TestArtifacts => ({
   scenarios: new Set(['T-01', 'T-07']),
-  spikes: new Set(['offline-sync', 'print-queue']),
+  spikes: new Set(['offline-sync', 'print-queue', 'lan-peer-sync']),
+  executableSpikes: new Set(['offline-sync', 'print-queue']),
   uatPacks: new Set(['cashier', 'kitchen']),
   ...over,
 });
@@ -257,4 +260,114 @@ test('test-refs-resolve reports each bad reference separately', () => {
 
 test('test-refs-resolve is inert when a requirement has no references', () => {
   assert.deepEqual(ruleTestRefsResolve(ctx({ annotations: { 'POS-001': { owner: 'Ops' } } }), artifacts()), []);
+});
+
+// ---------------------------------------------------------------------------
+// evidence-is-producible
+// ---------------------------------------------------------------------------
+
+test('evidence-is-producible flags a requirement evidenced only by a procedure', () => {
+  // lan-peer-sync exists on disk and so satisfies test-refs-resolve, but it has
+  // no harness and cannot run until B-03 lifts. The requirement is untested.
+  const findings = ruleEvidenceIsProducible(
+    ctx({ annotations: { 'OFF-012': { test_refs: ['SPIKE-lan-peer-sync'] } } }),
+    artifacts(), false, 'B-03',
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'warning');
+  assert.match(findings[0]!.message, /B-03/);
+});
+
+test('evidence-is-producible becomes an error under the F0 gate', () => {
+  const findings = ruleEvidenceIsProducible(
+    ctx({ annotations: { 'OFF-012': { test_refs: ['SPIKE-lan-peer-sync'] } } }),
+    artifacts(), true, 'B-03',
+  );
+  assert.equal(findings[0]!.severity, 'error');
+});
+
+test('evidence-is-producible passes when one reference can produce evidence', () => {
+  // A procedure alongside something runnable is fine: the requirement can be
+  // evidenced today and more thoroughly later.
+  const findings = ruleEvidenceIsProducible(
+    ctx({ annotations: { 'OFF-012': { test_refs: ['SPIKE-lan-peer-sync', 'T-01'] } } }),
+    artifacts(), true, 'B-03',
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('evidence-is-producible ignores a requirement with no references at all', () => {
+  // That case belongs to f1-coverage; reporting it twice would obscure both.
+  assert.deepEqual(
+    ruleEvidenceIsProducible(ctx({ annotations: { 'OFF-012': { test_refs: [] } } }), artifacts(), true, 'B-03'),
+    [],
+  );
+});
+
+// ---------------------------------------------------------------------------
+// artifacts-are-referenced
+// ---------------------------------------------------------------------------
+
+test('artifacts-are-referenced flags a spike no requirement names', () => {
+  const findings = ruleArtifactsAreReferenced(
+    ctx({ annotations: { 'POS-001': { test_refs: ['SPIKE-offline-sync', 'UAT-cashier', 'UAT-kitchen'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /spikes\/print-queue/);
+});
+
+test('artifacts-are-referenced accepts a reference from the proposed register', () => {
+  // CC-P01..P08 live in proposed.yaml, not annotations.yaml, so without this the
+  // callback spike would read as unreferenced.
+  const findings = ruleArtifactsAreReferenced(
+    ctx({ annotations: { 'POS-001': { test_refs: ['SPIKE-offline-sync', 'UAT-cashier', 'UAT-kitchen'] } } }),
+    artifacts(),
+    ['SPIKE-print-queue'],
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('artifacts-are-referenced ignores procedure spikes', () => {
+  // lan-peer-sync is not runnable, so "what does it prove?" is answered by its
+  // own README rather than by a requirement naming it.
+  const findings = ruleArtifactsAreReferenced(
+    ctx({ annotations: { 'POS-001': { test_refs: ['SPIKE-offline-sync', 'SPIKE-print-queue', 'UAT-cashier', 'UAT-kitchen'] } } }),
+    artifacts(),
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('artifacts-are-referenced flags an orphan UAT pack', () => {
+  const findings = ruleArtifactsAreReferenced(
+    ctx({ annotations: { 'POS-001': { test_refs: ['SPIKE-offline-sync', 'SPIKE-print-queue', 'UAT-cashier'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /uat\/kitchen\.md/);
+});
+
+// ---------------------------------------------------------------------------
+// risk-citations-resolve
+// ---------------------------------------------------------------------------
+
+test('risk-citations-resolve rejects a risk that is not in the register', () => {
+  const findings = ruleRiskCitationsResolve([{ file: 'a.md', id: 'R-11' }], new Set(['R-01', 'R-02']));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'error');
+  assert.match(findings[0]!.message, /risk register/);
+});
+
+test('risk-citations-resolve accepts a registered risk', () => {
+  assert.deepEqual(ruleRiskCitationsResolve([{ file: 'a.md', id: 'R-02' }], new Set(['R-01', 'R-02'])), []);
+});
+
+test('risk-citations-resolve is inert before the register exists', () => {
+  // Otherwise generating the register and citing it would have to land together.
+  assert.deepEqual(ruleRiskCitationsResolve([{ file: 'a.md', id: 'R-99' }], new Set()), []);
+});
+
+test('open-decisions-have-adrs is an error, so the enforcement claim holds', () => {
+  const findings = ruleOpenDecisionsHaveAdrs(ctx({ adrCorpus: '' }), ['OPN-001']);
+  assert.equal(findings[0]!.severity, 'error');
 });

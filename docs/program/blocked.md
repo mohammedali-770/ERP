@@ -43,7 +43,8 @@ We cannot design around the answer. We can only build against a simulator and wa
 
 ### Cost of staying blocked
 
-- Three of the ten executive acceptance scenarios cannot be evidenced.
+- Two of the ten acceptance scenarios cannot be evidenced: `T-04` (payment
+  uncertainty) and `T-05` (automatic refund).
 - ACC-003 (accurate payments, refunds, cash shifts and blind closing) cannot be
   signed off, so **the F1 milestone would be partial even if everything else lands.**
 - The payment ECR spike cannot run: it needs the real acquirer and terminal, and
@@ -88,10 +89,20 @@ ACC-005 cannot be evidenced.
 
 ---
 
-## B-03 — Branch network access for the LAN peer-sync spike
+## B-03 — Branch access for the two procedure spikes
 
-**Blocks:** `spikes/lan-peer-sync` · ADR-0004 (the hardware decision)
-**Unblocked by:** IT, with access to a real branch network or a faithful replica
+**Blocks:** `spikes/lan-peer-sync` · `spikes/ios-durability` · ADR-0004 (the
+hardware decision) · acceptance evidence for `POS-008`, `PRN-014`, `OFF-012`,
+`OFF-013` and `OFF-014`, which name no other test
+**Unblocked by:** IT, with access to a real branch network, real iPads and a
+real LAN printer — or a faithful replica of each
+
+Both spikes are written as procedures rather than code because they test physical
+properties, of the branch network and of iOS, that a simulation would not prove.
+`req-lint` therefore treats a requirement evidenced only by them as having no
+acceptance evidence, and says so under the F0 exit gate. Scoped to the network
+alone until 2026-09-18, which left the iOS spike blocked by nothing anyone
+tracked.
 
 The iPad-only deployment assumes branch Wi-Fi permits client-to-client traffic and
 mDNS discovery. **Many managed networks enable access-point client isolation by

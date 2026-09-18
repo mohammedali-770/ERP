@@ -122,6 +122,12 @@ export interface TestArtifacts {
   readonly scenarios: ReadonlySet<string>;
   /** Spike directory names that exist on disk. */
   readonly spikes: ReadonlySet<string>;
+  /**
+   * Spikes that can actually be run — those with a harness. The rest are
+   * procedures written for a person to carry out against hardware, and cannot
+   * produce evidence until someone does.
+   */
+  readonly executableSpikes: ReadonlySet<string>;
   /** UAT pack names that exist on disk. */
   readonly uatPacks: ReadonlySet<string>;
 }
@@ -163,6 +169,122 @@ export function ruleTestRefsResolve(ctx: LintContext, artifacts: TestArtifacts):
 }
 
 /**
+ * A reference that resolves is not the same as evidence that exists.
+ *
+ * `ruleTestRefsResolve` checks that a test reference points at something real.
+ * It does not check that the something can produce a result. Two of the spikes
+ * are procedures rather than harnesses — they test physical properties of the
+ * branch network and of iOS, which a simulation would not prove — so they run
+ * only when someone has the hardware, and until then they yield nothing.
+ *
+ * Five requirements named those two procedures as their ONLY acceptance test,
+ * and so counted toward a satisfied F0 gate while being untested by that gate's
+ * own definition. That is the same failure `ruleTestRefsResolve` was written to
+ * catch, one level up: a requirement wearing the appearance of a tested one.
+ *
+ * Reported as a warning day to day, because the requirement is correctly
+ * specified and the gap is a blocker rather than a mistake. Promoted to an error
+ * under `--gate f0-exit`, because the gate's question is whether F1 build may
+ * start, and the honest answer for these is not yet.
+ */
+export function ruleEvidenceIsProducible(
+  ctx: LintContext,
+  artifacts: TestArtifacts,
+  gateActive: boolean,
+  blockedBy: string,
+): Finding[] {
+  const severity = gateActive ? 'error' : 'warning';
+  const findings: Finding[] = [];
+
+  for (const [requirementId, ann] of Object.entries(ctx.annotations)) {
+    const refs = list(ann['test_refs']);
+    if (refs.length === 0) continue;
+
+    const procedures = refs.filter(
+      (ref) =>
+        ref.startsWith('SPIKE-') &&
+        artifacts.spikes.has(ref.slice('SPIKE-'.length)) &&
+        !artifacts.executableSpikes.has(ref.slice('SPIKE-'.length)),
+    );
+    if (procedures.length !== refs.length) continue;
+
+    findings.push({
+      rule: 'evidence-is-producible',
+      severity,
+      requirement: requirementId,
+      message:
+        `${requirementId} is evidenced only by ${procedures.join(', ')}, which are procedures with no harness ` +
+        `and cannot run until ${blockedBy} lifts. It has no acceptance evidence and no way to get any.`,
+    });
+  }
+  return findings;
+}
+
+/**
+ * The converse check: every artifact built to prove something must be named by
+ * something it proves.
+ *
+ * `ruleTestRefsResolve` catches a reference pointing at nothing. Nothing caught
+ * the opposite — a spike or a UAT pack that no requirement references — so three
+ * spikes and nine packs could be built, run in CI, and traced to no obligation
+ * at all. An unreferenced artifact is work whose purpose is recorded only in the
+ * memory of whoever built it.
+ */
+export function ruleArtifactsAreReferenced(
+  ctx: LintContext,
+  artifacts: TestArtifacts,
+  extraRefs: readonly string[] = [],
+): Finding[] {
+  const referenced = new Set<string>(extraRefs);
+  for (const ann of Object.values(ctx.annotations)) {
+    for (const ref of list(ann['test_refs'])) referenced.add(ref);
+  }
+
+  const findings: Finding[] = [];
+  for (const spike of artifacts.executableSpikes) {
+    if (!referenced.has(`SPIKE-${spike}`)) {
+      findings.push({
+        rule: 'artifacts-are-referenced', severity: 'warning', requirement: null,
+        message: `spikes/${spike} is run in CI but no requirement names it. What does it prove?`,
+      });
+    }
+  }
+  for (const pack of artifacts.uatPacks) {
+    if (!referenced.has(`UAT-${pack}`)) {
+      findings.push({
+        rule: 'artifacts-are-referenced', severity: 'warning', requirement: null,
+        message: `docs/lab/uat/${pack}.md exists but no requirement names it.`,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Every risk identifier cited in a document must exist in the register.
+ *
+ * `R-02 (Critical)` is quoted as the reason the offline-sync spike exists, and
+ * similar citations appear in eight files. Until the register was extracted from
+ * the PRD they resolved to nothing in this repository, and the `R-` prefix was on
+ * the list of things the citation rule deliberately ignores — so this was the one
+ * class of cross-reference that nothing checked.
+ */
+export function ruleRiskCitationsResolve(
+  citations: ReadonlyArray<{ file: string; id: string }>,
+  riskIds: ReadonlySet<string>,
+): Finding[] {
+  if (riskIds.size === 0) return [];
+  return citations
+    .filter((c) => !riskIds.has(c.id))
+    .map((c) => ({
+      rule: 'risk-citations-resolve',
+      severity: 'error' as const,
+      requirement: c.id,
+      message: `${c.file} cites ${c.id}, which is not in the risk register (docs/program/risk-register.md).`,
+    }));
+}
+
+/**
  * The proposed register must be well formed, and its identifiers must never
  * collide with the approved baseline.
  *
@@ -171,9 +293,18 @@ export function ruleTestRefsResolve(ctx: LintContext, artifacts: TestArtifacts):
  * assign — a reader could mistake a proposal for a decision, which is precisely
  * what the separate `<MODULE>-P<NN>` form exists to prevent.
  */
+export interface ProposedEntry {
+  id: string;
+  module: string;
+  text_en: string;
+  text_ar: string;
+  owner?: string;
+  test_refs?: string[];
+}
+
 export function ruleProposedRegister(
   ctx: LintContext,
-  proposed: ReadonlyArray<{ id: string; module: string; text_en: string; text_ar: string }> | null,
+  proposed: readonly ProposedEntry[] | null,
 ): Finding[] {
   if (proposed === null) return [];
   const findings: Finding[] = [];
@@ -253,12 +384,18 @@ export function ruleF1BacklogCoverage(ctx: LintContext, backlog: string | null):
     }));
 }
 
-/** Every PRD open decision (OPN-*) must map to an ADR that records how it was closed. */
+/**
+ * Every PRD open decision (OPN-*) must map to an ADR that records how it was closed.
+ *
+ * An error rather than a warning, because `cli.ts` exits non-zero only on errors
+ * and CLAUDE.md lists this rule under "things that are enforced, not suggested".
+ * As a warning it could never fail, so the claim was false.
+ */
 export function ruleOpenDecisionsHaveAdrs(ctx: LintContext, openDecisionIds: string[]): Finding[] {
   const findings: Finding[] = [];
   for (const opn of openDecisionIds) {
     if (!ctx.adrCorpus.includes(opn)) {
-      findings.push({ rule: 'open-decisions-have-adrs', severity: 'warning', requirement: opn, message: `${opn} is not referenced by any ADR in docs/adr/.` });
+      findings.push({ rule: 'open-decisions-have-adrs', severity: 'error', requirement: opn, message: `${opn} is not referenced by any ADR in docs/adr/.` });
     }
   }
   return findings;

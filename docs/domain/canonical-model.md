@@ -1,7 +1,7 @@
 # Canonical model
 
 The entities every context agrees on. Not a schema — a shared vocabulary, so
-"branch" and "order" mean one thing across fifteen contexts.
+"branch" and "order" mean one thing across sixteen contexts.
 
 ---
 

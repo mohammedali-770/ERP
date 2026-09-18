@@ -56,11 +56,25 @@ export interface ExtractResult {
   sourceSha256: string;
 }
 
-export function extractFromDocx(docxPath: string): ExtractResult {
+export interface DocumentBlocks {
+  blocks: DocxBlock[];
+  sourceSha256: string;
+}
+
+/**
+ * Reads and parses the document once, so callers that want more than the
+ * requirement table (the risk register, for instance) do not re-read a megabyte
+ * of ZIP to get at the same blocks.
+ */
+export function readBlocks(docxPath: string): DocumentBlocks {
   const buf = readFileSync(docxPath);
   const sourceSha256 = createHash('sha256').update(buf).digest('hex');
   const xml = readZipEntry(buf, 'word/document.xml').toString('utf8');
-  const blocks: DocxBlock[] = parseDocxBlocks(xml);
+  return { blocks: parseDocxBlocks(xml), sourceSha256 };
+}
+
+export function extractFromDocx(docxPath: string): ExtractResult {
+  const { blocks, sourceSha256 } = readBlocks(docxPath);
 
   const requirements: Requirement[] = [];
   let section = '(front matter)';

@@ -5,6 +5,13 @@ not when the calendar says month 2.
 
 Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 
+**It currently reports five errors, and that is correct.** `POS-008`, `PRN-014`,
+`OFF-012`, `OFF-013` and `OFF-014` name only the two procedure spikes, which
+cannot run until B-03 lifts, so those requirements have no acceptance evidence.
+The gate passed over this until 2026-09-18 because a reference that *resolves* was
+being read as evidence that *exists*. A green gate here would mean the check is
+not working, not that F0 is done.
+
 ---
 
 ## Requirements baseline
@@ -43,7 +50,12 @@ Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 - [x] `offline-sync` sustained-load run passed — zero lost, zero duplicated at 245/h per branch
 - [x] `print-queue` run passed — no lost kitchen slips, no silent duplicate invoice
 - [x] `shift-conflict` run passed — 7/7 properties hold
+- [x] `payment-reconciliation` run passed — zero double charges, zero misattribution, refunds idempotent
+- [x] `callback-engine` run passed — nobody called after ordering, no duplicate or stale calls
+- [x] `rating-statistics` run passed — no score below the minimum sample, no driver moved by a kitchen
 - [ ] **ADR-0004 hardware decision evidenced** (OFF-014 forbids approving hardware without this)
+- [ ] **`POS-008`, `PRN-014`, `OFF-012`, `OFF-013`, `OFF-014` have acceptance evidence** — they name
+      only the two procedure spikes, so `req:lint -- --gate f0-exit` reports them as errors until B-03 lifts
 
 ## Estate
 

@@ -261,7 +261,7 @@ both Critical and High risks. That is where the schedule should be protected.
 | Epic | Blocked by | Can still proceed |
 |---|---|---|
 | E8 payments | **D-1** (provider), **B-02** (sandbox) | Build and test against a simulator — already proven |
-| E5, E7 hardware choice | **B-03** (branch network access) | Everything except the final hardware standard |
+| E5, E7 hardware choice | **B-03** (branch access: network, devices, printer) | Everything except the final hardware standard |
 | E11 acceptance | E8 for `ACC-003`, `ACC-005` | All other scenarios |
 
 Nothing is blocked from *starting*. Two things are blocked from *finishing*.

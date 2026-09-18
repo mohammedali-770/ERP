@@ -1,6 +1,6 @@
 # Enablement pack
 
-Five short documents, each addressed to a **specific person outside engineering**,
+Seven short documents, each addressed to a **specific person outside engineering**,
 each ending with something they fill in and hand back.
 
 They exist because the programme is currently waiting on decisions and access
@@ -21,7 +21,7 @@ parallel — and none of them depends on a decision being taken first.
 
 ---
 
-## Two of these are more urgent than the rest
+## Three of these are more urgent than the rest
 
 **Number 7 first.** It is the only item on any list where delay actively increases
 risk rather than merely deferring work — credentials are exposed in a git history

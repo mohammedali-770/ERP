@@ -41,6 +41,11 @@ risk-proving harnesses are all written, and continuous integration is green.
 The F0 exit checklist has **17 open items** once this document closes the first of
 them. **One is engineering's to close by writing something.**
 
+> Updated 2026-09-18: 17 open items, unchanged in substance. Three spike lines
+> were ticked as those harnesses landed, and one line was added — five
+> requirements whose only acceptance test is a procedure blocked on B-03. The
+> F0 gate now reports that as an error rather than passing over it.
+
 | Kind | Count |
 |---|---|
 | Needs an executive or owner decision | 4 |
@@ -283,7 +288,7 @@ something executives should see rather than discover.
 
 ---
 
-## Six small decisions for Finance and Operations
+## Seven small decisions for Finance, Operations and HR
 
 Each of these is cheap to settle now and expensive to change after go-live. Each
 has a recommended answer — the ask is **confirm or correct**, not research.
@@ -296,6 +301,7 @@ has a recommended answer — the ask is **confirm or correct**, not research.
 | **Q-04** | Network printers or Bluetooth? | **Network** | Bluetooth pairs to one device, so a print job cannot move to another till when one sleeps. Cheap now; an estate-wide swap later |
 | **Q-06** | Does a sale at 01:00 belong to yesterday's trading day? | **Yes — the day is set when the shift opens** | Deriving it from midnight splits a night's trading across two days in every report |
 | **Q-11** | Is whole-order kitchen readiness acceptable, or is per-station needed? | **Whole-order for the first release** | Multi-station kitchens get no partial visibility. Confirm this is acceptable before user testing, not during |
+| **Q-15** | May a manager weigh a customer rating when writing an employee evaluation? | **HR decides — no recommendation offered** | Ratings carry no automatic consequence either way (`RTG-P11`). If a human may weigh one, a rating becomes part of an employment record, which changes its retention, its disclosure and whether the challenge process is a right or a courtesy. Answer before collection starts: deciding afterwards is how it gets decided by whoever builds the report |
 
 **Reference:** `docs/program/open-questions.md`
 

@@ -6,6 +6,11 @@ name: F0 exit gate
 #
 # Run it on demand while F0 is in progress. Make it required once the gate is
 # declared (docs/program/f0-exit-criteria.md).
+#
+# EXPECTED RED until B-03 lifts. Five requirements name only the two procedure
+# spikes, which have no harness and cannot produce evidence, so the gate reports
+# them as errors. That is the gate working. Everyday CI (ci.yml) is unaffected —
+# it reports the same five as warnings.
 
 on:
   workflow_dispatch:

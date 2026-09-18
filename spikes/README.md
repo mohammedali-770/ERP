@@ -18,7 +18,9 @@ mechanism under test and asserts the harness detects it. A run that passes its
 scenario but whose control case also passes reports **FAIL** — because it has
 proved nothing.
 
-This is not hypothetical, and it has now caught two real defects:
+This is not hypothetical. Four of the spikes caught something real on their first
+run — three a defect in the mechanism or the harness, one a gate that was wrong
+rather than a mechanism that was:
 
 - The **offline-sync** control case did not fail on its first run, which exposed
   that the prefix-acknowledgement check short-circuited before the idempotency key
@@ -73,6 +75,11 @@ would prove nothing**, so they are written as procedures rather than code.
 configuration question, not an engineering effort, and it can change the hardware
 budget. Running it in week 2 rather than month 8 is the difference between a fact
 and an expensive surprise.
+
+**A procedure is not evidence until someone runs it.** `req-lint` distinguishes
+these two from the runnable spikes, and reports a requirement that names only them
+as having no acceptance evidence — five do. Before that check existed, those five
+satisfied the F0 exit gate by citing a document.
 
 ## Blocked on external parties
 

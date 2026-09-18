@@ -21,6 +21,8 @@ than written up in month 9.
 
 **Covers:** NFR-001, NFR-002, NFR-003, ACC-001, ACC-008, OMS-001, POS-009..012
 
+**Proved in simulation by:** [`spikes/offline-sync`](../../spikes/offline-sync) — proved at 245 orders/h across 3 branches
+
 **Setup.** Lab branch, 3 POS devices, all four intake sources active: cashier,
 customer app, call centre, delivery-platform connector.
 
@@ -43,6 +45,8 @@ vs. final states; exception queue export; throughput and latency series.
 
 **Covers:** OFF-001..011, ACC-004, NFR-016
 
+**Proved in simulation by:** [`spikes/offline-sync`](../../spikes/offline-sync) — link flapping, crashes, clock skew, lost responses
+
 **Setup.** Branch trading normally with active cash orders and kitchen printing.
 
 **Injection.** Disconnect central mid-transaction. Continue trading offline for a
@@ -64,6 +68,8 @@ backlog drain curve; operator screenshots showing sync state.
 
 **Covers:** PRN-002..006, PRN-012, NFR-005, ACC-002
 
+**Proved in simulation by:** [`spikes/print-queue`](../../spikes/print-queue) — no lost slip, no silent duplicate invoice
+
 **Setup.** Simultaneous orders across channels, kitchen printer active.
 
 **Injection.** Stop the kitchen printer mid-load. Restore it. Retry and reroute
@@ -83,6 +89,8 @@ count; photographs of reprint labelling.
 ## T-04 · Payment uncertainty
 
 **Covers:** PAY-005..009, OMS-011, NFR-004, APP-012, APP-013 · **Blocked by B-01**
+
+**Proved in simulation by:** [`spikes/payment-reconciliation`](../../spikes/payment-reconciliation) — zero double charges and zero misattribution under induced ambiguity
 
 **Setup.** Order at payment, terminal or gateway integrated.
 
@@ -105,6 +113,8 @@ against ours; resolution source recorded per case.
 
 **Covers:** PAY-010, PAY-011, PAY-012, ACC-003 · **Blocked by B-01**
 
+**Proved in simulation by:** [`spikes/payment-reconciliation`](../../spikes/payment-reconciliation) — refunds idempotent under retry
+
 **Setup.** A paid order that fails under a rule eligible for automatic refund.
 
 **Injection.** Trigger the failure. Separately, force a refund call to time out and
@@ -122,6 +132,8 @@ be retried.
 ## T-06 · Timed item unavailability
 
 **Covers:** MNU-002, MNU-003, MNU-004, MNU-012, MNU-013
+
+**Proved in simulation by:** **nothing yet.** Multi-channel snooze and concurrent offline snooze are unproven
 
 **Setup.** Item available across POS, customer app, call centre and a delivery
 connector.
@@ -147,6 +159,8 @@ reason.
 
 **Covers:** PRN-007, PRN-008, PRN-009
 
+**Proved in simulation by:** **nothing yet.**
+
 **Setup.** Order fired, kitchen slip printed.
 
 **Injection.** Scan once. Scan again. Reprint the slip and scan the reprint. Scan a
@@ -164,6 +178,8 @@ slip belonging to a different order. Scan with an unauthorised account.
 ## T-08 · Blind cash close across terminals
 
 **Covers:** POS-022..026, ACC-003
+
+**Proved in simulation by:** [`spikes/shift-conflict`](../../spikes/shift-conflict) — 7/7 properties, including the tamper-evident blind count
 
 **Setup.** One cashier, one shift, trading across all three terminals.
 
@@ -190,6 +206,8 @@ hash proving the count preceded the variance.
 
 **Covers:** PAY-016..019, OFF-011, ACC-005 · **Blocked by B-02**
 
+**Proved in simulation by:** **nothing yet**, and it cannot be until B-02 lifts. The local counter and hash chain could be proved without sandbox credentials; the deferred-synchronisation half could not
+
 **Setup.** Three devices as three EGS units, central unreachable.
 
 **Injection.** Issue eligible invoices offline across all three. Restart a device
@@ -210,6 +228,8 @@ Additionally: request a B2B standard invoice while offline.
 ## T-10 · Security and permissions
 
 **Covers:** IAM-001..010, SEC-010, SEC-011, POS-015
+
+**Proved in simulation by:** **nothing yet** — no spike and no UAT pack, though ten requirements name this scenario. The largest coverage hole in the plan
 
 **Setup.** Accounts for cashier, branch manager, finance, and system administrator.
 

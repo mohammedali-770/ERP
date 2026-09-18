@@ -20,6 +20,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | How the call centre integrates | [`docs/architecture/call-centre-integration.md`](docs/architecture/call-centre-integration.md) |
 | How customers rate service, and what ratings may never do | [`docs/architecture/ratings-and-feedback.md`](docs/architecture/ratings-and-feedback.md) |
 | What has been decided, and what has not | [`docs/adr/`](docs/adr/) |
+| What could go wrong, and what is being done about it | [`docs/program/risk-register.md`](docs/program/risk-register.md) — R-01..R-10, extracted from the PRD |
 | What already exists and must not be rebuilt | [`docs/estate/migration-map.md`](docs/estate/migration-map.md) |
 | **What needs a decision from you** | [`docs/program/executive-decision-pack.md`](docs/program/executive-decision-pack.md) |
 | **What others can start today, without engineering** | [`docs/program/enablement/`](docs/program/enablement/README.md) |
@@ -38,8 +39,8 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
    order-integrity watchdog. See [`docs/estate/`](docs/estate/). F1 should absorb
    it, not rebuild it.
 2. **Payment work is blocked.** No provider is selected and a freeze is in force,
-   which puts 16 F1 requirements and three acceptance criteria behind an owner
-   decision. See [B-01](docs/program/blocked.md).
+   which puts 16 F1 requirements, two acceptance scenarios (`T-04`, `T-05`) and
+   `ACC-003` behind an owner decision. See [B-01](docs/program/blocked.md).
 3. **Production hosting is a gate, not a default.** Data residency has not been
    determined and the lab's platform confers no presumption. See
    [`docs/compliance/data-residency-gate.md`](docs/compliance/data-residency-gate.md).
@@ -64,6 +65,9 @@ npm run verify        # traceability + boundaries + typecheck + tests
 | `npm run spike:offline-sync` | Risk spike R-02 (Critical) |
 | `npm run spike:print-queue` | Risk spike R-01 (High) |
 | `npm run spike:shift-conflict` | Shift, cash and blind-count properties |
+| `npm run spike:payment-reconciliation` | Payment ambiguity, double charges, refund idempotency |
+| `npm run spike:callback-engine` | Abandoned-call recovery rules |
+| `npm run spike:rating-statistics` | Rating sample size, ranking and attribution |
 
 No build step: Node 22 runs the TypeScript sources directly by stripping types.
 The only dependencies are TypeScript and Node type definitions — deliberately, so
@@ -76,7 +80,9 @@ docs/          requirements, architecture, adr, estate, domain, compliance, lab,
 packages/      contracts — identifiers, events, sync protocol (depends on nothing)
 services/      identity, menu, orders, payments, printing, sync-gateway (F0: boundaries only)
 apps/          pos (Expo/iPad), console (F0: boundaries only)
-spikes/        runnable risk harnesses, each with a control case
+spikes/        risk harnesses, each with a control case — plus two written as
+               procedures, because they test physical properties a simulation
+               would not prove
 tools/         prd-extract, req-lint, boundary-check
 supabase/      migrations, functions, tests
 ```
@@ -98,6 +104,7 @@ inside a shape the architecture gate approved.
 | F4 | 81 | Finance, HR, payroll, employee app, delivery, assets |
 | F5 | 49 | CRM, loyalty, marketing, analytics, AI |
 | F6 | 2 | Lazywait migration from 1 January 2028 |
+| Future | 2 | Named in the PRD but not committed in this baseline |
 
 `requirements.yaml` and `INDEX.md` are **generated**. Ownership and traceability
 annotations are hand-maintained in `annotations.yaml`; regenerating never discards

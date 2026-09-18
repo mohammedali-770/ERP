@@ -27,9 +27,9 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The catalogue is generated from the vendored PRD. If it drifts, the
-      # baseline everything else traces to is no longer trustworthy.
-      - name: Catalogue is current
+      # The catalogue and the risk register are generated from the vendored PRD.
+      # If either drifts, what everything else traces to is no longer trustworthy.
+      - name: Catalogue and risk register are current
         run: npm run prd:extract -- --check
 
       - name: Index is current
