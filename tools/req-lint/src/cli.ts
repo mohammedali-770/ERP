@@ -13,8 +13,8 @@ import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
-  ruleProposedRegister,
-  type Finding, type LintContext,
+  ruleProposedRegister, ruleTestRefsResolve,
+  type Finding, type LintContext, type TestArtifacts,
 } from './rules.ts';
 
 const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
@@ -23,6 +23,9 @@ const BASELINE = 'docs/requirements/baseline.txt';
 const ADR_DIR = 'docs/adr';
 const F1_BACKLOG = 'docs/program/f1-backlog.md';
 const PROPOSED = 'docs/requirements/proposed.yaml';
+const TEST_PLAN = 'docs/lab/test-plan.md';
+const UAT_DIR = 'docs/lab/uat';
+const SPIKES_DIR = 'spikes';
 
 /** The twelve open decisions the PRD itself records in section 10.2. */
 const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1).padStart(3, '0')}`);
@@ -85,6 +88,35 @@ function loadProposed(): ProposedRequirement[] | null {
   return out;
 }
 
+/**
+ * Discovers what test artifacts actually exist, rather than trusting that a
+ * reference implies one.
+ */
+function loadTestArtifacts(): TestArtifacts {
+  const scenarios = new Set<string>();
+  if (existsSync(TEST_PLAN)) {
+    for (const m of readFileSync(TEST_PLAN, 'utf8').matchAll(/^## (T-\d{2})\b/gm)) {
+      scenarios.add(m[1]!);
+    }
+  }
+
+  const spikes = new Set<string>();
+  if (existsSync(SPIKES_DIR)) {
+    for (const entry of readdirSync(SPIKES_DIR, { withFileTypes: true })) {
+      if (entry.isDirectory()) spikes.add(entry.name);
+    }
+  }
+
+  const uatPacks = new Set<string>();
+  if (existsSync(UAT_DIR)) {
+    for (const file of readdirSync(UAT_DIR)) {
+      if (file.endsWith('.md') && file !== 'README.md') uatPacks.add(file.replace(/\.md$/, ''));
+    }
+  }
+
+  return { scenarios, spikes, uatPacks };
+}
+
 function loadAdrs(): { ids: Set<string>; corpus: string } {
   const ids = new Set<string>();
   let corpus = '';
@@ -109,6 +141,7 @@ function main(): void {
     ? new Set(readFileSync(BASELINE, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')))
     : null;
 
+  const testArtifacts = loadTestArtifacts();
   const proposed = loadProposed();
   const proposedIds = new Set((proposed ?? []).map((p) => p.id));
   const ctx: LintContext = { requirements, annotations, adrIds, baseline, adrCorpus };
@@ -122,6 +155,7 @@ function main(): void {
     ...ruleOpenDecisionsHaveAdrs(ctx, OPEN_DECISIONS),
     ...ruleCitationsResolve(ctx, [...collectCitations('docs'), ...collectCitations('spikes')], proposedIds),
     ...ruleProposedRegister(ctx, proposed),
+    ...ruleTestRefsResolve(ctx, testArtifacts),
     ...ruleF1BacklogCoverage(ctx, existsSync(F1_BACKLOG) ? readFileSync(F1_BACKLOG, 'utf8') : null),
   ];
 
@@ -136,7 +170,11 @@ function main(): void {
     byRule.set(f.rule, bucket);
   }
 
-  console.log(`req-lint: ${requirements.length} requirements, ${proposedIds.size} proposed, ${adrIds.size} ADRs, gate=${gateActive ? 'f0-exit' : 'off'}`);
+  console.log(
+    `req-lint: ${requirements.length} requirements, ${proposedIds.size} proposed, ${adrIds.size} ADRs, ` +
+    `${testArtifacts.scenarios.size} scenarios, ${testArtifacts.uatPacks.size} UAT packs, ${testArtifacts.spikes.size} spikes, ` +
+    `gate=${gateActive ? 'f0-exit' : 'off'}`,
+  );
   for (const [rule, items] of byRule) {
     const sev = items[0]!.severity;
     console.log(`\n  ${sev === 'error' ? 'ERROR' : 'warn '} ${rule} (${items.length})`);

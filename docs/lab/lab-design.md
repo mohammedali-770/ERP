@@ -62,7 +62,8 @@ Beyond feature testing:
 - **The ten acceptance scenarios** (T-01..T-10), repeatably — see [`test-plan.md`](./test-plan.md)
 - **Sustained load** above 200 orders/hour from four concurrent channels (NFR-001, NFR-002)
 - **A restore exercise** against the chosen RPO/RTO tier (SEC-013, ADR-0009)
-- **Cashier and kitchen UAT** with representative users (ACC-006)
+- **Cashier and kitchen UAT** with representative users (ACC-006) — packs in
+  [`uat/`](./uat/README.md)
 - **Training mode**, isolated from financial, stock and ZATCA records (POS-029)
 
 ## Access and safety

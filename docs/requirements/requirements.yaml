@@ -1184,6 +1184,7 @@ requirements:
     test_refs:
       - "T-07"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-002"
     module: "PRN"
@@ -1254,6 +1255,7 @@ requirements:
     test_refs:
       - "T-03"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-007"
     module: "PRN"
@@ -1268,6 +1270,7 @@ requirements:
     test_refs:
       - "T-07"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-008"
     module: "PRN"
@@ -1282,6 +1285,7 @@ requirements:
     test_refs:
       - "T-07"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-009"
     module: "PRN"
@@ -1296,6 +1300,7 @@ requirements:
     test_refs:
       - "T-07"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-010"
     module: "PRN"
@@ -1310,6 +1315,7 @@ requirements:
     test_refs:
       - "T-07"
       - "SPIKE-print-queue"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "PRN-011"
     module: "PRN"
@@ -4836,7 +4842,8 @@ requirements:
     owner: "Product Owner"
     adr_refs: []
     test_refs:
-      - "UAT-executive-acceptance"
+      - "UAT-cashier"
+      - "UAT-kitchen"
     estate_refs: []
   - id: "ACC-007"
     module: "ACC"

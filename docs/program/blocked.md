@@ -167,6 +167,9 @@ recorded in the privacy assessment rather than treated as purely an IT matter.
 **Cost of staying blocked:** building an integration against credentials already
 known to be compromised means doing the work twice.
 
+**Ready to execute:** [`enablement/07-credential-rotation-runbook.md`](./enablement/07-credential-rotation-runbook.md)
+— which credentials, in what order, and what breaks if done wrong.
+
 ---
 
 ## B-07 — PBX platform stability unresolved
@@ -191,6 +194,9 @@ this. The *diagnosis* of future problems does not.
 **Cost of staying blocked:** low today, because CC work is F2. It becomes the
 critical path the moment call-centre work starts, and a vendor ticket has lead
 time.
+
+**Ready to send:** [`enablement/06-pbx-vendor-ticket.md`](./enablement/06-pbx-vendor-ticket.md)
+— drafted with the evidence assembled; fill in three fields and send.
 
 ---
 

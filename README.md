@@ -26,6 +26,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | What still needs a human decision | [`docs/program/open-questions.md`](docs/program/open-questions.md) |
 | When things happen | [`docs/program/roadmap.md`](docs/program/roadmap.md) |
 | What F1 actually involves | [`docs/program/f1-backlog.md`](docs/program/f1-backlog.md) |
+| How real users will test it | [`docs/lab/uat/`](docs/lab/uat/README.md) |
 | How to work in this repository | [`docs/program/governance.md`](docs/program/governance.md) |
 
 ## Three things worth knowing immediately

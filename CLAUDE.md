@@ -97,6 +97,8 @@ npm run verify        # traceability + boundaries + typecheck + tests
 | Requirement identifiers are stable (PRG-015) | `baseline.txt` + `req:lint` |
 | Every F1 requirement belongs to an epic | `req:lint` against `f1-backlog.md` |
 | Every requirement cited in a document exists | `req:lint` |
+| **Every test reference resolves to a real artifact** | `req:lint` |
+| Proposed requirement identifiers are well formed and never collide | `req:lint` against `proposed.yaml` |
 | Services do not import each other | `boundary:check` |
 | Every PRD open decision maps to an ADR | `req:lint` |
 | The catalogue matches the source PRD | `prd:extract -- --check` |
@@ -113,15 +115,20 @@ architecture gate (PRG-010, PRG-011) has not been passed.
 
 - `docs/requirements/` — 387 requirements, generated from the vendored PRD.
   `requirements.yaml` and `INDEX.md` are **generated**; edit `annotations.yaml`.
+  `proposed.yaml` holds requirements originating outside the PRD, with their own
+  `<MODULE>-P<NN>` identifier space.
 - `docs/architecture/` — invariants and the core transactional design. Read
   `invariants.md` before changing anything structural.
-- `docs/adr/` — decisions. 13 of 15 are still `Proposed`; that is correct, not an
-  oversight.
+- `docs/adr/` — decisions. Most are still `Proposed`; that is correct, not an
+  oversight — the PRD requires executive approval after a costed study.
 - `docs/estate/` — what already exists. **Read this before proposing to build
   anything**; several F1 requirements describe behaviour already working in
   production.
-- `docs/program/` — roadmap, F1 backlog, blockers, open questions, and the
-  executive decision pack.
+- `docs/program/` — roadmap, F1 backlog, blockers, open questions, the executive
+  decision pack, and `enablement/` — documents written for specific people
+  outside engineering, each ending with something they fill in and hand back.
+- `docs/lab/uat/` — user acceptance packs. **Run by real cashiers and kitchen
+  staff, not by the team.** They need Arabic translation before use.
 - `spikes/` — throwaway proving code. Each carries a **control case** that
   deliberately breaks the mechanism under test; a run whose control also passes
   reports FAIL, because it has proved nothing.

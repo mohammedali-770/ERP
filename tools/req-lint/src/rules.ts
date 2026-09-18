@@ -106,6 +106,63 @@ export function ruleF1Coverage(ctx: LintContext, gateActive: boolean): Finding[]
 }
 
 /**
+ * Every test reference must resolve to something that exists.
+ *
+ * The F0 exit gate requires each F1/P0 requirement to name an acceptance test.
+ * Without this rule that check is satisfied by *any* non-empty string, which is
+ * exactly what happened: thirteen of twenty-three references — every `SPIKE-*`
+ * and every `UAT-*` — pointed at nothing, and the gate passed anyway.
+ *
+ * A requirement whose test reference resolves to nothing is an untested
+ * requirement wearing the appearance of a tested one, which is worse than an
+ * obviously untested one.
+ */
+export interface TestArtifacts {
+  /** Scenario identifiers defined in the acceptance test plan. */
+  readonly scenarios: ReadonlySet<string>;
+  /** Spike directory names that exist on disk. */
+  readonly spikes: ReadonlySet<string>;
+  /** UAT pack names that exist on disk. */
+  readonly uatPacks: ReadonlySet<string>;
+}
+
+export function ruleTestRefsResolve(ctx: LintContext, artifacts: TestArtifacts): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const [requirementId, ann] of Object.entries(ctx.annotations)) {
+    for (const ref of list(ann['test_refs'])) {
+      let resolves: boolean;
+      let expected: string;
+
+      if (ref.startsWith('SPIKE-')) {
+        resolves = artifacts.spikes.has(ref.slice('SPIKE-'.length));
+        expected = `a directory under spikes/`;
+      } else if (ref.startsWith('UAT-')) {
+        resolves = artifacts.uatPacks.has(ref.slice('UAT-'.length));
+        expected = `a pack under docs/lab/uat/`;
+      } else if (/^T-\d{2}$/.test(ref)) {
+        resolves = artifacts.scenarios.has(ref);
+        expected = `a scenario in docs/lab/test-plan.md`;
+      } else {
+        findings.push({
+          rule: 'test-refs-resolve', severity: 'error', requirement: requirementId,
+          message: `${requirementId} references "${ref}", which is not a recognised form. Use T-NN, SPIKE-<name> or UAT-<name>.`,
+        });
+        continue;
+      }
+
+      if (!resolves) {
+        findings.push({
+          rule: 'test-refs-resolve', severity: 'error', requirement: requirementId,
+          message: `${requirementId} references "${ref}", which does not resolve to ${expected}.`,
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+/**
  * The proposed register must be well formed, and its identifiers must never
  * collide with the approved baseline.
  *

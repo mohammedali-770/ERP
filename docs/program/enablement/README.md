@@ -16,10 +16,22 @@ parallel — and none of them depends on a decision being taken first.
 | 3 | [Counsel brief — data residency](./03-counsel-brief-data-residency.md) | **Executive → legal** | Instruct now, weeks to answer | Production hosting (D-4) |
 | 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | Offline invoicing evidence (B-02) |
 | 5 | [Cost comparison template](./05-cost-comparison-template.md) | **Whoever gathers quotes** | Ongoing | Tiered options (PRG-010, PRG-012) |
+| 6 | [PBX vendor support ticket](./06-pbx-vendor-ticket.md) | **IT** | Minutes to send | B-07, and all call-centre work |
+| 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — the only item where delay increases risk** |
 
 ---
 
-## Start with number 1
+## Two of these are more urgent than the rest
+
+**Number 7 first.** It is the only item on any list where delay actively increases
+risk rather than merely deferring work — credentials are exposed in a git history
+and every day they stay valid is a day they could be used.
+
+**Number 6 next**, because a vendor ticket has lead time and none exists yet.
+
+Then number 1.
+
+## Start with number 1 for everything else
 
 It needs **two laptops and half an hour**. No iPads, no device management, none of
 the new software.

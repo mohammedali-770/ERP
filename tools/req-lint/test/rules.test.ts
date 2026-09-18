@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
-  ruleProposedRegister, type LintContext,
+  ruleProposedRegister, ruleTestRefsResolve, type LintContext, type TestArtifacts,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
 
@@ -189,4 +189,72 @@ test('citations-resolve rejects a proposed identifier that is not registered', (
   const findings = ruleCitationsResolve(ctx(), [{ file: 'a.md', id: 'CC-P99' }], new Set(['CC-P01']));
   assert.equal(findings.length, 1);
   assert.match(findings[0]!.message, /neither the requirement catalogue nor the proposed register/);
+});
+
+const artifacts = (over: Partial<TestArtifacts> = {}): TestArtifacts => ({
+  scenarios: new Set(['T-01', 'T-07']),
+  spikes: new Set(['offline-sync', 'print-queue']),
+  uatPacks: new Set(['cashier', 'kitchen']),
+  ...over,
+});
+
+test('test-refs-resolve accepts references that exist', () => {
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'POS-001': { test_refs: ['T-01', 'SPIKE-print-queue', 'UAT-cashier'] } } }),
+    artifacts(),
+  );
+  assert.deepEqual(findings, []);
+});
+
+test('test-refs-resolve flags a UAT pack that does not exist', () => {
+  // The gap this rule was written for: every UAT-* reference pointed at nothing,
+  // and the F0 exit gate passed anyway because it only checked for a non-empty
+  // string.
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'POS-001': { test_refs: ['UAT-nonexistent'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /docs\/lab\/uat/);
+});
+
+test('test-refs-resolve flags a spike directory that does not exist', () => {
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'OFF-001': { test_refs: ['SPIKE-imaginary'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /spikes\//);
+});
+
+test('test-refs-resolve flags a scenario absent from the test plan', () => {
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'POS-001': { test_refs: ['T-99'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /test-plan/);
+});
+
+test('test-refs-resolve rejects an unrecognised reference form', () => {
+  // Catches a typo that would otherwise be silently treated as some new kind of
+  // artifact nobody has to produce.
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'POS-001': { test_refs: ['SOMETHING-ELSE'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /not a recognised form/);
+});
+
+test('test-refs-resolve reports each bad reference separately', () => {
+  const findings = ruleTestRefsResolve(
+    ctx({ annotations: { 'POS-001': { test_refs: ['UAT-nope', 'SPIKE-nope', 'T-99'] } } }),
+    artifacts(),
+  );
+  assert.equal(findings.length, 3);
+});
+
+test('test-refs-resolve is inert when a requirement has no references', () => {
+  assert.deepEqual(ruleTestRefsResolve(ctx({ annotations: { 'POS-001': { owner: 'Ops' } } }), artifacts()), []);
 });

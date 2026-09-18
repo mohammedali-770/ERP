@@ -4,8 +4,12 @@ The PRD's ten minimum acceptance scenarios (§8.2), expanded into executable
 specifications. Each states setup, injection, expected result and the evidence
 captured.
 
-These are the scenarios referenced by `test_refs` in the requirement catalogue, so
-`npm run req:lint -- --gate f0-exit` fails if a scenario stops being referenced.
+These are the scenarios referenced by `test_refs` in the requirement catalogue, and
+`npm run req:lint` fails if a reference stops resolving to a scenario defined here.
+
+**These are run by the team.** The other half — whether real cashiers and kitchen
+staff can actually operate the system — is [`uat/`](./uat/README.md), and `ACC-006`
+requires both.
 
 **Evidence accumulates continuously.** A scenario run produces a machine-readable
 result, so the executive evidence package is assembled from real artifacts rather

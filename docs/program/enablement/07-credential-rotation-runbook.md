@@ -1,0 +1,149 @@
+# Credential rotation runbook — PBX
+
+**For:** IT
+**Unblocks:** B-06
+**Time needed:** about two hours, plus a maintenance window for the SIP step
+
+---
+
+## What happened and what it means
+
+A PBX diagnostic bundle was committed to the `yeastarissue` repository. It
+contains plaintext credentials.
+
+**The repository is private, so exposure is limited to people with access to it.
+But the credentials are in git history, and deleting the file does not remove
+them.** Anyone who can read the repository — now, or at any point since it was
+pushed — could have read them.
+
+There is no evidence of misuse. There is also no way to rule it out, which is why
+rotation is the right response rather than monitoring.
+
+## What is exposed
+
+| Credential | File in the bundle | Blast radius if used |
+|---|---|---|
+| **SIP extension passwords** | `asterisk/pjsip_auth.conf`, `users.conf` | **Highest** — register a rogue endpoint and place calls at your cost, or intercept calls |
+| **OpenAPI client secret** | `openapi.log` | Full API access: read CDR, recordings, contacts; place calls; change configuration |
+| **AMI secrets** (two accounts) | `asterisk/manager.conf` | Deep call control. Mitigated: the ACL permits loopback only |
+| **Redis password** | `asterisk/cdr_redis.conf` | Read the CDR stream. Mitigated: bound to loopback |
+| **Database credentials** | `res_config_mysql.conf` | Depends on what that database holds |
+| **Voicemail configuration** | `voicemail.conf` | Voicemail access |
+
+Also in the bundle: the tunnel hostname, public source IP addresses, and **three
+Asterisk core dumps of 202–451 MB**.
+
+> **The core dumps are a separate problem.** A core dump is a snapshot of process
+> memory, which for a PBX can contain call audio buffers and customer telephone
+> numbers as well as credentials. Rotating passwords does not address that. It is
+> recorded in [`../../compliance/pdpl-assessment.md`](../../compliance/pdpl-assessment.md)
+> because the question — what personal data was in them, and what follows — needs
+> a privacy answer, not only a technical one.
+
+---
+
+## Order matters
+
+Rotate **outward-facing and highest-blast-radius first**, and leave the ones
+protected by a loopback ACL until last. If you are interrupted halfway, you want
+to have done the ones that matter.
+
+### 1 · OpenAPI client secret — *do this first*
+
+Externally reachable through the RAS tunnel, and the widest access.
+
+1. PBX web console → the API or integration settings where the client is defined.
+2. Regenerate the client secret.
+3. Update anything storing it. **As far as we know nothing currently uses it** —
+   the integration is not built, and `get_token` was failing anyway — but check
+   for scripts or test tooling before assuming.
+
+**Breaks if done wrong:** nothing today. This is the safest one to do immediately.
+
+### 2 · SIP extension passwords — *needs a maintenance window*
+
+**The highest risk, and the most disruptive to change.** A stolen SIP credential
+lets someone register a handset and place calls billed to you.
+
+1. Decide scope: every extension, or only those in the bundle (116–135, 222)?
+   **Recommendation: all of them.** A partial rotation leaves you unsure which are
+   clean.
+2. Change passwords in the PBX.
+3. **Every affected phone and softphone must be re-provisioned.** Desk phones
+   using auto-provisioning pick it up on reboot; manually configured devices and
+   Linkus clients need attention individually.
+4. Verify each extension re-registers before closing the window.
+
+**Breaks if done wrong:** phones stop registering and cannot make or receive
+calls. Do it outside trading hours and have the auto-provisioning path confirmed
+working beforehand.
+
+### 3 · Database credentials
+
+1. Establish what `res_config_mysql.conf` points at and what depends on it — this
+   is the one item where **we genuinely do not know the blast radius**.
+2. Rotate at the database, then update the PBX configuration.
+3. Restart the affected service and confirm it reconnects.
+
+**Breaks if done wrong:** whichever PBX feature uses that database stops working.
+Know what it is before you change it.
+
+### 4 · AMI secrets
+
+Both accounts in `manager.conf`. Lower urgency because the ACL permits `127.0.0.1`
+only — an attacker would already need to be on the box.
+
+**Breaks if done wrong:** internal components using AMI lose access. Check what is
+configured against those accounts before changing them.
+
+### 5 · Redis password
+
+Loopback-bound, same reasoning. Update `cdr_redis.conf` and restart the consumer.
+
+**Breaks if done wrong:** the CDR pipeline stops, so call records stop being
+written. Verify new calls appear afterwards.
+
+### 6 · Voicemail
+
+Lowest urgency. Rotate per your voicemail policy.
+
+---
+
+## The repository itself
+
+Rotation makes the leaked values worthless, which is the point. Separately:
+
+- **Deleting the file does not remove it from history.** Purging history requires
+  rewriting it, which is a destructive operation on a shared repository and needs
+  the owner's explicit approval.
+- **Recommendation:** once rotation is complete, treat purging as optional rather
+  than urgent — the values no longer work. The core dumps are the stronger reason
+  to remove it, because their contents are not fixed by rotation.
+- **Do not commit another diagnostic bundle.** If vendor support needs one, send
+  it through their support channel rather than a repository.
+
+---
+
+## Record when done
+
+| Credential | Rotated | By | Date |
+|---|---|---|---|
+| OpenAPI client secret | ☐ | | |
+| SIP extension passwords | ☐ | | |
+| Database credentials | ☐ | | |
+| AMI secrets | ☐ | | |
+| Redis password | ☐ | | |
+| Voicemail | ☐ | | |
+
+Then close B-06 in [`../blocked.md`](../blocked.md), and record what the core
+dumps contained — or that it could not be established — for the privacy
+assessment.
+
+---
+
+## Scope note
+
+This describes what was found in a diagnostic bundle and a sensible order for
+addressing it. **It is not a security assessment**, and it does not establish
+whether anything was actually accessed. If you need that determination, it is a
+separate exercise and needs someone qualified to make it.

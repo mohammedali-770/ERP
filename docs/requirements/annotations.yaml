@@ -421,6 +421,7 @@ PRN-001:
   test_refs:
     - T-07
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-002:
   status: "baselined"
@@ -456,6 +457,7 @@ PRN-006:
   test_refs:
     - T-03
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-007:
   status: "baselined"
@@ -463,6 +465,7 @@ PRN-007:
   test_refs:
     - T-07
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-008:
   status: "baselined"
@@ -470,6 +473,7 @@ PRN-008:
   test_refs:
     - T-07
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-009:
   status: "baselined"
@@ -477,6 +481,7 @@ PRN-009:
   test_refs:
     - T-07
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-010:
   status: "baselined"
@@ -484,6 +489,7 @@ PRN-010:
   test_refs:
     - T-07
     - SPIKE-print-queue
+    - UAT-kitchen
 
 PRN-012:
   status: "baselined"
@@ -1005,7 +1011,8 @@ ACC-006:
   status: "baselined"
   owner: "Product Owner"
   test_refs:
-    - UAT-executive-acceptance
+    - UAT-cashier
+    - UAT-kitchen
 
 ACC-007:
   status: "baselined"

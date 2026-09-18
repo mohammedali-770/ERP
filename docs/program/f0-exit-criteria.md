@@ -69,6 +69,7 @@ Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 - [x] Hardware decision matrix with the measurements that decide it
 - [x] T-01..T-10 expanded into executable specifications
 - [x] Evidence package template
+- [x] UAT packs written for cashier, kitchen, menu, customer app, reporting, support, lab readiness, release gate and executive acceptance
 - [ ] Lab physically built and accepting test traffic
 - [ ] Representative cashier and kitchen users identified for UAT
 

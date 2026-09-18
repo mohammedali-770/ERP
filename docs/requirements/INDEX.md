@@ -66,7 +66,7 @@ _8.1 Lab and release requirements_
 | `ACC-003` | F1 | P0 | Product Owner | T-05 | Executive acceptance shall require accurate payments, refunds, cash shifts and blind closing. |
 | `ACC-004` | F1 | P0 | Product Owner | T-02, SPIKE-offline-sync | Executive acceptance shall require stable offline operation and automatic recovery synchronization. |
 | `ACC-005` | F1 | P0 | Product Owner | T-09 | Executive acceptance shall require correct ZATCA documents and successful deferred synchronization. |
-| `ACC-006` | F1 | P0 | Product Owner | UAT-executive-acceptance | Executive acceptance shall require cashier and kitchen user-acceptance testing and documented training readiness. |
+| `ACC-006` | F1 | P0 | Product Owner | UAT-cashier, UAT-kitchen | Executive acceptance shall require cashier and kitchen user-acceptance testing and documented training readiness. |
 | `ACC-007` | F1 | P0 | Product Owner | UAT-executive-acceptance | Executive acceptance shall require accurate management reports reconciled to source transactions. |
 | `ACC-008` | F1 | P0 | Product Owner | T-01, SPIKE-offline-sync | Executive acceptance shall require successful testing above 200 orders per hour per branch with the approved device configuration. |
 | `ACC-009` | F2 | P0 | — | — | All critical and high defects affecting order, payment, printing, ZATCA, security or synchronization shall be closed or formally accepted before production approval. |
@@ -559,16 +559,16 @@ _5.6 Kitchen printing and barcode readiness_
 
 | ID | Phase | Pri | Owner | Tests | Requirement |
 |---|---|---|---|---|---|
-| `PRN-001` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue | Printed cashier receipts and printed kitchen slips shall be the production interfaces required in the first release. |
+| `PRN-001` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue, UAT-kitchen | Printed cashier receipts and printed kitchen slips shall be the production interfaces required in the first release. |
 | `PRN-002` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | The branch print subsystem shall accept simultaneous orders from cashiers, call center, customer app and delivery platforms without losing or duplicating jobs. |
 | `PRN-003` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Every print job shall have a persistent unique identifier linked to the order and document type. |
 | `PRN-004` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Print jobs shall be queued durably and survive application restart, device restart and temporary network failure. |
 | `PRN-005` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | The POS shall display queued, printing, printed, failed, retrying and reprinted states. |
-| `PRN-006` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Order changes and cancellations shall print clearly and shall reference the original order and affected items. |
-| `PRN-007` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue | A kitchen slip shall contain a unique machine-readable barcode associated with the correct order. |
-| `PRN-008` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue | Scanning the approved kitchen barcode shall move the order to Ready, subject to authorization and duplicate-scan protection. |
-| `PRN-009` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue | The first workflow shall treat a barcode scan as readiness for the full order; station-level or partial readiness remains a future design decision. |
-| `PRN-010` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue | Receipt and kitchen templates shall support Arabic and English, channel, order type, modifiers, notes, timestamps and order identifiers. |
+| `PRN-006` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue, UAT-kitchen | Order changes and cancellations shall print clearly and shall reference the original order and affected items. |
+| `PRN-007` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue, UAT-kitchen | A kitchen slip shall contain a unique machine-readable barcode associated with the correct order. |
+| `PRN-008` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue, UAT-kitchen | Scanning the approved kitchen barcode shall move the order to Ready, subject to authorization and duplicate-scan protection. |
+| `PRN-009` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue, UAT-kitchen | The first workflow shall treat a barcode scan as readiness for the full order; station-level or partial readiness remains a future design decision. |
+| `PRN-010` | F1 | P0 | IT and system administration | T-07, SPIKE-print-queue, UAT-kitchen | Receipt and kitchen templates shall support Arabic and English, channel, order type, modifiers, notes, timestamps and order identifiers. |
 | `PRN-011` | F1 | P1 | — | — | The print subsystem shall prevent a successful printer acknowledgement from being treated as proof that the kitchen received an unreadable or incomplete document. |
 | `PRN-012` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Authorized users shall be able to retry failed jobs and route them to a configured fallback printer where supported. |
 | `PRN-013` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Printing shall continue during central internet outage for orders available within the branch offline environment. |
