@@ -25,6 +25,7 @@ Related: Q-07 · ADR-0002 · ADR-0012
 | Attendance | Times, locations, device, biometric source | Employee | HR | **High** — location tracking |
 | Performance | Evaluations, disciplinary records | Employee | HR | **High** |
 | Driver telemetry | Assignment, status, customer contact during delivery | Employee + customer | Delivery | **High** |
+| Service ratings | Dimension scores, free-text comments, attributed employee, submitting customer | **Employee + customer** | Ratings, CRM | **High** — an identified customer's opinion of a named employee |
 
 ---
 
@@ -58,6 +59,32 @@ obligations.
 Access limited to assigned companies, brands, branches, departments and functions
 (IAM-006). Payroll and sensitive HR data visible only to specifically authorised
 roles (HR-015). Periodic access review.
+
+### Ratings (RTG-P09, RTG-P11, RTG-P12)
+
+Proposed requirements, and a new flow in **both** directions: a rating links an
+identified customer to a named employee's performance record.
+
+| Control | Requirement |
+|---|---|
+| The rated employee never learns who rated them — not a name, not a masked number, not an order that identifies one, at any time | `RTG-P12` |
+| The employee sees their own ratings in aggregate and may contest one, with the original retained | `RTG-P09`, `RTG-P10` |
+| No automated decision about a person is taken from a rating | `RTG-P11` |
+
+**`RTG-P11` is the PDPL-relevant one.** A rating that automatically affected pay,
+discipline, scheduling or work allocation would be automated decision-making about
+an identified individual with a significant effect on them. Keeping the human in
+the loop is a design decision in ADR-0017 and a compliance position here; the two
+must not drift apart.
+
+Free-text comments are the harder half of `RTG-P12`: customers write *"the lady at
+the counter, I come every Thursday"*, which identifies both parties in one
+sentence. Comments reaching an employee view are aggregated or withheld, never
+passed through verbatim.
+
+Open: whether a rating may be weighed in a formal evaluation (`Q-15`). If it may,
+it becomes part of an employment record and its retention, disclosure and
+challenge obligations change.
 
 ### Purpose limitation for delivery (DLV-010)
 

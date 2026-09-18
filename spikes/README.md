@@ -32,6 +32,13 @@ This is not hypothetical, and it has now caught two real defects:
   path still ran the correct check alongside it. Its measurement was also
   number-scoped where the requirement is per abandoned call, reporting correct
   behaviour as a defect. Both are written up in that spike's README.
+- The **rating-statistics** spike failed its own first run on a gate that was
+  wrong rather than a mechanism that was: it demanded the bottom-three list be
+  stable between two draws from an unchanged population, which neither method
+  achieves. The gate was replaced by one on the harm — naming someone who is
+  above the median — and the instability was kept as a **reported finding**,
+  because it argues against publishing a bottom-three at all. A gate there would
+  have been tuned until it passed, and the result would have been buried.
 
 ---
 
@@ -44,6 +51,7 @@ This is not hypothetical, and it has now caught two real defects:
 | [`shift-conflict`](./shift-conflict) | T-08 | Deterministic merge, zero cash lost, append-only correction, tamper-evident blind count | `npm run spike:shift-conflict` |
 | [`payment-reconciliation`](./payment-reconciliation) | **D-1 design risk** | Zero double charges and zero misattribution under induced ambiguity; refunds idempotent | `npm run spike:payment-reconciliation` |
 | [`callback-engine`](./callback-engine) | CC-P01..P08 design risk | Nobody called after ordering; no duplicates, stale or out-of-hours calls | `npm run spike:callback-engine` |
+| [`rating-statistics`](./rating-statistics) | RTG-P03..P05 design risk | Nobody scored below the minimum sample; the person named worst is not above the median; no driver moved by a kitchen | `npm run spike:rating-statistics` |
 
 Each writes a machine-readable report to `<spike>/out/report.json`, so the
 executive evidence package is assembled from artifacts rather than written up.

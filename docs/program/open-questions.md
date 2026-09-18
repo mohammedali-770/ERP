@@ -189,6 +189,39 @@ Related: `CC-007`, ADR-0016.
 
 ---
 
+## Q-15 — May a human weigh a customer rating in an employee's evaluation?
+
+**Decides:** HR, with the Product Owner · **Expensive after:** the first rating is collected
+
+`RTG-P11` forbids ratings from **automatically** causing any pay, disciplinary,
+scheduling or allocation consequence. It deliberately does not answer the next
+question: whether a manager may consider them when writing the `HR-014`
+evaluation.
+
+That is HR's answer to give, not engineering's. It changes what must be built:
+
+- **If no** — ratings stay a coaching surface, and the employee view is the whole
+  feature.
+- **If yes** — a rating becomes part of an employment record, and everything that
+  implies follows: retention, disclosure to the employee before it is used, the
+  challenge process in `RTG-P10` becoming a formal right rather than a courtesy,
+  and almost certainly a Saudi labour-law review.
+
+The same owner sets two values that look like configuration and are policy:
+
+| Value | Why it is not an engineering choice |
+|---|---|
+| Minimum ratings before a score exists (`RTG-P04`) | It decides who is visible at all. `spikes/rating-statistics/` shows 30 works at a 25% response rate; the business decides what it is willing to act on |
+| Window for accepting a rating (`RTG-P02`) | Longer collects more and measures memory rather than service |
+
+**Collecting the data first and deciding afterwards is the failure mode.** Once
+ratings exist, the pull toward using them for evaluation is strong and the
+decision gets made by whoever builds the report.
+
+Related: `RTG-P10`, `RTG-P11`, `HR-014`, ADR-0017.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

@@ -45,3 +45,5 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0005](./ADR-0005-identifiers-and-idempotency.md) | Device-minted identifiers as idempotency keys |
 | [ADR-0006](./ADR-0006-zatca-egs-granularity.md) | ZATCA EGS unit granularity and offline invoicing |
 | [ADR-0015](./ADR-0015-estate-consolidation.md) | Relationship between the ERP and the existing estate |
+| [ADR-0016](./ADR-0016-call-centre-integration.md) | The reachable PBX surface, and designing for a platform that restarts |
+| [ADR-0017](./ADR-0017-ratings-and-feedback.md) | What ratings are for, and what they must never automatically do |

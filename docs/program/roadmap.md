@@ -34,7 +34,8 @@ and projection framework. **Gates everything else.**
 Requirements: PRG-002, IAM-001..010, SEC-001..008.
 
 ### W2 · Risk retirement *(weeks 1–8, front-loaded)*
-The five spikes. Two need physical hardware and a real branch network (B-03).
+The spikes. Six run today against simulators; two need physical hardware and a
+real branch network (B-03).
 **Outputs decide ADR-0004**, which the hardware budget depends on.
 
 ### W3 · Menu and availability *(months 2–4)*
