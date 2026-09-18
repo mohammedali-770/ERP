@@ -80,7 +80,7 @@ live payment path is not.
 
 ```bash
 npm ci
-npm run verify        # traceability + boundaries + typecheck + tests
+npm run verify        # generated files + traceability + boundaries + typecheck + tests
 ```
 
 ### Before you finish

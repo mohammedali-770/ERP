@@ -51,12 +51,12 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 
 ```bash
 npm ci
-npm run verify        # traceability + boundaries + typecheck + tests
+npm run verify        # generated files + traceability + boundaries + typecheck + tests
 ```
 
 | Command | What it does |
 |---|---|
-| `npm run prd:extract` | Regenerate the requirement catalogue from the vendored PRD |
+| `npm run prd:extract` | Regenerate the requirement catalogue and the risk register from the vendored PRD |
 | `npm run req:index` | Regenerate the human-readable requirement index |
 | `npm run req:lint` | Check traceability (add `-- --gate f0-exit` for the strict gate) |
 | `npm run boundary:check` | Enforce the bounded-context dependency rule |

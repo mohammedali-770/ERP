@@ -381,7 +381,7 @@ _7.1 Nonfunctional requirements_
 | `NFR-001` | F1 | P0 | IT and system administration | T-01, SPIKE-offline-sync | The lab shall test sustained throughput above 200 orders per hour for one branch. |
 | `NFR-002` | F1 | P0 | IT and system administration | T-01, SPIKE-offline-sync | Load tests shall include simultaneous orders from POS, call center, customer app and delivery-platform connectors. |
 | `NFR-003` | F1 | P0 | IT and system administration | T-01, SPIKE-offline-sync | No accepted order may be lost or produce a duplicate business order under the approved load and recovery tests. |
-| `NFR-004` | F1 | P0 | IT and system administration | T-04 | No confirmed payment may be attached to the wrong order or charged twice because of retry, timeout or reconnection. |
+| `NFR-004` | F1 | P0 | IT and system administration | T-04, SPIKE-payment-reconciliation | No confirmed payment may be attached to the wrong order or charged twice because of retry, timeout or reconnection. |
 | `NFR-005` | F1 | P0 | IT and system administration | T-03, SPIKE-print-queue | Receipt and kitchen printing shall remain complete, ordered, observable and recoverable at the approved peak load. |
 | `NFR-006` | F0 | P0 | — | — | The platform shall support horizontal or vertical capacity growth without changing core business identifiers or financial history. |
 | `NFR-007` | F0 | P0 | — | — | The initial design shall support current multi-branch operations and future First Taste brands without a separate codebase per brand. |
@@ -463,12 +463,12 @@ _5.7 Payments cash refunds and ZATCA_
 | `PAY-003` | F1 | P0 | Finance and accounting | T-04 | The preferred mada flow shall send the exact amount to the terminal and receive the result automatically where the bank or provider supports integration. |
 | `PAY-004` | F1 | P0 | Finance and accounting | T-04 | The POS shall provide a controlled manual terminal fallback when direct integration is unavailable. |
 | `PAY-005` | F1 | P0 | Finance and accounting | T-04 | Each payment attempt shall have a unique idempotency key and an immutable link to its order. |
-| `PAY-006` | F1 | P0 | Finance and accounting | T-04 | The system shall distinguish authorized, captured, declined, cancelled, refunded, partially refunded, pending and unknown payment outcomes. |
-| `PAY-007` | F1 | P0 | Finance and accounting | T-04 | An unknown payment outcome shall be reconciled before another charge is attempted. |
+| `PAY-006` | F1 | P0 | Finance and accounting | T-04, SPIKE-payment-reconciliation | The system shall distinguish authorized, captured, declined, cancelled, refunded, partially refunded, pending and unknown payment outcomes. |
+| `PAY-007` | F1 | P0 | Finance and accounting | T-04, SPIKE-payment-reconciliation | An unknown payment outcome shall be reconciled before another charge is attempted. |
 | `PAY-008` | F1 | P0 | Finance and accounting | T-04 | Split payment shall preserve the amount, method, reference and refund balance of each component. |
 | `PAY-009` | F1 | P0 | Finance and accounting | T-04 | Online-paid orders shall be submitted to fulfilment only after a verified payment state according to configured rules. |
-| `PAY-010` | F1 | P0 | Finance and accounting | T-05 | Failed or cancelled online-paid orders shall be refunded automatically when predefined rules are met. |
-| `PAY-011` | F1 | P0 | Finance and accounting | T-05 | Automatic refunds shall be idempotent and shall create alerts for pending, rejected or mismatched outcomes. |
+| `PAY-010` | F1 | P0 | Finance and accounting | T-05, SPIKE-payment-reconciliation | Failed or cancelled online-paid orders shall be refunded automatically when predefined rules are met. |
+| `PAY-011` | F1 | P0 | Finance and accounting | T-05, SPIKE-payment-reconciliation | Automatic refunds shall be idempotent and shall create alerts for pending, rejected or mismatched outcomes. |
 | `PAY-012` | F1 | P0 | Finance and accounting | T-05 | Refund eligibility, amount limits and reasons shall be configurable by channel, payment method, order state and elapsed time. |
 | `PAY-013` | F4 | P0 | — | — | The system shall automatically reconcile POS sales against bank, gateway and delivery-platform settlements and create exception alerts. |
 | `PAY-014` | F4 | P0 | — | — | Settlement reconciliation shall account for commissions, fees, refunds, chargebacks, withholding and timing differences. |

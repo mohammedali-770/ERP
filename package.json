@@ -24,7 +24,7 @@
     "spike:offline-sync": "node --experimental-strip-types spikes/offline-sync/src/cli.ts",
     "spike:print-queue": "node --experimental-strip-types spikes/print-queue/src/cli.ts",
     "spike:shift-conflict": "node --experimental-strip-types spikes/shift-conflict/src/cli.ts",
-    "verify": "npm run req:lint && npm run boundary:check && npm run typecheck && npm test",
+    "verify": "npm run prd:extract -- --check && npm run req:index -- --check && npm run req:lint && npm run boundary:check && npm run typecheck && npm test",
     "boundary:check": "node --experimental-strip-types tools/boundary-check/src/cli.ts",
     "spike:payment-reconciliation": "node --experimental-strip-types spikes/payment-reconciliation/src/cli.ts",
     "spike:callback-engine": "node --experimental-strip-types spikes/callback-engine/src/cli.ts",
