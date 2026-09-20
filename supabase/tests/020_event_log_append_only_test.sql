@@ -28,17 +28,20 @@ insert into erp.event_log (
   '{}'::jsonb, decode('00','hex'), decode('00','hex'), 'system', now()
 );
 
+-- 23001 is restrict_violation, which migration 0004 names explicitly via
+-- `using errcode = 'restrict_violation'`. P0001 is what a bare RAISE EXCEPTION
+-- would give; asserting it here expected a trigger the migration does not have.
 select throws_ok(
   $$ update erp.event_log set event_type = 'tampered'
      where event_id = '01936f00-0000-7000-8000-0000000f0001' $$,
-  'P0001', null,
-  'UPDATE on event_log raises'
+  '23001', null,
+  'UPDATE on event_log raises restrict_violation'
 );
 
 select throws_ok(
   $$ delete from erp.event_log where event_id = '01936f00-0000-7000-8000-0000000f0001' $$,
-  'P0001', null,
-  'DELETE on event_log raises'
+  '23001', null,
+  'DELETE on event_log raises restrict_violation'
 );
 
 -- The trigger's own function must pin its search_path, or it is hijackable.
