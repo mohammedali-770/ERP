@@ -211,6 +211,41 @@ time.
 
 ---
 
+## B-08 — Live exposure in the WhatsApp inbox project · **URGENT**
+
+**Blocks:** nothing in the ERP — recorded because it is live, not because it
+blocks
+**Unblocked by:** Owner or IT, as owner-approved actions against a live project
+
+Found on 2026-09-20 during a read-only survey of `whatsapp-inbox-simple`
+(`hdeahrxjfqqaveharziy`), while assessing it as a possible home for the ERP
+database (ADR-0018). The survey wrote nothing; none of the below has been acted
+on.
+
+| | Finding |
+|---|---|
+| 1 | **Four backup tables are anon-writable.** `inbox_bible_backup_v3`, `inbox_faq_backup_20260913`, `inbox_bible_backup_20260913`, `inbox_bible_backup_20260916` carry `anon=arwdDxtm` with RLS disabled — insert, update and delete, not only select, with the anon key that ships in the client bundle |
+| 2 | **The WhatsApp access token and app secret are in plaintext** in `public.inbox_config`. Supabase Vault is already installed in this project and unused for them. Same class as B-06 |
+| 3 | **`inbox_managers.login_code` is a plaintext shared code** and is the entire authentication mechanism for the inbox's managers |
+| 4 | **The escalation-to-human channel may be silently dead.** `inbox_push_subscriptions` has zero rows while `inbox_contacts.last_notified_at` exists to throttle notifications to it — worth checking today, independent of anything ERP |
+
+**Why finding 1 is not simply "drop those tables".** They are not redundant
+copies: `inbox_bible_backup_v3` differs from live in 6 of 12 rows and
+`inbox_faq_backup_20260913` in 9 of 23. They are the only version history the AI
+knowledge base has, and `AI-013` requires versioned approved sources. **Read
+[`../estate/inbox-absorption.md`](../estate/inbox-absorption.md) §1 before
+touching them** — it says which two are genuinely disposable and what to capture
+from the other four first.
+
+**Cost of staying blocked:** finding 1 is a live write path into the AI's
+knowledge base, so a wrong answer could be planted rather than merely read.
+Findings 2 and 3 are credential exposures on a working system. This is the same
+shape as B-06: delay increases risk rather than deferring work.
+
+**Related:** ADR-0018 · B-06 · Q-10 · `../compliance/security-controls.md`
+
+---
+
 ## Not blocked, but frequently assumed to be
 
 | Thing | Status |

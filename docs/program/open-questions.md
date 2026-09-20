@@ -129,9 +129,17 @@ export and checksum the data (ADR-0011 principle 2), then archive — so nobody
 reads the wrong system a year from now.
 
 Separately: four backup tables in the WhatsApp inbox project have row-level
-security disabled and are readable with the anonymous key. They are backups, so
-dropping or archiving them is the cheap remedy. **Not acted on** — that project is
-outside this repository's scope, and any change there is an owner-approved action.
+security disabled. **Corrected 2026-09-20 — this entry understated it twice.**
+They are anon-**writable**, not merely readable: `anon` holds insert, update and
+delete as well as select. And dropping them is **not** the cheap remedy — a
+read-only survey found they are not redundant copies. `inbox_bible_backup_v3`
+differs from live in 6 of 12 rows and `inbox_faq_backup_20260913` in 9 of 23, so
+they are the only surviving record of what the AI knew and what customers were
+told before 13 September. Now tracked as **B-08**, with what to capture first in
+[`../estate/inbox-absorption.md`](../estate/inbox-absorption.md).
+
+**Not acted on** — that project is outside this repository's scope, and any
+change there is an owner-approved action.
 
 ---
 
@@ -243,6 +251,7 @@ decided. Deciding ADR-0003 and provisioning the project belong in the same week.
 | Upgrade the organisation to a paid plan | A recurring charge, and the project exists the same day |
 | Wait for ADR-0003 | Nothing, and nothing is lost — there is no schema to hold |
 | Pause an existing project to free a slot | **Do not.** `whatsapp-inbox-simple` runs the live AI customer-service inbox, and `spicy-meal-ordering` is production. Freeing a slot this way stops a working service to save a subscription |
+| Reuse `whatsapp-inbox-simple` as the ERP's database | **Investigated 2026-09-20 and recommended against** — ADR-0018. Not a cost question in the end: every new table in `public` is born writable by the anon key, `pg_trgm` in `public` ties the inbox's answer matching to a schema the ERP must avoid, and one instance means one connection pool and one migration ledger that cannot be repaired |
 
 That last row is written down because the error message a future session will see
 says "delete, pause or upgrade", and pausing looks like the free option.

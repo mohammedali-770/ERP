@@ -47,3 +47,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0015](./ADR-0015-estate-consolidation.md) | Relationship between the ERP and the existing estate |
 | [ADR-0016](./ADR-0016-call-centre-integration.md) | The reachable PBX surface, and designing for a platform that restarts |
 | [ADR-0017](./ADR-0017-ratings-and-feedback.md) | What ratings are for, and what they must never automatically do |
+| [ADR-0018](./ADR-0018-erp-database-home.md) | Where the ERP's database lives, and why not beside the live inbox |

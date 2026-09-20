@@ -5,7 +5,7 @@
 | [`requirements/`](./requirements) | The 387-requirement baseline, generated from the source PRD, plus hand-maintained ownership annotations and a register of **proposed** requirements originating outside the PRD |
 | [`architecture/`](./architecture) | Layered overview, the invariants every design must preserve, the core transactional design, and the call-centre and ratings designs |
 | [`adr/`](./adr) | Architecture decision records, including all twelve of the PRD's open decisions |
-| [`estate/`](./estate) | What already exists, what to absorb, what to supersede |
+| [`estate/`](./estate) | What already exists, what to absorb, what to supersede — including the [WhatsApp inbox absorption plan](./estate/inbox-absorption.md) |
 | [`domain/`](./domain) | Bounded contexts, canonical model, event catalogue, ledger primitives, snapshot rules |
 | [`compliance/`](./compliance) | ZATCA, personal data, the residency gate, security controls |
 | [`lab/`](./lab) | HQ lab design, hardware decision matrix, acceptance test plan, evidence template, and the [UAT packs](./lab/uat) run by real cashiers and kitchen staff |

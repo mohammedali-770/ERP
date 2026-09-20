@@ -18,7 +18,7 @@ it is rebuilding a working thing.
 | Project | Region | Status | Verdict |
 |---|---|---|---|
 | `spicy-meal-ordering` | eu-central-1 | **Active, production** | The live customer-ordering backend. Migration source. |
-| `whatsapp-inbox-simple` | eu-central-1 | Active | AI WhatsApp customer-service inbox. Adjacent, not ERP core. |
+| `whatsapp-inbox-simple` | eu-central-1 | Active | AI WhatsApp customer-service inbox. Adjacent, not ERP core — **surveyed in depth 2026-09-20**, see below. |
 | `spicy-meal-whatsapp-inbox` | eu-central-1 | Inactive (paused) | Superseded earlier build of the inbox. |
 | `spicy-meal-operation` | ap-northeast-1 | Inactive (paused) | Pairs with an operations app; both stopped the same week. Likely abandoned. |
 | *(default-named personal project)* | ap-southeast-1 | Inactive (paused) | Scratch. No ERP relevance. |
@@ -73,14 +73,40 @@ The P650 designation appears to originate from a Saudi reseller publishing a
 Constraints and consequences: [ADR-0016](../adr/ADR-0016-call-centre-integration.md).
 Blockers: B-06 (credentials), B-07 (stability).
 
-### Security observation
+### `whatsapp-inbox-simple` — surveyed in depth
 
-*Verified.* In `whatsapp-inbox-simple`, four dated backup tables have row-level
-security disabled and are readable with the anonymous key. They are backups, so
-the cheap remedy is dropping or archiving them rather than writing policies.
-**Not acted on** — that project is outside this repository's scope and any change
-there is an owner-approved action. Raised in
-[`../program/open-questions.md`](../program/open-questions.md).
+*Verified 2026-09-20, read-only, while assessing it as a possible home for the
+ERP database (ADR-0018 — the recommendation is no).*
+
+| | |
+|---|---|
+| Ref | `hdeahrxjfqqaveharziy` · Postgres 17 · `eu-central-1` |
+| Tables | 21 — **15 live, 6 backups**, all `inbox_`-prefixed in `public` |
+| Migrations | 13, `20260910050840` … `20260915103419` |
+| Functions | **7** in `public`; three `SECURITY DEFINER` pinned to `search_path = public` and dependent on `pg_trgm`, which is installed in `public` |
+| Edge functions | **none** · `pg_cron` none · `pg_net` none |
+| Extensions | pgcrypto, uuid-ossp, pg_stat_statements, pg_trgm, supabase_vault, plpgsql |
+| Live rows | 1238 messages · 247 contacts · 691 AI runs · 412 FAQ variants · 279 answer gaps · 52 menu items · 17 branches |
+
+A small, self-contained system with no background machinery — which is what makes
+absorbing it into the ERP tractable. The table-by-table plan is
+[`inbox-absorption.md`](./inbox-absorption.md).
+
+**One structural fact worth recording separately:** `ALTER DEFAULT PRIVILEGES` on
+schema `public` grants `anon` and `authenticated` full rights on every table
+created there. The 15 live tables escape it only because each migration
+hand-writes a counter-revoke — and that discipline has already failed four times,
+which is B-08.
+
+### Security observations
+
+*Verified.* Four exposures in `whatsapp-inbox-simple`, all **not acted on** —
+that project is outside this repository's scope and any change is an
+owner-approved action. Now tracked as
+[**B-08**](../program/blocked.md), which supersedes the earlier, milder note here:
+the backup tables are anon-**writable** rather than merely readable, and dropping
+them is not the cheap remedy because they hold the AI knowledge base's only
+version history.
 
 ---
 
