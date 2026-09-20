@@ -11,7 +11,9 @@
 -- intended posture here, and it is the opposite of the estate's inbox project,
 -- where four tables have RLS switched OFF and are writable with the anon key.
 
-set local search_path = erp, extensions, pg_catalog;
+-- No `set local search_path` here: migrations are applied outside a transaction
+-- block, where SET LOCAL warns and does nothing. Every name below is
+-- schema-qualified instead, which is what actually makes it unambiguous.
 
 do $$
 declare

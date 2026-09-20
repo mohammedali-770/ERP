@@ -15,7 +15,9 @@
 --      including the owner and any superuser path.
 -- "A migration accidentally rewrote history" is not a recoverable event.
 
-set local search_path = erp, extensions, pg_catalog;
+-- No `set local search_path` here: migrations are applied outside a transaction
+-- block, where SET LOCAL warns and does nothing. Every name below is
+-- schema-qualified instead, which is what actually makes it unambiguous.
 
 create table erp.event_log (
   event_id        uuid        not null,

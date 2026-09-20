@@ -12,8 +12,9 @@ and when it arrives it is populated by promoting these files, never the reverse.
 ```
 config.toml    local stack definition — committed, holds no credential
 migrations/    plain SQL, one file per approved change, append-only history
-seeds/         synthetic development fixtures
-seed.sql       the entry point db reset loads
+seeds/         synthetic development fixtures, listed in config.toml's
+               [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
+               psql meta-command like \ir is a syntax error there
 functions/     edge functions (none yet — nothing needs one)
 tests/         pgTAP suites
 ```

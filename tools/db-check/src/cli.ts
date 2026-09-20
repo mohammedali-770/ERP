@@ -17,10 +17,11 @@ import { existsSync } from 'node:fs';
 import { loadMigrations, duplicateVersions, unrecognisedFiles } from './migrations.ts';
 import { ASSERTIONS, SEED_ASSERTIONS, type Assertion } from './assertions.ts';
 import { findPostgresBin, startCluster, type Cluster } from './cluster.ts';
+import { planSeed } from './seed.ts';
 import { readdirSync } from 'node:fs';
 
 const MIGRATIONS_DIR = 'supabase/migrations';
-const SEED = 'supabase/seed.sql';
+const CONFIG = 'supabase/config.toml';
 
 function fail(message: string): never {
   console.error(`\n  db-check: ${message}`);
@@ -38,6 +39,16 @@ if (!binDir) {
 const files = readdirSync(MIGRATIONS_DIR);
 const migrations = loadMigrations(MIGRATIONS_DIR);
 
+const seed = planSeed(CONFIG);
+if (seed.missing.length > 0) {
+  fail(`config.toml declares seed files that do not exist: ${seed.missing.join(', ')}`);
+}
+if (seed.undeclared.length > 0) {
+  fail(
+    `these seed files exist but config.toml does not list them, so they never load: ${seed.undeclared.join(', ')}`,
+  );
+}
+
 const stray = unrecognisedFiles(files);
 if (stray.length > 0) {
   fail(`these .sql files are not migrations and would never be applied: ${stray.join(', ')}`);
@@ -50,7 +61,8 @@ if (migrations.length === 0) fail(`no migrations found in ${MIGRATIONS_DIR}`);
 
 console.log('db-check — migrations applied to a scratch cluster, then asserted\n');
 console.log(`  postgres    ${binDir}`);
-console.log(`  migrations  ${migrations.length}\n`);
+console.log(`  migrations  ${migrations.length}`);
+console.log(`  seed files  ${seed.files.length}\n`);
 
 const started = Date.now();
 let cluster: Cluster | null = null;
@@ -70,13 +82,13 @@ try {
     }
   }
 
-  if (existsSync(SEED)) {
+  for (const file of seed.files) {
     try {
-      cluster.file(SEED);
-      console.log(`  applied  ${SEED}`);
+      cluster.file(file);
+      console.log(`  applied  ${file}`);
     } catch (error) {
       console.error(String(error));
-      fail('the seed did not load against a freshly migrated database.');
+      fail(`the seed file ${file} did not load against a freshly migrated database.`);
     }
   }
 
@@ -97,7 +109,7 @@ try {
   };
 
   check(cluster, 'Structural assertions', ASSERTIONS);
-  if (existsSync(SEED)) check(cluster, 'Seed assertions', SEED_ASSERTIONS);
+  if (seed.files.length > 0) check(cluster, 'Seed assertions', SEED_ASSERTIONS);
 
   // Catalogue reads cannot see an ALTER DEFAULT PRIVILEGES that names the wrong
   // role: it is present, correct-looking, and inert. The only way to know is to
@@ -122,12 +134,12 @@ try {
   // Requirement 3's actual claim is not "db reset runs" but "db reset recreates
   // the COMPLETE database" — which is only meaningful if it lands in the same
   // place every time. Build it a second time and compare the data.
-  if (existsSync(SEED)) {
+  if (seed.files.length > 0) {
     console.log('');
     const second = 'erp_check_again';
     cluster.createDatabase(second);
     for (const m of migrations) cluster.fileIn(second, join(MIGRATIONS_DIR, m.file));
-    cluster.fileIn(second, SEED);
+    for (const file of seed.files) cluster.fileIn(second, file);
     const a = cluster.dumpData(cluster.database);
     const b = cluster.dumpData(second);
     if (a === b) {

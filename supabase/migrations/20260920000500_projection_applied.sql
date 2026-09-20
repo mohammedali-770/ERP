@@ -6,7 +6,9 @@
 -- (projection, event_id) key, so replay is always safe — including replay that
 -- overlaps work already done, which is the normal case after a crash.
 
-set local search_path = erp, extensions, pg_catalog;
+-- No `set local search_path` here: migrations are applied outside a transaction
+-- block, where SET LOCAL warns and does nothing. Every name below is
+-- schema-qualified instead, which is what actually makes it unambiguous.
 
 create table erp.projection_applied (
   projection  text        not null,
