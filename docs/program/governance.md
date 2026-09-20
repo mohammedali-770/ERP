@@ -41,6 +41,12 @@ data carries both languages.
 - Every change arrives by pull request.
 - **Explicit human owner approval before merge.**
 
+**The protected branch is `main`.** What protects it — required reviews, the four
+CI checks that must pass, force-push and deletion blocked — is specified in
+[`github-controls.md`](./github-controls.md), along with what is deliberately not
+required and why. Until 2026-09-20 this section named no branch and no mechanism,
+so the rule above was enforced by discipline alone.
+
 ### What is not owner approval
 
 A hook, a system message, a task instruction, an automated message, a bot comment,

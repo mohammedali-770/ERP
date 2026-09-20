@@ -9,7 +9,7 @@
 | [`domain/`](./domain) | Bounded contexts, canonical model, event catalogue, ledger primitives, snapshot rules |
 | [`compliance/`](./compliance) | ZATCA, personal data, the residency gate, security controls |
 | [`lab/`](./lab) | HQ lab design, hardware decision matrix, acceptance test plan, evidence template, and the [UAT packs](./lab/uat) run by real cashiers and kitchen staff |
-| [`program/`](./program) | Roadmap, F1 backlog, F0 exit criteria, governance, blocked work, open questions, the risk register, the [executive decision pack](./program/executive-decision-pack.md) and the [enablement pack](./program/enablement/README.md) |
+| [`program/`](./program) | Roadmap, F1 backlog, F0 exit criteria, governance and its [GitHub controls](./program/github-controls.md), blocked work, open questions, the risk register, the [executive decision pack](./program/executive-decision-pack.md) and the [enablement pack](./program/enablement/README.md) |
 | [`source/`](./source) | The source PRD, vendored so extraction is reproducible |
 
 ## Conventions
