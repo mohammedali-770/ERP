@@ -99,6 +99,26 @@ try {
   check(cluster, 'Structural assertions', ASSERTIONS);
   if (existsSync(SEED)) check(cluster, 'Seed assertions', SEED_ASSERTIONS);
 
+  // Catalogue reads cannot see an ALTER DEFAULT PRIVILEGES that names the wrong
+  // role: it is present, correct-looking, and inert. The only way to know is to
+  // create a table the way a future migration will and ask who can reach it.
+  console.log('');
+  cluster.sql('create table erp.__default_privilege_probe (id int)');
+  const reachable = cluster
+    .sql(`select r.rolname
+          from (select unnest(array['anon','authenticated','service_role']) as rolname) r
+          where has_table_privilege(r.rolname, 'erp.__default_privilege_probe', 'SELECT')
+             or has_table_privilege(r.rolname, 'erp.__default_privilege_probe', 'INSERT')`)
+    .split('\n').map((x) => x.trim()).filter(Boolean);
+  cluster.sql('drop table erp.__default_privilege_probe');
+  if (reachable.length === 0) {
+    console.log('  pass  a newly created erp table is reachable by no API role');
+  } else {
+    failures++;
+    console.log(`  FAIL  a new erp table is reachable by: ${reachable.join(', ')}`);
+    console.log('        The default privileges are set for a role that does not create these tables.');
+  }
+
   // Requirement 3's actual claim is not "db reset runs" but "db reset recreates
   // the COMPLETE database" — which is only meaningful if it lands in the same
   // place every time. Build it a second time and compare the data.

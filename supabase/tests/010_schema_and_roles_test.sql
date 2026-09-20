@@ -5,7 +5,7 @@
 -- the real Supabase roles exist, and then goes further than bare Postgres can.
 
 begin;
-select plan(18);
+select plan(19);
 
 -- Schemas
 select has_schema('erp',        'the erp schema exists');
@@ -45,6 +45,17 @@ select is_empty(
        and (array_to_string(d.defaclacl, ',') like '%anon=%'
          or array_to_string(d.defaclacl, ',') like '%authenticated=%') $$,
   'default privileges in erp grant nothing to anon or authenticated'
+);
+
+-- Empirical, not catalogue-read: ALTER DEFAULT PRIVILEGES naming a role that
+-- does not create these tables is present, correct-looking and inert. Create one
+-- the way a future migration will, and ask who can reach it.
+create table erp.__default_privilege_probe (id int);
+select is_empty(
+  $$ select r.rolname from (select unnest(array['anon','authenticated','service_role']) as rolname) r
+     where has_table_privilege(r.rolname, 'erp.__default_privilege_probe', 'SELECT')
+        or has_table_privilege(r.rolname, 'erp.__default_privilege_probe', 'INSERT') $$,
+  'a newly created erp table is reachable by no API role'
 );
 
 -- Organisation hierarchy — PRG-002, every level present from the first migration.
