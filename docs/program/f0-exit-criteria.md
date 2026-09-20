@@ -30,7 +30,7 @@ not working, not that F0 is done.
 - [x] Invariants recorded, each tied to the requirements demanding it
 - [x] Core transactional design addressing R-02 (the Critical risk)
 - [x] Deterministic conflict rules for all five contested entities (OFF-008)
-- [ ] **ADR-0003 (event-sourced core) accepted or rejected** — must be decided in month 1, not drifted into
+- [x] **ADR-0003 (event-sourced core) accepted or rejected** — **accepted 2026-09-20**, in month 1 as required
 - [ ] Architecture reviewed and approved by the Product Owner
 
 ## Decisions

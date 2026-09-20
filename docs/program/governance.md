@@ -84,6 +84,17 @@ one migration per approved action, each followed by read-only verification.
 
 Migration history is a ledger. It is appended to, never rewritten.
 
+**The local stack is not covered by any of the above.** `supabase db reset`
+against a container on a developer's machine is the ordinary development loop
+and destroys a database rebuilt from `supabase/migrations/` seconds earlier.
+Written down because every prohibition here says "against production" and none
+said what that left permitted. The line: **anything local and rebuildable from
+the repository is free; anything touching a hosted project is owner-approved,
+one action at a time.**
+
+Creating and promoting to a hosted project is
+[`supabase-deployment.md`](./supabase-deployment.md).
+
 ---
 
 ## 5. AI-assisted development (PRG-008)

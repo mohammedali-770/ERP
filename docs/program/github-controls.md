@@ -42,6 +42,8 @@ names** as GitHub reports them:
 | `Bounded-context boundaries` | A service imports another service |
 | `Typecheck and tests` | Either fails |
 | `Risk spikes` | Any spike fails, **or a control case passes** |
+| `Database schema` | A migration does not apply, a structural invariant is broken, the seed is not reproducible, or a credential-shaped string is committed |
+| `Database stack` | `supabase db reset` does not rebuild the database, or a pgTAP suite fails |
 
 A required check whose name does not exactly match a job blocks every merge with
 no way to satisfy it, so these are copied from the workflow rather than from
@@ -72,7 +74,7 @@ a reminder — but an owner who cannot merge their own hotfix is a real cost.
 | | |
 |---|---|
 | `main` protected | **Not yet** — to be applied |
-| Required checks configured | **Not yet** |
+| Required checks configured | **Not yet** — six now, not four (two database jobs added 2026-09-20) |
 | Administrators included | **Not recorded** |
 | Last verified | 2026-09-20 |
 

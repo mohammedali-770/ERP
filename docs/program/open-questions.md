@@ -230,7 +230,24 @@ Related: `RTG-P10`, `RTG-P11`, `HR-014`, ADR-0017.
 
 ---
 
-## Q-16 — Does the ERP get its own Supabase project now, and at what cost?
+## Q-16 — Does the ERP get its own Supabase project now, and at what cost? · **ANSWERED**
+
+**Answered 2026-09-20 by the owner. Recorded in [ADR-0018](../adr/ADR-0018-erp-database-home.md).**
+
+Neither of the four options below. A fifth nobody had written down: **run
+Supabase locally in Docker, make this repository the source of truth for the
+database, and defer buying a hosted project to roughly 6–8 weeks before a launch
+no earlier than June 2027.** Nothing is purchased, nothing is paused, and the
+live inbox is untouched.
+
+It also unblocked ADR-0003, which was accepted the same day — deferring the
+hosted project removed the last reason to keep it open. The first eight
+migrations are in `supabase/migrations/`.
+
+The original question and its options are kept below, because the reasoning is
+the useful part.
+
+---
 
 **Decides:** Owner · **Expensive after:** the first migration is written
 

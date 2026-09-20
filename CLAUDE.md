@@ -64,6 +64,14 @@ migration per approved action, each followed by read-only verification.
 
 Migration history is a ledger. It is appended to, never rewritten.
 
+**The local stack is not covered by any of the above.** `supabase db reset`
+against a container on a developer's machine is the ordinary development loop
+and destroys a database rebuilt from `supabase/migrations/` seconds earlier.
+Written down because every prohibition here says "against production" and none
+said what that left permitted. The line: **anything local and rebuildable from
+the repository is free; anything touching a hosted project is owner-approved,
+one action at a time.**
+
 ## 6. The payment freeze
 
 **No provider has been selected.** A freeze covers payment initiation,
@@ -81,6 +89,9 @@ live payment path is not.
 ```bash
 npm ci
 npm run verify        # generated files + traceability + boundaries + typecheck + tests
+npm run db:check      # migrations apply to a scratch Postgres; invariants hold
+npm run db:reset      # local Supabase: rebuild from migrations + seed
+npm run db:test       # pgTAP suites against the local stack
 ```
 
 ### Before you finish
@@ -105,6 +116,11 @@ npm run verify        # generated files + traceability + boundaries + typecheck 
 | Services do not import each other | `boundary:check` |
 | Every PRD open decision maps to an ADR | `req:lint` |
 | The catalogue and the risk register match the source PRD | `prd:extract -- --check` |
+| **No ERP object is created in `public`** | `db:check` + pgTAP |
+| Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
+| The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
+| The seed is synthetic, and two builds are identical | `db:check` |
+| No credential-shaped string is committed | `secret:scan` |
 
 If one of these fails, **fix the cause rather than the check.** Each exists
 because the failure it catches actually happened.
@@ -135,6 +151,9 @@ architecture gate (PRG-010, PRG-011) has not been passed.
 - `spikes/` — throwaway proving code. Each carries a **control case** that
   deliberately breaks the mechanism under test; a run whose control also passes
   reports FAIL, because it has proved nothing.
+- `supabase/` — **the source of truth for the database.** Migrations, synthetic
+  seed and pgTAP suites. No hosted project exists; development is local (Docker),
+  and the hosted one is created ~6–8 weeks before launch (ADR-0018).
 - `services/`, `apps/` — reserved boundaries, not implementations.
 
 ### Conventions

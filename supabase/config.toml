@@ -1,0 +1,54 @@
+# Local development stack — `supabase start`.
+#
+# LOCAL ONLY. This file describes a container on a developer's machine. It holds
+# no credential and is committed deliberately so every machine runs the same
+# stack. Staging and production are configured in the hosted dashboard and in
+# the deployment runbook, never here.
+#
+# See docs/program/supabase-deployment.md.
+
+project_id = "first-taste-erp"
+
+[api]
+enabled = true
+port = 54321
+# Only `public` is exposed through PostgREST, and `public` holds nothing.
+# The ERP lives in `erp`, which no API role can reach — see migration 0002 and
+# ADR-0018. Adding "erp" here would undo that in one line.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[analytics]
+enabled = false

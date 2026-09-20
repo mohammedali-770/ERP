@@ -75,7 +75,8 @@ function scanCitations(file: string, into: Citations): void {
  * Walks the documentation trees, plus the two root documents. README.md and
  * CLAUDE.md cite requirements and are the two files most likely to be read
  * first, yet were outside this check while CLAUDE.md itself claimed every
- * requirement cited in a document exists.
+ * requirement cited in a document exists. `supabase/` joined them once the
+ * migrations began citing requirements in their headers.
  */
 function collectCitations(paths: readonly string[]): Citations {
   const out: Citations = { requirements: [], risks: [] };
@@ -204,7 +205,7 @@ function main(): void {
   const proposed = loadProposed();
   const proposedIds = new Set((proposed ?? []).map((p) => p.id));
   const riskIds = loadRiskIds();
-  const citations = collectCitations(['docs', 'spikes', ...ROOT_DOCUMENTS]);
+  const citations = collectCitations(['docs', 'spikes', 'supabase', ...ROOT_DOCUMENTS]);
   // Proposed requirements carry their own test references, so an artifact proving
   // a proposal is not reported as unreferenced.
   const proposedTestRefs = (proposed ?? []).flatMap((p) => p.test_refs ?? []);

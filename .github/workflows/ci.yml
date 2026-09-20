@@ -69,6 +69,53 @@ jobs:
       - name: Tests
         run: npm test
 
+  database:
+    name: Database schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # No Docker: applies every migration to a scratch cluster built with the
+      # runner's own PostgreSQL, then asserts the structural invariants and the
+      # seed. Seconds, so it runs on every push.
+      - name: Migrations apply and invariants hold
+        run: npm run db:check
+
+      - name: No credential-shaped string is committed
+        run: npm run secret:scan
+
+  database-stack:
+    name: Database stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned deliberately. The CLI is not an npm dependency — CLAUDE.md
+      # permits two, and a postinstall that downloads a binary is exactly the
+      # supply-chain surface that rule exists to avoid.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.34.3
+
+      # The half bare Postgres cannot reach: storage policies, auth, PostgREST.
+      - name: Start the local stack
+        run: supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector
+
+      - name: db reset rebuilds the database from migrations and seed
+        run: supabase db reset --no-seed=false
+
+      - name: pgTAP suites
+        run: supabase test db
+
+      - name: Stop
+        if: always()
+        run: supabase stop --no-backup
+
   spikes:
     name: Risk spikes
     runs-on: ubuntu-latest

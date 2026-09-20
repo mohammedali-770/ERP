@@ -1,6 +1,6 @@
 # ADR-0003 — Append-only event log as the system of record
 
-- **Status:** Proposed — **decide in month 1 and hold**
+- **Status:** **Accepted 2026-09-20** — decided in month 1, as this ADR required, and held from here
 - **Date:** 2026-09-17
 - **Requirements:** OFF-009 · FIN-007 · POS-028 · PAY-015 · CRM-005 · SEC-006 · OFF-005 · OFF-006
 - **Deciders:** Product Owner, with Finance consulted
@@ -60,6 +60,30 @@ learning curve too steep, the honest alternative is CRUD with explicit audit
 tables and a written acceptance that OFF-009 and FIN-007 are enforced by
 convention. That is a worse system, but a coherent one.
 
-**Recommendation: accept.** The PRD's single Critical risk is duplicate or
+**Recommendation: accept.**
+
+---
+
+## Decision record
+
+**Accepted by the Product Owner on 2026-09-20**, in month 1 as this ADR demanded.
+
+The decision unblocks the first migrations. Until this date `supabase/` was
+deliberately empty and `supabase/README.md` said so: writing schema while the
+decision was open would have prejudged it, and a partially event-sourced system
+is worse than either choice applied consistently.
+
+What now becomes binding rather than proposed:
+
+- `event_log` is the system of record; everything queryable is a projection.
+- The append-only pair is structural, not conventional — `erp_app` holds no
+  `UPDATE` or `DELETE` grant on the log, **and** a `BEFORE UPDATE OR DELETE`
+  trigger raises. Both, and `tools/db-check` asserts both on every run, the
+  second by attempting an update rather than by reading the catalogue.
+- `projection_applied` carries `(projection, event_id)`, so replay is idempotent.
+- Event schemas are additive only, and every event carries `schema_version`.
+
+Retention and partitioning remain design work, as the consequences below say.
+They are now scheduled work rather than an open question. The PRD's single Critical risk is duplicate or
 conflicting financial records under offline sync, and this is the architecture
 that addresses it directly.

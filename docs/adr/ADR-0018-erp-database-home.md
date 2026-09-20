@@ -1,7 +1,7 @@
 # ADR-0018 — Where the ERP's database lives
 
-- **Status:** Proposed — **the owner asked for the opposite of this recommendation; the decision is theirs**
-- **Date:** 2026-09-20
+- **Status:** **Accepted 2026-09-20** — the owner decided after reading the evidence below
+- **Date:** 2026-09-20 · decision recorded the same day
 - **Requirements:** SEC-002 · SEC-003 · SEC-006 · SEC-010 · NFR-004 · PRG-010 · AI-013
 - **Deciders:** Owner
 - **Related:** ADR-0002 · ADR-0003 · ADR-0015 · B-05 · Q-16 · [`../estate/inbox-absorption.md`](../estate/inbox-absorption.md)
@@ -79,8 +79,51 @@ this ref puts the CLI immediately into drift, whose only remedy is
 
 ## Decision
 
-**Recommended: the ERP gets its own Supabase project. `whatsapp-inbox-simple`
-stays the inbox.**
+**The ERP gets its own Supabase project. `whatsapp-inbox-simple` stays the
+inbox. Nothing is written to it.**
+
+Three parts, decided together on 2026-09-20:
+
+1. **A separate Supabase project**, never co-tenancy with the live inbox and
+   never an upgrade to the organisation's plan purchased to permit one.
+2. **Creating that hosted project is deferred** to roughly **6–8 weeks before
+   launch**. Production is expected no earlier than **June 2027**, so the
+   project is created around **April–May 2027**.
+3. **Until then, development runs Supabase locally** in Docker through the CLI,
+   and **this repository is the source of truth for the database** — migrations,
+   seed and tests are files here, and the hosted project will be populated by
+   promoting them.
+
+### Why deferring costs nothing
+
+A hosted project bought today would sit empty of anything a local container
+cannot hold, accrue a subscription for eighteen months, and still be rebuilt
+from these migrations when it mattered. The one thing it would buy — evidence
+that the schema works on real Supabase — is bought instead by the `Database
+stack` CI job, which runs `supabase db reset` and the pgTAP suites against a
+real local stack on every push.
+
+What genuinely needs the hosted project is UAT with real users and pre-production
+rehearsal, and both are late-programme activities. The runbook for creating and
+promoting is written now, while the reasoning is fresh, rather than in April 2027
+under time pressure:
+[`../program/supabase-deployment.md`](../program/supabase-deployment.md).
+
+### What this resolves
+
+**Q-16 is answered and closed.** It was framed as a subscription question and
+turned out to be a data-safety question; the answer is neither of its four
+original options but a fifth nobody had written down — run it locally and defer
+the purchase.
+
+**The four findings below still stand.** They are why the inbox project is not
+the answer, and three of them are now encoded as tests that fail a build rather
+than as prose a reviewer might skim: no ERP object in `public`, default
+privileges granting the API roles nothing, and every function pinning its
+`search_path`. The inbox project's exposures remain open as B-08, unchanged and
+untouched.
+
+### The original recommendation
 
 This is not a rejection of what the owner wants. The inbox still becomes an ERP
 feature — that absorption is planned in
@@ -122,11 +165,17 @@ session:
 
 ## Consequences
 
-- **Q-16 is answered differently than expected.** The blocker was framed as a
-  subscription question. It is a data-safety question that happens to have a
-  subscription answer.
+- **Q-16 is closed.** The blocker was framed as a subscription question. It was
+  a data-safety question, and the answer was to buy nothing yet.
 - **The inbox project gains value from this regardless.** The survey found
   exposures and losses that were going to bite whoever touched it — recorded in
   B-08 and in the absorption map.
 - **The absorption plan exists now rather than later**, which was the owner's
   actual instruction and is the more valuable half of it.
+- **ADR-0003 was accepted on the same day**, because deferring the hosted project
+  removed the last reason to leave it open. Migrations became writable, and the
+  first eight are in `supabase/migrations/`.
+- **The local carve-out is now written down.** Every prohibition in this
+  programme says "against production" and none said what that left permitted, so
+  `supabase/README.md`, `CLAUDE.md` §5 and `governance.md` §4 now say plainly
+  that a local reset is free and a hosted project is owner-approved.

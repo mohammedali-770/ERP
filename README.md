@@ -21,6 +21,7 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | How customers rate service, and what ratings may never do | [`docs/architecture/ratings-and-feedback.md`](docs/architecture/ratings-and-feedback.md) |
 | What has been decided, and what has not | [`docs/adr/`](docs/adr/) |
 | What could go wrong, and what is being done about it | [`docs/program/risk-register.md`](docs/program/risk-register.md) — R-01..R-10, extracted from the PRD |
+| How the database is built, and where it lives | [`supabase/`](supabase/README.md) — migrations, synthetic seed, pgTAP; the repository is the source of truth |
 | What already exists and must not be rebuilt | [`docs/estate/migration-map.md`](docs/estate/migration-map.md) |
 | **What needs a decision from you** | [`docs/program/executive-decision-pack.md`](docs/program/executive-decision-pack.md) |
 | **What others can start today, without engineering** | [`docs/program/enablement/`](docs/program/enablement/README.md) |
@@ -60,6 +61,10 @@ npm run verify        # generated files + traceability + boundaries + typecheck 
 | `npm run req:index` | Regenerate the human-readable requirement index |
 | `npm run req:lint` | Check traceability (add `-- --gate f0-exit` for the strict gate) |
 | `npm run boundary:check` | Enforce the bounded-context dependency rule |
+| `npm run db:check` | Apply every migration to a scratch Postgres and assert the invariants (no Docker) |
+| `npm run db:reset` | Rebuild the local Supabase database from migrations and seed |
+| `npm run db:test` | pgTAP suites against the local stack |
+| `npm run secret:scan` | Fail on a credential-shaped string in any tracked file |
 | `npm run typecheck` | Typecheck every workspace |
 | `npm test` | Run all tests |
 | `npm run spike:offline-sync` | Risk spike R-02 (Critical) |
@@ -84,7 +89,7 @@ spikes/        risk harnesses, each with a control case — plus two written as
                procedures, because they test physical properties a simulation
                would not prove
 tools/         prd-extract, req-lint, boundary-check
-supabase/      migrations, functions, tests
+supabase/      migrations, synthetic seed, pgTAP tests — the database's source of truth
 ```
 
 Service and application workspaces are **reserved boundaries**, not
