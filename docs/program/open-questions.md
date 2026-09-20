@@ -222,6 +222,35 @@ Related: `RTG-P10`, `RTG-P11`, `HR-014`, ADR-0017.
 
 ---
 
+## Q-16 — Does the ERP get its own Supabase project now, and at what cost?
+
+**Decides:** Owner · **Expensive after:** the first migration is written
+
+ADR-0002 already decides the lab platform, and B-05 blocks production only — so
+an ERP lab project is authorised. It does not exist, because the account is at
+the free-tier ceiling: **two active projects per account across every
+organisation it owns**, currently `spicy-meal-ordering` and
+`whatsapp-inbox-simple`. A separate organisation does not avoid this; the cap
+follows the account, not the organisation.
+
+Deferred on 2026-09-20, deliberately rather than by oversight. **An empty project
+would buy a name and nothing else:** `supabase/` carries no migrations because
+ADR-0003 is still Proposed, so there is nothing to put in it until that is
+decided. Deciding ADR-0003 and provisioning the project belong in the same week.
+
+| Option | Cost |
+|---|---|
+| Upgrade the organisation to a paid plan | A recurring charge, and the project exists the same day |
+| Wait for ADR-0003 | Nothing, and nothing is lost — there is no schema to hold |
+| Pause an existing project to free a slot | **Do not.** `whatsapp-inbox-simple` runs the live AI customer-service inbox, and `spicy-meal-ordering` is production. Freeing a slot this way stops a working service to save a subscription |
+
+That last row is written down because the error message a future session will see
+says "delete, pause or upgrade", and pausing looks like the free option.
+
+Related: ADR-0002, ADR-0003, B-05, `../lab/lab-design.md`.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate
