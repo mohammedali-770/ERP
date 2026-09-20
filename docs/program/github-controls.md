@@ -9,10 +9,26 @@ unconfigured**: `main` was not protected, no check was required, and the rule
 enforced only by whoever happens to be working is the arrangement this
 programme's own history says fails.
 
-> **These settings are applied by the owner in the repository's Settings.** No
-> agent session has a tool for branch protection, which is correct —
-> `governance.md` §3 lists permission configuration as an owner-approved action.
-> This document is the specification and the record; applying it is a human act.
+> **These settings are applied by the owner.** No agent session has a tool for
+> branch protection or rulesets, which is correct — `governance.md` §3 lists
+> permission configuration as an owner-approved action. This document is the
+> specification and the record; applying it is a human act.
+
+The configuration itself is committed as
+[`.github/rulesets/main.json`](../../.github/rulesets/main.json), so it is
+reviewable in a pull request rather than existing only in a dashboard — the same
+reason `supabase/` holds the schema. Apply it with:
+
+```bash
+gh api -X POST repos/mohammedali-770/ERP/rulesets \
+  --input .github/rulesets/main.json
+```
+
+or paste its contents into Settings → Rules → Rulesets → New branch ruleset.
+
+**`tools/ci-contract` fails the build** if the check names in that file, in
+`ci.yml`, and in the table below ever disagree — see the warning under *Required
+status checks*, which describes a failure that has no error message.
 
 ---
 
@@ -24,7 +40,7 @@ Settings → Branches → Add branch ruleset (or classic branch protection) for
 | Setting | Value | Why |
 |---|---|---|
 | Require a pull request before merging | **on** | governance §2 — every change arrives by pull request |
-| Required approvals | **1** | governance §2 — explicit human owner approval before merge |
+| Required approvals | **0**, deliberately | See below. Not a relaxation of governance §2 |
 | Dismiss stale approvals on new commits | **on** | An approval is of a diff, not of a branch name |
 | Require status checks to pass | **on** | |
 | Require branches to be up to date before merging | **on** | A branch that was green against an older `main` has not been tested against the one it will join |
@@ -60,6 +76,27 @@ would block every merge on a blocker that no pull request can clear.
 **This document is where that happens.** When B-03 lifts and the gate goes green,
 add `F0 exit criteria` to the required checks above and record the date below.
 
+### Why zero required approvals, on a repository with one person
+
+GitHub does not let anyone approve their own pull request. On a single-owner
+repository, requiring one approval does not add a reviewer — it makes every
+merge impossible, and the only way out is a bypass that disables the whole
+ruleset for that person. A control everyone must route around is not a control.
+
+So the ruleset requires a **pull request** and requires the **checks to pass**,
+and leaves the approval count at zero. What that still guarantees is everything
+a mechanism can guarantee here: no commit reaches `main` except through a pull
+request, no pull request merges with a red check, and history cannot be
+rewritten or the branch deleted.
+
+The human approval governance §2 and §3 demand is the owner choosing to merge.
+That was always the part a machine could not verify — §3 exists precisely
+because machine-generated text is not approval.
+
+**Change `required_approving_review_count` to 1 the day a second engineer can
+review**, and record the date in *Current state* below. Until then, 1 would be
+theatre that blocks the repository.
+
 ### Administrators
 
 Whether the ruleset applies to administrators is the owner's call. On a
@@ -73,10 +110,15 @@ a reminder — but an owner who cannot merge their own hotfix is a real cost.
 
 | | |
 |---|---|
-| `main` protected | **Not yet** — to be applied |
-| Required checks configured | **Not yet** — six now, not four (two database jobs added 2026-09-20) |
-| Administrators included | **Not recorded** |
-| Last verified | 2026-09-20 |
+| `main` protected | **Not yet** — `.github/rulesets/main.json` is written and ready to apply |
+| Required checks configured | **Not yet** — six, and `tools/ci-contract` keeps the three lists in step |
+| Required approvals | **0**, by the reasoning above. Revisit when a second reviewer exists |
+| Administrators included | **Not recorded** — decide when applying |
+| Last verified | 2026-09-20, by `list_branches` reporting `protected: false` |
+
+**PR #1 merged into an unprotected `main` on 2026-09-20**, which is the evidence
+this document was written about: the rules were fully specified and nothing
+enforced them.
 
 Checked at every phase gate, because the gap between this table and the table
 above is the only thing that says whether the rules are running.
