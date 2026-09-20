@@ -36,20 +36,37 @@ begin
 end
 $$;
 
--- The migration runner connects as `postgres`, which on hosted Supabase is NOT
--- a superuser. Transferring ownership and setting default privileges FOR ROLE
--- erp_owner both require membership in it, so take that membership explicitly.
--- On a bare Postgres the runner is a superuser and this is a no-op — which is
--- exactly why this was invisible until CI ran the real stack.
+-- Ownership, and the privilege needed to hand it over.
+--
+-- The migration runner connects as `postgres`, which on hosted and local
+-- Supabase is NOT a superuser. Both `ALTER SCHEMA ... OWNER TO erp_owner` and
+-- `ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner` require membership in that role
+-- that carries the SET option — and since PostgreSQL 16 the membership a role
+-- creator receives carries ADMIN but not SET. `pg_has_role(..., 'MEMBER')` is
+-- true in that state, so guarding on it skips the grant and the next statement
+-- still fails. The option has to be named.
+--
+-- On a bare Postgres the runner is a superuser and none of this is needed,
+-- which is why only the real stack found it.
 do $$
 begin
-  if not pg_has_role(current_user, 'erp_owner', 'MEMBER') then
-    execute format('grant erp_owner to %I', current_user);
-  end if;
+  execute format('grant erp_owner to %I with set true', current_user);
+exception when others then
+  -- Not fatal: schema ownership is defence in depth, and the protection that
+  -- matters is the schema-level revoke below plus RLS. Reported rather than
+  -- swallowed, and tests/010 and db-check probe the actual outcome on a real
+  -- new table rather than trusting either path.
+  raise notice 'could not take SET on erp_owner (%) — schema stays owned by %', sqlerrm, current_user;
 end
 $$;
 
-alter schema erp owner to erp_owner;
+do $$
+begin
+  if pg_has_role(current_user, 'erp_owner', 'USAGE') then
+    execute 'alter schema erp owner to erp_owner';
+  end if;
+end
+$$;
 
 -- No API role reaches the ERP schema. service_role carries BYPASSRLS, which
 -- skips policy evaluation but NOT aclcheck — so withholding USAGE is what
@@ -68,7 +85,13 @@ do $$
 declare
   r text;
 begin
-  foreach r in array array['erp_owner', current_user] loop
+  -- erp_owner only when this role can actually act as it; otherwise the
+  -- statement fails and the migration stops for a mechanism that is optional.
+  foreach r in array (
+    case when pg_has_role(current_user, 'erp_owner', 'USAGE')
+         then array['erp_owner', current_user]
+         else array[current_user] end
+  ) loop
     execute format(
       'alter default privileges for role %I in schema erp revoke all on tables from public, anon, authenticated, service_role', r);
     execute format(
