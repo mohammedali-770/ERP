@@ -1,0 +1,11 @@
+{
+  "name": "@firsttaste/service-sync-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Service boundary: sync-gateway (contracts and tests only at F0)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

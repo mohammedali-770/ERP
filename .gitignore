@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+spikes/**/out/
+.pgdata/
+
+# Supabase CLI working state. None of it is source of truth; the migrations are.
+supabase/.temp/
+supabase/.branches/
+.supabase/

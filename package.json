@@ -1,0 +1,43 @@
+{
+  "name": "@firsttaste/erp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "First Taste ERP \u2014 company-level platform. F0 planning pack and foundation.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*",
+    "tools/*",
+    "spikes/*"
+  ],
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
+    "prd:extract": "node --experimental-strip-types tools/prd-extract/src/cli.ts",
+    "req:lint": "node --experimental-strip-types tools/req-lint/src/cli.ts",
+    "req:index": "node --experimental-strip-types tools/req-lint/src/index-gen.ts",
+    "spike:offline-sync": "node --experimental-strip-types spikes/offline-sync/src/cli.ts",
+    "spike:print-queue": "node --experimental-strip-types spikes/print-queue/src/cli.ts",
+    "spike:shift-conflict": "node --experimental-strip-types spikes/shift-conflict/src/cli.ts",
+    "verify": "npm run prd:extract -- --check && npm run req:index -- --check && npm run req:lint && npm run boundary:check && npm run typecheck && npm test",
+    "boundary:check": "node --experimental-strip-types tools/boundary-check/src/cli.ts",
+    "spike:payment-reconciliation": "node --experimental-strip-types spikes/payment-reconciliation/src/cli.ts",
+    "spike:callback-engine": "node --experimental-strip-types spikes/callback-engine/src/cli.ts",
+    "spike:rating-statistics": "node --experimental-strip-types spikes/rating-statistics/src/cli.ts",
+    "db:check": "node --experimental-strip-types tools/db-check/src/cli.ts",
+    "secret:scan": "node --experimental-strip-types tools/secret-scan/src/cli.ts",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

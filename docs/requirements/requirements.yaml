@@ -1,0 +1,4891 @@
+# First Taste ERP — requirement catalogue
+#
+# GENERATED FILE — do not edit by hand.
+# Regenerate with: npm run prd:extract
+#
+# Immutable fields (id, text_en, text_ar, phase, priority, prd_section) are
+# extracted from the source PRD. Ownership and traceability fields come from
+# docs/requirements/annotations.yaml — edit that file instead.
+#
+# source: docs/source/First_Taste_ERP_PRD_v0.9.docx
+# source_sha256: 895af80711dfe0a2d1dcb948b729a9d70fa4ab3d1838d1f6591c381da7dc4868
+# total: 387
+#   F0: 33
+#   F1: 164
+#   F2: 19
+#   F3: 37
+#   F4: 81
+#   F5: 49
+#   F6: 2
+#   Future: 2
+
+total: 387
+source_sha256: "895af80711dfe0a2d1dcb948b729a9d70fa4ab3d1838d1f6591c381da7dc4868"
+requirements:
+  - id: "PRG-001"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The product shall be a First Taste Company platform, with Spicy Meal configured as the first brand and first implementation."
+    text_ar: "يجب أن يكون المنتج منصة على مستوى شركة الطعم الأول، مع إعداد سبايسي ميل كأول علامة تجارية وأول تطبيق فعلي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-002"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The platform shall support the hierarchy company, legal entity, brand, operating unit, branch or facility, department, cost center, sales channel and device."
+    text_ar: "يجب أن تدعم المنصة التسلسل الهرمي للشركة والكيان القانوني والعلامة التجارية والوحدة التشغيلية والفرع أو المنشأة والقسم ومركز التكلفة وقناة البيع والجهاز."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-003"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The first implementation shall operate one legal company while preserving a data model that can add legal entities later without redesign."
+    text_ar: "يجب أن يعمل التطبيق الأول لكيان قانوني واحد مع الحفاظ على نموذج بيانات يسمح بإضافة كيانات قانونية لاحقا دون إعادة تصميم."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-004"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Cross-brand sharing shall be configurable separately for each data domain, including customers, loyalty, employees, suppliers, products and financial dimensions."
+    text_ar: "يجب أن تكون مشاركة البيانات بين العلامات قابلة للضبط بشكل مستقل لكل نطاق بيانات، بما في ذلك العملاء والولاء والموظفون والموردون والمنتجات والأبعاد المالية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-005"
+    module: "PRG"
+    phase: "F0"
+    priority: "P1"
+    prd_section: "5.1 Program foundation"
+    text_en: "The system shall be designed primarily for internal First Taste use; future licensing to other restaurant companies shall remain possible but shall not drive the initial scope."
+    text_ar: "يجب تصميم النظام أساسا للاستخدام الداخلي لشركة الطعم الأول، مع إبقاء إمكانية ترخيصه مستقبلا لشركات مطاعم أخرى دون أن تتحكم هذه الإمكانية في النطاق الأولي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-006"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "First Taste shall own all custom source code, databases, configurations, documentation and business logic produced for the program."
+    text_ar: "يجب أن تمتلك شركة الطعم الأول جميع الشفرات المخصصة وقواعد البيانات والإعدادات والوثائق ومنطق الأعمال الناتج عن البرنامج."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-007"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Open-source and commercial dependencies shall be documented with their licenses, replacement options and operational ownership."
+    text_ar: "يجب توثيق مكونات المصادر المفتوحة والمكونات التجارية مع تراخيصها وخيارات استبدالها ومسؤولية تشغيلها."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-008"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The implementation shall use AI-assisted development led through the Product Owner, with source control, code review, automated testing and documented releases."
+    text_ar: "يجب تنفيذ التطوير بمساعدة الذكاء الاصطناعي وبقيادة مالك المنتج، مع إدارة الشفرة والمراجعة والاختبارات الآلية والإصدارات الموثقة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-009"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Repository organization shall be selected after the architecture design and shall support independent deployment where operational risk requires it."
+    text_ar: "يجب اختيار تنظيم مستودعات الشفرة بعد تصميم المعمارية، مع دعم النشر المستقل عندما تتطلب المخاطر التشغيلية ذلك."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-010"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Architecture and hosting proposals shall include tiered cost options before a final infrastructure commitment is made."
+    text_ar: "يجب أن تتضمن مقترحات المعمارية والاستضافة خيارات تكلفة متعددة المستويات قبل اتخاذ الالتزام النهائي بالبنية التحتية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-011"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The central hosting model shall remain undecided until the architecture, Saudi data requirements, reliability and cost study are completed."
+    text_ar: "يجب أن يظل نموذج الاستضافة المركزية غير محسوم حتى اكتمال دراسة المعمارية ومتطلبات البيانات السعودية والموثوقية والتكلفة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-012"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Recovery-point and recovery-time objectives shall be selected from costed tiers and approved by executive management."
+    text_ar: "يجب اختيار أهداف نقطة الاستعادة وزمن الاستعادة من مستويات ذات تكاليف واضحة واعتمادها من الإدارة التنفيذية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-013"
+    module: "PRG"
+    phase: "F5"
+    priority: "P1"
+    prd_section: "5.1 Program foundation"
+    text_en: "Historical data migration shall be treated as a separate assessed workstream; no migration scope is approved at this stage."
+    text_ar: "يجب التعامل مع ترحيل البيانات التاريخية كمسار عمل مستقل يخضع للتقييم، ولا يوجد نطاق ترحيل معتمد في هذه المرحلة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-014"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "The requirements and user interfaces shall be maintained in Arabic and English."
+    text_ar: "يجب صيانة المتطلبات وواجهات المستخدم باللغتين العربية والإنجليزية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRG-015"
+    module: "PRG"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.1 Program foundation"
+    text_en: "Any difference between the English and Arabic requirements shall be escalated to the Product Owner for a binding clarification."
+    text_ar: "يجب تصعيد أي اختلاف بين المتطلبات الإنجليزية والعربية إلى مالك المنتج لإصدار توضيح ملزم."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "IAM-001"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "Employees shall sign in with employee ID and password."
+    text_ar: "يجب أن يسجل الموظفون الدخول باستخدام الرقم الوظيفي وكلمة المرور."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-002"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "System administrators shall be required to use multi-factor authentication."
+    text_ar: "يجب إلزام مديري النظام باستخدام المصادقة متعددة العوامل."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-003"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "Permissions shall be based on account type and configurable by role, action, amount, branch, department and data scope."
+    text_ar: "يجب أن تعتمد الصلاحيات على نوع الحساب وأن تكون قابلة للضبط حسب الدور والإجراء والمبلغ والفرع والقسم ونطاق البيانات."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-004"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "The system shall provide separate dashboards and access profiles for executives, finance, HR, operations, branch management, warehouse, procurement, factory, marketing, customer service and IT."
+    text_ar: "يجب أن يوفر النظام لوحات وصلاحيات منفصلة للإدارة التنفيذية والمالية والموارد البشرية والعمليات وإدارة الفروع والمستودع والمشتريات والمصنع والتسويق وخدمة العملاء وتقنية المعلومات."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-005"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "Sensitive actions shall support limits and approval rules by role rather than one fixed approval flow."
+    text_ar: "يجب أن تدعم الإجراءات الحساسة حدودا وقواعد موافقة حسب الدور بدلا من مسار موافقة ثابت واحد."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-006"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "User access shall be limited to assigned companies, brands, branches, departments and functions."
+    text_ar: "يجب تقييد وصول المستخدم بالشركات والعلامات والفروع والأقسام والوظائف المسندة إليه."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-007"
+    module: "IAM"
+    phase: "F1"
+    priority: "P1"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "The system shall support temporary access with start and expiry dates."
+    text_ar: "يجب أن يدعم النظام الصلاحيات المؤقتة مع تاريخ بداية وانتهاء."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "IAM-008"
+    module: "IAM"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "All sign-in attempts, permission changes and privileged actions shall be recorded in tamper-evident audit logs."
+    text_ar: "يجب تسجيل جميع محاولات الدخول وتغييرات الصلاحيات والإجراءات ذات الامتياز في سجلات تدقيق مقاومة للعبث."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "IAM-009"
+    module: "IAM"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "Terminated or suspended employee accounts shall be disabled through an approved HR or administrator workflow."
+    text_ar: "يجب تعطيل حسابات الموظفين المنتهية خدماتهم أو الموقوفين من خلال مسار معتمد للموارد البشرية أو مدير النظام."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "IAM-010"
+    module: "IAM"
+    phase: "F1"
+    priority: "P1"
+    prd_section: "5.2 Identity access and roles"
+    text_en: "The platform shall support trusted-device registration and session revocation."
+    text_ar: "يجب أن تدعم المنصة تسجيل الأجهزة الموثوقة وإلغاء الجلسات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "POS-001"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support walk-in takeaway orders."
+    text_ar: "يجب أن يدعم نظام نقاط البيع طلبات الاستلام المباشر من الفرع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-002"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS and order platform shall support customer pickup orders placed through digital channels."
+    text_ar: "يجب أن يدعم نظام نقاط البيع ومنصة الطلبات طلبات الاستلام التي ينشئها العميل عبر القنوات الرقمية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-003"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The platform shall support Spicy Meal delivery orders handled by company drivers."
+    text_ar: "يجب أن تدعم المنصة طلبات توصيل سبايسي ميل التي ينفذها سائقو الشركة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-004"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The platform shall support prepaid and cash-on-delivery orders received from third-party delivery platforms where the platform permits them."
+    text_ar: "يجب أن تدعم المنصة الطلبات المدفوعة مسبقا وطلبات الدفع عند الاستلام الواردة من منصات التوصيل الخارجية عندما تسمح المنصة بذلك."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-005"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The platform shall support call-center order entry and tracking."
+    text_ar: "يجب أن تدعم المنصة إدخال طلبات مركز الاتصال وتتبعها."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-006"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The platform shall support dine-in and table-service orders, including configurable table identifiers."
+    text_ar: "يجب أن تدعم المنصة طلبات تناول الطعام داخل الفرع وخدمة الطاولات مع أرقام طاولات قابلة للضبط."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-007"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The cashier interface shall retain familiar Lazywait interaction patterns where useful while correcting identified limitations."
+    text_ar: "يجب أن تحتفظ واجهة الكاشير بأنماط التفاعل المألوفة في Lazywait عندما تكون مفيدة مع معالجة أوجه القصور المحددة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-008"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Operational correctness, transaction integrity and recoverability shall take priority over minimizing order-entry seconds."
+    text_ar: "يجب أن تكون صحة التشغيل وسلامة المعاملات وقابلية الاستعادة أعلى أولوية من تقليل ثواني إدخال الطلب."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-lan-peer-sync"
+      - "SPIKE-ios-durability"
+    estate_refs: []
+  - id: "POS-009"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "A branch shall support at least three simultaneously active cashier or order-entry devices."
+    text_ar: "يجب أن يدعم الفرع ثلاثة أجهزة كاشير أو إدخال طلبات نشطة في الوقت نفسه على الأقل."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "POS-010"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall maintain one authoritative order record regardless of which device or channel created it."
+    text_ar: "يجب أن يحافظ نظام نقاط البيع على سجل طلب مرجعي واحد بغض النظر عن الجهاز أو القناة التي أنشأته."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "POS-011"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall prevent duplicate submission caused by repeated taps, retries, delayed responses or reconnection."
+    text_ar: "يجب أن يمنع نظام نقاط البيع تكرار الإرسال الناتج عن النقر المتكرر أو إعادة المحاولة أو تأخر الاستجابة أو عودة الاتصال."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "POS-012"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Each order shall have an immutable internal identifier and channel-specific external references where applicable."
+    text_ar: "يجب أن يكون لكل طلب معرف داخلي غير قابل للتغيير ومراجع خارجية خاصة بالقناة عند الحاجة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "POS-013"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The cashier shall be able to add products, modifiers, notes, quantities and customer details according to permissions."
+    text_ar: "يجب أن يتمكن الكاشير من إضافة المنتجات والإضافات والملاحظات والكميات وبيانات العميل وفقا للصلاحيات."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-014"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The cashier shall be able to edit an open order before payment while the system records material changes."
+    text_ar: "يجب أن يتمكن الكاشير من تعديل الطلب المفتوح قبل الدفع مع تسجيل التغييرات الجوهرية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-015"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Post-payment edits, voids, discounts and refunds shall follow role-based privilege and approval rules."
+    text_ar: "يجب أن تخضع التعديلات بعد الدفع والإلغاءات والخصومات والاستردادات لصلاحيات وقواعد موافقة حسب الدور."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "POS-016"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support configurable discounts, promotions, coupons, employee discounts and manager overrides."
+    text_ar: "يجب أن يدعم نظام نقاط البيع الخصومات والعروض والقسائم وخصومات الموظفين وتجاوزات المدير القابلة للضبط."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-017"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall show the source channel and payment state clearly on every order."
+    text_ar: "يجب أن يعرض نظام نقاط البيع قناة مصدر الطلب وحالة الدفع بوضوح في كل طلب."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-018"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall display print state, kitchen state, payment state and synchronization state without requiring technical access."
+    text_ar: "يجب أن يعرض نظام نقاط البيع حالة الطباعة والمطبخ والدفع والمزامنة دون الحاجة إلى صلاحيات تقنية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-019"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support reprinting with a visible reprint label, reason and user audit record."
+    text_ar: "يجب أن يدعم نظام نقاط البيع إعادة الطباعة مع إظهار أنها نسخة معاد طباعتها وسبب الإعادة وسجل المستخدم."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-020"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall use the basic order lifecycle Received, Preparing, Ready and Completed."
+    text_ar: "يجب أن يستخدم نظام نقاط البيع دورة حالة الطلب الأساسية مستلم وقيد التحضير وجاهز ومكتمل."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-021"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Authorized users shall be able to cancel orders or items using configured reason codes."
+    text_ar: "يجب أن يتمكن المستخدمون المخولون من إلغاء الطلبات أو الأصناف باستخدام رموز أسباب قابلة للضبط."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-022"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "A cashier account shall be able to operate from multiple authorized terminals without creating separate cash ownership records for each device."
+    text_ar: "يجب أن يتمكن حساب الكاشير من العمل من عدة أجهزة مصرح بها دون إنشاء ملكية نقدية منفصلة لكل جهاز."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-08"
+      - "SPIKE-shift-conflict"
+    estate_refs: []
+  - id: "POS-023"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Cash responsibility shall remain attached to the cashier shift even when the cashier uses multiple terminals."
+    text_ar: "يجب أن تظل مسؤولية النقد مرتبطة بوردية الكاشير حتى عند استخدامه عدة أجهزة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-08"
+      - "SPIKE-shift-conflict"
+    estate_refs: []
+  - id: "POS-024"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Shift closing shall use a blind count so the cashier cannot view the expected cash before submitting the physical count."
+    text_ar: "يجب أن يستخدم إغلاق الوردية جردا أعمى بحيث لا يرى الكاشير النقد المتوقع قبل إدخال المبلغ الفعلي."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-08"
+      - "SPIKE-shift-conflict"
+    estate_refs: []
+  - id: "POS-025"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "Cash differences shall be calculated automatically and routed according to configured tolerance and approval rules."
+    text_ar: "يجب احتساب فروقات النقد تلقائيا وتوجيهها حسب حدود السماح وقواعد الموافقة المضبوطة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-08"
+      - "SPIKE-shift-conflict"
+    estate_refs: []
+  - id: "POS-026"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support branch, terminal, cashier and shift opening and closing records."
+    text_ar: "يجب أن يدعم نظام نقاط البيع سجلات فتح وإغلاق الفرع والجهاز والكاشير والوردية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-08"
+      - "SPIKE-shift-conflict"
+    estate_refs: []
+  - id: "POS-027"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support Arabic and English with correct right-to-left and left-to-right layouts."
+    text_ar: "يجب أن يدعم نظام نقاط البيع العربية والإنجليزية مع تخطيط صحيح من اليمين إلى اليسار ومن اليسار إلى اليمين."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-028"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall preserve complete transaction history and shall not physically delete posted financial transactions."
+    text_ar: "يجب أن يحتفظ نظام نقاط البيع بتاريخ كامل للمعاملات وألا يحذف فعليا المعاملات المالية المرحلة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "POS-029"
+    module: "POS"
+    phase: "F1"
+    priority: "P1"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall support a training mode isolated from production financial, stock and ZATCA records."
+    text_ar: "يجب أن يدعم نظام نقاط البيع وضع تدريب معزولا عن السجلات المالية والمخزنية وسجلات زاتكا الفعلية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "POS-030"
+    module: "POS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.3 Point of sale"
+    text_en: "The POS shall provide clear operator guidance for recoverable failures instead of generic error messages."
+    text_ar: "يجب أن يقدم نظام نقاط البيع إرشادات واضحة للمستخدم عند الأخطاء القابلة للمعالجة بدلا من رسائل خطأ عامة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+    estate_refs: []
+  - id: "MNU-001"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Head office shall control products, recipes, menu structure and selling prices."
+    text_ar: "يجب أن يتحكم المقر الرئيسي في المنتجات والوصفات وهيكل القائمة وأسعار البيع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-002"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Branches shall control item availability within permissions but shall not change selling prices."
+    text_ar: "يجب أن تتحكم الفروع في توفر الأصناف ضمن الصلاحيات دون القدرة على تغيير أسعار البيع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-06"
+    estate_refs: []
+  - id: "MNU-003"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "When making an item unavailable, the cashier shall select an automatic return date and time."
+    text_ar: "عند جعل صنف غير متوفر يجب على الكاشير تحديد تاريخ ووقت عودته تلقائيا."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-06"
+    estate_refs: []
+  - id: "MNU-004"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "The system shall automatically restore the item at the selected time and record who created the unavailability period."
+    text_ar: "يجب أن يعيد النظام تفعيل الصنف تلقائيا في الوقت المحدد وأن يسجل من أنشأ فترة عدم التوفر."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-06"
+    estate_refs: []
+  - id: "MNU-005"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Menu publication shall support company, brand, branch, channel, order type and effective date ranges."
+    text_ar: "يجب أن يدعم نشر القائمة الشركة والعلامة والفرع والقناة ونوع الطلب وفترات السريان."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-006"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Products shall support Arabic and English names, descriptions, images and receipts or kitchen labels."
+    text_ar: "يجب أن تدعم المنتجات الأسماء والأوصاف والصور وتسميات الإيصال أو المطبخ بالعربية والإنجليزية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-007"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Products shall support sizes, variants, modifiers, modifier groups, defaults, minimums, maximums and mutually exclusive choices."
+    text_ar: "يجب أن تدعم المنتجات الأحجام والخيارات والإضافات ومجموعات الإضافات والقيم الافتراضية والحدود الدنيا والعليا والخيارات المتعارضة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-008"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "The system shall support meals, bundles and combos composed of configurable child selections."
+    text_ar: "يجب أن يدعم النظام الوجبات والباقات والعروض المركبة المكونة من اختيارات فرعية قابلة للضبط."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-009"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Prices shall support tax treatment, channel pricing, scheduled pricing and approved branch exceptions controlled by head office."
+    text_ar: "يجب أن تدعم الأسعار المعالجة الضريبية وأسعار القنوات والأسعار المجدولة واستثناءات الفروع المعتمدة التي يتحكم بها المقر الرئيسي."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-010"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Menu changes shall use draft, review, approval, scheduled publication and rollback states."
+    text_ar: "يجب أن تمر تغييرات القائمة بحالات المسودة والمراجعة والموافقة والنشر المجدول والتراجع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-011"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Every price, recipe and menu publication change shall retain version history and the approving user."
+    text_ar: "يجب أن يحتفظ كل تغيير في السعر أو الوصفة أو نشر القائمة بتاريخ الإصدارات والمستخدم الذي اعتمده."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-012"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "The menu service shall publish one consistent approved version to POS, customer app, call center and connected delivery platforms."
+    text_ar: "يجب أن تنشر خدمة القائمة إصدارا معتمدا واحدا ومتسقا إلى نقاط البيع وتطبيق العملاء ومركز الاتصال ومنصات التوصيل المتصلة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-06"
+    estate_refs: []
+  - id: "MNU-013"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "The platform shall detect and report channel menu-sync failures without blocking unaffected channels."
+    text_ar: "يجب أن تكتشف المنصة فشل مزامنة القائمة مع أي قناة وتبلغ عنه دون تعطيل القنوات غير المتأثرة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-06"
+    estate_refs: []
+  - id: "MNU-014"
+    module: "MNU"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Recipes shall link sold products to ingredients, semi-finished items, packaging and expected quantities."
+    text_ar: "يجب أن تربط الوصفات المنتجات المباعة بالمكونات والمواد نصف المصنعة ومواد التغليف والكميات المتوقعة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MNU-015"
+    module: "MNU"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Recipe and price changes shall have effective dates so historical sales retain the values applicable when the order was placed."
+    text_ar: "يجب أن يكون لتغييرات الوصفات والأسعار تواريخ سريان حتى تحتفظ المبيعات التاريخية بالقيم المطبقة وقت إنشاء الطلب."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "UAT-menu"
+    estate_refs: []
+  - id: "MNU-016"
+    module: "MNU"
+    phase: "F5"
+    priority: "P1"
+    prd_section: "5.4 Menu pricing recipes and availability"
+    text_en: "Nutritional and allergen fields shall be available but content shall be published only when verified by an authorized owner."
+    text_ar: "يجب توفير حقول المعلومات الغذائية ومسببات الحساسية، ولا تنشر البيانات إلا بعد التحقق منها من مالك مخول."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OMS-001"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The Order Management System shall receive orders from POS, customer app, website, call center, WhatsApp when enabled, company delivery and third-party delivery platforms."
+    text_ar: "يجب أن يستقبل نظام إدارة الطلبات الطلبات من نقاط البيع وتطبيق العملاء والموقع ومركز الاتصال وواتساب عند تفعيله وتوصيل الشركة ومنصات التوصيل الخارجية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OMS-002"
+    module: "OMS"
+    phase: "F6"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Lazywait shall be fully replaced as the long-term order and POS platform."
+    text_ar: "يجب استبدال Lazywait بالكامل كمنصة طويلة المدى للطلبات ونقاط البيع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OMS-003"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The existing Spicy Meal customer app shall migrate fully to First Taste ERP services."
+    text_ar: "يجب ترحيل تطبيق سبايسي ميل الحالي للعملاء بالكامل إلى خدمات نظام الطعم الأول."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-004"
+    module: "OMS"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Third-party delivery platforms shall integrate directly with the ERP instead of relying on Deliverect as the target architecture."
+    text_ar: "يجب أن تتكامل منصات التوصيل الخارجية مباشرة مع نظام تخطيط الموارد بدلا من الاعتماد على Deliverect في المعمارية المستهدفة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OMS-005"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Each integration shall use idempotent order creation and preserve the original external order reference."
+    text_ar: "يجب أن يستخدم كل تكامل إنشاء طلبات مقاوم للتكرار مع الاحتفاظ برقم الطلب الخارجي الأصلي."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OMS-006"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The OMS shall validate product, price, branch, service type and payment state before accepting an order."
+    text_ar: "يجب أن يتحقق نظام إدارة الطلبات من المنتج والسعر والفرع ونوع الخدمة وحالة الدفع قبل قبول الطلب."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-007"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The OMS shall provide a complete timeline of creation, validation, payment, routing, printing, preparation, readiness, delivery, completion, cancellation and refund events."
+    text_ar: "يجب أن يوفر نظام إدارة الطلبات خطا زمنيا كاملا لأحداث الإنشاء والتحقق والدفع والتوجيه والطباعة والتحضير والجاهزية والتوصيل والإكمال والإلغاء والاسترداد."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-008"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Failed orders shall enter an exception queue with failure reason, retry state, ownership and resolution history."
+    text_ar: "يجب أن تدخل الطلبات الفاشلة إلى قائمة استثناءات تتضمن سبب الفشل وحالة إعادة المحاولة والمالك وسجل المعالجة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-009"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Automatic retries shall use bounded schedules and shall never create a second business order or charge."
+    text_ar: "يجب أن تستخدم إعادة المحاولة التلقائية جداول محدودة وألا تنشئ أبدا طلبا تجاريا أو خصما ماليا ثانيا."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OMS-010"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Channel acknowledgement shall distinguish accepted, rejected, pending and unknown outcomes."
+    text_ar: "يجب أن يميز تأكيد القناة بين الحالات مقبول ومرفوض ومعلق وغير معروف."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OMS-011"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "An unknown outcome shall be reconciled before the system retries an external create or payment request."
+    text_ar: "يجب مطابقة النتيجة غير المعروفة قبل إعادة محاولة إنشاء طلب خارجي أو طلب دفع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "OMS-012"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Orders shall be routed to the selected branch only after serviceability, opening hours and item availability checks."
+    text_ar: "يجب توجيه الطلب إلى الفرع المختار فقط بعد التحقق من إمكانية الخدمة وساعات العمل وتوفر الأصناف."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-013"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The system shall support configurable minimum order values by brand, branch and order type."
+    text_ar: "يجب أن يدعم النظام حدا أدنى للطلب قابلا للضبط حسب العلامة والفرع ونوع الطلب."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-014"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The system shall expose order status consistently to the POS, customer app, call center and management dashboard."
+    text_ar: "يجب أن يعرض النظام حالة الطلب بشكل متسق في نقاط البيع وتطبيق العملاء ومركز الاتصال ولوحة الإدارة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OMS-015"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "Authorized staff shall be able to search orders by internal ID, external ID, mobile number, date, branch, channel and payment reference."
+    text_ar: "يجب أن يتمكن الموظفون المخولون من البحث عن الطلبات بالمعرف الداخلي أو الخارجي أو رقم الجوال أو التاريخ أو الفرع أو القناة أو مرجع الدفع."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-016"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The platform shall preserve the address, price, tax, recipe and customer snapshots applicable to an order after master data changes."
+    text_ar: "يجب أن تحتفظ المنصة بلقطات العنوان والسعر والضريبة والوصفة وبيانات العميل المطبقة على الطلب بعد تغييرات البيانات الرئيسية."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+    estate_refs: []
+  - id: "OMS-017"
+    module: "OMS"
+    phase: "F2"
+    priority: "P1"
+    prd_section: "5.5 Order management"
+    text_en: "The platform shall support scheduled orders subject to configurable lead time and capacity rules."
+    text_ar: "يجب أن تدعم المنصة الطلبات المجدولة وفقا لقواعد مهلة التنفيذ والطاقة القابلة للضبط."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OMS-018"
+    module: "OMS"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.5 Order management"
+    text_en: "The system shall maintain one consolidated order view while protecting channel-specific credentials and data."
+    text_ar: "يجب أن يحتفظ النظام بعرض موحد للطلب مع حماية بيانات واعتمادات كل قناة."
+    status: "baselined"
+    owner: "Operations management"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "PRN-001"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Printed cashier receipts and printed kitchen slips shall be the production interfaces required in the first release."
+    text_ar: "يجب أن تكون إيصالات الكاشير المطبوعة وقسائم المطبخ المطبوعة هي واجهات الإنتاج المطلوبة في الإصدار الأول."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-07"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-002"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "The branch print subsystem shall accept simultaneous orders from cashiers, call center, customer app and delivery platforms without losing or duplicating jobs."
+    text_ar: "يجب أن يقبل نظام الطباعة في الفرع الطلبات المتزامنة من الكاشير ومركز الاتصال وتطبيق العملاء ومنصات التوصيل دون فقدان أو تكرار مهام الطباعة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-003"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Every print job shall have a persistent unique identifier linked to the order and document type."
+    text_ar: "يجب أن يكون لكل مهمة طباعة معرف فريد ودائم مرتبط بالطلب ونوع المستند."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-004"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Print jobs shall be queued durably and survive application restart, device restart and temporary network failure."
+    text_ar: "يجب وضع مهام الطباعة في قائمة دائمة تستمر بعد إعادة تشغيل التطبيق أو الجهاز أو انقطاع الشبكة المؤقت."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-005"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "The POS shall display queued, printing, printed, failed, retrying and reprinted states."
+    text_ar: "يجب أن يعرض نظام نقاط البيع حالات في الانتظار وقيد الطباعة وتمت الطباعة وفشل وإعادة المحاولة وإعادة الطباعة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-006"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Order changes and cancellations shall print clearly and shall reference the original order and affected items."
+    text_ar: "يجب أن تطبع تغييرات الطلب والإلغاءات بوضوح مع الإشارة إلى الطلب الأصلي والأصناف المتأثرة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-007"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "A kitchen slip shall contain a unique machine-readable barcode associated with the correct order."
+    text_ar: "يجب أن تحتوي قسيمة المطبخ على باركود فريد قابل للقراءة آليا ومرتبط بالطلب الصحيح."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-07"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-008"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Scanning the approved kitchen barcode shall move the order to Ready, subject to authorization and duplicate-scan protection."
+    text_ar: "يجب أن يؤدي مسح باركود المطبخ المعتمد إلى نقل الطلب إلى حالة جاهز وفقا للصلاحية والحماية من المسح المكرر."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-07"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-009"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "The first workflow shall treat a barcode scan as readiness for the full order; station-level or partial readiness remains a future design decision."
+    text_ar: "يجب أن يعتبر المسار الأول مسح الباركود تأكيدا لجاهزية الطلب كاملا، بينما تبقى الجاهزية الجزئية أو حسب محطة العمل قرارا مستقبليا."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-07"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-010"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Receipt and kitchen templates shall support Arabic and English, channel, order type, modifiers, notes, timestamps and order identifiers."
+    text_ar: "يجب أن تدعم قوالب الإيصال والمطبخ العربية والإنجليزية والقناة ونوع الطلب والإضافات والملاحظات والأوقات ومعرفات الطلب."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-07"
+      - "SPIKE-print-queue"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "PRN-011"
+    module: "PRN"
+    phase: "F1"
+    priority: "P1"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "The print subsystem shall prevent a successful printer acknowledgement from being treated as proof that the kitchen received an unreadable or incomplete document."
+    text_ar: "يجب ألا يعتبر نظام الطباعة تأكيد الطابعة وحده دليلا على استلام المطبخ لمستند مقروء وكامل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRN-012"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Authorized users shall be able to retry failed jobs and route them to a configured fallback printer where supported."
+    text_ar: "يجب أن يتمكن المستخدمون المخولون من إعادة محاولة المهام الفاشلة وتوجيهها إلى طابعة بديلة مضبوطة عند توفرها."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-013"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Printing shall continue during central internet outage for orders available within the branch offline environment."
+    text_ar: "يجب أن تستمر الطباعة أثناء انقطاع الإنترنت المركزي للطلبات المتاحة ضمن بيئة الفرع دون اتصال."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "PRN-014"
+    module: "PRN"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "The lab shall compare iPad-native printing, Windows printing and an optional controller before production hardware is approved."
+    text_ar: "يجب أن يقارن المختبر بين الطباعة الأصلية من الآيباد والطباعة من ويندوز ووحدة تحكم اختيارية قبل اعتماد أجهزة الإنتاج."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-lan-peer-sync"
+      - "SPIKE-ios-durability"
+    estate_refs: []
+  - id: "PRN-015"
+    module: "PRN"
+    phase: "Future"
+    priority: "P2"
+    prd_section: "5.6 Kitchen printing and barcode readiness"
+    text_en: "Kitchen Display System functionality is not required for the initial production workflow unless later approved."
+    text_ar: "لا تعد شاشة عرض المطبخ مطلوبة لمسار الإنتاج الأولي ما لم تعتمد لاحقا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PAY-001"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The POS shall support cash, mada or card terminal, Apple Pay and contactless, online payment gateway, delivery-platform prepaid, split payment and customer wallet or store credit."
+    text_ar: "يجب أن يدعم نظام نقاط البيع النقد ومدى أو جهاز البطاقات وApple Pay والدفع اللاتلامسي وبوابة الدفع الإلكتروني والدفع المسبق لمنصات التوصيل والدفع المجزأ ومحفظة العميل أو الرصيد."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-002"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Payment methods shall be configurable by company, brand, branch, channel and order type."
+    text_ar: "يجب أن تكون طرق الدفع قابلة للضبط حسب الشركة والعلامة والفرع والقناة ونوع الطلب."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-003"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The preferred mada flow shall send the exact amount to the terminal and receive the result automatically where the bank or provider supports integration."
+    text_ar: "يجب أن يرسل مسار مدى المفضل المبلغ الصحيح إلى الجهاز ويستقبل النتيجة تلقائيا عندما يدعم البنك أو المزود التكامل."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-004"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The POS shall provide a controlled manual terminal fallback when direct integration is unavailable."
+    text_ar: "يجب أن يوفر نظام نقاط البيع إجراء يدويا منضبطا لجهاز الدفع عندما لا يتوفر التكامل المباشر."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-005"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Each payment attempt shall have a unique idempotency key and an immutable link to its order."
+    text_ar: "يجب أن يكون لكل محاولة دفع مفتاح فريد لمنع التكرار وربط ثابت بطلبها."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-006"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The system shall distinguish authorized, captured, declined, cancelled, refunded, partially refunded, pending and unknown payment outcomes."
+    text_ar: "يجب أن يميز النظام بين حالات الدفع مصرح ومحصّل ومرفوض وملغى ومسترد جزئيا أو كليا ومعلق وغير معروف."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+      - "SPIKE-payment-reconciliation"
+    estate_refs: []
+  - id: "PAY-007"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "An unknown payment outcome shall be reconciled before another charge is attempted."
+    text_ar: "يجب مطابقة نتيجة الدفع غير المعروفة قبل محاولة خصم أخرى."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+      - "SPIKE-payment-reconciliation"
+    estate_refs: []
+  - id: "PAY-008"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Split payment shall preserve the amount, method, reference and refund balance of each component."
+    text_ar: "يجب أن يحفظ الدفع المجزأ مبلغ وطريقة ومرجع ورصيد الاسترداد لكل جزء."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-009"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Online-paid orders shall be submitted to fulfilment only after a verified payment state according to configured rules."
+    text_ar: "يجب إرسال الطلبات المدفوعة إلكترونيا للتنفيذ فقط بعد التحقق من حالة الدفع وفقا للقواعد المضبوطة."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "PAY-010"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Failed or cancelled online-paid orders shall be refunded automatically when predefined rules are met."
+    text_ar: "يجب استرداد الطلبات المدفوعة إلكترونيا والفاشلة أو الملغاة تلقائيا عند تحقق القواعد المحددة مسبقا."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-05"
+      - "SPIKE-payment-reconciliation"
+    estate_refs: []
+  - id: "PAY-011"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Automatic refunds shall be idempotent and shall create alerts for pending, rejected or mismatched outcomes."
+    text_ar: "يجب أن تكون الاستردادات التلقائية مقاومة للتكرار وأن تنشئ تنبيهات للحالات المعلقة أو المرفوضة أو غير المتطابقة."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-05"
+      - "SPIKE-payment-reconciliation"
+    estate_refs: []
+  - id: "PAY-012"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Refund eligibility, amount limits and reasons shall be configurable by channel, payment method, order state and elapsed time."
+    text_ar: "يجب أن تكون أهلية الاسترداد وحدود المبلغ والأسباب قابلة للضبط حسب القناة وطريقة الدفع وحالة الطلب والوقت المنقضي."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-05"
+    estate_refs: []
+  - id: "PAY-013"
+    module: "PAY"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The system shall automatically reconcile POS sales against bank, gateway and delivery-platform settlements and create exception alerts."
+    text_ar: "يجب أن يطابق النظام تلقائيا مبيعات نقاط البيع مع تسويات البنك وبوابة الدفع ومنصات التوصيل وأن ينشئ تنبيهات للاستثناءات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PAY-014"
+    module: "PAY"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Settlement reconciliation shall account for commissions, fees, refunds, chargebacks, withholding and timing differences."
+    text_ar: "يجب أن تراعي مطابقة التسويات العمولات والرسوم والاستردادات والاعتراضات والاقتطاعات وفروق التوقيت."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PAY-015"
+    module: "PAY"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "Customer wallet and store-credit balances shall use a controlled ledger and shall never be edited by overwriting the balance."
+    text_ar: "يجب أن تستخدم محفظة العميل والرصيد سجلا محكما وألا يعدل الرصيد بالاستبدال المباشر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PAY-016"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "The system shall generate and retain ZATCA-compliant invoices, credit notes and debit notes according to the rules applicable at implementation time."
+    text_ar: "يجب أن ينشئ النظام ويحفظ الفواتير والإشعارات الدائنة والمدينة المتوافقة مع زاتكا وفقا للقواعد السارية وقت التنفيذ."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-09"
+    estate_refs: []
+  - id: "PAY-017"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "ZATCA submission or reporting that cannot complete during an outage shall be queued securely and synchronized when connectivity returns."
+    text_ar: "يجب وضع إرسال أو إبلاغ زاتكا الذي يتعذر أثناء الانقطاع في قائمة آمنة ومزامنته عند عودة الاتصال."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-09"
+    estate_refs: []
+  - id: "PAY-018"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "ZATCA identifiers, invoice counters, hashes, certificates and submission responses shall be protected from unauthorized alteration."
+    text_ar: "يجب حماية معرفات زاتكا وعدادات الفواتير والملخصات والشهادات وردود الإرسال من التعديل غير المصرح."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-09"
+    estate_refs: []
+  - id: "PAY-019"
+    module: "PAY"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.7 Payments cash refunds and ZATCA"
+    text_en: "ZATCA requirements shall be validated against the current official specifications before certification and production release."
+    text_ar: "يجب التحقق من متطلبات زاتكا مقابل المواصفات الرسمية الحالية قبل الاعتماد والإطلاق الإنتاجي."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "T-09"
+    estate_refs: []
+  - id: "OFF-001"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "A branch shall remain fully operational when its connection to the central platform is unavailable."
+    text_ar: "يجب أن يظل الفرع عاملا بالكامل عند تعذر الاتصال بالمنصة المركزية."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-002"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Offline operation shall include order entry, local menu access, cash handling, kitchen printing, barcode readiness and shift operations."
+    text_ar: "يجب أن يشمل العمل دون اتصال إدخال الطلبات والوصول المحلي للقائمة والتعامل النقدي وطباعة المطبخ والجاهزية بالباركود وعمليات الوردية."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-003"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Operations that require an external online provider, including live card authorization, may follow provider-specific fallback rules but shall not corrupt local order state."
+    text_ar: "يجوز للعمليات التي تتطلب مزودا خارجيا مباشرا مثل تفويض البطاقة أن تتبع قواعد بديلة خاصة بالمزود دون إفساد حالة الطلب المحلية."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+    estate_refs: []
+  - id: "OFF-004"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Each branch device shall retain an encrypted local working set required for its assigned branch and role."
+    text_ar: "يجب أن يحتفظ كل جهاز فرع بمجموعة عمل محلية مشفرة لازمة للفرع والدور المسندين إليه."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-005"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Locally created events shall enter a durable outbox and synchronize automatically after connectivity returns."
+    text_ar: "يجب أن تدخل الأحداث المنشأة محليا إلى صندوق صادر دائم وأن تتزامن تلقائيا بعد عودة الاتصال."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-006"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Synchronization shall be idempotent and shall prevent duplicate orders, payments, print jobs, invoices and stock movements."
+    text_ar: "يجب أن تكون المزامنة مقاومة للتكرار وأن تمنع تكرار الطلبات والمدفوعات ومهام الطباعة والفواتير وحركات المخزون."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-007"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "The system shall expose synchronization backlog, last successful sync, conflicts and failed events to authorized users."
+    text_ar: "يجب أن يعرض النظام تراكم المزامنة وآخر مزامنة ناجحة والتعارضات والأحداث الفاشلة للمستخدمين المخولين."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-008"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Conflict rules shall be deterministic and documented for menu versions, item availability, shifts, orders and payments."
+    text_ar: "يجب أن تكون قواعد حل التعارض حتمية وموثقة لإصدارات القائمة وتوفر الأصناف والورديات والطلبات والمدفوعات."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-009"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Financial and order events shall use append-only corrections rather than destructive overwrites during conflict resolution."
+    text_ar: "يجب أن تستخدم الأحداث المالية وأحداث الطلبات قيود تصحيح إضافية بدلا من الاستبدال التدميري عند حل التعارض."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-010"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "The branch shall continue printing while central services are unavailable."
+    text_ar: "يجب أن يستمر الفرع في الطباعة أثناء تعذر الخدمات المركزية."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "OFF-011"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "Once connected, ZATCA and management dashboards shall receive queued data automatically with visible completion status."
+    text_ar: "عند عودة الاتصال يجب أن تستقبل زاتكا ولوحات الإدارة البيانات المؤجلة تلقائيا مع حالة إكمال ظاهرة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "OFF-012"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "The preferred deployment shall avoid dedicated branch hardware, provided the approved reliability tests pass."
+    text_ar: "يجب أن يتجنب النشر المفضل أجهزة فرعية مخصصة بشرط اجتياز اختبارات الموثوقية المعتمدة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-lan-peer-sync"
+      - "SPIKE-ios-durability"
+    estate_refs: []
+  - id: "OFF-013"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "If iPad-only operation fails the lab acceptance criteria, the approved fallback shall be Windows POS or a small branch controller."
+    text_ar: "إذا فشل التشغيل المعتمد على الآيباد وحده في معايير قبول المختبر فيجب أن يكون البديل المعتمد نقاط بيع ويندوز أو وحدة تحكم صغيرة في الفرع."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-lan-peer-sync"
+      - "SPIKE-ios-durability"
+    estate_refs: []
+  - id: "OFF-014"
+    module: "OFF"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.8 Offline operation and synchronization"
+    text_en: "No hardware model shall be approved before concurrent printing, offline, recovery and load tests are passed in the HQ lab."
+    text_ar: "لا يجوز اعتماد أي نموذج أجهزة قبل اجتياز اختبارات الطباعة المتزامنة والعمل دون اتصال والاستعادة والتحميل في مختبر المقر."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-lan-peer-sync"
+      - "SPIKE-ios-durability"
+    estate_refs: []
+  - id: "APP-001"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The existing Spicy Meal customer application shall be migrated from its current backend dependencies to First Taste ERP services."
+    text_ar: "يجب ترحيل تطبيق سبايسي ميل الحالي للعملاء من اعتماده الحالي إلى خدمات نظام تخطيط موارد الطعم الأول."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-002"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The migration shall preserve approved customer functions and shall not require an unnecessary complete application rewrite."
+    text_ar: "يجب أن يحافظ الترحيل على وظائف العميل المعتمدة وألا يتطلب إعادة بناء كاملة غير ضرورية للتطبيق."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-003"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "Customers shall be identified primarily by mobile number with one-time-password verification."
+    text_ar: "يجب التعرف على العميل أساسا برقم الجوال مع التحقق برمز لمرة واحدة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-004"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "Saudi mobile number normalization shall accept approved local and international formats and store one canonical value."
+    text_ar: "يجب أن يقبل توحيد رقم الجوال السعودي الصيغ المحلية والدولية المعتمدة وأن يحفظ قيمة معيارية واحدة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-005"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The customer app shall support Arabic right-to-left and English left-to-right interfaces."
+    text_ar: "يجب أن يدعم تطبيق العميل واجهة عربية من اليمين إلى اليسار وواجهة إنجليزية من اليسار إلى اليمين."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-006"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The customer shall select or confirm branch and order type before an order is finalized."
+    text_ar: "يجب أن يختار العميل أو يؤكد الفرع ونوع الطلب قبل إتمام الطلب."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-007"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The app shall suggest the nearest eligible branch using approved location and serviceability rules."
+    text_ar: "يجب أن يقترح التطبيق أقرب فرع مؤهل باستخدام الموقع وقواعد إمكانية الخدمة المعتمدة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-008"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The app shall use the ERP menu, pricing, availability, modifiers and promotions as its authoritative source."
+    text_ar: "يجب أن يستخدم التطبيق قائمة النظام وأسعاره وتوفره وإضافاته وعروضه كمصدر مرجعي."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-009"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The app shall support pickup and company delivery, with delivery-platform orders remaining external channel orders."
+    text_ar: "يجب أن يدعم التطبيق الاستلام وتوصيل الشركة، بينما تبقى طلبات منصات التوصيل طلبات قنوات خارجية."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-010"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "Delivery addresses shall support a map location, coordinates, Saudi short address, text directions and an order-time snapshot."
+    text_ar: "يجب أن تدعم عناوين التوصيل الموقع على الخريطة والإحداثيات والعنوان الوطني المختصر والإرشادات النصية ولقطة محفوظة وقت الطلب."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-011"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The app shall display banners, branch information, opening hours, minimum order and order status from managed ERP data."
+    text_ar: "يجب أن يعرض التطبيق البنرات ومعلومات الفرع وساعات العمل والحد الأدنى للطلب وحالة الطلب من بيانات النظام المدارة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-012"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The app shall prevent duplicate payments and duplicate orders during retry or delayed response conditions."
+    text_ar: "يجب أن يمنع التطبيق تكرار المدفوعات والطلبات عند إعادة المحاولة أو تأخر الاستجابة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "APP-013"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "A failed order submission after verified payment shall follow controlled retries and automatic-refund rules."
+    text_ar: "يجب أن يتبع فشل إرسال الطلب بعد التحقق من الدفع قواعد إعادة المحاولة والاسترداد التلقائي المنضبطة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+    estate_refs: []
+  - id: "APP-014"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "Customers shall be able to view their order history, payment and refund status using authorized data."
+    text_ar: "يجب أن يتمكن العملاء من عرض سجل الطلبات وحالة الدفع والاسترداد باستخدام بيانات مصرح بها."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-015"
+    module: "APP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "Customer notifications shall support order events and approved marketing consent preferences."
+    text_ar: "يجب أن تدعم إشعارات العميل أحداث الطلب وتفضيلات الموافقة التسويقية المعتمدة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-customer-app"
+    estate_refs: []
+  - id: "APP-016"
+    module: "APP"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.9 Customer application"
+    text_en: "The customer app shall expose support and complaint entry points linked to the CRM case record."
+    text_ar: "يجب أن يوفر تطبيق العميل نقاطا للدعم والشكاوى مرتبطة بسجل الحالة في إدارة علاقات العملاء."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-001"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "The ERP shall maintain one customer profile per verified mobile number, with controlled merge and duplicate resolution."
+    text_ar: "يجب أن يحتفظ النظام بملف عميل واحد لكل رقم جوال موثق مع دمج منضبط ومعالجة التكرار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-002"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "The customer profile shall combine approved activity from the customer app, POS, call center, WhatsApp and delivery channels where identity can be matched lawfully."
+    text_ar: "يجب أن يجمع ملف العميل النشاط المصرح به من تطبيق العميل ونقاط البيع ومركز الاتصال وواتساب وقنوات التوصيل عندما يمكن مطابقة الهوية نظاميا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-003"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "The loyalty engine shall support spending points, visit or order-count rewards, tiered membership, cashback or wallet, coupons and personalized offers."
+    text_ar: "يجب أن يدعم محرك الولاء نقاط الإنفاق ومكافآت الزيارات أو عدد الطلبات والمستويات والرصيد أو الاسترداد والقسائم والعروض المخصصة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-004"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Loyalty rules shall be configurable by brand, branch, channel, product, customer segment, date, limit and exclusion."
+    text_ar: "يجب أن تكون قواعد الولاء قابلة للضبط حسب العلامة والفرع والقناة والمنتج وشريحة العملاء والتاريخ والحدود والاستثناءات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-005"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Loyalty balances shall use an auditable ledger for accrual, redemption, expiry, reversal and manual adjustment."
+    text_ar: "يجب أن تستخدم أرصدة الولاء سجلا قابلا للتدقيق للاكتساب والاستبدال والانتهاء والعكس والتعديل اليدوي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-006"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Manual loyalty adjustments shall require role-based authorization and a reason."
+    text_ar: "يجب أن تتطلب تعديلات الولاء اليدوية صلاحية حسب الدور وسببا موثقا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-007"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Customer cases shall support category, severity, branch, order link, owner, service deadline, evidence, action and closure reason."
+    text_ar: "يجب أن تدعم حالات العملاء التصنيف والخطورة والفرع وربط الطلب والمالك والمهلة والأدلة والإجراء وسبب الإغلاق."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-008"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Multiple issues raised in one conversation shall be consolidated into one organized case where practical."
+    text_ar: "يجب دمج المشكلات المتعددة في المحادثة الواحدة ضمن حالة منظمة واحدة عندما يكون ذلك عمليا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-009"
+    module: "CRM"
+    phase: "F5"
+    priority: "P1"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Positive feedback shall be recorded and acknowledged without unnecessary escalation."
+    text_ar: "يجب تسجيل الملاحظات الإيجابية وشكر العميل دون تصعيد غير ضروري."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-010"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "If verified nutrition, ingredient or allergen information is unavailable, customer-facing automation shall not guess."
+    text_ar: "إذا لم تتوفر معلومات موثقة عن التغذية أو المكونات أو مسببات الحساسية فلا يجوز للأتمتة الموجهة للعميل التخمين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CRM-011"
+    module: "CRM"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.10 Customer relationship and loyalty"
+    text_en: "Customer consent, communication preference, retention and deletion workflows shall be recorded and enforced."
+    text_ar: "يجب تسجيل وتنفيذ موافقات العميل وتفضيلات التواصل وسياسات الاحتفاظ والحذف."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-001"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Every completed sale shall deduct recipe ingredients and packaging from branch inventory in real time."
+    text_ar: "يجب أن تخصم كل عملية بيع مكتملة مكونات الوصفة ومواد التغليف من مخزون الفرع في الوقت الفعلي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-002"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "The system shall support raw ingredients, factory-made semi-finished items, ready-to-sell finished products, packaging, cleaning supplies, operating supplies, equipment and spare parts."
+    text_ar: "يجب أن يدعم النظام المواد الخام والمواد نصف المصنعة من المصنع والمنتجات الجاهزة للبيع ومواد التغليف والتنظيف والتشغيل والمعدات وقطع الغيار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-003"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Inventory shall be tracked by company, brand where applicable, facility, storage location, item, unit and stock status."
+    text_ar: "يجب تتبع المخزون حسب الشركة والعلامة عند الحاجة والمنشأة وموقع التخزين والصنف والوحدة وحالة المخزون."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-004"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Food and factory stock shall track batch, production date and expiry date."
+    text_ar: "يجب أن يتتبع مخزون الطعام والمصنع رقم الدفعة وتاريخ الإنتاج وتاريخ الانتهاء."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-005"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units."
+    text_ar: "يجب أن يدعم النظام تحويل الوحدات وأن يمنع التحويلات الملتبسة بين وحدات الشراء والإنتاج والتخزين والوصفة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-006"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Stock movements shall include receipt, issue, sale consumption, production consumption, production output, transfer, return, adjustment, waste, damage and expiry."
+    text_ar: "يجب أن تشمل حركات المخزون الاستلام والصرف واستهلاك البيع واستهلاك الإنتاج ومخرجات الإنتاج والتحويل والمرتجع والتسوية والهدر والتلف والانتهاء."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-007"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Every stock movement shall record source document, user, date, quantity, unit, location, batch where applicable and approval state."
+    text_ar: "يجب أن تسجل كل حركة مخزون المستند المصدر والمستخدم والتاريخ والكمية والوحدة والموقع والدفعة عند الحاجة وحالة الاعتماد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-008"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Negative stock shall be prevented or explicitly controlled through an exception approval policy."
+    text_ar: "يجب منع المخزون السالب أو التحكم فيه صراحة من خلال سياسة اعتماد للاستثناءات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-009"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Stock counts shall support full counts, cycle counts, blind counts, recounts and approved variances."
+    text_ar: "يجب أن يدعم جرد المخزون الجرد الشامل والدوري والأعمى وإعادة العد واعتماد الفروقات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-010"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "The system shall calculate theoretical consumption from sales and compare it with actual stock movement."
+    text_ar: "يجب أن يحسب النظام الاستهلاك النظري من المبيعات ويقارنه بالحركة الفعلية للمخزون."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-011"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Inventory variance shall be analyzed by item, branch, period, recipe, user and reason."
+    text_ar: "يجب تحليل فروقات المخزون حسب الصنف والفرع والفترة والوصفة والمستخدم والسبب."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-012"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Expiry monitoring shall produce alerts and support first-expiry-first-out picking where configured."
+    text_ar: "يجب أن تنتج مراقبة الانتهاء تنبيهات وأن تدعم الصرف حسب الأقرب انتهاء عند ضبط ذلك."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-013"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "The system shall support minimum, maximum, safety-stock and reorder values by location."
+    text_ar: "يجب أن يدعم النظام الحدود الدنيا والعليا ومخزون الأمان ونقاط إعادة الطلب لكل موقع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-014"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Branch replenishment shall support manual requests, system-suggested quantities and automatic orders."
+    text_ar: "يجب أن يدعم تزويد الفروع الطلب اليدوي والكميات المقترحة من النظام والطلبات التلقائية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-015"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Suggested and automatic replenishment shall consider sales, forecast, current stock, open transfers, expiry, lead time and capacity."
+    text_ar: "يجب أن تراعي اقتراحات وطلبات التزويد التلقائية المبيعات والتوقعات والمخزون الحالي والتحويلات المفتوحة والانتهاء ومدة التوريد والطاقة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-016"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Branch users shall confirm receipt and record shortage, excess, substitution, damage and rejected quantities."
+    text_ar: "يجب أن يؤكد مستخدمو الفرع الاستلام وأن يسجلوا النقص والزيادة والاستبدال والتلف والكميات المرفوضة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-017"
+    module: "INV"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Transfers shall preserve dispatch, in-transit and receiving accountability."
+    text_ar: "يجب أن تحافظ التحويلات على مسؤولية الإرسال وما هو قيد النقل والاستلام."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-018"
+    module: "INV"
+    phase: "F3"
+    priority: "P1"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "The inventory module shall support barcode or QR scanning for receiving, transfer, picking, counting and issue where beneficial."
+    text_ar: "يجب أن تدعم وحدة المخزون مسح الباركود أو رمز QR للاستلام والتحويل والتجهيز والجرد والصرف عندما يكون مفيدا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "INV-019"
+    module: "INV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.11 Inventory and replenishment"
+    text_en: "Inventory valuation shall integrate with native accounting using the approved costing policy."
+    text_ar: "يجب أن يتكامل تقييم المخزون مع المحاسبة الأصلية باستخدام سياسة التكلفة المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-001"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Factory production planning shall support confirmed branch requests, sales forecasts and minimum-stock rules."
+    text_ar: "يجب أن يدعم تخطيط إنتاج المصنع طلبات الفروع المؤكدة وتوقعات المبيعات وقواعد الحد الأدنى للمخزون."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-002"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Production orders generated by any method shall require manager approval before release."
+    text_ar: "يجب أن تتطلب أوامر الإنتاج الناتجة بأي طريقة اعتماد المدير قبل إصدارها."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-003"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "The system shall support multi-level bills of material for raw, semi-finished and finished products."
+    text_ar: "يجب أن يدعم النظام قوائم مواد متعددة المستويات للمواد الخام ونصف المصنعة والمنتجات النهائية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-004"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "A production order shall specify product, recipe version, planned quantity, facility, planned date, required materials and target batch."
+    text_ar: "يجب أن يحدد أمر الإنتاج المنتج وإصدار الوصفة والكمية المخططة والمنشأة والتاريخ والمواد المطلوبة والدفعة المستهدفة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-005"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Material issue and finished output shall be recorded by batch, quantity, unit and responsible employee."
+    text_ar: "يجب تسجيل صرف المواد ومخرجات الإنتاج حسب الدفعة والكمية والوحدة والموظف المسؤول."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-006"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "The system shall record actual yield, expected yield, production loss, rework and waste."
+    text_ar: "يجب أن يسجل النظام العائد الفعلي والعائد المتوقع وفقد الإنتاج وإعادة العمل والهدر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-007"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Finished and semi-finished output shall receive production and expiry dates according to approved shelf-life rules."
+    text_ar: "يجب أن تحصل المخرجات النهائية ونصف المصنعة على تاريخ إنتاج وانتهاء وفقا لقواعد مدة الصلاحية المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-008"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "The system shall provide forward and backward batch traceability between materials, production batches and receiving branches."
+    text_ar: "يجب أن يوفر النظام تتبعا أماميا وخلفيا للدفعات بين المواد ودفعات الإنتاج والفروع المستلمة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-009"
+    module: "MFG"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Production costing shall include materials and configurable labor and overhead components."
+    text_ar: "يجب أن تشمل تكلفة الإنتاج المواد ومكونات العمالة والتكاليف غير المباشرة القابلة للضبط."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-010"
+    module: "MFG"
+    phase: "F3"
+    priority: "P1"
+    prd_section: "5.12 Factory management"
+    text_en: "Factory capacity and planned workload shall be visible when approving production orders."
+    text_ar: "يجب أن تكون طاقة المصنع وحجم العمل المخطط ظاهرة عند اعتماد أوامر الإنتاج."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-011"
+    module: "MFG"
+    phase: "F3"
+    priority: "P1"
+    prd_section: "5.12 Factory management"
+    text_en: "The system shall support hold, release, reject and recall statuses for batches."
+    text_ar: "يجب أن يدعم النظام حالات الحجز والإفراج والرفض والاستدعاء للدفعات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MFG-012"
+    module: "MFG"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.12 Factory management"
+    text_en: "Existing factory and warehouse workflows shall be optimized and migrated through approved process mapping rather than copied without review."
+    text_ar: "يجب تحسين إجراءات المصنع والمستودع الحالية وترحيلها من خلال رسم عمليات معتمد بدلا من نسخها دون مراجعة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-001"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "The system shall support purchase requests, requests for quotation, supplier quotations, evaluation, purchase orders, receiving and invoice matching."
+    text_ar: "يجب أن يدعم النظام طلبات الشراء وطلبات عروض الأسعار وعروض الموردين والتقييم وأوامر الشراء والاستلام ومطابقة الفواتير."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-002"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Purchase approvals shall use configurable rules based on amount, department, item type, facility, budget and requester role."
+    text_ar: "يجب أن تستخدم موافقات الشراء قواعد قابلة للضبط حسب المبلغ والقسم ونوع الصنف والمنشأة والميزانية ودور مقدم الطلب."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-003"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Approval rules shall support multiple levels, delegation, substitute approvers and escalation for overdue decisions."
+    text_ar: "يجب أن تدعم قواعد الموافقة مستويات متعددة والتفويض والبدلاء والتصعيد عند تأخر القرار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-004"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "The system shall prevent the requester from approving a transaction where segregation-of-duties rules prohibit it."
+    text_ar: "يجب أن يمنع النظام مقدم الطلب من اعتماد المعاملة عندما تحظر قواعد فصل المهام ذلك."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-005"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Supplier records shall include commercial, tax, contact, banking, category, contract and performance information subject to access controls."
+    text_ar: "يجب أن تتضمن سجلات المورد المعلومات التجارية والضريبية وبيانات التواصل والبنك والفئة والعقد والأداء وفقا لضوابط الوصول."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-006"
+    module: "PRC"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Receiving shall support partial delivery, rejected quantities, batch and expiry capture, and evidence attachments."
+    text_ar: "يجب أن يدعم الاستلام التسليم الجزئي والكميات المرفوضة وتسجيل الدفعة والانتهاء وإرفاق الأدلة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-007"
+    module: "PRC"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "The system shall perform configurable two-way or three-way matching before supplier invoice approval."
+    text_ar: "يجب أن يجري النظام مطابقة ثنائية أو ثلاثية قابلة للضبط قبل اعتماد فاتورة المورد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-008"
+    module: "PRC"
+    phase: "F4"
+    priority: "P1"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Supplier performance shall be measurable by price, quality, lead time, fulfilment and disputes."
+    text_ar: "يجب قياس أداء المورد حسب السعر والجودة ومدة التوريد والالتزام والنزاعات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "PRC-009"
+    module: "PRC"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.13 Procurement and suppliers"
+    text_en: "Purchasing commitments shall be visible against approved budgets before final approval."
+    text_ar: "يجب أن تكون التزامات الشراء ظاهرة مقابل الميزانيات المعتمدة قبل الموافقة النهائية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-001"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The ERP shall contain a complete native accounting system rather than only exporting journals to another accounting product."
+    text_ar: "يجب أن يحتوي نظام تخطيط الموارد على نظام محاسبي أصلي كامل بدلا من الاكتفاء بتصدير القيود إلى منتج محاسبي آخر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-002"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The first accounting implementation shall cover one legal company."
+    text_ar: "يجب أن يغطي التطبيق المحاسبي الأول كيانا قانونيا واحدا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-003"
+    module: "FIN"
+    phase: "F4"
+    priority: "P1"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The data model shall remain capable of adding legal companies and consolidation later."
+    text_ar: "يجب أن يبقى نموذج البيانات قادرا على إضافة كيانات قانونية والتجميع المالي مستقبلا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-004"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall provide configurable chart of accounts, fiscal periods, journals and posting rules."
+    text_ar: "يجب أن يوفر النظام دليل حسابات وفترات مالية ويوميات وقواعد ترحيل قابلة للضبط."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-005"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "Financial entries shall support dimensions for company, brand, branch, sales channel, department or cost center, product, factory and warehouse."
+    text_ar: "يجب أن تدعم القيود المالية أبعاد الشركة والعلامة والفرع وقناة البيع والقسم أو مركز التكلفة والمنتج والمصنع والمستودع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-006"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall report profit and loss for each required dimension and approved combinations."
+    text_ar: "يجب أن يعرض النظام الأرباح والخسائر لكل بعد مطلوب وللتوليفات المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-007"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "Posted entries shall be immutable and corrected through controlled reversal or adjustment entries."
+    text_ar: "يجب أن تكون القيود المرحلة غير قابلة للتغيير وأن تصحح من خلال قيود عكس أو تسوية منضبطة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-008"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "POS sales, tax, discounts, refunds, cash, card, wallet, delivery receivables and cost of goods sold shall post automatically according to approved rules."
+    text_ar: "يجب أن ترحل مبيعات نقاط البيع والضريبة والخصومات والاستردادات والنقد والبطاقات والمحفظة وذمم منصات التوصيل وتكلفة البضاعة تلقائيا وفقا للقواعد المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-009"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support accounts payable, supplier invoice workflow, payment scheduling and supplier statements."
+    text_ar: "يجب أن يدعم النظام الحسابات الدائنة ومسار فواتير الموردين وجدولة المدفوعات وكشوف الموردين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-010"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support accounts receivable for delivery platforms, corporate customers and other approved debtors."
+    text_ar: "يجب أن يدعم النظام الحسابات المدينة لمنصات التوصيل والعملاء من الشركات والمدينين الآخرين المعتمدين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-011"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support bank accounts, cash accounts, petty cash, deposits, transfers and bank reconciliation."
+    text_ar: "يجب أن يدعم النظام الحسابات البنكية وحسابات النقد والعهد والإيداعات والتحويلات والمطابقة البنكية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-012"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall reconcile cashier closing with POS payments, deposits and accounting postings."
+    text_ar: "يجب أن يطابق النظام إغلاق الكاشير مع مدفوعات نقاط البيع والإيداعات والقيود المحاسبية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-013"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support VAT configuration, tax reports and evidence required for approved filings."
+    text_ar: "يجب أن يدعم النظام إعدادات ضريبة القيمة المضافة والتقارير الضريبية والأدلة المطلوبة للإقرارات المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-014"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support fixed assets, capitalization, depreciation, transfer, impairment and disposal."
+    text_ar: "يجب أن يدعم النظام الأصول الثابتة والرسملة والإهلاك والتحويل والانخفاض والاستبعاد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-015"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support budgets by financial dimension and compare commitments and actuals against budget."
+    text_ar: "يجب أن يدعم النظام الميزانيات حسب الأبعاد المالية وأن يقارن الالتزامات والفعلية بالميزانية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-016"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall support month-end and year-end closing checklists, period locks and controlled reopening."
+    text_ar: "يجب أن يدعم النظام قوائم إقفال نهاية الشهر والسنة وإغلاق الفترات وإعادة فتحها بشكل منضبط."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-017"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "Financial statements shall include at minimum trial balance, income statement, balance sheet and cash flow."
+    text_ar: "يجب أن تتضمن القوائم المالية كحد أدنى ميزان المراجعة وقائمة الدخل والميزانية العمومية والتدفقات النقدية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-018"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The system shall retain supporting documents and approvals linked to accounting transactions."
+    text_ar: "يجب أن يحتفظ النظام بالمستندات المؤيدة والموافقات المرتبطة بالمعاملات المحاسبية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-019"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "The finance module shall support controlled imports and exports for banking, audit and statutory reporting where direct integration is unavailable."
+    text_ar: "يجب أن تدعم وحدة المالية عمليات استيراد وتصدير منضبطة للبنوك والتدقيق والتقارير النظامية عندما لا يتوفر التكامل المباشر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "FIN-020"
+    module: "FIN"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.14 Finance and accounting"
+    text_en: "All financial reports shall preserve drill-down from summary to source transaction and audit history."
+    text_ar: "يجب أن تحافظ جميع التقارير المالية على إمكانية الانتقال من الملخص إلى المعاملة المصدر وسجل التدقيق."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-001"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The ERP shall provide complete human-resources and payroll functionality."
+    text_ar: "يجب أن يوفر نظام تخطيط الموارد وظائف كاملة للموارد البشرية والرواتب."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-002"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Employee master data shall include identity, employment, contact, organization, contract, compensation, bank and document records subject to permissions."
+    text_ar: "يجب أن تتضمن بيانات الموظف الأساسية الهوية والتوظيف والتواصل والتنظيم والعقد والتعويض والبنك والمستندات وفقا للصلاحيات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-003"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The system shall support recruitment, offer, onboarding, probation, transfer, promotion, disciplinary action, offboarding and final settlement workflows."
+    text_ar: "يجب أن يدعم النظام إجراءات التوظيف والعرض والمباشرة والتجربة والنقل والترقية والإجراءات التأديبية وإنهاء الخدمة والتسوية النهائية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-004"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Attendance shall support multiple capture methods including biometric devices, employee mobile app, branch kiosk and authorized manager entry."
+    text_ar: "يجب أن يدعم الحضور طرقا متعددة تشمل أجهزة البصمة وتطبيق الموظف وكشك الفرع وإدخال المدير المصرح."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-005"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Attendance source, time, location, device and manual-adjustment history shall be retained."
+    text_ar: "يجب الاحتفاظ بمصدر الحضور والوقت والموقع والجهاز وسجل التعديل اليدوي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-006"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The system shall support shift templates, branch schedules, split shifts, rest periods, substitutions and published rosters."
+    text_ar: "يجب أن يدعم النظام قوالب الورديات وجداول الفروع والورديات المجزأة وفترات الراحة والاستبدالات والجداول المنشورة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-007"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Leave and permission requests shall use configurable balances, evidence, approval paths and payroll effects."
+    text_ar: "يجب أن تستخدم طلبات الإجازة والاستئذان أرصدة وأدلة ومسارات اعتماد وآثار رواتب قابلة للضبط."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-008"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Payroll shall support salary, allowances, overtime, deductions, advances, absence, leave, incentives and end-of-service components."
+    text_ar: "يجب أن تدعم الرواتب الأجر والبدلات والإضافي والخصومات والسلف والغياب والإجازات والحوافز ومكونات نهاية الخدمة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-009"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Payroll calculations shall be versioned, reviewable and approved before posting or payment."
+    text_ar: "يجب أن تكون حسابات الرواتب ذات إصدارات قابلة للمراجعة وأن تعتمد قبل الترحيل أو الدفع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-010"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Approved payroll shall create controlled accounting entries and payment files or instructions."
+    text_ar: "يجب أن تنشئ الرواتب المعتمدة قيودا محاسبية وملفات أو تعليمات دفع منضبطة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-011"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The system shall prepare data and records needed for GOSI, Qiwa and other applicable official workflows where supported."
+    text_ar: "يجب أن يعد النظام البيانات والسجلات اللازمة للتأمينات الاجتماعية وقوى والإجراءات الرسمية الأخرى ذات الصلة عندما تكون مدعومة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-012"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Official-service integration shall use supported APIs or authorized providers and shall not automate prohibited portal activity."
+    text_ar: "يجب أن يستخدم التكامل مع الخدمات الرسمية واجهات مدعومة أو مزودين معتمدين وألا يؤتمت نشاطا محظورا في البوابات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-013"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Employee documents, contracts, permits and certifications shall support expiry alerts and restricted access."
+    text_ar: "يجب أن تدعم مستندات الموظف والعقود والتصاريح والشهادات تنبيهات الانتهاء والوصول المقيد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-014"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The system shall support performance goals, evaluations, training history and policy acknowledgements."
+    text_ar: "يجب أن يدعم النظام أهداف الأداء والتقييمات وسجل التدريب والإقرار بالسياسات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-015"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "Payroll and sensitive HR data shall be visible only to specifically authorized roles."
+    text_ar: "يجب ألا تظهر بيانات الرواتب والموارد البشرية الحساسة إلا للأدوار المخولة صراحة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "HR-016"
+    module: "HR"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.15 Human resources and payroll"
+    text_en: "The AI Internal Auditor shall detect attendance, payroll and access anomalies but shall not impose disciplinary or payroll changes automatically."
+    text_ar: "يجب أن يكتشف المدقق الداخلي بالذكاء الاصطناعي شذوذ الحضور والرواتب والوصول دون فرض إجراءات تأديبية أو تغييرات راتب تلقائيا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-001"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "First Taste shall provide one role-based mobile application for employees rather than separate apps for each job type."
+    text_ar: "يجب أن توفر شركة الطعم الأول تطبيقا موحدا للموظفين يعتمد على الدور بدلا من تطبيق مستقل لكل وظيفة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-002"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall provide attendance and work schedules."
+    text_ar: "يجب أن يوفر تطبيق الموظف الحضور وجدول العمل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-003"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall provide leave and permission requests with status tracking."
+    text_ar: "يجب أن يوفر تطبيق الموظف طلبات الإجازة والاستئذان مع تتبع الحالة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-004"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall provide payslips and authorized HR documents."
+    text_ar: "يجب أن يوفر تطبيق الموظف مسيرات الرواتب والمستندات المصرح بها للموارد البشرية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-005"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall provide company announcements and require acknowledgement where configured."
+    text_ar: "يجب أن يوفر تطبيق الموظف إعلانات الشركة وأن يطلب الإقرار بها عند ضبط ذلك."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-006"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall provide assigned tasks and checklists with due dates, evidence and completion state."
+    text_ar: "يجب أن يوفر تطبيق الموظف المهام وقوائم التحقق المسندة مع تواريخ الاستحقاق والأدلة وحالة الإكمال."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-007"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "Managers shall be able to review and decide assigned approvals from the app."
+    text_ar: "يجب أن يتمكن المديرون من مراجعة الاعتمادات المسندة واتخاذ القرار من التطبيق."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-008"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "Driver functions shall appear only to authorized drivers and dispatchers."
+    text_ar: "يجب ألا تظهر وظائف السائق إلا للسائقين ومسؤولي التوجيه المخولين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-009"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "Employees shall be able to submit maintenance and IT requests with category, description, location and attachments."
+    text_ar: "يجب أن يتمكن الموظفون من تقديم طلبات الصيانة وتقنية المعلومات مع التصنيف والوصف والموقع والمرفقات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-010"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The app shall provide training content, policies, tests and acknowledgement records."
+    text_ar: "يجب أن يوفر التطبيق محتوى التدريب والسياسات والاختبارات وسجلات الإقرار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-011"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "The employee app shall support Arabic and English and role-specific home screens."
+    text_ar: "يجب أن يدعم تطبيق الموظف العربية والإنجليزية وشاشات رئيسية حسب الدور."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "EMP-012"
+    module: "EMP"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.16 First Taste employee application"
+    text_en: "Future employee-app functions may be added through modular role permissions without requiring separate applications."
+    text_ar: "يجب أن يكون من الممكن إضافة وظائف مستقبلية لتطبيق الموظف عبر صلاحيات معيارية حسب الدور دون تطبيقات منفصلة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-001"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "The ERP shall support Spicy Meal company drivers and third-party delivery platforms."
+    text_ar: "يجب أن يدعم النظام سائقي سبايسي ميل ومنصات التوصيل الخارجية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-002"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Company-driver orders shall support both manual dispatcher assignment and automatic assignment."
+    text_ar: "يجب أن تدعم طلبات سائقي الشركة الإسناد اليدوي من مسؤول التوجيه والإسناد التلقائي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-003"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Automatic assignment shall use configurable eligibility, availability, branch, service zone, capacity and distance rules."
+    text_ar: "يجب أن يستخدم الإسناد التلقائي قواعد قابلة للضبط للأهلية والتوفر والفرع ونطاق الخدمة والطاقة والمسافة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-004"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Dispatchers shall be able to override an automatic assignment with a reason."
+    text_ar: "يجب أن يتمكن مسؤول التوجيه من تجاوز الإسناد التلقائي مع تسجيل السبب."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-005"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Drivers shall receive assignment, order, pickup, address and navigation information through the employee app."
+    text_ar: "يجب أن يستقبل السائقون بيانات الإسناد والطلب والاستلام والعنوان والملاحة عبر تطبيق الموظفين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-006"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Driver status shall include available, assigned, at branch, picked up, at customer, delivered and failed delivery."
+    text_ar: "يجب أن تشمل حالة السائق متاح ومسند وفي الفرع واستلم الطلب وعند العميل وتم التسليم وفشل التسليم."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-007"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "The system shall support proof of delivery, delivery notes, customer contact controls and failed-delivery reasons."
+    text_ar: "يجب أن يدعم النظام إثبات التسليم وملاحظات التسليم وضوابط التواصل مع العميل وأسباب فشل التسليم."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-008"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Cash collected by drivers shall be assigned, reconciled and handed over through controlled records."
+    text_ar: "يجب إسناد النقد المحصل بواسطة السائق ومطابقته وتسليمه من خلال سجلات منضبطة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-009"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Driver and delivery performance shall include acceptance, pickup, travel, delivery, failure and cash-settlement measures."
+    text_ar: "يجب أن يشمل أداء السائق والتوصيل مقاييس القبول والاستلام والتنقل والتسليم والفشل وتسوية النقد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "DLV-010"
+    module: "DLV"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.17 Delivery operations"
+    text_en: "Customer location and contact data shall be exposed only for the active delivery and retained according to approved policy."
+    text_ar: "يجب ألا تظهر بيانات موقع العميل وتواصله إلا للتوصيل النشط وأن يحتفظ بها وفقا للسياسة المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-001"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "The ERP shall integrate with the Yeastar call-center environment through supported interfaces."
+    text_ar: "يجب أن يتكامل النظام مع بيئة مركز الاتصال Yeastar من خلال الواجهات المدعومة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-002"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "An inbound call shall identify and open the matching customer when caller identity is available and permitted."
+    text_ar: "يجب أن تتعرف المكالمة الواردة على العميل المطابق وتفتح ملفه عندما تتوفر هوية المتصل ويسمح بذلك."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-003"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "Agents shall be able to view the customer's previous orders and active cases according to permissions."
+    text_ar: "يجب أن يتمكن الموظفون من عرض طلبات العميل السابقة وحالاته النشطة وفقا للصلاحيات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-004"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "Agents shall create and track orders using the same menu, pricing, availability and OMS rules as other channels."
+    text_ar: "يجب أن ينشئ الموظفون الطلبات ويتابعوها باستخدام القائمة والأسعار والتوفر وقواعد إدارة الطلبات نفسها للقنوات الأخرى."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-005"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "Authorized users shall be able to click to call from customer and order records."
+    text_ar: "يجب أن يتمكن المستخدمون المخولون من إجراء الاتصال بنقرة من سجلات العميل والطلب."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-006"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "Call recordings shall be linked to authorized customer cases or interactions without exposing them broadly."
+    text_ar: "يجب ربط تسجيلات المكالمات بحالات العميل أو تفاعلاته المصرح بها دون إتاحتها على نطاق واسع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-007"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "The system shall report agent availability, call volume, answer rate, abandoned calls, handling time and order conversion where data is available."
+    text_ar: "يجب أن يعرض النظام توفر الموظف وحجم المكالمات ونسبة الرد والمكالمات المتروكة ومدة المعالجة وتحويل المكالمة إلى طلب عند توفر البيانات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-008"
+    module: "CC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "PBX integration failures shall not block manual order entry."
+    text_ar: "يجب ألا يؤدي فشل تكامل المقسم إلى منع إدخال الطلب يدويا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-009"
+    module: "CC"
+    phase: "F5"
+    priority: "P1"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "The architecture shall reserve controlled interfaces for a future AI voice agent."
+    text_ar: "يجب أن تخصص المعمارية واجهات منضبطة لوكيل صوتي مستقبلي بالذكاء الاصطناعي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "CC-010"
+    module: "CC"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.18 Call center and PBX"
+    text_en: "A future AI voice agent shall not place paid orders, issue refunds or make sensitive changes without approved controls."
+    text_ar: "يجب ألا ينشئ وكيل الصوت المستقبلي طلبات مدفوعة أو يصدر استردادات أو يجري تغييرات حساسة دون ضوابط معتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-001"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "The social module shall support approved connectors for WhatsApp, Instagram, Snapchat, TikTok and Google Business Profile where platform APIs permit."
+    text_ar: "يجب أن تدعم وحدة التواصل موصلات معتمدة لواتساب وإنستغرام وسناب شات وتيك توك وملف النشاط التجاري في Google عندما تسمح واجهات المنصات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-002"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "Users shall schedule and publish approved content by brand, account, channel and date."
+    text_ar: "يجب أن يتمكن المستخدمون من جدولة ونشر المحتوى المعتمد حسب العلامة والحساب والقناة والتاريخ."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-003"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "All external publishing shall require management approval before release."
+    text_ar: "يجب أن يتطلب كل نشر خارجي موافقة الإدارة قبل الإطلاق."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-004"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "The system shall provide a unified inbox for supported messages and comments."
+    text_ar: "يجب أن يوفر النظام صندوقا موحدا للرسائل والتعليقات المدعومة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-005"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "Customer complaints detected in social channels shall be routed to customer service with channel context and evidence."
+    text_ar: "يجب توجيه شكاوى العملاء المكتشفة في قنوات التواصل إلى خدمة العملاء مع سياق القناة والأدلة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-006"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "The system shall monitor supported reviews and brand mentions and assign response ownership."
+    text_ar: "يجب أن يراقب النظام التقييمات وإشارات العلامة المدعومة وأن يسند مسؤولية الرد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-007"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "Campaigns shall link content, audience, coupon, spend, orders and revenue where attribution is reliable."
+    text_ar: "يجب أن تربط الحملات المحتوى والجمهور والقسيمة والإنفاق والطلبات والإيراد عندما تكون الإحالة موثوقة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-008"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "AI may draft content and responses, but management approval shall remain mandatory before external publishing."
+    text_ar: "يجوز للذكاء الاصطناعي صياغة المحتوى والردود، مع بقاء موافقة الإدارة إلزامية قبل النشر الخارجي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-009"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "Integration connectors shall be replaceable because external platform APIs and permissions may change."
+    text_ar: "يجب أن تكون موصلات التكامل قابلة للاستبدال لأن واجهات المنصات الخارجية وصلاحياتها قد تتغير."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "MKT-010"
+    module: "MKT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.19 Social media and marketing"
+    text_en: "The system shall retain publication, approval, edit and response history."
+    text_ar: "يجب أن يحتفظ النظام بتاريخ النشر والموافقة والتعديل والرد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-001"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "The ERP shall track all company assets and equipment."
+    text_ar: "يجب أن يتتبع نظام تخطيط الموارد جميع أصول ومعدات الشركة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-002"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Asset records shall support category, serial, model, location, custodian, supplier, cost, warranty, status and documents."
+    text_ar: "يجب أن تدعم سجلات الأصول الفئة والرقم التسلسلي والطراز والموقع والعهدة والمورد والتكلفة والضمان والحالة والمستندات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-003"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Assets shall include POS and IT devices, printers, kitchen equipment, factory equipment, vehicles, network equipment and spare assets."
+    text_ar: "يجب أن تشمل الأصول أجهزة نقاط البيع وتقنية المعلومات والطابعات ومعدات المطبخ والمصنع والمركبات ومعدات الشبكة والأصول الاحتياطية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-004"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "The system shall support breakdown tickets, preventive maintenance schedules, warranty and service contracts, and spare-parts inventory."
+    text_ar: "يجب أن يدعم النظام بلاغات الأعطال وجداول الصيانة الوقائية والضمان وعقود الخدمة ومخزون قطع الغيار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-005"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Maintenance requests shall support priority, impact, location, asset, owner, service target, evidence and resolution."
+    text_ar: "يجب أن تدعم طلبات الصيانة الأولوية والأثر والموقع والأصل والمالك والمدة المستهدفة والأدلة والحل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-006"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Preventive maintenance shall generate work orders before due dates and escalate overdue work."
+    text_ar: "يجب أن تنشئ الصيانة الوقائية أوامر عمل قبل الاستحقاق وأن تصعد العمل المتأخر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-007"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Spare-part issues shall reduce inventory and link to the serviced asset and work order."
+    text_ar: "يجب أن تخصم قطع الغيار المصروفة من المخزون وأن ترتبط بالأصل وأمر العمل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-008"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "Asset transfer, assignment, return, retirement and disposal shall use controlled workflows and history."
+    text_ar: "يجب أن تستخدم عمليات نقل الأصل وإسناده وإعادته وإحالته للتقاعد واستبعاده إجراءات منضبطة وتاريخا محفوظا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AST-009"
+    module: "AST"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.20 Assets and maintenance"
+    text_en: "SIM cards and branch connectivity assets shall be traceable to their locations and service details."
+    text_ar: "يجب أن تكون شرائح الاتصال وأصول اتصال الفروع قابلة للتتبع إلى مواقعها وبيانات خدمتها."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-001"
+    module: "RPT"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "The ERP shall provide standard operational, sales, financial, inventory, factory, HR, delivery and service reports."
+    text_ar: "يجب أن يوفر النظام تقارير قياسية للعمليات والمبيعات والمالية والمخزون والمصنع والموارد البشرية والتوصيل والخدمة."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "UAT-reporting"
+    estate_refs: []
+  - id: "RPT-002"
+    module: "RPT"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Authorized users shall be able to build custom reports and dashboards from governed data fields."
+    text_ar: "يجب أن يتمكن المستخدمون المخولون من بناء تقارير ولوحات مخصصة من حقول بيانات محكومة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-003"
+    module: "RPT"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Reports shall support Excel and PDF export while respecting user permissions and data masking."
+    text_ar: "يجب أن تدعم التقارير التصدير إلى Excel وPDF مع احترام صلاحيات المستخدم وإخفاء البيانات."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "UAT-reporting"
+    estate_refs: []
+  - id: "RPT-004"
+    module: "RPT"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Reports shall support scheduled delivery through approved email, employee-app or dashboard channels."
+    text_ar: "يجب أن تدعم التقارير الإرسال المجدول عبر البريد أو تطبيق الموظف أو لوحة الإدارة المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-005"
+    module: "RPT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Authorized users shall be able to ask natural-language questions through AI and receive answers linked to source measures."
+    text_ar: "يجب أن يتمكن المستخدمون المخولون من طرح أسئلة باللغة الطبيعية عبر الذكاء الاصطناعي والحصول على إجابات مرتبطة بالمقاييس المصدرية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-006"
+    module: "RPT"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Dashboards shall expose data freshness, filters, definitions and drill-down paths."
+    text_ar: "يجب أن تعرض لوحات المعلومات حداثة البيانات والفلاتر والتعريفات ومسارات الانتقال للتفاصيل."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "UAT-reporting"
+    estate_refs: []
+  - id: "RPT-007"
+    module: "RPT"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Performance shall be reportable by company, brand, branch, channel, department or cost center, product, factory and warehouse."
+    text_ar: "يجب أن يكون الأداء قابلا للتقرير حسب الشركة والعلامة والفرع والقناة والقسم أو مركز التكلفة والمنتج والمصنع والمستودع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-008"
+    module: "RPT"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Core sales reporting shall include net sales, orders, average order value, item mix, discounts, refunds, tax, payment method and hourly demand."
+    text_ar: "يجب أن تشمل تقارير المبيعات الأساسية صافي المبيعات والطلبات ومتوسط قيمة الطلب ومزيج الأصناف والخصومات والاستردادات والضريبة وطريقة الدفع والطلب بالساعة."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "UAT-reporting"
+    estate_refs: []
+  - id: "RPT-009"
+    module: "RPT"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Operational reporting shall include preparation time, readiness time, completion time, printing failures, synchronization backlog and order exceptions."
+    text_ar: "يجب أن تشمل تقارير التشغيل وقت التحضير والجاهزية والإكمال وفشل الطباعة وتراكم المزامنة واستثناءات الطلبات."
+    status: "baselined"
+    owner: "Finance and accounting"
+    adr_refs: []
+    test_refs:
+      - "UAT-reporting"
+    estate_refs: []
+  - id: "RPT-010"
+    module: "RPT"
+    phase: "F3"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "Inventory reporting shall include on-hand, committed, available, expiring, theoretical use, actual use, variance, waste and stockout risk."
+    text_ar: "يجب أن تشمل تقارير المخزون المتاح والمحجوز والقابل للاستخدام والقريب من الانتهاء والاستهلاك النظري والفعلي والفروقات والهدر وخطر النفاد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-011"
+    module: "RPT"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "All key performance indicators shall have approved definitions, owners, source fields and calculation rules."
+    text_ar: "يجب أن يكون لكل مؤشر أداء رئيسي تعريف ومالك وحقول مصدر وقواعد احتساب معتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "RPT-012"
+    module: "RPT"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.21 Reporting and analytics"
+    text_en: "A report shall not present AI inference as a verified accounting or operational fact without clear labeling."
+    text_ar: "يجب ألا يعرض التقرير استنتاج الذكاء الاصطناعي كحقيقة محاسبية أو تشغيلية موثقة دون وسم واضح."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-001"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The ERP shall provide a dedicated First Taste AI assistant, initially optimized for Spicy Meal operations and expandable to other brands."
+    text_ar: "يجب أن يوفر النظام مساعد ذكاء اصطناعي مخصصا لشركة الطعم الأول ومحسنا في البداية لعمليات سبايسي ميل وقابلا للتوسع لعلامات أخرى."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-002"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI shall operate through explicit tools and permissions rather than unrestricted direct database access."
+    text_ar: "يجب أن يعمل الذكاء الاصطناعي من خلال أدوات وصلاحيات صريحة بدلا من الوصول المباشر غير المقيد إلى قاعدة البيانات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-003"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may automatically generate and distribute internal reports to authorized recipients."
+    text_ar: "يجوز للذكاء الاصطناعي إنشاء التقارير الداخلية وتوزيعها تلقائيا على المستلمين المخولين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-004"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may automatically create and assign internal tasks within approved rules."
+    text_ar: "يجوز للذكاء الاصطناعي إنشاء المهام الداخلية وإسنادها تلقائيا ضمن القواعد المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-005"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may automatically send stock and maintenance alerts."
+    text_ar: "يجوز للذكاء الاصطناعي إرسال تنبيهات المخزون والصيانة تلقائيا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-006"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may answer employee policy questions using approved current documents."
+    text_ar: "يجوز للذكاء الاصطناعي الإجابة عن أسئلة سياسات الموظفين باستخدام المستندات الحالية المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-007"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may prepare inventory recommendations without placing or approving sensitive purchases unless separately authorized."
+    text_ar: "يجوز للذكاء الاصطناعي إعداد توصيات المخزون دون إصدار أو اعتماد مشتريات حساسة ما لم يصرح بذلك بشكل مستقل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-008"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may respond to simple customer questions using approved knowledge and escalation rules."
+    text_ar: "يجوز للذكاء الاصطناعي الرد على أسئلة العملاء البسيطة باستخدام المعرفة المعتمدة وقواعد التصعيد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-009"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may update non-financial operational records within approved field and workflow limits."
+    text_ar: "يجوز للذكاء الاصطناعي تحديث السجلات التشغيلية غير المالية ضمن حدود الحقول والإجراءات المعتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-010"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI may schedule social content only after that content has been approved by management."
+    text_ar: "يجوز للذكاء الاصطناعي جدولة المحتوى الاجتماعي فقط بعد اعتماد المحتوى من الإدارة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-011"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "Financial postings, price changes, refunds outside predefined rules, payroll changes, HR actions, access changes and record deletion shall require human authorization."
+    text_ar: "يجب أن تتطلب القيود المالية وتغييرات الأسعار والاستردادات خارج القواعد وتغييرات الرواتب وإجراءات الموارد البشرية وتغييرات الوصول وحذف السجلات تفويضا بشريا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-012"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "Each AI action shall record model or agent identity, user or trigger, inputs, tools used, output, approvals and result."
+    text_ar: "يجب أن يسجل كل إجراء للذكاء الاصطناعي هوية النموذج أو الوكيل والمستخدم أو المحفز والمدخلات والأدوات والمخرجات والموافقات والنتيجة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-013"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "AI knowledge shall use versioned approved sources and shall expose source references for material answers."
+    text_ar: "يجب أن تستخدم معرفة الذكاء الاصطناعي مصادر معتمدة ذات إصدارات وأن تعرض مراجع المصدر للإجابات الجوهرية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-014"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The system shall prevent customer, employee and financial data from being sent to an AI provider beyond approved purpose and configuration."
+    text_ar: "يجب أن يمنع النظام إرسال بيانات العملاء والموظفين والبيانات المالية إلى مزود ذكاء اصطناعي خارج الغرض والإعداد المعتمدين."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-015"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "AI automation shall support kill switches, rate limits, cost limits and rollback or compensation where possible."
+    text_ar: "يجب أن تدعم أتمتة الذكاء الاصطناعي مفاتيح إيقاف وحدود معدل وتكلفة والتراجع أو المعالجة العكسية عند الإمكان."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-016"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI Internal Auditor shall continuously monitor cashier shortages, refunds, voids, discounts, inventory variance, waste, purchasing, suppliers, payroll, attendance, access, ZATCA controls, policy compliance and AI actions."
+    text_ar: "يجب أن يراقب المدقق الداخلي بالذكاء الاصطناعي باستمرار فروقات الكاشير والاستردادات والإلغاءات والخصومات وفروقات المخزون والهدر والمشتريات والموردين والرواتب والحضور والوصول وضوابط زاتكا والالتزام بالسياسات وإجراءات الذكاء الاصطناعي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-017"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "AI audit findings shall include evidence, affected records, control rule, severity, confidence and recommended action."
+    text_ar: "يجب أن تتضمن نتائج تدقيق الذكاء الاصطناعي الأدلة والسجلات المتأثرة وقاعدة الضبط والخطورة والثقة والإجراء المقترح."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-018"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "The AI Internal Auditor shall create findings and tasks but shall not serve as a substitute for statutory audit, legal accountability or executive approval."
+    text_ar: "يجب أن ينشئ المدقق الداخلي بالذكاء الاصطناعي النتائج والمهام دون أن يحل محل التدقيق النظامي أو المسؤولية القانونية أو الموافقة التنفيذية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-019"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "Users shall be able to challenge, correct and close AI findings with evidence; the original finding shall remain auditable."
+    text_ar: "يجب أن يتمكن المستخدمون من الاعتراض على نتائج الذكاء الاصطناعي وتصحيحها وإغلاقها بالأدلة مع بقاء النتيجة الأصلية قابلة للتدقيق."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "AI-020"
+    module: "AI"
+    phase: "F5"
+    priority: "P0"
+    prd_section: "5.22 AI assistant and internal auditor"
+    text_en: "AI quality shall be evaluated through test cases, approval rates, false positives, harmful-action prevention and business outcome measures."
+    text_ar: "يجب تقييم جودة الذكاء الاصطناعي من خلال حالات الاختبار ونسب الاعتماد والإيجابيات الكاذبة ومنع الإجراءات الضارة ومقاييس النتائج التجارية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SUP-001"
+    module: "SUP"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "First-line support shall be provided by an AI support assistant, with escalation to First Taste IT."
+    text_ar: "يجب أن يقدم مساعد دعم بالذكاء الاصطناعي الدعم من المستوى الأول مع التصعيد إلى تقنية معلومات الطعم الأول."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SUP-002"
+    module: "SUP"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "The AI support assistant shall use approved troubleshooting procedures and shall not perform risky changes without authorization."
+    text_ar: "يجب أن يستخدم مساعد الدعم إجراءات معالجة أعطال معتمدة وألا يجري تغييرات خطرة دون تفويض."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SUP-003"
+    module: "SUP"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Support cases shall include branch, device, user, time, symptoms, logs, business impact, actions and resolution."
+    text_ar: "يجب أن تتضمن حالات الدعم الفرع والجهاز والمستخدم والوقت والأعراض والسجلات والأثر والإجراءات والحل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SUP-004"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Central monitoring shall cover POS application health, devices, printers, print queues, connectivity, synchronization, payments and external integrations."
+    text_ar: "يجب أن تشمل المراقبة المركزية صحة تطبيق نقاط البيع والأجهزة والطابعات وقوائم الطباعة والاتصال والمزامنة والمدفوعات والتكاملات الخارجية."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "SUP-005"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Monitoring shall create automatic alerts with severity, ownership, deduplication and escalation."
+    text_ar: "يجب أن تنشئ المراقبة تنبيهات تلقائية مع تحديد الخطورة والمالك ومنع التكرار والتصعيد."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "SUP-006"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Alerts and approvals shall be deliverable through the management dashboard, employee-app push, email, WhatsApp and in-POS messages."
+    text_ar: "يجب أن تصل التنبيهات والموافقات عبر لوحة الإدارة وإشعارات تطبيق الموظف والبريد وواتساب ورسائل نقاط البيع."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "SUP-007"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Notification content and recipient rules shall prevent sensitive information from being disclosed through an inappropriate channel."
+    text_ar: "يجب أن تمنع قواعد محتوى الإشعار والمستلمين كشف معلومات حساسة عبر قناة غير مناسبة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "SUP-008"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "The system shall provide branch and integration health dashboards with last-seen and last-successful-transaction information."
+    text_ar: "يجب أن يوفر النظام لوحات صحة للفروع والتكاملات مع وقت آخر اتصال وآخر معاملة ناجحة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "SUP-009"
+    module: "SUP"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "5.23 Support monitoring and notifications"
+    text_en: "Operational runbooks shall cover internet outage, printer failure, terminal failure, payment uncertainty, sync backlog, ZATCA queue, data restore and security incident."
+    text_ar: "يجب أن تغطي أدلة التشغيل انقطاع الإنترنت وفشل الطابعة والجهاز وعدم وضوح الدفع وتراكم المزامنة وقائمة زاتكا واستعادة البيانات والحادث الأمني."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "UAT-support"
+    estate_refs: []
+  - id: "OPS-001"
+    module: "OPS"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.24 Branch opening and closing"
+    text_en: "The ERP shall provide configurable branch opening checklists."
+    text_ar: "يجب أن يوفر النظام قوائم تحقق قابلة للضبط لفتح الفرع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OPS-002"
+    module: "OPS"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.24 Branch opening and closing"
+    text_en: "The ERP shall provide configurable branch closing checklists."
+    text_ar: "يجب أن يوفر النظام قوائم تحقق قابلة للضبط لإغلاق الفرع."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OPS-003"
+    module: "OPS"
+    phase: "F4"
+    priority: "P0"
+    prd_section: "5.24 Branch opening and closing"
+    text_en: "Checklist items shall support role, schedule, required response, evidence, exception, corrective task and approval."
+    text_ar: "يجب أن تدعم عناصر قائمة التحقق الدور والجدول والاستجابة المطلوبة والأدلة والاستثناء والمهمة التصحيحية والموافقة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "OPS-004"
+    module: "OPS"
+    phase: "Future"
+    priority: "P2"
+    prd_section: "5.24 Branch opening and closing"
+    text_en: "Additional food-safety and inspection workflows are not committed in the current baseline and require separate approval."
+    text_ar: "لا تعد إجراءات سلامة الغذاء والتفتيش الإضافية ملتزمة ضمن خط الأساس الحالي وتتطلب اعتمادا مستقلا."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "NFR-001"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The lab shall test sustained throughput above 200 orders per hour for one branch."
+    text_ar: "يجب أن يختبر المختبر معدل معالجة مستمرا يزيد على 200 طلب في الساعة لفرع واحد."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-002"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Load tests shall include simultaneous orders from POS, call center, customer app and delivery-platform connectors."
+    text_ar: "يجب أن تشمل اختبارات الحمل طلبات متزامنة من نقاط البيع ومركز الاتصال وتطبيق العميل وموصلات منصات التوصيل."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-003"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "No accepted order may be lost or produce a duplicate business order under the approved load and recovery tests."
+    text_ar: "لا يجوز فقدان أي طلب مقبول أو إنتاج طلب تجاري مكرر ضمن اختبارات الحمل والاستعادة المعتمدة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-004"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "No confirmed payment may be attached to the wrong order or charged twice because of retry, timeout or reconnection."
+    text_ar: "لا يجوز ربط أي دفعة مؤكدة بطلب خاطئ أو خصمها مرتين بسبب إعادة المحاولة أو المهلة أو عودة الاتصال."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-04"
+      - "SPIKE-payment-reconciliation"
+    estate_refs: []
+  - id: "NFR-005"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Receipt and kitchen printing shall remain complete, ordered, observable and recoverable at the approved peak load."
+    text_ar: "يجب أن تبقى طباعة الإيصالات والمطبخ كاملة ومرتبة وقابلة للمراقبة والاستعادة عند الحمل الأقصى المعتمد."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "NFR-006"
+    module: "NFR"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The platform shall support horizontal or vertical capacity growth without changing core business identifiers or financial history."
+    text_ar: "يجب أن تدعم المنصة زيادة الطاقة أفقيا أو رأسيا دون تغيير معرفات الأعمال الأساسية أو التاريخ المالي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "NFR-007"
+    module: "NFR"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The initial design shall support current multi-branch operations and future First Taste brands without a separate codebase per brand."
+    text_ar: "يجب أن يدعم التصميم الأولي العمليات متعددة الفروع والعلامات المستقبلية للطعم الأول دون شفرة مستقلة لكل علامة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "NFR-008"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Core cashier actions shall remain responsive under approved branch load, but robustness is the primary acceptance criterion."
+    text_ar: "يجب أن تظل إجراءات الكاشير الأساسية مستجيبة تحت حمل الفرع المعتمد، مع اعتبار الموثوقية معيار القبول الأساسي."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-009"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The system shall provide health, performance and error telemetry without recording unnecessary sensitive content."
+    text_ar: "يجب أن يوفر النظام قياسات للصحة والأداء والأخطاء دون تسجيل محتوى حساس غير ضروري."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-010"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "User-facing failures shall include a correlation reference that support can use without exposing secrets."
+    text_ar: "يجب أن تتضمن الأخطاء الظاهرة للمستخدم مرجعا يمكن للدعم استخدامه دون كشف الأسرار."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-011"
+    module: "NFR"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Deployments shall support controlled rollback and database changes shall use reversible or forward-compatible migration procedures."
+    text_ar: "يجب أن تدعم عمليات النشر التراجع المنضبط وأن تستخدم تغييرات قاعدة البيانات إجراءات ترحيل قابلة للعكس أو متوافقة للأمام."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "NFR-012"
+    module: "NFR"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The platform shall maintain automated unit, integration, contract, end-to-end, offline, load and security test suites."
+    text_ar: "يجب أن تحافظ المنصة على اختبارات آلية للوحدات والتكامل والعقود ومن البداية للنهاية والعمل دون اتصال والحمل والأمن."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "NFR-013"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Accessibility, clear error states and touch targets suitable for cashier operation shall be included in UI acceptance."
+    text_ar: "يجب تضمين سهولة الوصول ووضوح حالات الخطأ وأهداف اللمس المناسبة لعمل الكاشير ضمن قبول الواجهة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-014"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Date, time, currency, tax and numeric formats shall be correct for Saudi Arabia while remaining configurable."
+    text_ar: "يجب أن تكون صيغ التاريخ والوقت والعملة والضريبة والأرقام صحيحة للسعودية مع بقائها قابلة للضبط."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-015"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "The system shall preserve time-zone-aware timestamps and a reliable sequence of events across branch and central services."
+    text_ar: "يجب أن يحتفظ النظام بأوقات واعية بالمنطقة الزمنية وتسلسل موثوق للأحداث بين خدمات الفرع والمركز."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "NFR-016"
+    module: "NFR"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.1 Nonfunctional requirements"
+    text_en: "Business continuity tests shall include internet loss, central outage, device restart, printer loss, payment uncertainty and delayed synchronization."
+    text_ar: "يجب أن تشمل اختبارات استمرارية الأعمال فقدان الإنترنت وتعطل المركز وإعادة تشغيل الجهاز وفقد الطابعة وعدم وضوح الدفع وتأخر المزامنة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "SEC-001"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Security and privacy shall be designed into every module rather than added after implementation."
+    text_ar: "يجب تصميم الأمن والخصوصية داخل كل وحدة بدلا من إضافتهما بعد التنفيذ."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-002"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Data shall be encrypted in transit and sensitive data shall be encrypted at rest using managed keys and approved controls."
+    text_ar: "يجب تشفير البيانات أثناء النقل وتشفير البيانات الحساسة أثناء التخزين باستخدام مفاتيح مدارة وضوابط معتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-003"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Secrets, payment credentials, API tokens, certificates and private keys shall be stored outside source code and rotated through controlled procedures."
+    text_ar: "يجب حفظ الأسرار واعتمادات الدفع ورموز الواجهات والشهادات والمفاتيح الخاصة خارج الشفرة وتدويرها بإجراءات منضبطة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-004"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "The system shall apply least privilege, segregation of duties and periodic access review."
+    text_ar: "يجب أن يطبق النظام أقل قدر من الصلاحيات وفصل المهام والمراجعة الدورية للوصول."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-005"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Sensitive personal, payroll, payment and financial fields shall support masking and restricted export."
+    text_ar: "يجب أن تدعم حقول البيانات الشخصية والرواتب والدفع والمالية الحساسة الإخفاء والتصدير المقيد."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-006"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Audit logs shall record actor, action, target, before and after values where appropriate, time, device, source and outcome."
+    text_ar: "يجب أن تسجل سجلات التدقيق المنفذ والإجراء والهدف والقيم قبل وبعد عند الحاجة والوقت والجهاز والمصدر والنتيجة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-007"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Audit-log access and retention shall be restricted, monitored and protected from routine alteration."
+    text_ar: "يجب تقييد ومراقبة الوصول إلى سجلات التدقيق والاحتفاظ بها وحمايتها من التعديل الاعتيادي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-008"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "The platform shall support retention schedules and approved deletion or anonymization workflows by data category."
+    text_ar: "يجب أن تدعم المنصة جداول الاحتفاظ وإجراءات الحذف أو إخفاء الهوية المعتمدة حسب فئة البيانات."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-009"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Customer and employee personal data processing shall be assessed against applicable Saudi personal-data requirements before production."
+    text_ar: "يجب تقييم معالجة بيانات العملاء والموظفين الشخصية مقابل متطلبات حماية البيانات السعودية السارية قبل الإنتاج."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-010"
+    module: "SEC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Third-party integrations shall use scoped credentials, request validation, timeout, retry, rate-limit and circuit-breaker controls."
+    text_ar: "يجب أن تستخدم التكاملات الخارجية اعتمادات محدودة النطاق والتحقق من الطلبات والمهلة وإعادة المحاولة وحدود المعدل وقاطع الدائرة."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "SEC-011"
+    module: "SEC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Incoming webhooks shall be authenticated where supported and protected against replay."
+    text_ar: "يجب التحقق من هوية إشعارات الويب الواردة عندما تكون مدعومة وحمايتها من إعادة الإرسال."
+    status: "baselined"
+    owner: "IT and system administration"
+    adr_refs: []
+    test_refs:
+      - "T-10"
+    estate_refs: []
+  - id: "SEC-012"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Production data shall not be copied into development or testing without approved masking and handling controls."
+    text_ar: "يجب ألا تنسخ بيانات الإنتاج إلى التطوير أو الاختبار دون إخفاء وضوابط معالجة معتمدة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-013"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Backups shall be encrypted, tested through restore exercises and isolated from ordinary application credentials."
+    text_ar: "يجب تشفير النسخ الاحتياطية واختبارها من خلال تمارين استعادة وعزلها عن اعتمادات التطبيق الاعتيادية."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-014"
+    module: "SEC"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "Security incidents shall use documented detection, containment, recovery, evidence and notification procedures."
+    text_ar: "يجب أن تستخدم الحوادث الأمنية إجراءات موثقة للاكتشاف والاحتواء والاستعادة والأدلة والإشعار."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "SEC-015"
+    module: "SEC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "7.2 Security and privacy"
+    text_en: "The production release shall complete vulnerability assessment, dependency review and penetration testing appropriate to the risk."
+    text_ar: "يجب أن يكمل الإصدار الإنتاجي تقييم الثغرات ومراجعة الاعتمادات واختبار الاختراق المناسب للمخاطر."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "LAB-001"
+    module: "LAB"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "First Taste shall operate a complete ERP and POS lab at head office before any production branch rollout."
+    text_ar: "يجب أن تدير شركة الطعم الأول مختبرا كاملا لنظام تخطيط الموارد ونقاط البيع في المقر قبل أي إطلاق في فرع إنتاجي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "LAB-002"
+    module: "LAB"
+    phase: "F0"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The lab shall represent one complete branch with up to three POS devices, receipt printer, kitchen printer, barcode reader, payment terminal or simulator and managed network controls."
+    text_ar: "يجب أن يمثل المختبر فرعا كاملا بما يصل إلى ثلاثة أجهزة نقاط بيع وطابعة إيصالات وطابعة مطبخ وقارئ باركود وجهاز دفع أو محاكي وضوابط شبكة مدارة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "LAB-003"
+    module: "LAB"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The lab shall provide controlled disconnection, latency, device restart, printer outage and service-failure simulation."
+    text_ar: "يجب أن يوفر المختبر محاكاة منضبطة لانقطاع الاتصال والتأخير وإعادة تشغيل الجهاز وتعطل الطابعة وفشل الخدمة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-lab-readiness"
+    estate_refs: []
+  - id: "LAB-004"
+    module: "LAB"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The lab shall use non-production payment, ZATCA and external-channel environments or approved simulators."
+    text_ar: "يجب أن يستخدم المختبر بيئات غير إنتاجية للدفع وزاتكا والقنوات الخارجية أو محاكيات معتمدة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-lab-readiness"
+    estate_refs: []
+  - id: "LAB-005"
+    module: "LAB"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The lab shall retain repeatable test data and scripts for regression testing after every material release."
+    text_ar: "يجب أن يحتفظ المختبر ببيانات وسيناريوهات اختبار قابلة للتكرار لاختبارات الانحدار بعد كل إصدار جوهري."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-lab-readiness"
+    estate_refs: []
+  - id: "REL-001"
+    module: "REL"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The ERP shall remain outside production until stable end-to-end operation is demonstrated and owner or executive management approves production use."
+    text_ar: "يجب أن يبقى النظام خارج الإنتاج حتى إثبات التشغيل المستقر من البداية للنهاية واعتماد المالك أو الإدارة التنفيذية للاستخدام الإنتاجي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "REL-002"
+    module: "REL"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Existing branches shall remain on Lazywait through 31 December 2027 under the current contract."
+    text_ar: "يجب أن تبقى الفروع الحالية على Lazywait حتى 31 ديسمبر 2027 وفقا للعقد الحالي."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "REL-003"
+    module: "REL"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Owner or executive management shall be the final production sign-off authority."
+    text_ar: "يجب أن يكون المالك أو الإدارة التنفيذية جهة الاعتماد النهائي للإنتاج."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "REL-004"
+    module: "REL"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "The first complete HQ lab milestone shall be delivered within nine months of approved project kickoff and shall cover POS, menu and order management with their essential platform dependencies."
+    text_ar: "يجب تسليم أول مرحلة مكتملة للمختبر خلال تسعة أشهر من بدء المشروع المعتمد وأن تشمل نقاط البيع والقائمة وإدارة الطلبات واعتماداتها الأساسية."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-release-gate"
+    estate_refs: []
+  - id: "REL-005"
+    module: "REL"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "After executive approval and before 1 January 2028, eligible newly opened branches may use the ERP under a controlled rollout plan."
+    text_ar: "بعد الاعتماد التنفيذي وقبل 1 يناير 2028 يجوز للفروع الجديدة المؤهلة استخدام النظام وفقا لخطة إطلاق منضبطة."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "REL-006"
+    module: "REL"
+    phase: "F6"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Replacement of Lazywait for existing branches is targeted from 1 January 2028, with exact sequencing approved in the cutover plan."
+    text_ar: "يستهدف استبدال Lazywait للفروع الحالية ابتداء من 1 يناير 2028 مع اعتماد الترتيب الدقيق في خطة التحويل."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []
+  - id: "ACC-001"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require evidence that no accepted order is lost or duplicated."
+    text_ar: "يجب أن يتطلب القبول التنفيذي دليلا على عدم فقدان أو تكرار أي طلب مقبول."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "ACC-002"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require reliable receipt and kitchen printing under simultaneous channel load."
+    text_ar: "يجب أن يتطلب القبول التنفيذي طباعة موثوقة للإيصالات والمطبخ تحت حمل متزامن من القنوات."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-03"
+      - "SPIKE-print-queue"
+    estate_refs: []
+  - id: "ACC-003"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require accurate payments, refunds, cash shifts and blind closing."
+    text_ar: "يجب أن يتطلب القبول التنفيذي دقة المدفوعات والاستردادات والورديات النقدية والإغلاق الأعمى."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-05"
+    estate_refs: []
+  - id: "ACC-004"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require stable offline operation and automatic recovery synchronization."
+    text_ar: "يجب أن يتطلب القبول التنفيذي عملا مستقرا دون اتصال ومزامنة استعادة تلقائية."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-02"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "ACC-005"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require correct ZATCA documents and successful deferred synchronization."
+    text_ar: "يجب أن يتطلب القبول التنفيذي مستندات زاتكا صحيحة ومزامنة مؤجلة ناجحة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-09"
+    estate_refs: []
+  - id: "ACC-006"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require cashier and kitchen user-acceptance testing and documented training readiness."
+    text_ar: "يجب أن يتطلب القبول التنفيذي اختبار قبول الكاشير والمطبخ وجاهزية تدريب موثقة."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-cashier"
+      - "UAT-kitchen"
+    estate_refs: []
+  - id: "ACC-007"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require accurate management reports reconciled to source transactions."
+    text_ar: "يجب أن يتطلب القبول التنفيذي تقارير إدارة دقيقة ومطابقة للمعاملات المصدرية."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "UAT-executive-acceptance"
+    estate_refs: []
+  - id: "ACC-008"
+    module: "ACC"
+    phase: "F1"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "Executive acceptance shall require successful testing above 200 orders per hour per branch with the approved device configuration."
+    text_ar: "يجب أن يتطلب القبول التنفيذي نجاح الاختبار بأكثر من 200 طلب في الساعة للفرع مع إعداد الأجهزة المعتمد."
+    status: "baselined"
+    owner: "Product Owner"
+    adr_refs: []
+    test_refs:
+      - "T-01"
+      - "SPIKE-offline-sync"
+    estate_refs: []
+  - id: "ACC-009"
+    module: "ACC"
+    phase: "F2"
+    priority: "P0"
+    prd_section: "8.1 Lab and release requirements"
+    text_en: "All critical and high defects affecting order, payment, printing, ZATCA, security or synchronization shall be closed or formally accepted before production approval."
+    text_ar: "يجب إغلاق جميع العيوب الحرجة والعالية المؤثرة على الطلب أو الدفع أو الطباعة أو زاتكا أو الأمن أو المزامنة أو قبولها رسميا قبل اعتماد الإنتاج."
+    status: "baselined"
+    owner: null
+    adr_refs: []
+    test_refs: []
+    estate_refs: []

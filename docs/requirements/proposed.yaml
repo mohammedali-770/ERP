@@ -1,0 +1,294 @@
+# Proposed requirements — originating outside the PRD
+#
+# HAND-MAINTAINED. This file is not generated.
+#
+# requirements.yaml is generated from the source PRD, so a requirement that did
+# not come from the PRD cannot be added to it. This register holds those, with
+# the same validation, until the Product Owner folds them into the next PRD
+# revision — at which point they receive permanent identifiers and are removed
+# from here.
+#
+# Identifier form: <MODULE>-P<NN>. The `P` marks it as PROPOSED and NOT YET
+# APPROVED, and the form cannot collide with the PRD's <MODULE>-<NNN>.
+#
+# A proposed requirement carries no authority. It is a specified intention,
+# traceable and reviewable, awaiting approval through the same route as any other
+# requirement (PRG-015).
+
+version: 1
+
+requirements:
+
+  # ---------------------------------------------------------------------------
+  # Abandoned-call automatic callback
+  #
+  # Requested 2026-09-17. Recovers callers who gave up waiting in a queue by
+  # calling them back once an agent is free — unless they have since ordered
+  # through any channel, and only while the intent is still fresh.
+  #
+  # The PRD mentions abandoned calls only as a metric (CC-007). This is new
+  # behaviour and is therefore proposed rather than assumed.
+  # ---------------------------------------------------------------------------
+
+  - id: "CC-P01"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "The system shall record an abandoned call when a caller leaves a queue before being connected to an agent, retaining the caller's number, the time of abandonment, the queue and the wait duration."
+    text_ar: "يجب أن يسجل النظام المكالمة المتروكة عندما يغادر المتصل قائمة الانتظار قبل توصيله بموظف، مع الاحتفاظ برقم المتصل ووقت الترك وقائمة الانتظار ومدة الانتظار."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-007
+
+  - id: "CC-P02"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "An abandoned call shall be queued for automatic callback, and at most one open callback entry shall exist for a caller number at any time."
+    text_ar: "يجب إدراج المكالمة المتروكة في قائمة معاودة اتصال تلقائية، وألا يوجد أكثر من سجل معاودة مفتوح واحد لرقم المتصل في أي وقت."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-P01
+
+  - id: "CC-P03"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall not be placed if an order has been received from the same normalized mobile number through any channel since the time of abandonment, and this condition shall be evaluated immediately before dialling rather than when the entry is queued."
+    text_ar: "يجب عدم إجراء معاودة الاتصال إذا استلم طلب من رقم الجوال المعياري نفسه عبر أي قناة منذ وقت ترك المكالمة، ويجب التحقق من هذا الشرط مباشرة قبل الاتصال وليس عند إدراج السجل."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - APP-004
+      - OMS-001
+
+  - id: "CC-P04"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall not be placed once a configurable staleness window has elapsed since the abandonment; expired entries shall be closed with a reason and retained for reporting."
+    text_ar: "يجب عدم إجراء معاودة الاتصال بعد انقضاء مهلة قابلة للضبط منذ ترك المكالمة، وتغلق السجلات المنتهية مع بيان السبب وتحفظ لأغراض التقارير."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-P02
+
+  - id: "CC-P05"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "A callback shall be placed only when an agent is available, and shall connect the agent before dialling the customer so that the customer does not answer to silence."
+    text_ar: "يجب ألا تجرى معاودة الاتصال إلا عند توفر موظف، وأن يوصل الموظف قبل الاتصال بالعميل حتى لا يرد العميل على صمت."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-005
+
+  - id: "CC-P06"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Each abandoned call shall receive at most one automatic callback attempt; an unanswered attempt shall be closed and recorded rather than retried."
+    text_ar: "يجب ألا تتلقى المكالمة المتروكة أكثر من محاولة معاودة تلقائية واحدة، وتغلق المحاولة غير المجابة وتسجل بدلا من إعادة المحاولة."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-P02
+
+  - id: "CC-P07"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Callbacks shall not be placed outside configured operating hours, and an entry whose staleness window elapses outside those hours shall expire rather than being deferred."
+    text_ar: "يجب عدم إجراء معاودات الاتصال خارج ساعات العمل المضبوطة، وينتهي السجل الذي تنقضي مهلته خارج تلك الساعات بدلا من تأجيله."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-P04
+
+  - id: "CC-P08"
+    module: "CC"
+    proposed_phase: "F2"
+    proposed_priority: "P2"
+    origin: "Product Owner request, 2026-09-17"
+    status: "proposed"
+    text_en: "Callback outcomes shall be reportable alongside abandoned-call metrics, including the recovery rate and the reason each entry was closed."
+    text_ar: "يجب أن تكون نتائج معاودة الاتصال قابلة للتقرير مع مقاييس المكالمات المتروكة، بما في ذلك نسبة الاسترجاع وسبب إغلاق كل سجل."
+    test_refs:
+      - SPIKE-callback-engine
+    relates_to:
+      - CC-007
+
+  # ---------------------------------------------------------------------------
+  # Ratings and feedback
+  #
+  # Requested 2026-09-18. Customers rate their experience; management sees how
+  # branches, cashiers and drivers are doing.
+  #
+  # Four decisions shape every requirement below, taken 2026-09-18:
+  #   1. PURPOSE IS RECOGNITION AND COACHING ONLY. No automatic consequence.
+  #   2. Customers rate the SERVICE, not a named employee. Attribution is internal.
+  #   3. Computed measures and manager judgement stay separate, never merged.
+  #   4. Staff see their own ratings and may contest one.
+  #
+  # The PRD has performance MEASUREMENT (DLV-009, CC-007, HR-014) but no ratings,
+  # and nothing customer-submitted about individuals. This is new behaviour.
+  # ---------------------------------------------------------------------------
+
+  - id: "RTG-P01"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "Customers shall be able to rate a completed order across defined experience dimensions, and shall not rate a named individual employee."
+    text_ar: "يجب أن يتمكن العملاء من تقييم الطلب المكتمل وفق أبعاد تجربة محددة، دون تقييم موظف بعينه بالاسم."
+    relates_to:
+      - CRM-009
+
+  - id: "RTG-P02"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "Each rating shall be tied to exactly one completed order, a customer shall be able to submit at most one rating per order, and ratings shall be accepted only within a configurable window after completion."
+    text_ar: "يجب أن يرتبط كل تقييم بطلب مكتمل واحد فقط، وألا يقدم العميل أكثر من تقييم واحد لكل طلب، وألا تقبل التقييمات إلا خلال مهلة قابلة للضبط بعد الإكمال."
+    relates_to:
+      - OMS-001
+
+  - id: "RTG-P03"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "Each rating dimension shall attribute only to the roles that could affect it, using a recorded and configurable mapping, so that no role is scored on an outcome outside its control."
+    text_ar: "يجب أن ينسب كل بعد من أبعاد التقييم إلى الأدوار القادرة على التأثير فيه فقط، وفق ربط موثق وقابل للضبط، بحيث لا يقيم أي دور على نتيجة خارجة عن سيطرته."
+    test_refs:
+      - SPIKE-rating-statistics
+    relates_to:
+      - DLV-009
+
+  - id: "RTG-P04"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "No score shall be displayed for an individual until a configurable minimum number of ratings has been received; below that threshold the system shall report insufficient data rather than a score."
+    text_ar: "يجب عدم عرض أي تقييم لفرد قبل بلوغ حد أدنى قابل للضبط من عدد التقييمات، ويعرض النظام دون هذا الحد عبارة بيانات غير كافية بدلا من درجة."
+    test_refs:
+      - SPIKE-rating-statistics
+    relates_to:
+      - RPT-011
+
+  - id: "RTG-P05"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "Every displayed aggregate shall carry its sample size and a measure of uncertainty, and comparison or ranking shall never be based on a raw mean alone."
+    text_ar: "يجب أن يصاحب كل متوسط معروض حجم العينة ومقياس لعدم اليقين، وألا تعتمد المقارنة أو الترتيب على المتوسط الحسابي وحده."
+    test_refs:
+      - SPIKE-rating-statistics
+    relates_to:
+      - RPT-011
+      - RPT-012
+
+  - id: "RTG-P06"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P2"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "The response rate shall be recorded and displayed alongside any aggregate, and aggregates with materially different response rates shall not be presented as directly comparable."
+    text_ar: "يجب تسجيل نسبة الاستجابة وعرضها مع أي متوسط، وألا تعرض المتوسطات ذات نسب الاستجابة المختلفة جوهريا على أنها قابلة للمقارنة المباشرة."
+    relates_to:
+      - RPT-012
+
+  - id: "RTG-P07"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P2"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "A rating submitted together with a complaint or refund request shall be flagged as such and reported separately, because it is not an independent observation."
+    text_ar: "يجب وسم التقييم المقدم مع شكوى أو طلب استرداد والإبلاغ عنه بشكل منفصل، لأنه ليس ملاحظة مستقلة."
+    relates_to:
+      - CRM-007
+
+  - id: "RTG-P08"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "System-computed operational measures and manager assessments shall be retained and presented separately, and shall never be combined into a single score."
+    text_ar: "يجب الاحتفاظ بالمقاييس التشغيلية المحسوبة آليا وتقييمات المدير وعرضها بشكل منفصل، وعدم دمجها في درجة واحدة."
+    relates_to:
+      - HR-014
+      - DLV-009
+
+  - id: "RTG-P09"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "An employee shall be able to see the ratings attributed to them, in aggregate and without any customer identity being disclosed."
+    text_ar: "يجب أن يتمكن الموظف من الاطلاع على التقييمات المنسوبة إليه بشكل إجمالي ودون الكشف عن هوية أي عميل."
+    relates_to:
+      - DLV-010
+      - SEC-005
+
+  - id: "RTG-P10"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "An employee shall be able to contest a rating attributed to them with evidence; the original rating shall remain auditable and the outcome of the challenge shall be recorded."
+    text_ar: "يجب أن يتمكن الموظف من الاعتراض على تقييم منسوب إليه مع تقديم الأدلة، مع بقاء التقييم الأصلي قابلا للتدقيق وتسجيل نتيجة الاعتراض."
+    relates_to:
+      - AI-019
+
+  - id: "RTG-P11"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P0"
+    origin: "Product Owner decision, 2026-09-18"
+    status: "proposed"
+    text_en: "Ratings shall not automatically cause any pay, disciplinary, scheduling or work-allocation consequence; any such use requires a separate approved decision and human authorization."
+    text_ar: "يجب ألا تتسبب التقييمات تلقائيا في أي أثر على الأجر أو الإجراءات التأديبية أو الجدولة أو توزيع العمل، وأي استخدام من هذا النوع يتطلب قرارا معتمدا مستقلا وتفويضا بشريا."
+    relates_to:
+      - HR-016
+      - AI-011
+
+  - id: "RTG-P12"
+    module: "RTG"
+    proposed_phase: "F5"
+    proposed_priority: "P1"
+    origin: "Product Owner request, 2026-09-18"
+    status: "proposed"
+    text_en: "The identity and contact details of a rating customer shall not be disclosed to the rated employee at any time, including after the order is complete."
+    text_ar: "يجب عدم الكشف عن هوية العميل المقيم وبيانات تواصله للموظف المقيم في أي وقت، بما في ذلك بعد اكتمال الطلب."
+    relates_to:
+      - DLV-010

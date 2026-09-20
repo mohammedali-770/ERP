@@ -1,0 +1,35 @@
+name: F0 exit gate
+
+# The F0 exit gate is stricter than everyday CI: it promotes the traceability
+# warnings to errors, requiring every F1/P0 requirement to name a confirmed owner
+# and an acceptance test before F1 build begins.
+#
+# Run it on demand while F0 is in progress. Make it required once the gate is
+# declared (docs/program/f0-exit-criteria.md).
+#
+# EXPECTED RED until B-03 lifts. Five requirements name only the two procedure
+# spikes, which have no harness and cannot produce evidence, so the gate reports
+# them as errors. That is the gate working. Everyday CI (ci.yml) is unaffected —
+# it reports the same five as warnings.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # Monday morning, so drift is visible weekly
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: F0 exit criteria
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Traceability under the F0 gate
+        run: npm run req:lint -- --gate f0-exit

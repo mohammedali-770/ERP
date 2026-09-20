@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  requirements:
+    name: Requirement baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # The catalogue and the risk register are generated from the vendored PRD.
+      # If either drifts, what everything else traces to is no longer trustworthy.
+      - name: Catalogue and risk register are current
+        run: npm run prd:extract -- --check
+
+      - name: Index is current
+        run: npm run req:index -- --check
+
+      # PRG-014/015: stable bilingual identifiers, resolvable ADR references.
+      - name: Traceability
+        run: npm run req:lint
+
+  boundaries:
+    name: Bounded-context boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # A boundary described only in a document erodes under deadline pressure.
+      - name: Dependency rule
+        run: npm run boundary:check
+
+  build:
+    name: Typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+
+  database:
+    name: Database schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # No Docker: applies every migration to a scratch cluster built with the
+      # runner's own PostgreSQL, then asserts the structural invariants and the
+      # seed. Seconds, so it runs on every push.
+      - name: Migrations apply and invariants hold
+        run: npm run db:check
+
+      - name: No credential-shaped string is committed
+        run: npm run secret:scan
+
+  database-stack:
+    name: Database stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned deliberately. The CLI is not an npm dependency — CLAUDE.md
+      # permits two, and a postinstall that downloads a binary is exactly the
+      # supply-chain surface that rule exists to avoid.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.34.3
+
+      # The half bare Postgres cannot reach: storage policies, auth, PostgREST.
+      - name: Start the local stack
+        run: supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector
+
+      - name: db reset rebuilds the database from migrations and seed
+        run: supabase db reset --no-seed=false
+
+      - name: pgTAP suites
+        run: supabase test db
+
+      - name: Stop
+        if: always()
+        run: supabase stop --no-backup
+
+  spikes:
+    name: Risk spikes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # T-01 is a permanent load test, not a one-off milestone. Each spike also
+      # runs its control case and FAILS if the control does not detect its
+      # deliberate sabotage — a harness that cannot fail is not evidence.
+      - name: Offline sync (R-02, Critical)
+        run: npm run spike:offline-sync -- --minutes 240
+
+      - name: Print queue (R-01, High)
+        run: npm run spike:print-queue -- --jobs 500
+
+      - name: Shift conflict (T-08)
+        run: npm run spike:shift-conflict
+
+      - name: Payment reconciliation (D-1 design risk)
+        run: npm run spike:payment-reconciliation
+
+      - name: Callback engine (CC-P01..P08)
+        run: npm run spike:callback-engine
+
+      - name: Rating statistics (RTG-P03, RTG-P04, RTG-P05)
+        run: npm run spike:rating-statistics
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-reports
+          path: spikes/*/out/report.json
+          if-no-files-found: error
