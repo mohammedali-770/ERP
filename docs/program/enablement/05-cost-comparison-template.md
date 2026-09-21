@@ -4,6 +4,8 @@
 **Unblocks:** B-05 — §2 of the data residency gate, the costed options
 **Satisfies:** `PRG-010` (tiered cost options before any infrastructure
 commitment) and `PRG-012` (recovery targets selected from costed tiers)
+**Time needed:** ongoing, as quotes arrive
+**Checked:** 2026-09-21
 
 The structure to fill in as quotes arrive. Filling it is the work; the shape is
 here so nobody has to invent it under time pressure.
@@ -20,40 +22,72 @@ than the reverse, so they are costed together.
 
 ## Part 1 · Where it runs
 
-Three options to price. The choice depends on a legal determination that has been
-requested separately — but **the prices can be gathered before the answer
+**Four** options to price. The choice depends on a legal determination that has
+been requested separately — but **the prices can be gathered before the answer
 arrives**, and should be.
 
 | | Option | Shape | Residency |
 |---|---|---|---|
-| **A** | Stay as-is | Current managed platform, Europe or Asia region | Outside the Kingdom |
-| **B** | In-Kingdom | Self-managed database and services, Saudi cloud provider | Inside |
+| **A** | Stay as-is | Current managed platform, `eu-central-1` (Frankfurt) | Outside the Kingdom |
+| **B′** | **Self-hosted, in-Kingdom** | **The same platform software, run by us on a Saudi cloud** | **Inside** |
+| **B** | Rebuilt in-Kingdom | Self-managed database and services, Saudi cloud provider | Inside |
 | **C** | Split | Regulated categories in the Kingdom, the rest as-is | Mixed |
+
+> **Do not skip B′, even though it is the newest on the list.**
+> [`data-residency-gate.md`](../../compliance/data-residency-gate.md) §2 says it
+> "probably belongs above B", because the platform is open source and self-hosting
+> it keeps the database API, authentication, row-level security and storage layers
+> intact — so it avoids most of the migration cost that makes B expensive. A
+> comparison of only A and B prices **the two most expensive ends of the range**
+> and makes the decision look worse than it is.
+
+### Who can actually host B or B′ today
+
+*Verified 2026-09-21, and worth re-checking — two of these are due to change
+before production.*
+
+| Provider | Saudi region | Status |
+|---|---|---|
+| Google Cloud | Dammam (`me-central2`) | **Live** — via CNTXT |
+| Oracle Cloud | Jeddah, Riyadh | **Live** |
+| Huawei Cloud | Riyadh | **Live** |
+| Alibaba Cloud | Riyadh (SCCC joint venture) | **Live** |
+| Tencent Cloud | Saudi Arabia | **Live** |
+| Amazon Web Services | announced March 2024 | **Not live.** Targeted 2026, still undeployed |
+| Microsoft Azure | Saudi Arabia East | **Not live.** Targeted Q4 2026 |
+
+**Option A cannot simply "add a Saudi region".** All 17 of the current platform's
+regions are AWS regions, and AWS has no live Saudi region — so that route needs
+AWS to launch, *then* the platform to adopt it. Neither is committed. Quote B′
+against the live providers above.
 
 ### Per option, price these
 
-| Line | A | B | C |
-|---|---|---|---|
-| Platform or hosting, monthly | | | |
-| Database, monthly | | | |
-| Storage, monthly, and growth per year | | | |
-| Data transfer | | | |
-| Backup storage | | | |
-| Monitoring and logging | | | |
-| **Recurring subtotal, monthly** | | | |
-| One-off setup | | | |
-| **Staff effort to operate, days per month** | | | |
-| **Three-year total** | | | |
+| Line | A | B′ | B | C |
+|---|---|---|---|---|
+| Platform or hosting, monthly | | | | |
+| Database, monthly | | | | |
+| Storage, monthly, and growth per year | | | | |
+| Data transfer | | | | |
+| Backup storage | | | | |
+| Monitoring and logging | | | | |
+| **Recurring subtotal, monthly** | | | | |
+| One-off setup | | | | |
+| **Staff effort to operate, days per month** | | | | |
+| **Three-year total** | | | | |
 
 > **The line most often understated is staff effort.** Option A includes
 > operational work the platform does for us — patching, backups, failover,
-> scaling. Option B means someone does that work. Price it as salary, not as
+> scaling. **B′ and B both mean someone here does that work**, and B′ does not
+> escape it just because the software is the same. Price it as salary, not as
 > zero.
 
 ### The migration line, priced honestly
 
-Moving **from** option A **to** B or C is not a database export. Price each
-separately:
+Moving **from** option A **to** B′, B or C is not a database export. Price each
+separately. **B′ should come out materially cheaper than B on most of these lines
+— if it does not, say so, because that would contradict the reasoning that put it
+on the list.**
 
 | Item | Estimate |
 |---|---|
@@ -109,7 +143,7 @@ recorded result, and that recurring effort is part of its cost.
 
 One page:
 
-1. The three hosting options with three-year totals, migration cost shown separately
+1. The four hosting options with three-year totals, migration cost shown separately
 2. The four recovery tiers with monthly costs
 3. A recommendation, with its reasoning
 4. **What is still unknown** — stated rather than smoothed over
@@ -124,5 +158,30 @@ rather than a quarter.
 
 ---
 
-*Background: `docs/adr/ADR-0002`, `docs/adr/ADR-0009`,
-`docs/compliance/data-residency-gate.md`.*
+## Record when done
+
+The tables above are the work. This is what says it is finished, and by whom.
+
+| | Done | By | Date | Notes |
+|---|---|---|---|---|
+| Option A priced | ☐ | | | |
+| **Option B′ priced** | ☐ | | | Which Saudi provider was quoted? |
+| Option B priced | ☐ | | | |
+| Option C priced | ☐ | | | |
+| Migration estimated per option | ☐ | | | |
+| Recovery tiers 1–4 priced | ☐ | | | |
+| One-page summary written | ☐ | | | |
+
+**Which quotes could not be obtained, and why?**
+
+> …
+
+That is worth recording rather than leaving a blank cell: "nobody would quote us"
+and "we did not ask" look identical six months later, and only one of them is a
+finding. Then close §2 of B-05 in [`../blocked.md`](../blocked.md).
+
+---
+
+*Background: [ADR-0002](../../adr/ADR-0002-hosting-and-data-residency.md),
+[ADR-0009](../../adr/ADR-0009-rpo-rto-tiers.md),
+[`data-residency-gate.md`](../../compliance/data-residency-gate.md).*

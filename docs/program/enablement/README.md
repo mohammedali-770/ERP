@@ -1,7 +1,7 @@
 # Enablement pack
 
 Nine short documents, each addressed to a **specific person outside engineering**,
-each ending with something they fill in and hand back.
+and each asking for something back.
 
 They exist because the programme is currently waiting on decisions and access
 rather than on code. These convert that waiting into work that can happen in
@@ -11,10 +11,10 @@ parallel — and none of them depends on a decision being taken first.
 
 | | Document | Who acts | Time for them | What it unblocks |
 |---|---|---|---|---|
-| 1 | [Branch network capability check](./01-network-capability-check.md) | **IT** | ~30 min | **B-03** — and may decide the hardware standard outright (D-3) |
+| 1 | [Branch network capability check](./01-network-capability-check.md) | **IT** | ~30 min | **The network half of B-03** — and may decide the hardware standard outright (D-3) |
 | 2 | [Payment provider questionnaire](./02-acquirer-questionnaire.md) | **Finance** | Send and wait | **B-01 / D-1** — makes the provider decision a comparison |
 | 3 | [Counsel brief — data residency](./03-counsel-brief-data-residency.md) | **Executive → legal** | Instruct now, weeks to answer | **B-05 / D-4** — §1 of the residency gate |
-| 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | **B-02** — offline invoicing evidence |
+| 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | **B-02** — submission and clearance evidence; the counter chain is already proved |
 | 5 | [Cost comparison template](./05-cost-comparison-template.md) | **Whoever gathers quotes** | Ongoing | **B-05** — §2 of the residency gate (PRG-010, PRG-012) |
 | 6 | [PBX vendor support ticket](./06-pbx-vendor-ticket.md) | **IT** | Minutes to send | B-07, and all call-centre work |
 | 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — delay increases risk** |
@@ -82,13 +82,33 @@ unblocks — so the pack navigates in both directions rather than one.
 the warehouse database is one variable read out of a deployed bundle, not a task
 worth a page.
 
+**Re-checked 2026-09-21, documents 1 to 5.** Numbers 6 to 9 were each verified
+against the live estate when their blocker was investigated; 1 to 5 never had
+been, and all five carried something wrong — a stale claim that nothing about tax
+invoicing was proved, a costed-options template missing the option the analysis
+prefers, two documents describing the hosting platform's regions incorrectly, a
+questionnaire that omitted that card payments have never run, and a scope claim
+wider than the test it describes. All five now carry a **Checked** date so the
+next reader can see how old the claims are.
+
 ---
 
 ## What these are not
 
 They are not a project plan, and they do not ask anyone to learn how the system
 works. Each is written in the recipient's vocabulary, states plainly why they are
-being asked, and ends with a table to complete.
+being asked, and asks for something specific back.
+
+**What "back" means differs by document, and that is deliberate** — an earlier
+version of this page claimed all nine "end with a table to complete", which was
+not true of three of them:
+
+- **A form to fill in:** 1, 2, 5, 7, 8, 9.
+- **A written answer, not a table:** 3 wants a legal determination per category
+  and 4 wants a decision plus the wording a cashier will use. Neither fits a grid.
+- **Nothing to fill in:** 6 is a ticket to send. What comes back is the vendor's
+  reply, so it asks for the ticket reference to be recorded in
+  [`../blocked.md`](../blocked.md) instead.
 
 If someone reads one and still does not know what to do, that is a defect in the
 document — say so and it gets fixed.

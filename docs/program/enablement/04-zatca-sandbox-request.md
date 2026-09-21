@@ -1,7 +1,9 @@
 # Tax invoicing — sandbox access and one business decision
 
 **For:** Finance
-**Unblocks:** B-02 — both halves of it
+**Unblocks:** B-02 — the half that credentials actually block
+**Time needed:** days for the request; about an hour for the decision
+**Checked:** 2026-09-21
 **Two separate things are needed.** One is a request. One is a decision only the
 business can make.
 
@@ -15,8 +17,19 @@ business can make.
 ## Part 1 · Sandbox access *(a request)*
 
 The system must issue compliant electronic invoices, including while a branch has
-no internet connection, and submit them once connectivity returns. **None of that
-can be tested without test-environment access.**
+no internet connection, and submit them once connectivity returns.
+
+**Half of that is already proved, and it is worth knowing which half before you
+ask.** The per-till counter and hash chain — the part that must never skip or
+reuse an invoice number, including after a device is restored from backup — is
+built and tested in simulation, with no credentials required
+([`spikes/zatca-counter-chain`](../../../spikes/zatca-counter-chain)). B-02 was
+narrowed on 2026-09-21 to reflect that.
+
+**What credentials do block** is everything that requires talking to the tax
+authority: deferred submission once connectivity returns, clearance, signatures
+and certificates. **None of that can be tested without test-environment
+access.**
 
 ### What to request
 
@@ -103,10 +116,14 @@ an outage. Left undecided, each cashier will improvise differently.
 | 2 | Commission the specialist design review | Finance | **Weeks — start now** |
 | 3 | Decide the business-invoice-during-outage question | Finance | An hour, once considered |
 
-Until 1 is done, the offline invoicing design stays unproven and one of the
-executive acceptance criteria cannot be evidenced.
+Until 1 is done, the **submission and clearance** half stays unproven and one of
+the executive acceptance criteria cannot be evidenced. The counter and hash chain
+underneath it already are, which is why this asks for credentials rather than for
+time to build.
 
 ---
 
-*Background: `docs/adr/ADR-0006`, `docs/compliance/zatca-plan.md`,
-`docs/program/blocked.md` B-02, `docs/program/open-questions.md` Q-02.*
+*Background: [ADR-0006](../../adr/ADR-0006-zatca-egs-granularity.md),
+[`zatca-plan.md`](../../compliance/zatca-plan.md),
+[`blocked.md`](../blocked.md) B-02,
+[`open-questions.md`](../open-questions.md) Q-02.*
