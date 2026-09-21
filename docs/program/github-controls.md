@@ -65,6 +65,27 @@ A required check whose name does not exactly match a job blocks every merge with
 no way to satisfy it, so these are copied from the workflow rather than from
 memory.
 
+### Which event produces them
+
+The `pull_request` event, and on the default branch the `push` event. Both
+report check runs against the same head commit, and **a required check resolves
+to the latest run of that name** — so a workflow triggered by both for one
+commit leaves the pull request blocked until the slower, redundant suite
+finishes, and costs double the runner minutes to learn nothing.
+
+`push` on every branch alongside `pull_request` did exactly that, and the
+symptom is easy to misread: six green checks and a pull request still reporting
+`blocked`, because the *second* suite had not finished. A `concurrency` group
+does not help — `github.ref` is `refs/heads/<branch>` for the push and
+`refs/pull/<n>/merge` for the pull request, so the two never share a key and
+`cancel-in-progress` has nothing to cancel.
+
+`ci-contract` now fails if `push` names any branch other than the default one
+while `pull_request` is also a trigger. Losing the `pull_request` trigger is the
+worse mistake of the two — the six checks would never report on a pull request
+at all, and every merge would block forever with no error — so that is asserted
+as well.
+
 ### Deliberately **not** required: `F0 exit criteria`
 
 [`f0-gate.yml`](../../.github/workflows/f0-gate.yml) is **expected red** until
@@ -115,7 +136,7 @@ a reminder — but an owner who cannot merge their own hotfix is a real cost.
 | Required approvals | **0**, by the reasoning above. Revisit when a second reviewer exists |
 | Bypass list | **Empty**, so the ruleset binds the owner too — as written in the imported file |
 | Administrators included | **Yes**, by virtue of that empty bypass list |
-| Last verified | **2026-09-21** — `list_branches` reports `main` `protected: true`, the feature branch `protected: false`; the ruleset targets the default branch only, as intended. That is the whole of what is *observed*: no tool available here reads a ruleset back, so the two rows above are read from the file that was imported, not from GitHub. Re-read them in the UI at the next phase gate |
+| Last verified | **2026-09-21** — `list_branches` reports `main` `protected: true`, the feature branch `protected: false`; the ruleset targets the default branch only, as intended. **PR #3 read `mergeable_state: blocked` while its checks were pending**, which is the enforcement itself and not merely the setting. No tool available here reads a ruleset back, so the bypass and administrator rows are read from the file that was imported, not from GitHub — re-read those two in the UI at the next phase gate |
 
 **PR #1 and PR #2 both merged into an unprotected `main` on 2026-09-20**, which
 is the evidence this document was written about: the rules were fully specified

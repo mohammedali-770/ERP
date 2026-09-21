@@ -10,6 +10,10 @@
  * There is no error message for that case — the pull request simply waits
  * forever on a check that will never report. Three copies of a string, one of
  * which silently bricks the repository, is worth a test.
+ *
+ * The same file also decides how many times each check runs. That is not a name
+ * mismatch, so the comparison above cannot see it, and it is checked separately
+ * at the bottom of this file.
  */
 import { readFileSync } from 'node:fs';
 
@@ -67,4 +71,73 @@ export function readContract(root = '.'): ContractResult {
     rulesetRequiredChecks(readFileSync(`${root}/.github/rulesets/main.json`, 'utf8')),
     documentedRequiredChecks(readFileSync(`${root}/docs/program/github-controls.md`, 'utf8')),
   );
+}
+
+// ---------------------------------------------------------------------------
+// How many times each check runs
+// ---------------------------------------------------------------------------
+
+/** The default branch. A pull request's base here, never its head. */
+const DEFAULT_BRANCH = 'main';
+
+/**
+ * The body of the workflow's top-level `on:` block: every following line that
+ * is indented, commented or blank, stopping at the next key in column zero.
+ *
+ * Written as a run of lines rather than a lazy match with a `$` lookahead,
+ * because under the `m` flag `$` matches at the end of the *first* line — which
+ * silently captured `pull_request:` alone and reported "no push trigger" for a
+ * workflow that had one.
+ */
+function onBlock(ciYaml: string): string {
+  return /^on:[ \t]*\n((?:[ \t]+.*\n?|[ \t]*\n)*)/m.exec(ciYaml)?.[1] ?? '';
+}
+
+/** Whether the workflow runs on `pull_request`. Comment lines are not keys. */
+export function runsOnPullRequest(ciYaml: string): boolean {
+  return /^ {2}pull_request:/m.test(onBlock(ciYaml));
+}
+
+/**
+ * The branch patterns that trigger the workflow on `push`.
+ *
+ * A `push:` with no `branches:` list matches every branch, and so does one
+ * written with `branches-ignore`; both are reported as `**` rather than as
+ * nothing, so that neither reads as "narrow" when it is not.
+ */
+export function pushBranches(ciYaml: string): string[] {
+  const push = /^ {2}push:[ \t]*\n((?: {4,}.*\n?|[ \t]*\n)*)/m.exec(onBlock(ciYaml) + '\n');
+  if (!push) return [];
+  const body = push[1]!;
+  const inline = /^ {4}branches:[ \t]*\[(.*)\][ \t]*$/m.exec(body);
+  if (inline) {
+    return inline[1]!.split(',').map((b) => b.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  }
+  const block = /^ {4}branches:[ \t]*\n((?: {6}- .*\n?)+)/m.exec(body);
+  if (block) {
+    return [...block[1]!.matchAll(/^ {6}- (.*)$/gm)]
+      .map((m) => m[1]!.trim().replace(/^['"]|['"]$/g, ''));
+  }
+  return ['**'];
+}
+
+/**
+ * Push patterns that make the workflow run every job a second time for a commit
+ * that is already the head of a pull request.
+ *
+ * GitHub raises `push` for `refs/heads/<branch>` and `pull_request` for
+ * `refs/pull/<n>/merge`. Those are different `github.ref` values, so a
+ * `concurrency` group keyed on the ref never collapses the pair —
+ * `cancel-in-progress` does nothing here. Both suites report check runs against
+ * the same head commit, and a required check resolves to the *latest* run of
+ * that name, so the pull request stays blocked until the slower, redundant
+ * suite finishes. It costs double the runner minutes to learn nothing.
+ */
+export function duplicatedRunBranches(ciYaml: string): string[] {
+  if (!runsOnPullRequest(ciYaml)) return [];
+  return pushBranches(ciYaml).filter((pattern) => pattern !== DEFAULT_BRANCH);
+}
+
+export function readDuplicatedRunBranches(root = '.'): string[] {
+  return duplicatedRunBranches(readFileSync(`${root}/.github/workflows/ci.yml`, 'utf8'));
 }

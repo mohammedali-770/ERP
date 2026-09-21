@@ -2,8 +2,11 @@ name: CI
 
 on:
   pull_request:
+  # Only the default branch. A pull request's checks come from the
+  # pull_request event; adding the branch push here would run every job a
+  # second time for the same commit. See github-controls.md.
   push:
-    branches: ['**']
+    branches: [main]
 
 permissions:
   contents: read

@@ -122,6 +122,7 @@ npm run db:test       # pgTAP suites against the local stack
 | The seed is synthetic, and two builds are identical | `db:check` |
 | No credential-shaped string is committed | `secret:scan` |
 | The ruleset, the workflow and the controls document name the same checks | `ci-contract` tests |
+| No job runs twice for one commit, and checks report on a pull request | `ci-contract` tests |
 
 If one of these fails, **fix the cause rather than the check.** Each exists
 because the failure it catches actually happened.
