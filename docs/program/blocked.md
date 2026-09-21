@@ -191,10 +191,42 @@ known to be compromised means doing the work twice.
 
 On the captured day the PBX's Asterisk process **segfaulted three times**. The
 watchdog restarted it at 05:01, 15:42 and 20:57, and each time every softphone
-client dropped simultaneously. Separately, `POST /openapi/v1.0/get_token` — the
-call every integration begins with — was returning `INTERNAL SERVER ERROR`.
+client dropped simultaneously.
 
 **No vendor reply, ticket or resolution appears anywhere on record.**
+
+**Re-examined against the diagnostic bundle on 2026-09-21**, which corrected one
+claim and added one finding.
+
+**Corrected — the `get_token` failure is not part of this incident.** This entry
+and ADR-0016 both read as though `POST /openapi/v1.0/get_token` was failing
+alongside the crashes. The bundle's `openapi.log` is **six lines**: six requests
+from five source addresses between **15:20:01 and 15:23:06 on 14 October 2025**,
+nine months before the crashes, each returning **HTTP 200** with
+`{"errcode":-2,"errmsg":"INTERNAL SERVER ERROR"}` in the body — not HTTP 500.
+There are no 2026 entries in that log at all. It has not been retested since, so
+whether it still happens is unknown. Sending it to the vendor as a concurrent
+symptom would have pointed them at the wrong year.
+
+**Added — a kernel memory allocation failure, previously unrecorded.** At
+**00:00:09 on 2026-07-27** the kernel logged an `order:0` `GFP_ATOMIC` page
+allocation failure in the FEC ethernet receive path. The accompanying `Mem-Info`
+shows ~2 GB RAM, **zero swap**, ~640 MB reserved to CMA, ~1 GB anonymous in use
+and ~64 MB in writeback — leaving roughly **57 MB genuinely allocatable**. It
+occurs **once**, and not at any of the three crash times, so it is evidence of a
+marginal memory envelope rather than a demonstrated cause.
+
+**What was ruled out.** `messages` contains no OOM kill and no
+`No space left on device`; `nginx_error.log` spans 2024-05 to 2026-07 and shows
+five routine notices on the incident day; the 124 `Internal Server Error` entries
+in `apigateway.log` are all from **2026-02-11**. A disk-exhaustion theory was
+tested against the bundle and is **not supported**.
+
+**Firmware.** Running **37.23.0.123 (V24.3), released 2026-07-20 — six days
+before the crashes.** Current GA is **37.24.0.73 (V25.2)**, 2026-09-15. Neither
+V25.1 nor V25.2 release notes list an Asterisk crash, watchdog or stability fix,
+so **upgrading is not a known remedy** and the ticket now asks that explicitly
+rather than assuming it.
 
 **Why this blocks rather than merely complicates:** building a screen pop on a
 platform that crashes daily produces an ERP that appears broken when it is not,

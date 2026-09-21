@@ -65,18 +65,53 @@ than guessing; a wrong detail costs more than a missing one.
 > for every Linkus client websocket — extensions 116 to 135 and 222 — confirming
 > all clients dropped together rather than individually.
 >
-> **Evidence — API authentication failing**
+> **A separate, older observation — API token issuance**
 >
-> `openapi.log` shows every `POST /openapi/v1.0/get_token` returning:
+> This is **not** from the day of the crashes, and we are raising it as a
+> question rather than as part of the same incident.
+>
+> The bundle's `openapi.log` contains **six requests in total**, all
+> `POST /openapi/v1.0/get_token`, from five different public source addresses,
+> spanning **15:20:01 to 15:23:06 on 14 October 2025** — about three minutes,
+> nine months before the crashes above. Every one returned **HTTP 200** carrying
+> this in the body:
 >
 > ```
 > {"errcode":-2,"errmsg":"INTERNAL SERVER ERROR",
 >  "invalid_param_list":[{"value":"invalid character 'c' looking for beginning of value"}]}
 > ```
 >
-> The message suggests a server-side JSON parsing failure rather than a malformed
-> request from our side. **We would like confirmation of whether that is correct**,
-> and what causes it.
+> The message reads like a server-side JSON parsing failure rather than a
+> malformed request from our side. **We have not retested since**, so we cannot
+> say whether it still occurs.
+>
+> **Evidence — a kernel memory allocation failure**
+>
+> At **00:00:09 on 27 July 2026**, shortly after the third restart, the kernel
+> logged a page allocation failure in the ethernet receive path:
+>
+> ```
+> swapper/0: page allocation failure: order:0, mode:0x1080020(GFP_ATOMIC)
+>   warn_alloc+0xe8/0x180 ... fec_enet_rx_napi+0x4fc/0xb80
+>   net_rx_action+0xf4/0x2c0 ... __do_softirq+0x12c/0x228
+> ```
+>
+> An **order:0** atomic allocation failing means the kernel could not obtain a
+> single 4 KB page in interrupt context. The accompanying `Mem-Info` records:
+>
+> | | |
+> |---|---|
+> | Total RAM | 523264 pages (~2 GB) |
+> | Free | ~351 MB, of which **~294 MB is CMA** |
+> | CMA reserved | 163840 pages (~640 MB) |
+> | Anonymous in use | ~1.0 GB |
+> | Dirty / writeback | ~40 MB / **~64 MB** |
+> | **Swap** | **Total 0 kB, free 0 kB** |
+>
+> So roughly **57 MB of genuinely allocatable memory** remained, with no swap.
+> **Is this within the expected operating envelope for a P560, and is zero swap
+> the intended configuration?** It occurred once in the captured period and we
+> are not asserting it caused the crashes.
 >
 > **Other log conditions observed at the same time**
 >
@@ -95,17 +130,26 @@ than guessing; a wrong detail costs more than a missing one.
 >
 > 1. Analysis of the core dumps — we can upload them on request. Please advise how
 >    you would prefer to receive files of this size.
-> 2. Whether firmware 37.23.0.123 has a known issue matching this crash signature,
->    and whether a later firmware addresses it.
-> 3. The cause of the `get_token` internal server error, and how to resolve it.
-> 4. Whether `errcode 20004 "no active collaboration"` indicates a licensing or
+> 2. Whether firmware 37.23.0.123 has a known issue matching this crash signature.
+>    We note that **37.23.0.123 (V24.3) was released on 20 July 2026 and the
+>    crashes occurred on 26 July**, six days later — is this a known regression in
+>    that build?
+> 3. Whether any release since addresses it. We are aware that **V25.1
+>    (37.24.0.30) and V25.2 (37.24.0.73) have shipped** and that neither set of
+>    release notes mentions an Asterisk crash, watchdog or stability fix, so we do
+>    not want to upgrade expecting a fix that is not there. **Please confirm
+>    whether upgrading is a remedy here or merely unrelated good practice.**
+> 4. Whether the `get_token` behaviour from October 2025 above is a known defect,
+>    and whether anything in the intervening releases changes it.
+> 5. Whether `errcode 20004 "no active collaboration"` indicates a licensing or
 >    provisioning state that needs correcting on our account.
-> 5. Whether the dialplan syntax error above needs correcting by us.
+> 6. Whether the dialplan syntax error above needs correcting by us.
 >
 > **Business impact**
 >
-> Telephony was unavailable to all users three times in one day. We are also
-> unable to begin a planned API integration while token issuance fails.
+> Telephony was unavailable to all users three times in one day. We are planning
+> an API integration against this system and want the platform's stability
+> understood before we build on it.
 >
 > **A note on the diagnostic bundle**
 >

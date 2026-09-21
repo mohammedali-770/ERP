@@ -65,7 +65,7 @@ What it already does that F1 also specifies:
 | Reachable from the ERP | **OpenAPI over HTTPS only** |
 | Not reachable | AMI (loopback ACL), CDR feed (loopback Redis), internal web API |
 | Access path | Yeastar RAS cloud tunnel, not a direct address |
-| Stability | **Three Asterisk segfaults in one captured day**; `get_token` returning errors. No vendor resolution on record |
+| Stability | **Three Asterisk segfaults in one captured day**, plus a kernel allocation failure in the ethernet path on a 2 GB appliance with no swap. No vendor resolution on record |
 
 The P650 designation appears to originate from a Saudi reseller publishing a
 `/yeastar-p650/` URL for what is a P560 product page.
