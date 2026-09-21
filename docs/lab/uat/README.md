@@ -27,6 +27,9 @@ cannot perform real workflows".
 
 ## The packs
 
+Arabic versions of all nine are in [`ar/`](./ar/) — see the note at the end of
+this file before using them.
+
 | Pack | Who runs it | Covers |
 |---|---|---|
 | [`cashier`](./cashier.md) | Cashiers | Order entry, payment, shifts, cash, corrections |
@@ -58,13 +61,22 @@ whether they could do it.
 
 ## Before these are used
 
-> **These are written in English. The people who will run the cashier and kitchen
-> packs work in Arabic.**
+> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs.**
 >
-> `PRG-014` requires user-facing material in both languages. These packs are
-> structured as engineering artifacts here; **the versions actually handed to
-> cashiers and kitchen staff must be translated before use**, and the translation
-> should be checked by someone who does the job rather than only by a translator.
+> `PRG-014` requires user-facing material in both languages. The English packs
+> here remain the source of truth — they are updated first and the Arabic
+> follows.
 >
-> Recorded rather than quietly ignored. Running a UAT in a participant's second
-> language measures their English, not the system.
+> **The translation has not yet been reviewed by an Arabic speaker who does the
+> job**, and that review is still required before a pack is handed to a
+> participant. It was produced against the terminology already in
+> `docs/requirements/requirements.yaml`, which carries all 387 requirements in
+> both languages, so the terms are consistent with the requirement data rather
+> than invented — but consistent is not the same as correct in a branch.
+>
+> A cashier reading formal Arabic nobody uses on the floor is being tested on
+> the translation, not on the system. That is the same failure as running the
+> pack in English, which is why the review gate stays until someone who works a
+> till has read it.
+>
+> Recorded rather than quietly ignored.
