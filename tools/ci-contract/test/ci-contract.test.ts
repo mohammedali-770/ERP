@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   workflowJobNames, rulesetRequiredChecks, documentedRequiredChecks, compare, readContract,
+  runsOnPullRequest, duplicatedRunBranches, readDuplicatedRunBranches,
 } from '../src/index.ts';
 
 test('every required check is produced by a real job', () => {
@@ -69,4 +71,32 @@ test('a typo in any one of the three places is reported', () => {
   const r = compare(['Database schema'], ['Database Schema'], ['Database schema']);
   assert.deepEqual(r.requiredButNeverReported, ['Database Schema'], 'case matters to GitHub');
   assert.deepEqual(r.documentedButNotRequired, ['Database schema']);
+});
+
+test('no job runs twice for the same commit', () => {
+  // push on refs/heads/<branch> and pull_request on refs/pull/<n>/merge are
+  // different refs, so the concurrency group never collapses them. Both report
+  // against the same head, and a required check resolves to the latest run of
+  // that name — so the pull request waits for the redundant suite.
+  assert.deepEqual(readDuplicatedRunBranches(), []);
+});
+
+test('the pull_request trigger is what makes checks report on a pull request', () => {
+  // Without it the six required checks never report on a pull request, and
+  // every merge blocks forever with no error — the same brick as a typo.
+  assert.equal(runsOnPullRequest(readFileSync('.github/workflows/ci.yml', 'utf8')), true);
+});
+
+test('a push on every branch is reported as duplication, a push on main is not', () => {
+  const on = (push: string) => `name: CI\non:\n  pull_request:\n${push}\npermissions:\n  contents: read\n`;
+  assert.deepEqual(duplicatedRunBranches(on("  push:\n    branches: ['**']")), ['**']);
+  assert.deepEqual(duplicatedRunBranches(on('  push:\n    branches: [main]')), []);
+  assert.deepEqual(duplicatedRunBranches(on('  push:')), ['**'], 'no filter means every branch');
+  assert.deepEqual(duplicatedRunBranches(on('  push:\n    branches-ignore: [docs]')), ['**'], 'ignore-lists are not narrow');
+  assert.deepEqual(duplicatedRunBranches(on('  push:\n    branches:\n      - main\n      - release/*')), ['release/*'], 'block lists too');
+});
+
+test('without pull_request there is no duplication to report', () => {
+  // A push-only workflow runs each job once, whatever its branch filter says.
+  assert.deepEqual(duplicatedRunBranches("name: CI\non:\n  push:\n    branches: ['**']\n\npermissions:\n"), []);
 });
