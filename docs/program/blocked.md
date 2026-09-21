@@ -92,8 +92,8 @@ ACC-005 cannot be evidenced.
 ## B-03 — Branch access for the two procedure spikes
 
 **Blocks:** `spikes/lan-peer-sync` · `spikes/ios-durability` · ADR-0004 (the
-hardware decision) · acceptance evidence for `POS-008`, `PRN-014`, `OFF-012`,
-`OFF-013` and `OFF-014`, which name no other test
+hardware decision) · acceptance evidence for `PRN-014`, `OFF-012`, `OFF-013` and
+`OFF-014`, which name no other test
 **Unblocked by:** IT, with access to a real branch network, real iPads and a
 real LAN printer — or a faithful replica of each
 
@@ -109,6 +109,22 @@ mDNS discovery. **Many managed networks enable access-point client isolation by
 default.** If it cannot be disabled on the production estate, peer replication is
 impossible and a branch controller becomes mandatory.
 
+**`POS-008` was on that list and should not have been.** Re-read on 2026-09-21:
+the other four name the lab explicitly — "the lab shall compare", "no hardware
+model shall be approved before … tests are passed in the HQ lab". `POS-008` says
+something different: *operational correctness, transaction integrity and
+recoverability shall take priority over minimizing order-entry seconds.* That is
+a priority rule about a trade-off, not a claim about branch Wi-Fi or iPad
+durability, and it is the only one of the five owned by Operations management
+rather than IT.
+
+It is exercised by `spikes/offline-sync`, which sustains throughput while proving
+zero lost and zero duplicated accepted orders — the trade-off actually being made
+— and which runs in CI today. That reference has been **added**, not substituted:
+the two procedure spikes stay, because the hardware choice does bear on whether
+the priority is maintainable. **Operations management still needs to confirm it**,
+per the seeding note in `annotations.yaml`. The warning count is now four.
+
 **This is the cheapest high-value test in the programme and should run in week 1–2.**
 
 The decisive part needs **two laptops and half an hour** — no iPads, no device
@@ -119,6 +135,14 @@ The full device-level spike does need the application and comes later.
 **Cost of staying blocked:** the hardware decision drifts toward month 8, where
 OFF-014 requires it to be settled by evidence anyway — at which point changing
 course is expensive.
+
+**A wider question came out of this.** `evidence-is-producible` inspects only
+`SPIKE-` references, so it cannot see that **57 requirements rest solely on lab
+scenarios (`T-xx`, `UAT-xx`) that need an HQ lab which does not exist yet**.
+There is a defensible reason — a blocked spike was meant to produce evidence at
+F0, a lab scenario during F1 acceptance — but that distinction is written down
+nowhere and the gate's meaning depends on it. Raised as
+[Q-18](./open-questions.md).
 
 ---
 

@@ -491,7 +491,7 @@ _5.3 Point of sale_
 | `POS-005` | F1 | P0 | Operations management | UAT-cashier | The platform shall support call-center order entry and tracking. |
 | `POS-006` | F1 | P0 | Operations management | UAT-cashier | The platform shall support dine-in and table-service orders, including configurable table identifiers. |
 | `POS-007` | F1 | P0 | Operations management | UAT-cashier | The cashier interface shall retain familiar Lazywait interaction patterns where useful while correcting identified limitations. |
-| `POS-008` | F1 | P0 | Operations management | SPIKE-lan-peer-sync, SPIKE-ios-durability | Operational correctness, transaction integrity and recoverability shall take priority over minimizing order-entry seconds. |
+| `POS-008` | F1 | P0 | Operations management | SPIKE-offline-sync, SPIKE-lan-peer-sync, SPIKE-ios-durability | Operational correctness, transaction integrity and recoverability shall take priority over minimizing order-entry seconds. |
 | `POS-009` | F1 | P0 | Operations management | T-01, SPIKE-offline-sync | A branch shall support at least three simultaneously active cashier or order-entry devices. |
 | `POS-010` | F1 | P0 | Operations management | T-01, SPIKE-offline-sync | The POS shall maintain one authoritative order record regardless of which device or channel created it. |
 | `POS-011` | F1 | P0 | Operations management | T-01, SPIKE-offline-sync | The POS shall prevent duplicate submission caused by repeated taps, retries, delayed responses or reconnection. |

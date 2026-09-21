@@ -230,6 +230,42 @@ Related: `RTG-P10`, `RTG-P11`, `HR-014`, ADR-0017.
 
 ---
 
+## Q-18 — Is a lab acceptance scenario evidence, or a promise of evidence?
+
+**Decides:** Product Owner, with whoever owns the F0 exit gate · **Expensive after:** the gate is declared on the current reading
+
+`req-lint`'s `evidence-is-producible` rule flags a requirement whose test
+references are **all** non-executable spikes — procedures blocked on B-03. It
+found five, and its own comment explains why that matters: such a requirement
+"counts toward a satisfied F0 gate while being untested by that gate's own
+definition", a requirement "wearing the appearance of a tested one".
+
+The rule inspects only `SPIKE-` references. **41 requirements are evidenced
+solely by lab scenarios `T-01`…`T-10`, and 16 more by `T-xx` and `UAT-xx`
+together — 57 in total, none of which the rule looks at.** Those scenarios need
+the HQ lab: `T-01` opens "Setup. Lab branch, 3 POS devices, all four intake
+sources active." That lab does not exist yet either.
+
+**There is a defensible distinction, and it is not written down anywhere.** A
+blocked spike was meant to produce evidence *at F0*; a lab acceptance scenario is
+meant to produce it *during F1 build and acceptance*. If that is the intent, then
+57 requirements resting on `T-xx` is correct and expected, and the rule is scoped
+exactly right. If it is not the intent, then 41 requirements are in precisely the
+position the rule was written to catch and it cannot see them.
+
+**Either answer is fine. Leaving it implicit is not**, because the gate's whole
+value is that it means the same thing to everyone reading it — and today the
+difference between "blocked" and "not yet" rests on a prefix.
+
+If the distinction is intended, say so in the rule's comment and in
+[`../lab/test-plan.md`](../lab/test-plan.md), so the next person does not have to
+re-derive it. If it is not, the rule needs to treat an unbuilt lab the way it
+treats an unavailable branch.
+
+Related: B-03, `POS-008`, [`../lab/lab-design.md`](../lab/lab-design.md).
+
+---
+
 ## Q-17 — Is anyone supposed to be working the inbox's `needs_human` queue?
 
 **Decides:** Owner, with whoever is accountable for inbox operations · **Expensive after:** it already is — 78 people are waiting
