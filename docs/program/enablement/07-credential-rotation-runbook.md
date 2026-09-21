@@ -55,8 +55,16 @@ Externally reachable through the RAS tunnel, and the widest access.
 1. PBX web console → the API or integration settings where the client is defined.
 2. Regenerate the client secret.
 3. Update anything storing it. **As far as we know nothing currently uses it** —
-   the integration is not built, and `get_token` was failing anyway — but check
-   for scripts or test tooling before assuming.
+   the integration is not built, and the only recorded use of it failed — but
+   check for scripts or test tooling before assuming.
+
+> **Rotation alone does not close this one.** The six recorded `get_token` calls
+> passed `client_id` and `client_secret` **as query-string parameters**, and the
+> PBX wrote both into `openapi.log` in plaintext, which is how they reached the
+> bundle and then the repository. A new secret sent the same way is logged the
+> same way. When the integration is built, send credentials in the request body
+> or a header — never the query string — and treat `openapi.log` as containing
+> secrets until that is confirmed. Raised against `SEC-003` and B-06.
 
 **Breaks if done wrong:** nothing today. This is the safest one to do immediately.
 

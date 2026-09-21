@@ -44,12 +44,23 @@ On the captured day, 26 July 2026:
 - The watchdog restarted it at 05:01, 15:42 and 20:57
 - At each restart every Linkus softphone client dropped simultaneously,
   with nginx logging connection refused for every client websocket
-- **`POST /openapi/v1.0/get_token` was returning `INTERNAL SERVER ERROR`** — a
-  server-side JSON parse failure on the very call an integration begins with
+- A kernel `order:0` `GFP_ATOMIC` page allocation failure in the ethernet receive
+  path at 00:00:09 the following morning, on a 2 GB appliance with **no swap**
 - A flood of `"no active collaboration"` errors from the third-party app module,
   which reads like a licensed integration slot that was never activated
 
 Nothing in the bundle records a vendor reply, a ticket or a resolution.
+
+> **Corrected 2026-09-21.** This list previously carried a fourth bullet saying
+> `POST /openapi/v1.0/get_token` was returning `INTERNAL SERVER ERROR` on the
+> captured day. Re-reading the bundle shows that is wrong: `openapi.log` holds
+> six requests spanning three minutes on **14 October 2025**, nine months
+> earlier, and contains no 2026 entries. The observation is real but belongs to a
+> different date, and it is recorded accurately in
+> [B-07](../program/blocked.md). The kernel allocation failure replaced it here
+> because that one genuinely belongs to this incident. **Nothing in the decision
+> below rested on the `get_token` claim** — OpenAPI is chosen as the integration
+> surface on the grounds in §1, not on that error.
 
 ## Decision
 
