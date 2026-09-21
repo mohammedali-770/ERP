@@ -1,6 +1,7 @@
 # Tax invoicing — sandbox access and one business decision
 
 **For:** Finance
+**Unblocks:** B-02 — both halves of it
 **Two separate things are needed.** One is a request. One is a decision only the
 business can make.
 

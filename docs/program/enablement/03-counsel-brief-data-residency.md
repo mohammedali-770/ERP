@@ -1,6 +1,7 @@
 # Brief to counsel — data residency
 
 **For:** Executive management, to instruct legal counsel
+**Unblocks:** B-05 / D-4 — §1 of the data residency gate
 **Purpose:** get one determination that answers every question the programme needs,
 rather than three rounds of partial answers
 
