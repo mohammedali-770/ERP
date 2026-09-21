@@ -17,6 +17,9 @@ act on without engineering present.
 
 **Blocks:** 16 F1 requirements (PAY-001..019 within F1) · ACC-003 · T-04 · T-05
 **Unblocked by:** Owner / executive management
+**Ready to send:** [`enablement/02-acquirer-questionnaire.md`](./enablement/02-acquirer-questionnaire.md)
+— asks the decisive query-by-reference question as A1, and turns the choice into
+a comparison rather than research
 **Related:** ADR-0008
 
 ### What is blocked
@@ -85,6 +88,9 @@ month-5 deadline stated.
 **Blocks:** Deferred synchronisation, clearance, signatures and certificates · the
 remaining half of T-09
 **Unblocked by:** Finance, with ZATCA onboarding credentials
+**Ready to send:** [`enablement/04-zatca-sandbox-request.md`](./enablement/04-zatca-sandbox-request.md)
+— covers **both** halves this entry names: the access request and the business
+decision about a B2B invoice requested during an outage
 **Related:** ADR-0006 · [`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain)
 
 **Narrowed on 2026-09-21, by building the half that was never blocked.**
@@ -238,6 +244,12 @@ it early; it is a question, and route 1 above may answer it in minutes.
 
 **Blocks:** Any production deployment
 **Unblocked by:** Executive management, on a qualified legal determination plus costed options
+**Ready to send:** both halves are already drafted —
+[`enablement/03-counsel-brief-data-residency.md`](./enablement/03-counsel-brief-data-residency.md)
+for the determination (§1 of the gate) and
+[`enablement/05-cost-comparison-template.md`](./enablement/05-cost-comparison-template.md)
+for the costed options (§2). **Instructing counsel has weeks of lead time and
+depends on nothing**, so it is the part to start today
 **Related:** ADR-0002, [`../compliance/data-residency-gate.md`](../compliance/data-residency-gate.md)
 
 Not blocking lab work. **Blocking production**, absolutely. Recorded here so it is

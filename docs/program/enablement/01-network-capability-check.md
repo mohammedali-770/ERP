@@ -1,6 +1,7 @@
 # Branch network capability check
 
 **For:** IT
+**Unblocks:** B-03, and may decide D-3 outright
 **Time needed:** about 30 minutes, at one branch
 **Equipment:** two ordinary laptops or phones. **No iPads, no MDM, no special software.**
 

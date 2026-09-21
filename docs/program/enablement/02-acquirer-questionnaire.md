@@ -1,6 +1,7 @@
 # Payment provider capability questionnaire
 
 **For:** Finance, to send to each candidate bank, acquirer or payment provider
+**Unblocks:** B-01 / D-1
 **Purpose:** turn the provider selection from research into a comparison
 
 ---

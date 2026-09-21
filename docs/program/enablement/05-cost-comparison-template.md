@@ -1,6 +1,7 @@
 # Hosting and recovery — cost comparison template
 
 **For:** whoever gathers quotes
+**Unblocks:** B-05 — §2 of the data residency gate, the costed options
 **Satisfies:** `PRG-010` (tiered cost options before any infrastructure
 commitment) and `PRG-012` (recovery targets selected from costed tiers)
 

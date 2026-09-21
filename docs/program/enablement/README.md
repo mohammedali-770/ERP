@@ -11,11 +11,11 @@ parallel — and none of them depends on a decision being taken first.
 
 | | Document | Who acts | Time for them | What it unblocks |
 |---|---|---|---|---|
-| 1 | [Branch network capability check](./01-network-capability-check.md) | **IT** | ~30 min | May decide the hardware standard outright (D-3) |
-| 2 | [Payment provider questionnaire](./02-acquirer-questionnaire.md) | **Finance** | Send and wait | Makes the provider decision a comparison (D-1) |
-| 3 | [Counsel brief — data residency](./03-counsel-brief-data-residency.md) | **Executive → legal** | Instruct now, weeks to answer | Production hosting (D-4) |
-| 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | Offline invoicing evidence (B-02) |
-| 5 | [Cost comparison template](./05-cost-comparison-template.md) | **Whoever gathers quotes** | Ongoing | Tiered options (PRG-010, PRG-012) |
+| 1 | [Branch network capability check](./01-network-capability-check.md) | **IT** | ~30 min | **B-03** — and may decide the hardware standard outright (D-3) |
+| 2 | [Payment provider questionnaire](./02-acquirer-questionnaire.md) | **Finance** | Send and wait | **B-01 / D-1** — makes the provider decision a comparison |
+| 3 | [Counsel brief — data residency](./03-counsel-brief-data-residency.md) | **Executive → legal** | Instruct now, weeks to answer | **B-05 / D-4** — §1 of the residency gate |
+| 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | **B-02** — offline invoicing evidence |
+| 5 | [Cost comparison template](./05-cost-comparison-template.md) | **Whoever gathers quotes** | Ongoing | **B-05** — §2 of the residency gate (PRG-010, PRG-012) |
 | 6 | [PBX vendor support ticket](./06-pbx-vendor-ticket.md) | **IT** | Minutes to send | B-07, and all call-centre work |
 | 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — delay increases risk** |
 | 8 | [Closing the WhatsApp inbox exposure](./08-inbox-exposure-remediation.md) | **IT, Owner approving** | ~45 min for the urgent half | **B-08 — a live write path reachable with a public key** |
@@ -66,6 +66,21 @@ actually decides the outcome.
 Legal determinations take weeks. Nothing in the programme depends on that
 instruction *starting*, and nothing can finish without it. Sending it is the
 useful act; the answer can arrive later.
+
+---
+
+## Every blocker that has one now points back
+
+Checked 2026-09-21. `blocked.md` linked five of these; four were invisible from
+the entry someone would actually read. B-01 named the decision pack but not the
+questionnaire, B-02 named neither, and B-05 was six lines that never mentioned a
+drafted counsel brief and a costed-options template sitting in this folder. All
+four now carry a **Ready to send** line, and every document here names what it
+unblocks — so the pack navigates in both directions rather than one.
+
+**B-04 is the only blocker with no document here, and correctly so.** Identifying
+the warehouse database is one variable read out of a deployed bundle, not a task
+worth a page.
 
 ---
 
