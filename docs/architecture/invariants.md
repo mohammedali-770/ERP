@@ -7,6 +7,28 @@ Each invariant exists because the PRD requires it, and each is enforced
 structurally wherever possible rather than by convention — a rule someone has to
 remember is a rule that will eventually be forgotten at 2am during an incident.
 
+## Which of these are enforced *today*
+
+**Audited against `supabase/migrations/` on 2026-09-21.** The "Enforced by"
+lines below are written in the present tense throughout, and for most of them
+that describes a branch runtime which does not exist yet — F0 has no feature
+code. Saying so once here is cheaper than a reader discovering it per invariant,
+and it is the same ambiguity that let a document elsewhere in this repository
+claim a spike tested something when the spike had never been written.
+
+| | Enforcement today | Where |
+|---|---|---|
+| **I-3** | **Live.** Three partial unique indexes, plus pgTAP | `20260920000600_projections_and_conflict_detection.sql` |
+| **I-10** | **Live.** `schema_version int not null check (>= 1)` on the event log | `20260920000400_event_log.sql` |
+| **I-7** | **Partly live.** Payloads are embedded in immutable event rows; the append-only guard is enforced by grant *and* trigger | `20260920000400_event_log.sql` |
+| **I-8** | **Partly live — see the note under I-8.** The column exists; the guarantee does not | `20260920000600_…` |
+| **I-1** | Partly. Identifiers are `uuid` primary keys at central; edge minting is runtime | — |
+| **I-2, I-4, I-5** | **Not yet.** All three describe the branch runtime | — |
+| **I-6, I-9** | Design rules, with no single structure to point at | — |
+
+Nothing here is a defect except I-8. The rest is F0 being F0 — the point is that
+the distinction is now written down rather than inferred.
+
 ---
 
 ## I-1 — Identity is minted at the edge, before any user feedback
@@ -122,6 +144,20 @@ edited by overwriting the balance (PAY-015, CRM-005).
 **Enforced by:** an `as_of_event_id` on every materialised balance. A cached
 balance that cannot be checked against its source is a balance that will silently
 drift.
+
+> **Gap, found 2026-09-21 — this one is convention, not structure.**
+> `as_of_event_id` exists on all four projection tables (`orders`,
+> `payment_intents`, `shifts`, `drawer_assignments`) and is **nullable on every
+> one of them**, with no foreign key. So a projection row can be written with no
+> stamp at all — which is precisely the un-checkable balance this invariant
+> exists to forbid, and it contradicts the standard set at the top of this
+> document.
+>
+> A projection row is only ever produced by applying an event, so there is always
+> an identifier available and no legitimate reason for `NULL`. The fix is one
+> migration adding `not null` to the four columns, with a pgTAP assertion so it
+> stays that way. **Not applied:** writing migration history is an owner-approved
+> action (`CLAUDE.md` §4), and this is a proposal, not a change.
 
 ---
 
