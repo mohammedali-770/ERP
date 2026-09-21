@@ -43,12 +43,19 @@ sees and says when a business customer asks for a tax invoice during an outage.
 - Each device needs onboarding, a certificate and secure key storage. Device
   provisioning becomes a compliance-relevant process, not just IT setup.
 - **Counter reuse after restoring a device from backup is a compliance breach, not
-  a bug.** It is tested explicitly in the ZATCA spike.
+  a bug.** It is proved in [`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain),
+  where an undetected restore is one of three controls: the run FAILS when the
+  restore goes undetected, and the device refuses to issue until it has reconciled
+  against the issuance log. **Written 2026-09-21 — this consequence previously said
+  "It is tested explicitly in the ZATCA spike" while no such spike existed.**
 - PAY-019 still stands: all of this is revalidated against the current official
   specification before certification. This ADR records a design intent, not a
   compliance opinion.
 
 ## Blocked
 
-The ZATCA offline-issuance spike needs sandbox onboarding credentials. Tracked in
-`docs/program/blocked.md`.
+**Half of it.** The counter, the hash chain and the restore case are proved in
+[`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain) and run in CI —
+none of that needs ZATCA to be reachable. Deferred synchronisation, clearance,
+signatures and certificates do need sandbox onboarding credentials, and remain
+tracked in `docs/program/blocked.md` as B-02.

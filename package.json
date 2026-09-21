@@ -29,6 +29,7 @@
     "spike:payment-reconciliation": "node --experimental-strip-types spikes/payment-reconciliation/src/cli.ts",
     "spike:callback-engine": "node --experimental-strip-types spikes/callback-engine/src/cli.ts",
     "spike:rating-statistics": "node --experimental-strip-types spikes/rating-statistics/src/cli.ts",
+    "spike:zatca-counter-chain": "node --experimental-strip-types spikes/zatca-counter-chain/src/cli.ts",
     "db:check": "node --experimental-strip-types tools/db-check/src/cli.ts",
     "secret:scan": "node --experimental-strip-types tools/secret-scan/src/cli.ts",
     "db:reset": "supabase db reset",

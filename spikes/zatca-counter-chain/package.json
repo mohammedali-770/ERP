@@ -1,0 +1,11 @@
+{
+  "name": "@firsttaste/spike-zatca-counter-chain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Risk spike: zatca-counter-chain",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

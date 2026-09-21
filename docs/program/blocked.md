@@ -70,13 +70,34 @@ month-5 deadline stated.
 
 ## B-02 — ZATCA sandbox onboarding
 
-**Blocks:** The ZATCA offline-issuance spike · ACC-005 · T-09
+**Blocks:** Deferred synchronisation, clearance, signatures and certificates · the
+remaining half of T-09
 **Unblocked by:** Finance, with ZATCA onboarding credentials
-**Related:** ADR-0006
+**Related:** ADR-0006 · [`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain)
 
-Testing offline invoice issuance, counter chains and deferred synchronisation
-requires sandbox credentials and registered device identities. Without them the
-design in ADR-0006 is unvalidated.
+**Narrowed on 2026-09-21, by building the half that was never blocked.**
+
+This entry said B-02 blocks "the ZATCA offline-issuance spike". No such spike
+existed — and T-09 already recorded, in its own words, that "the local counter and
+hash chain could be proved without sandbox credentials; the
+deferred-synchronisation half could not". ADR-0006 went further and said counter
+reuse after a restore "is tested explicitly in the ZATCA spike", present tense,
+about a spike that had never been written.
+
+[`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain) now proves that
+half and runs in CI: per-unit counters incrementing by exactly one with no gaps,
+the previous-invoice-hash chain verified end to end from the genesis PIH, a
+restart that rewinds nothing, and the restore-from-backup case ADR-0006 calls a
+compliance breach — a restored device refuses to issue until it has reconciled
+against the issuance log. Three controls must fail for the run to mean anything:
+an undetected restore, one counter shared across devices, and a relinked invoice.
+
+**What is still genuinely blocked** needs ZATCA to be reachable and is not
+simulated, because simulating a clearance response would manufacture confidence
+rather than evidence: deferred synchronisation, clearance, signatures,
+certificates and registered device identities.
+
+Also still needed: the **business decision, not only credentials**.
 
 Also needs a **business decision, not only credentials**: what happens when a
 business customer requests a tax invoice during a connectivity outage. Standard
@@ -84,8 +105,10 @@ B2B invoices require clearance before issuance and cannot be issued offline.
 Somebody must decide whether the request queues or is refused, and what the cashier
 says.
 
-**Cost of staying blocked:** PAY-016..019 remain designed but unproven, and
-ACC-005 cannot be evidenced.
+**Cost of staying blocked:** lower than recorded. PAY-016..018's counter and chain
+properties are now proven, and `ACC-005` has partial producible evidence rather
+than none. **PAY-019 and the deferred-synchronisation half remain unproven**, and
+ACC-005 cannot be closed until clearance is exercised against the sandbox.
 
 ---
 

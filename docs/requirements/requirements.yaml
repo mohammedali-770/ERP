@@ -4836,6 +4836,7 @@ requirements:
     adr_refs: []
     test_refs:
       - "T-09"
+      - "SPIKE-zatca-counter-chain"
     estate_refs: []
   - id: "ACC-006"
     module: "ACC"

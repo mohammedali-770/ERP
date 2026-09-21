@@ -1017,8 +1017,13 @@ ACC-004:
 ACC-005:
   status: "baselined"
   owner: "Product Owner"
+  # SPIKE-zatca-counter-chain added 2026-09-21. T-09 itself records that the
+  # counter and hash chain could be proved without sandbox credentials while the
+  # deferred-synchronisation half could not; that half is now proved and runs in
+  # CI. B-02 still blocks the rest, so this is partial evidence, not closure.
   test_refs:
     - T-09
+    - SPIKE-zatca-counter-chain
 
 ACC-006:
   status: "baselined"
