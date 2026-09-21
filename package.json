@@ -31,6 +31,7 @@
     "spike:rating-statistics": "node --experimental-strip-types spikes/rating-statistics/src/cli.ts",
     "spike:zatca-counter-chain": "node --experimental-strip-types spikes/zatca-counter-chain/src/cli.ts",
     "db:check": "node --experimental-strip-types tools/db-check/src/cli.ts",
+    "db:fixtures": "node --experimental-strip-types tools/db-fixtures/src/cli.ts",
     "secret:scan": "node --experimental-strip-types tools/secret-scan/src/cli.ts",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
