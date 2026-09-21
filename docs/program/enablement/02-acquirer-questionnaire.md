@@ -2,6 +2,8 @@
 
 **For:** Finance, to send to each candidate bank, acquirer or payment provider
 **Unblocks:** B-01 / D-1
+**Time needed:** an hour to adapt and send; then wait for replies
+**Checked:** 2026-09-21
 **Purpose:** turn the provider selection from research into a comparison
 
 ---
@@ -139,12 +141,59 @@ exported.
 
 ## Before sending — one thing to check internally
 
-Our own records disagree about which provider is configured today: the live
-database shows one, the operations console offers administration for another.
-**That is a ten-minute check and worth doing first**, so the conversation starts
-from what is actually in place rather than what someone remembers.
+**Nothing is being replaced. Card payments have never run.**
+
+The live database has a provider configured **in test mode with card payments
+switched off**, and **every live order to date has been cash**
+([`estate/inventory.md`](../../estate/inventory.md)). Separately, our records
+disagree about which provider that even is: the database shows one, the
+operations console offers administration for another
+([`estate/migration-map.md`](../../estate/migration-map.md)).
+
+That matters for how this conversation goes. There is **no migration risk, no
+live transaction history to port and no switching cost** — so the selection can
+be made on the questions below rather than on what is least disruptive to
+replace. It also means nobody internally has operational experience of the
+answers, which is why written documentation is asked for rather than assurances.
+
+**Confirming which provider is actually configured is a ten-minute check and
+worth doing first** — it is also [Q-09](../open-questions.md), still open.
 
 ---
 
-*Background: `docs/adr/ADR-0008`, `docs/program/blocked.md` B-01,
-`docs/program/executive-decision-pack.md` D-1.*
+## Recording the answers
+
+One row per provider, so replies can be compared rather than read in sequence.
+**Section A is the part that decides it**, so it is first.
+
+| | Provider 1 | Provider 2 | Provider 3 |
+|---|---|---|---|
+| Name | | | |
+| Date replied | | | |
+| **A1 — query by our reference** | Yes / No | | |
+| **A3 — query works offline** | Yes / No | | |
+| A5 — safe to re-send | Yes / No | | |
+| **B1 — refund idempotency** | Yes / No | | |
+| **D2 — failure testing available** | Yes / No | | |
+| C3 — our reference in settlement | Yes / No | | |
+| D4 — certification lead time | | | |
+| E1 — headline fees | | | |
+| **Documentation supplied, or assurance only?** | | | |
+
+**If A1 is "no" for a provider, what did they say the manual procedure is, and
+how long does it take?**
+
+> …
+
+That answer is the permanent daily cost referred to above. It belongs in the
+comparison in minutes-per-incident, not as a footnote — and it is the number most
+likely to be left out of a fee comparison.
+
+Then record the outcome against B-01 in [`../blocked.md`](../blocked.md).
+
+---
+
+*Background: [ADR-0008](../../adr/ADR-0008-payment-provider-and-terminal.md),
+[`blocked.md`](../blocked.md) B-01,
+[`executive-decision-pack.md`](../executive-decision-pack.md) D-1.
+Section A answers [Q-05](../open-questions.md).*

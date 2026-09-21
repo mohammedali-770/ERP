@@ -2,6 +2,8 @@
 
 **For:** Executive management, to instruct legal counsel
 **Unblocks:** B-05 / D-4 — §1 of the data residency gate
+**Time needed:** instruct now; a determination may take weeks
+**Checked:** 2026-09-21
 **Purpose:** get one determination that answers every question the programme needs,
 rather than three rounds of partial answers
 
@@ -48,8 +50,30 @@ tax documents. These may not share the same answer. A determination covering onl
 
 ## The current position
 
-The existing systems run on a cloud platform whose available regions are in
-**Europe and Asia**. That platform **offers no Saudi region**.
+*Verified 2026-09-21 against the platform's published region list and recorded in
+[`data-residency-gate.md`](../../compliance/data-residency-gate.md).*
+
+The existing systems run on a managed cloud platform. **Live data sits in one
+region: `eu-central-1`, Frankfurt.** A second project in Singapore exists but is
+paused and holds nothing relevant to this programme, so the live cross-border
+footprint is **one region, not two**.
+
+That platform publishes **17 regions, none of them in the Middle East or any Gulf
+state.**
+
+**One point matters more than the rest, because it removes an option counsel might
+otherwise assume exists.** All 17 of those regions are Amazon Web Services
+regions, and **AWS has no live Saudi region** — it was announced in March 2024,
+targeted for 2026, and is still undeployed. So moving this platform into the
+Kingdom is not a configuration change. It requires two sequential events, neither
+committed and neither within our control: AWS launching its Saudi region, and then
+the platform adopting it.
+
+Other providers **do** operate live Saudi regions today — Google Cloud (Dammam),
+Oracle (Jeddah and Riyadh), Huawei, Alibaba and Tencent (Riyadh) — but the current
+platform does not run on any of them. **In-Kingdom hosting therefore means
+changing platform, self-hosting, or splitting the data.** That is a real cost, and
+it is why the determination below is worth getting right rather than quickly.
 
 So today, categories 1 to 3 are already held outside the Kingdom. The new system
 would add categories 6 to 11 unless the hosting arrangement changes.
@@ -86,7 +110,9 @@ preserving the financial record — we would like that confirmed or corrected.*
 
 **Q7 — Cross-brand identity.** The company expects to operate further brands. If
 one person orders from two brands, may their identity and history be shared across
-them, or must each brand hold a separate record?
+them, or must each brand hold a separate record? *(This is also
+[Q-07](../open-questions.md) in the programme's open questions — the answer
+settles both.)*
 
 **Q8 — Sector-specific rules.** Do payroll, tax or financial records carry any
 obligations beyond general data protection law?
@@ -114,5 +140,6 @@ fine. An answer that has not been requested in three months is not.
 
 ---
 
-*Background: `docs/adr/ADR-0002`, `docs/compliance/data-residency-gate.md`,
-`docs/compliance/pdpl-assessment.md`.*
+*Background: [ADR-0002](../../adr/ADR-0002-hosting-and-data-residency.md),
+[`data-residency-gate.md`](../../compliance/data-residency-gate.md),
+[`pdpl-assessment.md`](../../compliance/pdpl-assessment.md).*

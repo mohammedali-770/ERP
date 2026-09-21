@@ -137,6 +137,9 @@ hardware decision) · acceptance evidence for `PRN-014`, `OFF-012`, `OFF-013` an
 `OFF-014`, which name no other test
 **Unblocked by:** IT, with access to a real branch network, real iPads and a
 real LAN printer — or a faithful replica of each
+**Ready to send:** [`enablement/01-network-capability-check.md`](./enablement/01-network-capability-check.md)
+— covers the **network half only**: two laptops, thirty minutes, no iPads and no
+till software. The iPad and printer halves still need a branch visit.
 
 Both spikes are written as procedures rather than code because they test physical
 properties, of the branch network and of iOS, that a simulation would not prove.

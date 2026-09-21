@@ -1,8 +1,9 @@
 # Branch network capability check
 
 **For:** IT
-**Unblocks:** B-03, and may decide D-3 outright
+**Unblocks:** the network half of B-03 — and may decide D-3 outright
 **Time needed:** about 30 minutes, at one branch
+**Checked:** 2026-09-21
 **Equipment:** two ordinary laptops or phones. **No iPads, no MDM, no special software.**
 
 ---
@@ -146,6 +147,22 @@ needs escalating rather than waiting.
 
 ---
 
-*Background, if wanted: `docs/adr/ADR-0004`, `docs/lab/hardware-decision-matrix.md`.
+## What this does not settle
+
+**B-03 is wider than this check**, and finishing this does not clear it. B-03 also
+needs a real branch visit with **real iPads and a real LAN printer**, for
+[`spikes/ios-durability`](../../../spikes/ios-durability) and for the printing evidence that `PRN-014`, `OFF-012`,
+`OFF-013` and `OFF-014` rest on — none of which two laptops can produce.
+
+This is separated out deliberately. The network question is the one that decides
+the hardware standard, it is the cheapest to answer, and it does not need the till
+software to exist. The rest waits for the application; this does not.
+
+---
+
+*Background, if wanted:
+[ADR-0004](../../adr/ADR-0004-branch-runtime-and-deployment.md),
+[`hardware-decision-matrix.md`](../../lab/hardware-decision-matrix.md).
 Full device-level testing is a separate, later exercise that does need the new
-software — see `spikes/lan-peer-sync/README.md`.*
+software — see
+[`spikes/lan-peer-sync/README.md`](../../../spikes/lan-peer-sync/README.md).*
