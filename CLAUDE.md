@@ -119,6 +119,7 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
+| **Every projection row names the event that produced it** | `db:check` + pgTAP |
 | The seed is synthetic, and two builds are identical | `db:check` |
 | No credential-shaped string is committed | `secret:scan` |
 | The ruleset, the workflow and the controls document name the same checks | `ci-contract` tests |

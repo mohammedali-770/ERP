@@ -152,6 +152,23 @@ export const ASSERTIONS: readonly Assertion[] = [
               and i.indisunique and i.indpred is not null
           )`,
   },
+  {
+    id: 'projection-stamp-is-mandatory',
+    title: 'as_of_event_id is NOT NULL on every projection table',
+    because:
+      'Invariant I-8 — a materialised row carries the event it was computed through, ' +
+      'so it can always be checked. A nullable stamp permits a row that cannot be ' +
+      'checked against the log at all, which is the failure the column exists to ' +
+      'prevent. Migration 0006 left all four nullable; 0009 fixed it.',
+    sql: `select c.relname || '.' || a.attname as violation
+          from pg_attribute a
+          join pg_class c on c.oid = a.attrelid
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'erp'
+            and c.relname in ('orders','payment_intents','shifts','drawer_assignments')
+            and a.attname = 'as_of_event_id'
+            and not a.attnotnull`,
+  },
 ];
 
 /**
@@ -194,5 +211,28 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
     sql: `select distinct substring(payload::text from '(SA[0-9]{22}|[0-9]{13,19})') as violation
           from erp.event_log
           where payload::text ~ '(SA[0-9]{22}|\\m[0-9]{13,19}\\M)'`,
+  },
+  {
+    id: 'projection-stamp-resolves-to-a-real-event',
+    title: 'every as_of_event_id names an event that exists',
+    because:
+      'NOT NULL only forces a value; it cannot force a TRUE one. erp.event_log is ' +
+      'partitioned on business_date, so its primary key is composite and a ' +
+      'single-column foreign key from the projections is not available (migration ' +
+      '0009 says so in full). This assertion is what stands in its place — without ' +
+      'it, I-8 guarantees a stamp rather than a verifiable one.',
+    sql: `select t || ' ' || id::text as violation
+          from (
+            select 'orders'             as t, order_id::text            as id, as_of_event_id from erp.orders
+            union all
+            select 'payment_intents',       payment_intent_id::text,        as_of_event_id from erp.payment_intents
+            union all
+            select 'shifts',                shift_id::text,                 as_of_event_id from erp.shifts
+            union all
+            select 'drawer_assignments',    drawer_assignment_id::text,     as_of_event_id from erp.drawer_assignments
+          ) stamped
+          where not exists (
+            select 1 from erp.event_log e where e.event_id = stamped.as_of_event_id
+          )`,
   },
 ];
