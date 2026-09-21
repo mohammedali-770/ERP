@@ -431,6 +431,7 @@ requirements:
     owner: "Operations management"
     adr_refs: []
     test_refs:
+      - "SPIKE-offline-sync"
       - "SPIKE-lan-peer-sync"
       - "SPIKE-ios-durability"
     estate_refs: []

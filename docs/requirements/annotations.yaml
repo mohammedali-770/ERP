@@ -96,7 +96,15 @@ POS-007:
 POS-008:
   status: "baselined"
   owner: "Operations management"
+  # SPIKE-offline-sync added 2026-09-21. POS-008 is a priority rule — correctness,
+  # integrity and recoverability over order-entry seconds — and offline-sync is
+  # where that trade-off is actually exercised: sustained throughput with zero
+  # lost or duplicated accepted orders. The two procedure spikes are kept, since
+  # the hardware choice bears on whether that priority is maintainable, but they
+  # were never evidence for this requirement on their own.
+  # NEEDS CONFIRMATION by Operations management, per the seeding note above.
   test_refs:
+    - SPIKE-offline-sync
     - SPIKE-lan-peer-sync
     - SPIKE-ios-durability
 
