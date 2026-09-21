@@ -3,7 +3,7 @@
 How `whatsapp-inbox-simple` becomes a feature of First Taste ERP rather than a
 separate system — table by table, with what is lost if it is done carelessly.
 
-**Surveyed read-only on 2026-09-20.** Nothing was modified. Where this document
+**Surveyed read-only on 2026-09-20, re-verified read-only on 2026-09-21.** Nothing was modified. Where this document
 says a thing must be captured, capturing it is an owner-approved action
 (`CLAUDE.md` §1, §4), not something an agent session performs.
 
@@ -37,9 +37,17 @@ identifier (Q-14).
 
 ### 1. The backup tables are not redundant copies
 
-The obvious remediation for B-08 — drop the four insecure backup tables — would
-destroy the only version history the AI knowledge base has. The live tables keep
-none.
+Dropping the four insecure backup tables would destroy the only version history
+the AI knowledge base has. The live tables keep none.
+
+**That is a reason to be careful about dropping them, not a reason to leave them
+exposed.** B-08 originally read as a choice between the two; it is not. The
+exposure is *privileges*, not existence — `revoke` plus `enable row level
+security` shuts the write path and preserves every row, and the other 17 tables in
+this database are already in exactly that state.
+[`../program/enablement/08-inbox-exposure-remediation.md`](../program/enablement/08-inbox-exposure-remediation.md)
+step 1 has the statements. Capture is then unhurried follow-up work rather than
+a race, and what follows is about capture.
 
 | Table | Divergence from live | Verdict |
 |---|---|---|
@@ -124,8 +132,12 @@ non-production unmasked.
 
 **A zero-row table that is a finding, not an absence.** `inbox_push_subscriptions`
 is empty while `inbox_contacts.last_notified_at` exists to throttle notifications
-to it — so **the escalation-to-human channel behind `needs_human` may be silently
-dead in production.** Worth checking today, independent of the ERP.
+to it. That was recorded here as "may be silently dead". **It was measured on
+2026-09-21 and it is dead: 84 contacts flagged `needs_human`, 78 of them never
+sent a human reply, and not one notification ever dispatched.** Raised as
+[B-09](../program/blocked.md), with [Q-17](../program/open-questions.md) asking
+the question that decides the remedy — whether anyone was ever meant to work that
+queue.
 
 ### Knowledge and answer quality
 
@@ -189,7 +201,7 @@ Each step is an owner-approved action. None is startable before the one above it
 
 | | Step | Depends on |
 |---|---|---|
-| 1 | Close B-08 — but **read §1 above first**, because the obvious fix destroys evidence | — |
+| 1 | Close B-08 — `revoke` and enable RLS, which preserves every row; see §1 | — |
 | 2 | Capture the six backup tables as a dated version history, then retire the two disposable ones | 1 |
 | 3 | Capture the application-side phrase normaliser's source | — |
 | 4 | Decide the canonical mobile form (`APP-004`) and whether one person is one customer (`Q-07`) | Product Owner |

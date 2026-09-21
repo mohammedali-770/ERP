@@ -1,6 +1,6 @@
 # Enablement pack
 
-Seven short documents, each addressed to a **specific person outside engineering**,
+Eight short documents, each addressed to a **specific person outside engineering**,
 each ending with something they fill in and hand back.
 
 They exist because the programme is currently waiting on decisions and access
@@ -17,19 +17,30 @@ parallel — and none of them depends on a decision being taken first.
 | 4 | [Tax invoicing — sandbox and one decision](./04-zatca-sandbox-request.md) | **Finance** | Days, plus one decision | Offline invoicing evidence (B-02) |
 | 5 | [Cost comparison template](./05-cost-comparison-template.md) | **Whoever gathers quotes** | Ongoing | Tiered options (PRG-010, PRG-012) |
 | 6 | [PBX vendor support ticket](./06-pbx-vendor-ticket.md) | **IT** | Minutes to send | B-07, and all call-centre work |
-| 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — the only item where delay increases risk** |
+| 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — delay increases risk** |
+| 8 | [Closing the WhatsApp inbox exposure](./08-inbox-exposure-remediation.md) | **IT, Owner approving** | ~45 min for the urgent half | **B-08 — a live write path reachable with a public key** |
 
 ---
 
-## Three of these are more urgent than the rest
+## Four of these are more urgent than the rest
 
-**Number 7 first.** It is the only item on any list where delay actively increases
-risk rather than merely deferring work — credentials are exposed in a git history
-and every day they stay valid is a day they could be used.
+**Number 8, step 1, first.** It is a handful of SQL statements and it closes the
+only exposure on any list that is reachable with a key that ships in a client
+bundle — a write path into a live AI's knowledge base, where a wrong answer could
+be *planted* rather than merely read. The rest of number 8 can wait for a
+decision; that step cannot.
 
-**Number 6 next**, because a vendor ticket has lead time and none exists yet.
+**Number 7 next.** Credentials are exposed in a git history and every day they
+stay valid is a day they could be used.
+
+**Number 6 after that**, because a vendor ticket has lead time and none exists yet.
 
 Then number 1.
+
+> **B-09 has no document here, deliberately.** 78 customers asked for a human and
+> have not received one. There is nothing to hand IT, because no SQL closes it —
+> it needs an owner and an answer to Q-17 first. It is the most urgent thing on
+> the blocker list and the only one whose cost is being paid by customers.
 
 ## Start with number 1 for everything else
 

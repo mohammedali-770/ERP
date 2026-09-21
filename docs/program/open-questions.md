@@ -230,6 +230,37 @@ Related: `RTG-P10`, `RTG-P11`, `HR-014`, ADR-0017.
 
 ---
 
+## Q-17 — Is anyone supposed to be working the inbox's `needs_human` queue?
+
+**Decides:** Owner, with whoever is accountable for inbox operations · **Expensive after:** it already is — 78 people are waiting
+
+`inbox_contacts.needs_human` flags a conversation the AI could not handle. As of
+2026-09-21 it is set on **84 contacts, 78 of whom have never received a human
+reply**, and no notification has ever been sent to anyone: `last_notified_at` is
+null across all 260 contacts and `inbox_push_subscriptions` is empty. Six of them
+have logged a complaint. See [B-09](./blocked.md).
+
+The question is not how to fix it. It is **which thing is broken**, and the two
+answers have nothing in common:
+
+- **The channel was wired to a person and failed.** Then this is a bug —
+  subscriptions were never registered, or registration silently fails — and it is
+  fixable in the existing application.
+- **It was built and never staffed.** Then nothing is broken in the code, and the
+  remedy is someone whose job this is. No amount of engineering produces that.
+
+**Designing a fix before answering this is the failure mode**, because the
+plausible-looking technical fix — make push notifications work — does nothing at
+all if there was never anyone at the other end to notify.
+
+It also decides something for the ERP. `CRM-007` and `AI-020` both assume an
+escalation path to a human exists and can be measured. If the inbox's never
+worked, the ERP should not inherit its shape on the assumption that it did.
+
+Related: B-09, B-08, `CRM-007`, `AI-020`, ADR-0018.
+
+---
+
 ## Q-16 — Does the ERP get its own Supabase project now, and at what cost? · **ANSWERED**
 
 **Answered 2026-09-20 by the owner. Recorded in [ADR-0018](../adr/ADR-0018-erp-database-home.md).**
