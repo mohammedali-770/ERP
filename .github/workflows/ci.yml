@@ -89,6 +89,14 @@ jobs:
       - name: Migrations apply and invariants hold
         run: npm run db:check
 
+      # The pgTAP suites themselves need Docker and run in Database stack, four
+      # minutes away. This runs only their write fixtures, on the same scratch
+      # cluster db:check uses, so a migration that makes a fixture uncompilable
+      # fails here in seconds instead. Migration 0009 broke five of them and
+      # db:check stayed green, because db:check never reads the suites.
+      - name: The pgTAP fixtures still compile against the schema
+        run: npm run db:fixtures
+
       - name: No credential-shaped string is committed
         run: npm run secret:scan
 

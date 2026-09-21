@@ -1,0 +1,9 @@
+{
+  "name": "@firsttaste/db-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runs the pgTAP suites' write fixtures against a scratch Postgres, without Docker",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

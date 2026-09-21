@@ -90,6 +90,7 @@ live payment path is not.
 npm ci
 npm run verify        # generated files + traceability + boundaries + typecheck + tests
 npm run db:check      # migrations apply to a scratch Postgres; invariants hold
+npm run db:fixtures   # the pgTAP suites' write fixtures still compile (no Docker)
 npm run db:reset      # local Supabase: rebuild from migrations + seed
 npm run db:test       # pgTAP suites against the local stack
 ```
@@ -120,6 +121,7 @@ npm run db:test       # pgTAP suites against the local stack
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
 | **Every projection row names the event that produced it** | `db:check` + pgTAP |
+| **A migration never leaves a pgTAP fixture uncompilable** | `db:fixtures` |
 | The seed is synthetic, and two builds are identical | `db:check` |
 | No credential-shaped string is committed | `secret:scan` |
 | The ruleset, the workflow and the controls document name the same checks | `ci-contract` tests |

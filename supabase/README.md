@@ -18,6 +18,12 @@ seeds/         synthetic development fixtures, listed in config.toml's
 functions/     edge functions (none yet — nothing needs one)
 tests/         pgTAP suites
 ```
+`tests/` runs only under `supabase test db`, which needs Docker and the Supabase
+CLI. `npm run db:fixtures` runs the suites' `throws_ok`/`lives_ok` statements
+against the same scratch cluster `db:check` uses, with neither — so a migration
+that makes a fixture uncompilable is caught in seconds rather than in CI's
+Database stack job. It is not a pgTAP replacement: it checks the fixtures, not
+the catalogue assertions, and the suites remain the authority.
 
 ---
 
