@@ -150,6 +150,8 @@ jobs:
 
       - name: Rating statistics (RTG-P03, RTG-P04, RTG-P05)
         run: npm run spike:rating-statistics
+      - name: ZATCA counter chain (PAY-016..018, the half B-02 does not block)
+        run: npm run spike:zatca-counter-chain
 
       - name: Upload evidence
         if: always()

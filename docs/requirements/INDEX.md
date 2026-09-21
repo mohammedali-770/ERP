@@ -65,7 +65,7 @@ _8.1 Lab and release requirements_
 | `ACC-002` | F1 | P0 | Product Owner | T-03, SPIKE-print-queue | Executive acceptance shall require reliable receipt and kitchen printing under simultaneous channel load. |
 | `ACC-003` | F1 | P0 | Product Owner | T-05 | Executive acceptance shall require accurate payments, refunds, cash shifts and blind closing. |
 | `ACC-004` | F1 | P0 | Product Owner | T-02, SPIKE-offline-sync | Executive acceptance shall require stable offline operation and automatic recovery synchronization. |
-| `ACC-005` | F1 | P0 | Product Owner | T-09 | Executive acceptance shall require correct ZATCA documents and successful deferred synchronization. |
+| `ACC-005` | F1 | P0 | Product Owner | T-09, SPIKE-zatca-counter-chain | Executive acceptance shall require correct ZATCA documents and successful deferred synchronization. |
 | `ACC-006` | F1 | P0 | Product Owner | UAT-cashier, UAT-kitchen | Executive acceptance shall require cashier and kitchen user-acceptance testing and documented training readiness. |
 | `ACC-007` | F1 | P0 | Product Owner | UAT-executive-acceptance | Executive acceptance shall require accurate management reports reconciled to source transactions. |
 | `ACC-008` | F1 | P0 | Product Owner | T-01, SPIKE-offline-sync | Executive acceptance shall require successful testing above 200 orders per hour per branch with the approved device configuration. |

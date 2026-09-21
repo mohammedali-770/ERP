@@ -206,7 +206,7 @@ hash proving the count preceded the variance.
 
 **Covers:** PAY-016..019, OFF-011, ACC-005 · **Blocked by B-02**
 
-**Proved in simulation by:** **nothing yet**, and it cannot be until B-02 lifts. The local counter and hash chain could be proved without sandbox credentials; the deferred-synchronisation half could not
+**Proved in simulation by:** [`spikes/zatca-counter-chain`](../../spikes/zatca-counter-chain) — the local counter and hash chain, including the restore-from-backup case, with three controls that must fail. **The deferred-synchronisation half is still blocked by B-02** and is not simulated, because simulating a clearance response would produce confidence without evidence
 
 **Setup.** Three devices as three EGS units, central unreachable.
 
