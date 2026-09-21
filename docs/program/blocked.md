@@ -216,33 +216,93 @@ time.
 **Blocks:** nothing in the ERP — recorded because it is live, not because it
 blocks
 **Unblocked by:** Owner or IT, as owner-approved actions against a live project
+**Act on it with:** [`enablement/08-inbox-exposure-remediation.md`](./enablement/08-inbox-exposure-remediation.md)
 
 Found on 2026-09-20 during a read-only survey of `whatsapp-inbox-simple`
 (`hdeahrxjfqqaveharziy`), while assessing it as a possible home for the ERP
-database (ADR-0018). The survey wrote nothing; none of the below has been acted
-on.
+database (ADR-0018). **Re-verified read-only on 2026-09-21: all findings still
+live.** Neither survey wrote anything; none of the below has been acted on.
 
-| | Finding |
-|---|---|
-| 1 | **Four backup tables are anon-writable.** `inbox_bible_backup_v3`, `inbox_faq_backup_20260913`, `inbox_bible_backup_20260913`, `inbox_bible_backup_20260916` carry `anon=arwdDxtm` with RLS disabled — insert, update and delete, not only select, with the anon key that ships in the client bundle |
-| 2 | **The WhatsApp access token and app secret are in plaintext** in `public.inbox_config`. Supabase Vault is already installed in this project and unused for them. Same class as B-06 |
-| 3 | **`inbox_managers.login_code` is a plaintext shared code** and is the entire authentication mechanism for the inbox's managers |
-| 4 | **The escalation-to-human channel may be silently dead.** `inbox_push_subscriptions` has zero rows while `inbox_contacts.last_notified_at` exists to throttle notifications to it — worth checking today, independent of anything ERP |
+| | Finding | Reachable by |
+|---|---|---|
+| 1 | **Four backup tables are anon-writable.** `inbox_bible_backup_v3`, `inbox_faq_backup_20260913`, `inbox_bible_backup_20260913`, `inbox_bible_backup_20260916` carry `anon=arwdDxtm` with RLS disabled — insert, update and delete, not only select | **The anon key, which ships in the client bundle** |
+| 2 | **Three secrets are in plaintext** in `public.inbox_config` — `access_token`, `app_secret` **and `verify_token`**. Supabase Vault 0.3.1 is installed in this project and unused for them | Service-role key or database credentials |
+| 3 | **`inbox_managers.login_code` is a plaintext shared code**, 10 characters, and is the entire authentication mechanism for the inbox's managers | Service-role key or database credentials |
+| 5 | **`EXECUTE` on `inbox_record_inbound`, `inbox_apply_status` and `inbox_claim_ai_run` is granted to `PUBLIC`** — the Postgres default, not a decision | `anon`, but see below |
 
-**Why finding 1 is not simply "drop those tables".** They are not redundant
-copies: `inbox_bible_backup_v3` differs from live in 6 of 12 rows and
-`inbox_faq_backup_20260913` in 9 of 23. They are the only version history the AI
-knowledge base has, and `AI-013` requires versioned approved sources. **Read
-[`../estate/inbox-absorption.md`](../estate/inbox-absorption.md) §1 before
-touching them** — it says which two are genuinely disposable and what to capture
-from the other four first.
+**Finding 4 has moved to [B-09](#b-09--customers-are-waiting-for-a-human-who-never-arrives--urgent).**
+The survey recorded it as "may be silently dead"; re-verification confirmed it
+dead and measured the cost, which turned out to be a customer problem rather than
+a security one, with a different owner and no SQL that closes it.
+
+**The reachability column is the correction that matters.** Only finding 1 is
+reachable with a key that ships to customers' browsers. Findings 2 and 3 need
+credentials that a limited set of people hold, and unlike B-06 were never in a git
+history — so whether to rotate depends on who has held those credentials, which is
+a question for the Owner rather than an assumption. Grouping all three as
+"credential exposure" overstated 2 and 3 and understated 1.
+
+**Finding 5 is latent, not live.** Those functions are `SECURITY INVOKER` and
+`anon` holds no privileges on the tables they touch, so the calls would fail. It
+is one keyword — `SECURITY DEFINER` — from becoming a public write path into the
+message log, which is why it is worth closing, and why it is not an emergency.
+
+**Why finding 1 is not simply "drop those tables" — and why it need not be.**
+They are not redundant copies: `inbox_bible_backup_v3` differs from live in 6 of
+12 rows and `inbox_faq_backup_20260913` in 9 of 23. They are the only version
+history the AI knowledge base has, and `AI-013` requires versioned approved
+sources. **But the exposure is privileges, not existence.** `revoke` plus
+`enable row level security` shuts the write path and preserves every row, which
+takes evidence capture off the critical path altogether. The other 17 tables in
+this database are already in exactly that state, so this is not a novel
+configuration. Read [`../estate/inbox-absorption.md`](../estate/inbox-absorption.md)
+§1 before dropping anything later.
 
 **Cost of staying blocked:** finding 1 is a live write path into the AI's
-knowledge base, so a wrong answer could be planted rather than merely read.
-Findings 2 and 3 are credential exposures on a working system. This is the same
-shape as B-06: delay increases risk rather than deferring work.
+knowledge base, so a wrong answer could be planted rather than merely read. This
+is the same shape as B-06: delay increases risk rather than deferring work.
 
-**Related:** ADR-0018 · B-06 · Q-10 · `../compliance/security-controls.md`
+**Related:** B-09 · ADR-0018 · B-06 · Q-10 · Q-17 · `../compliance/security-controls.md`
+
+---
+
+## B-09 — Customers are waiting for a human who never arrives · **URGENT**
+
+**Blocks:** nothing in the ERP — recorded because it is live and has people on the
+other end
+**Unblocked by:** Owner, and whoever is accountable for inbox operations
+**Related:** B-08 · Q-17 · `AI-020` · `CRM-007`
+
+Found as finding 4 of B-08 and confirmed by measurement on 2026-09-21. The
+original wording was "may be silently dead". It is dead, and the cost is
+countable.
+
+| | Measured 2026-09-21, read-only |
+|---|---|
+| Contacts flagged `needs_human` | **84** |
+| Of those, **never sent a human reply** | **78** |
+| Notifications ever sent (`last_notified_at`) | **0**, across all 260 contacts |
+| Conversations ever claimed, ever handled | **0** and **0** |
+| `inbox_push_subscriptions` rows | **0** |
+| Human outbound messages, all time | 18, against 449 from the AI |
+| Complaints logged | **6**, between 2026-09-15 and 2026-09-18 |
+| Oldest unanswered escalation | activity dating to **2026-09-03** |
+
+**The obvious innocent explanation was checked and does not hold.** "People are
+being helped, it just is not recorded" would show up as human outbound messages to
+those contacts. Eighteen human replies exist in total and only six of them reached
+a flagged contact, leaving 78 who asked for a human and received nothing.
+
+**What is not yet known** is whether anyone is *supposed* to be working this
+queue — whether `needs_human` was ever wired to a person, or was built and never
+staffed. That is [Q-17](./open-questions.md), and it decides whether this is a
+broken notification channel or an unowned process. **No fix should be designed
+before that is answered**, because the two have different remedies.
+
+**Cost of staying blocked:** 78 people are waiting now, six have complained, and
+the counter rises with traffic — the most recent inbound message was 05:12:56 on
+2026-09-21. This is the only blocker on this list where the cost is being paid by
+customers rather than by the programme.
 
 ---
 
