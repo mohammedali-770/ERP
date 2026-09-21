@@ -20,14 +20,16 @@ claim a spike tested something when the spike had never been written.
 |---|---|---|
 | **I-3** | **Live.** Three partial unique indexes, plus pgTAP | `20260920000600_projections_and_conflict_detection.sql` |
 | **I-10** | **Live.** `schema_version int not null check (>= 1)` on the event log | `20260920000400_event_log.sql` |
+| **I-8** | **Live.** `as_of_event_id` is `not null` on all four projection tables, and every stamp is checked to name a real event | `20260921000100_projection_stamp_is_mandatory.sql` |
 | **I-7** | **Partly live.** Payloads are embedded in immutable event rows; the append-only guard is enforced by grant *and* trigger | `20260920000400_event_log.sql` |
-| **I-8** | **Partly live — see the note under I-8.** The column exists; the guarantee does not | `20260920000600_…` |
 | **I-1** | Partly. Identifiers are `uuid` primary keys at central; edge minting is runtime | — |
 | **I-2, I-4, I-5** | **Not yet.** All three describe the branch runtime | — |
 | **I-6, I-9** | Design rules, with no single structure to point at | — |
 
-Nothing here is a defect except I-8. The rest is F0 being F0 — the point is that
-the distinction is now written down rather than inferred.
+Nothing here is a defect any more. I-8 was one when this table was first
+written, and the note under I-8 records what closing it actually took. The rest
+is F0 being F0 — the point is that the distinction is written down rather than
+inferred.
 
 ---
 
@@ -145,21 +147,40 @@ edited by overwriting the balance (PAY-015, CRM-005).
 balance that cannot be checked against its source is a balance that will silently
 drift.
 
-> **Gap, found 2026-09-21 — this one is convention, not structure.**
-> `as_of_event_id` exists on all four projection tables (`orders`,
-> `payment_intents`, `shifts`, `drawer_assignments`) and is **nullable on every
-> one of them**, with no foreign key. So a projection row can be written with no
-> stamp at all — which is precisely the un-checkable balance this invariant
-> exists to forbid, and it contradicts the standard set at the top of this
-> document.
+> **Closed 2026-09-21 by
+> [`20260921000100_projection_stamp_is_mandatory.sql`](../../supabase/migrations/20260921000100_projection_stamp_is_mandatory.sql).**
+> `as_of_event_id` had been nullable on all four projection tables since
+> migration 0006, so a projection row could be written with no stamp at all —
+> precisely the un-checkable balance this invariant exists to forbid. It is now
+> `not null` on `orders`, `payment_intents`, `shifts` and `drawer_assignments`,
+> asserted by `projection-stamp-is-mandatory` in `db:check` and by
+> `030_conflict_detection_test.sql` in pgTAP.
 >
-> A projection row is only ever produced by applying an event, so there is always
-> an identifier available and no legitimate reason for `NULL`. The fix is one
-> migration adding `not null` to the four columns, with a pgTAP assertion so it
-> stays that way. **Not applied:** writing migration history is an owner-approved
-> action (`CLAUDE.md` §4), and this is a proposal, not a change.
-
----
+> **This note previously said the fix was "one migration adding `not null` to the
+> four columns, with a pgTAP assertion". That was wrong twice, and correcting it
+> is the more useful half of this entry.**
+>
+> **It was not one migration.** The seed inserts 18 rows across those four
+> tables and supplied `as_of_event_id` on none of them, so `not null` failed all
+> 18 — and the seed held only four events, none of which could have produced
+> fourteen of those rows. Sixteen events had to be written before the constraint
+> could apply at all. The seed's projections had no provenance whatsoever, which
+> quietly contradicted the event-sourced design the schema is built on; that was
+> the larger defect, and it was invisible while the column stayed nullable.
+>
+> **There is no foreign key, and there cannot be one.** The original note said
+> "with no foreign key", which reads as an omission. `erp.event_log` is
+> partitioned by `business_date`, so its primary key is the composite
+> `(event_id, business_date)` and a single-column reference cannot be made
+> against it without carrying a redundant `business_date` on every projection.
+> That trade was declined. `not null` therefore guarantees a stamp but not a
+> *true* one, so `projection-stamp-resolves-to-a-real-event` in `db:check`
+> asserts that every stamp names an event that exists. Without it this invariant
+> would be half-enforced while reading as settled.
+>
+> **`erp.projection_state.last_event_id` is deliberately still nullable.** A
+> projection that has never applied an event has no last event, and that NULL
+> means something.
 
 ## I-9 — The controller is an optimisation, never a correctness requirement
 

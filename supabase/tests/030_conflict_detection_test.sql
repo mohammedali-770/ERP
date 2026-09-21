@@ -9,7 +9,7 @@
 -- historical row is still permitted.
 
 begin;
-select plan(9);
+select plan(11);
 
 select has_index('erp', 'payment_intents',    'ux_one_live_intent', 'one live intent per order');
 select has_index('erp', 'shifts',             'ux_one_open_shift',  'one open shift per branch and cashier');
@@ -74,6 +74,31 @@ select throws_ok(
              '01936f00-0000-7000-8000-000000001002', now()) $$,
   '23505', null,
   'a second open assignment for one drawer collides'
+);
+
+-- Invariant I-8: a projection row carries the event it was computed through.
+-- Proved by attempting, in the house style of this file — a NOT NULL that is
+-- present in the catalogue but not enforced is the failure worth catching.
+select throws_ok(
+  $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at)
+     values ('01936f00-0000-7000-8000-0000000e0004',
+             '01936f00-0000-7000-8000-000000000401',
+             '01936f00-0000-7000-8000-0000000e0005',
+             'closed', current_date, now()) $$,
+  '23502', null,
+  'a projection row with no as_of_event_id is rejected'
+);
+
+-- All four, so a later migration that relaxes only one of them is caught. The
+-- throws_ok above exercises erp.shifts alone and would not notice the others.
+select is(
+  (select count(*)::int from pg_attribute a
+   join pg_class c on c.oid = a.attrelid
+   join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'erp'
+     and c.relname in ('orders','payment_intents','shifts','drawer_assignments')
+     and a.attname = 'as_of_event_id' and a.attnotnull),
+  4, 'as_of_event_id is mandatory on all four projection tables'
 );
 
 select * from finish();
