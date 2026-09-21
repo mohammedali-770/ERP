@@ -236,7 +236,9 @@ Instead **authority is partitioned so every write has one natural owner.**
 | Shift | One open shift per (branch, cashier). Devices *join* shifts. |
 | Drawer | One open assignment per drawer. |
 
-Enforced at central by partial unique indexes:
+Enforced at central by partial unique indexes. **These three are built**, in
+[`supabase/migrations/20260920000600_projections_and_conflict_detection.sql`](../../supabase/migrations/20260920000600_projections_and_conflict_detection.sql),
+copied from this block verbatim and covered by pgTAP:
 
 ```sql
 CREATE UNIQUE INDEX ux_one_live_intent ON payment_intents (order_id)
@@ -377,9 +379,17 @@ and "resolved by gateway query" carry different audit weight.
 ### Refunds
 
 `refund_id` is minted and persisted before the call and carried as the provider's
-idempotency key (PAY-011). Central holds `UNIQUE(refund_id)` plus a partial unique
-index preventing more than one in-flight refund per `(payment_id, reason_code,
-amount)`. Refund workers look up by `refund_id` only — never by matching amount and
+idempotency key (PAY-011). Central is to hold `UNIQUE(refund_id)` plus a partial
+unique index preventing more than one in-flight refund per `(payment_id,
+reason_code, amount)`.
+
+> **Designed, not built.** There is no refunds table in `supabase/migrations/`
+> yet — `refund` appears only as a state value in the `payment_intents` check
+> constraint. This paragraph previously read "Central holds", present tense and
+> indistinguishable from §1 above, whose indexes *are* built. Corrected 2026-09-21
+> so the two are not mistaken for each other. The design is unchanged and remains
+> the thing to build; note that PAY-010..012 are also blocked by B-01, so the
+> provider's own idempotency semantics will shape the final constraint. Refund workers look up by `refund_id` only — never by matching amount and
 timestamp, which is the standard way teams accidentally refund twice.
 
 ### External order creation
