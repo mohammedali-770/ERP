@@ -45,7 +45,7 @@ in month 7.
 | Reference field wide enough for an intent identifier, or a stable derived short reference | ADR-0005; the reference is the idempotency anchor |
 | Idempotent refunds keyed by our identifier | PAY-011 |
 | Settlement data including commissions, fees, refunds, chargebacks, withholding, timing | PAY-013, PAY-014 |
-| Sandbox permitting induced timeouts and mid-transaction failures | The ECR spike cannot be run against production |
+| Sandbox permitting induced timeouts and mid-transaction failures | A terminal spike cannot be run against production, and the terminal protocol is not a thing a simulator can stand in for |
 
 ## Consequences
 

@@ -43,12 +43,19 @@ We cannot design around the answer. We can only build against a simulator and wa
 
 ### Cost of staying blocked
 
-- Two of the ten acceptance scenarios cannot be evidenced: `T-04` (payment
-  uncertainty) and `T-05` (automatic refund).
+- Two of the ten acceptance scenarios cannot be **evidenced**: `T-04` (payment
+  uncertainty) and `T-05` (automatic refund). Both are already **proved in
+  simulation** by [`spikes/payment-reconciliation`](../../spikes/payment-reconciliation)
+  — zero double charges under induced ambiguity, refunds idempotent under retry.
+  What is missing is the provider-side half of their evidence: a transaction list
+  to reconcile ours against. That is a narrower gap than "cannot be evidenced"
+  suggests on its own.
 - ACC-003 (accurate payments, refunds, cash shifts and blind closing) cannot be
   signed off, so **the F1 milestone would be partial even if everything else lands.**
-- The payment ECR spike cannot run: it needs the real acquirer and terminal, and
-  inducing timeouts against production is not an option.
+- A payment terminal (ECR) spike **has not been written and could not usefully be**:
+  unlike the reconciliation logic, the thing under test *is* the terminal protocol,
+  so there is nothing meaningful to simulate. It needs the real acquirer and
+  terminal, and inducing timeouts against production is not an option.
 
 ### What proceeds regardless
 
@@ -58,8 +65,13 @@ replaceable adapter. When selection happens, the work is integration, not design
 
 ### Recommended action
 
-**Put this to executive management now.** The decision has a nine-month lead time
-attached to it, and the PRD's own milestone depends on it.
+**Put this to executive management now.** Not because the decision itself has a
+long lead time, but because of what has to happen after it: the decision calendar
+in [`executive-decision-pack.md`](./executive-decision-pack.md) puts **D-1 at
+month 5** of the nine-month `REL-004` milestone, and says plainly that below that
+point "payment integration and certification cannot finish inside the window".
+The constraint is the **four months of integration and certification runway** the
+decision leaves behind it, not the decision.
 
 Presented as **D-1** in
 [`executive-decision-pack.md`](./executive-decision-pack.md), with the
