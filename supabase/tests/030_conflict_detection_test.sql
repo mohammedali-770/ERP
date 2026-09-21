@@ -11,6 +11,11 @@
 begin;
 select plan(11);
 
+-- Every fixture below stamps as_of_event_id with a real event from the seed.
+-- That is not decoration: migration 0009 made the column NOT NULL, and without
+-- a stamp these inserts fail 23502 before they ever reach the index they exist
+-- to collide with — which is exactly how this file broke when 0009 landed.
+
 select has_index('erp', 'payment_intents',    'ux_one_live_intent', 'one live intent per order');
 select has_index('erp', 'shifts',             'ux_one_open_shift',  'one open shift per branch and cashier');
 select has_index('erp', 'drawer_assignments', 'ux_one_open_drawer', 'one open assignment per drawer');
@@ -28,50 +33,55 @@ select is(
 
 -- A second OPEN shift for the same cashier in the same branch must fail.
 select throws_ok(
-  $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at)
+  $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at, as_of_event_id)
      values ('01936f00-0000-7000-8000-0000000e0001',
              '01936f00-0000-7000-8000-000000000401',
              '01936f00-0000-7000-8000-000000000901',
-             'open', current_date, now()) $$,
+             'open', current_date, now(),
+             '01936f00-0000-7000-8000-00000000b001') $$,
   '23505', null,
   'a second open shift for the same cashier collides'
 );
 
 -- …while a CLOSED one does not, which is what makes the index partial.
 select lives_ok(
-  $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at, closed_at)
+  $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at, closed_at, as_of_event_id)
      values ('01936f00-0000-7000-8000-0000000e0002',
              '01936f00-0000-7000-8000-000000000401',
              '01936f00-0000-7000-8000-000000000901',
-             'closed', current_date, now(), now()) $$,
+             'closed', current_date, now(), now(),
+             '01936f00-0000-7000-8000-00000000b005') $$,
   'a closed shift for the same cashier is permitted — history is not forbidden'
 );
 
 -- A second LIVE intent on an order that already has one must fail. Order
 -- ...2006 carries the seed's single unknown intent.
 select throws_ok(
-  $$ insert into erp.payment_intents (payment_intent_id, order_id, state, amount_minor, currency, created_at)
+  $$ insert into erp.payment_intents (payment_intent_id, order_id, state, amount_minor, currency, created_at, as_of_event_id)
      values ('01936f00-0000-7000-8000-0000000e0003',
              '01936f00-0000-7000-8000-000000002006',
-             'initiated', 5000, 'SAR', now()) $$,
+             'initiated', 5000, 'SAR', now(),
+             '01936f00-0000-7000-8000-00000000b012') $$,
   '23505', null,
   'a second live intent on one order collides — NFR-004'
 );
 
 -- Split tender: two SETTLED intents on one order are legal and must stay so.
 select lives_ok(
-  $$ insert into erp.payment_intents (payment_intent_id, order_id, state, amount_minor, currency, created_at)
+  $$ insert into erp.payment_intents (payment_intent_id, order_id, state, amount_minor, currency, created_at, as_of_event_id)
      values ('01936f00-0000-7000-8000-0000000e0004',
              '01936f00-0000-7000-8000-000000002003',
-             'captured', 100, 'SAR', now()) $$,
+             'captured', 100, 'SAR', now(),
+             '01936f00-0000-7000-8000-00000000b015') $$,
   'a further captured intent is permitted — split tender is not a conflict'
 );
 
 select throws_ok(
-  $$ insert into erp.drawer_assignments (drawer_assignment_id, drawer_id, shift_id, assigned_at)
+  $$ insert into erp.drawer_assignments (drawer_assignment_id, drawer_id, shift_id, assigned_at, as_of_event_id)
      values ('01936f00-0000-7000-8000-0000000e0005',
              '01936f00-0000-7000-8000-000000000a01',
-             '01936f00-0000-7000-8000-000000001002', now()) $$,
+             '01936f00-0000-7000-8000-000000001002', now(),
+             '01936f00-0000-7000-8000-00000000b007') $$,
   '23505', null,
   'a second open assignment for one drawer collides'
 );
