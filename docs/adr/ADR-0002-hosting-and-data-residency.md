@@ -13,7 +13,8 @@ PRG-010 requires tiered cost options before any infrastructure commitment.
 SEC-009 requires personal-data processing to be assessed against applicable Saudi
 requirements before production.
 
-The existing estate runs on Supabase in `eu-central-1` and `ap-southeast-1`.
+The existing estate's live data runs on Supabase in `eu-central-1`; the
+`ap-southeast-1` project is an inactive scratch project with no ERP relevance.
 **Supabase offers no Saudi region.** Today's system holds customer names, mobile
 numbers and delivery addresses outside the Kingdom. The ERP will additionally hold
 employee, payroll and financial records.

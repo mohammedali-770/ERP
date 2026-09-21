@@ -19,8 +19,12 @@ because nobody stopped to ask. This document exists to make that stop explicit.
 
 ## The situation, stated plainly
 
-The existing estate runs on Supabase in `eu-central-1` and `ap-southeast-1`.
-**Supabase offers no Saudi region.**
+The existing estate's live data is on Supabase in **`eu-central-1`** (Frankfurt).
+A second project in `ap-southeast-1` exists but is an inactive, paused scratch
+project with no ERP relevance ([`../estate/inventory.md`](../estate/inventory.md)),
+so the live cross-border footprint is one region, not two.
+**Supabase offers no Saudi region** — verified 2026-09-21 against Supabase's
+published region list: 17 regions, none in the Middle East or any Gulf state.
 
 Today that means customer names, mobile numbers and delivery addresses are held
 outside the Kingdom. The ERP will additionally hold employee records, payroll,
@@ -57,9 +61,46 @@ of proving it:
 
 | Option | Shape | Residency posture |
 |---|---|---|
-| A | Stay on Supabase | Out of Kingdom |
+| A | Stay on managed Supabase | Out of Kingdom |
+| **B′** | **Self-hosted Supabase, in-Kingdom cloud** | In Kingdom |
 | B | Self-managed Postgres, in-Kingdom cloud | In Kingdom |
 | C | Hybrid — regulated categories in Kingdom, rest as-is | Split |
+
+**B′ was not previously on this list and probably belongs above B.** Supabase is
+open source and can be self-hosted, which keeps PostgREST, GoTrue, RLS, the RPC
+surface and the storage API intact — and therefore avoids most of §3's expensive
+list, which is what makes *leaving* Supabase costly rather than what makes
+*moving* it costly. A costed study that offers only "stay" or "rewrite" is
+comparing the two most expensive endpoints of a range.
+
+#### What in-Kingdom actually means today
+
+Facts as of **2026-09-21**, and worth re-checking rather than trusting, because
+two of them are due to change before this programme reaches production:
+
+| Provider | Saudi region | Status |
+|---|---|---|
+| Google Cloud | Dammam (`me-central2`) | **Live** — access via CNTXT, KSA-based customers |
+| Oracle Cloud | Jeddah, Riyadh | **Live** |
+| Huawei Cloud | Riyadh | **Live** |
+| Alibaba Cloud | Riyadh (SCCC joint venture) | **Live** |
+| Tencent Cloud | Saudi Arabia | **Live** |
+| **AWS** | announced March 2024 | **Not live.** Targeted 2026, still undeployed as of mid-2026 |
+| **Microsoft Azure** | Saudi Arabia East | **Not live.** Targeted Q4 2026 |
+
+**The decisive chain, and the reason Option A cannot simply "add a region":** all
+17 of Supabase's published regions are **AWS** regions, and **AWS has no live
+Saudi region**. So managed Supabase in the Kingdom requires two sequential events,
+neither committed and neither ours: AWS launching its Saudi region, *then* Supabase
+adopting it. Nothing in the programme should be planned on that happening.
+
+Which is what makes B′ interesting — every live Saudi region above belongs to a
+provider Supabase does not run on, so self-hosting is the only route that keeps
+the Supabase surface **and** lands in the Kingdom.
+
+**None of this is a view on what the law requires.** It is vendor availability,
+recorded so the costed study in §2 starts from what exists rather than from an
+assumption, and so the determination in §1 can be read against real options.
 
 ### 3. An honest migration estimate
 
