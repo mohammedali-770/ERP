@@ -49,8 +49,8 @@ Settings → Branches → Add branch ruleset (or classic branch protection) for
 
 ### Required status checks
 
-The four jobs in [`ci.yml`](../../.github/workflows/ci.yml), by their **job
-names** as GitHub reports them:
+The jobs in [`ci.yml`](../../.github/workflows/ci.yml), by their **job names**
+as GitHub reports them:
 
 | Check | What fails it |
 |---|---|
@@ -110,15 +110,16 @@ a reminder — but an owner who cannot merge their own hotfix is a real cost.
 
 | | |
 |---|---|
-| `main` protected | **Not yet** — `.github/rulesets/main.json` is written and ready to apply |
-| Required checks configured | **Not yet** — six, and `tools/ci-contract` keeps the three lists in step |
+| `main` protected | **Yes — applied 2026-09-21** by the owner, from [`.github/rulesets/main.json`](../../.github/rulesets/main.json) |
+| Required checks configured | **Yes** — the six in the table above. `tools/ci-contract` keeps the ruleset, the workflow and this document in step |
 | Required approvals | **0**, by the reasoning above. Revisit when a second reviewer exists |
-| Administrators included | **Not recorded** — decide when applying |
-| Last verified | 2026-09-20, by `list_branches` reporting `protected: false` |
+| Bypass list | **Empty**, so the ruleset binds the owner too — as written in the imported file |
+| Administrators included | **Yes**, by virtue of that empty bypass list |
+| Last verified | **2026-09-21** — `list_branches` reports `main` `protected: true`, the feature branch `protected: false`; the ruleset targets the default branch only, as intended. That is the whole of what is *observed*: no tool available here reads a ruleset back, so the two rows above are read from the file that was imported, not from GitHub. Re-read them in the UI at the next phase gate |
 
-**PR #1 merged into an unprotected `main` on 2026-09-20**, which is the evidence
-this document was written about: the rules were fully specified and nothing
-enforced them.
+**PR #1 and PR #2 both merged into an unprotected `main` on 2026-09-20**, which
+is the evidence this document was written about: the rules were fully specified
+and nothing enforced them. From 2026-09-21 they are enforced.
 
 Checked at every phase gate, because the gap between this table and the table
 above is the only thing that says whether the rules are running.
