@@ -153,12 +153,49 @@ nowhere and the gate's meaning depends on it. Raised as
 **Related:** ADR-0011, [`../estate/migration-map.md`](../estate/migration-map.md)
 
 The existing warehouse and factory system reads its database connection from an
-untracked environment file, so its live database has not been identified. Its
-domain model is F3's de-facto specification, but no migration can be scoped — or
-even sized — until the data behind it is located.
+untracked environment file, so its live database has not been identified.
 
-**Cost of staying blocked:** low now, high from F3. Resolve it early; it is a
-question, not a project.
+**Narrowed on 2026-09-21 by reading the repository, read-only.** Most of what
+this blocker was thought to withhold is already in the repository.
+
+**The schema is not missing.** `ExsistingWarehouseFactorySystem` carries **59
+migrations**, 2025-10-09 to 2026-05-07, and `SETUP_GUIDE.md` names every table:
+`profiles`, `branches`, `items`, `orders`, `order_items`, `suppliers`,
+`warehouse_units`, `raw_materials`, `warehouse_purchase_orders`,
+`warehouse_po_items`, `raw_material_purchase_orders`, `raw_material_po_items`,
+`production_batches`, `production_inputs`, `production_outputs`,
+`warehouse_stock`, `factory_stock`, `stock_adjustments`. The domain model that
+F3 treats as its de-facto specification is fully recoverable **without** the live
+database. So this entry's claim that no migration can be *scoped* is too strong:
+**scoping can start now. Sizing cannot**, because row counts, data quality and any
+drift between those migrations and what is actually deployed all need the
+database itself.
+
+**Where the identity actually lives.** `src/lib/supabase.ts` reads
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; `.env` is gitignored, which is
+why it was never in the repository. **`VITE_SUPABASE_URL` is the answer** — it is
+`https://<project-ref>.supabase.co`, and the ref is the database's identity.
+
+Three routes, cheapest first:
+
+1. **The deployed application's JavaScript bundle.** Vite inlines `VITE_*` at
+   build time, so the project ref is already baked into whatever is serving the
+   app. Anyone who can load it can read the ref out of the bundle — no server
+   access, no credentials, no waiting on anyone.
+2. **The `.env` on the machine that builds or deploys it.**
+3. **The Supabase dashboard of the account that owns it.**
+
+**It is not in the Supabase account this programme can see.** Checked read-only:
+the organisation `Spicy Meal Org` holds exactly two projects, and neither is this
+system. `spicy-meal-ordering`'s migration history is ordering, loyalty, payments
+and Lazywait from 2026-07-08 onward, and `whatsapp-inbox-simple`'s is thirteen
+inbox migrations from September 2026 — neither shows any of the 59 above. So the
+warehouse database lives in **a different Supabase account or organisation**, and
+whoever holds it is a person, not a setting.
+
+**Cost of staying blocked:** lower than recorded, because the schema is in hand
+and F3 scoping is no longer waiting on this. Sizing and drift still are. Resolve
+it early; it is a question, and route 1 above may answer it in minutes.
 
 ---
 

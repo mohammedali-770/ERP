@@ -42,7 +42,7 @@ things that already work.
 | Existing asset | Classification | What specifically |
 |---|---|---|
 | `ExsistingWarehouseFactorySystem` domain model | **Migration source** | Unit conversion, dual PO streams, production batches, daily snapshots, six-role approval chain |
-| Its database | **Migration source** | **Unresolved — not yet identified** (untracked connection config) |
+| Its database | **Migration source** | **Not yet identified**, but narrowed: the ref is in `VITE_SUPABASE_URL`, inlined into the deployed bundle by Vite. Not in `Spicy Meal Org` — checked 2026-09-21. See [B-04](../program/blocked.md) |
 | Its frontend | **Supersede** | Generated scaffold; no tests, no CI; rewriting on the ERP stack is cheaper than maintaining |
 | `SpicyMealFactoryWarehouse` | **Reference design** | Predecessor; assess before relying on it |
 
@@ -93,8 +93,10 @@ The estate has accumulated duplication that the ERP should resolve:
 
 Both are in [`../program/open-questions.md`](../program/open-questions.md):
 
-- **The warehouse system's live database is unidentified.** F3 migration scope
-  cannot be assessed without it.
+- **The warehouse system's live database is unidentified**, though its *schema* is
+  not: 59 migrations and a full table list sit in the repository, so F3 scoping
+  can proceed and only sizing and drift are actually waiting. It is not in
+  `Spicy Meal Org`. See [B-04](../program/blocked.md).
 - **The current payment provider state is ambiguous** — the database has one
   provider configured in test mode while the console ships administration for
   another. Nothing should be planned on top of that until it is confirmed.
