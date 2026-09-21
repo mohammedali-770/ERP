@@ -271,7 +271,8 @@ is the same shape as B-06: delay increases risk rather than deferring work.
 **Blocks:** nothing in the ERP — recorded because it is live and has people on the
 other end
 **Unblocked by:** Owner, and whoever is accountable for inbox operations
-**Related:** B-08 · Q-17 · `AI-020` · `CRM-007`
+**Act on it with:** [`enablement/09-inbox-backlog-triage.md`](./enablement/09-inbox-backlog-triage.md)
+**Related:** B-08 · Q-17 · `AI-020` · `CRM-007` · `AI-012`
 
 Found as finding 4 of B-08 and confirmed by measurement on 2026-09-21. The
 original wording was "may be silently dead". It is dead, and the cost is
@@ -281,12 +282,25 @@ countable.
 |---|---|
 | Contacts flagged `needs_human` | **84** |
 | Of those, **never sent a human reply** | **78** |
+| Of those 78, where the AI **explicitly delegated** to a human | **77** |
+| **Delegations made and ignored** (`inbox_ai_runs.status = 'delegated'`) | **165** |
+| Most delegations for one person | **20** |
+| Contacts carrying a `needs_human_note` | **78 — every one** |
 | Notifications ever sent (`last_notified_at`) | **0**, across all 260 contacts |
 | Conversations ever claimed, ever handled | **0** and **0** |
 | `inbox_push_subscriptions` rows | **0** |
 | Human outbound messages, all time | 18, against 449 from the AI |
 | Complaints logged | **6**, between 2026-09-15 and 2026-09-18 |
 | Oldest unanswered escalation | activity dating to **2026-09-03** |
+
+**The AI did not fail quietly — it asked 165 times.** `delegated` is it
+recognising its own limit and handing off, and it wrote a note every time saying
+why. The handoff had no receiver. One customer was handed off twenty times.
+
+**It is a live backlog, not a historical one:** 6 of the 78 were heard from in the
+last 24 hours and **62 within 7 days**; only 16 have been quiet longer. By
+subject: orders 33 contacts · delivery 18 · complaints 4 (23 delegations between
+them) · everything else about 35.
 
 **The obvious innocent explanation was checked and does not hold.** "People are
 being helped, it just is not recorded" would show up as human outbound messages to
@@ -298,6 +312,14 @@ queue — whether `needs_human` was ever wired to a person, or was built and nev
 staffed. That is [Q-17](./open-questions.md), and it decides whether this is a
 broken notification channel or an unowned process. **No fix should be designed
 before that is answered**, because the two have different remedies.
+
+**Helping these 78 people is not blocked on that, and should not wait for it.**
+Every flagged conversation is already recorded and already visible to whoever
+opens the inbox. A person can start working the 62 live ones today, with no code
+change and no decision. Repairing notifications governs whether the queue *stays*
+worked; it does nothing for the people already in it. Treating this as an
+engineering task is the trap — it puts a build on the critical path of a customer
+problem that does not need one.
 
 **Cost of staying blocked:** 78 people are waiting now, six have complained, and
 the counter rises with traffic — the most recent inbound message was 05:12:56 on

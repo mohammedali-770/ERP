@@ -253,6 +253,31 @@ answers have nothing in common:
 plausible-looking technical fix — make push notifications work — does nothing at
 all if there was never anyone at the other end to notify.
 
+### What narrows it
+
+**Someone was in the inbox yesterday.** There are 18 human replies, the most
+recent 2026-09-20 12:18, reaching 12 customers. So this is not an access problem
+and not "nobody opens it" — that person replied to 12 people while 78 flagged
+ones sat untouched. Either the flag is not surfaced in the view they use, or
+clearing it is nobody's job.
+
+That makes the question cheaper than it looked. It is **not** "does escalation
+work", which would need the application source. It is two things a person can
+answer in one conversation:
+
+1. **When you open the inbox, do you see which conversations the AI flagged?**
+2. **Whose job is it to clear them?**
+
+Both are put to the Owner in
+[`enablement/09-inbox-backlog-triage.md`](./enablement/09-inbox-backlog-triage.md).
+
+`inbox_push_subscriptions` carries a `last_error` column and zero rows — a table
+built expecting delivery failures to be recorded. **That hints wiring was
+intended, and is not evidence it was finished.** The three things that would
+settle the technical half — a `pushManager.subscribe()` call, a configured VAPID
+key, an insert into that table — are all in the application source, **which is not
+in any repository visible from here.**
+
 It also decides something for the ERP. `CRM-007` and `AI-020` both assume an
 escalation path to a human exists and can be measured. If the inbox's never
 worked, the ERP should not inherit its shape on the assumption that it did.

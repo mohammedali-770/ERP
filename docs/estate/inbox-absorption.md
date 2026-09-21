@@ -72,6 +72,14 @@ nothing can reproduce the form they were matched in.
 
 Capture the normaliser's source, not just its output.
 
+**And establish where that source is.** It is **not in any of the 17 repositories
+visible to this session** — which is a statement about visibility, not existence;
+it may live in an account, organisation or build platform not reachable from here.
+Worth confirming early, because this section, the `answer_kind` dispatch in the
+knowledge table below, and the unanswered half of [Q-17](../program/open-questions.md)
+all depend on that code being findable. If it turns out nobody knows where it is,
+that is a larger finding than any single table on this page.
+
 ### 3. Customer identity is stored in a form `APP-004` forbids
 
 `inbox_contacts.wa_id` is both the primary key and the raw Meta identifier —

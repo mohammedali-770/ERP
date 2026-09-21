@@ -1,6 +1,6 @@
 # Enablement pack
 
-Eight short documents, each addressed to a **specific person outside engineering**,
+Nine short documents, each addressed to a **specific person outside engineering**,
 each ending with something they fill in and hand back.
 
 They exist because the programme is currently waiting on decisions and access
@@ -19,6 +19,7 @@ parallel — and none of them depends on a decision being taken first.
 | 6 | [PBX vendor support ticket](./06-pbx-vendor-ticket.md) | **IT** | Minutes to send | B-07, and all call-centre work |
 | 7 | [Credential rotation runbook](./07-credential-rotation-runbook.md) | **IT** | ~2h, plus a window | **B-06 — delay increases risk** |
 | 8 | [Closing the WhatsApp inbox exposure](./08-inbox-exposure-remediation.md) | **IT, Owner approving** | ~45 min for the urgent half | **B-08 — a live write path reachable with a public key** |
+| 9 | [The inbox asked for help 165 times](./09-inbox-backlog-triage.md) | **Owner / operations** | Ten minutes to read | **B-09 and Q-17 — 78 customers waiting** |
 
 ---
 
@@ -37,10 +38,13 @@ stay valid is a day they could be used.
 
 Then number 1.
 
-> **B-09 has no document here, deliberately.** 78 customers asked for a human and
-> have not received one. There is nothing to hand IT, because no SQL closes it —
-> it needs an owner and an answer to Q-17 first. It is the most urgent thing on
-> the blocker list and the only one whose cost is being paid by customers.
+> **Number 9 is the one with people waiting.** When B-09 was raised this document
+> said it deliberately had none, on the reasoning that no SQL closes it and it
+> needed Q-17 answered first. That was half right: there is nothing to hand *IT*.
+> But the Owner can act without Q-17 — 62 of those conversations are still live
+> and can be worked today — so writing nothing left the only blocker whose cost
+> falls on customers as the only one with no document. Number 9 fixes that, and
+> asks Q-17 as two questions rather than waiting on it.
 
 ## Start with number 1 for everything else
 
