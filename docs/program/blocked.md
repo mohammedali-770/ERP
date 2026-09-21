@@ -156,18 +156,54 @@ never passed by inertia.
 **Related:** ADR-0016 · `../compliance/pdpl-assessment.md`
 
 The `yeastarissue` repository contains a PBX diagnostic bundle with plaintext
-credentials:
+credentials. **Inventoried against the bundle on 2026-09-21** — counts are exact,
+and no value was read into this repository or any report.
 
-| Configuration | Exposed |
+| Configuration | Exposed | Count |
+|---|---|---|
+| `asterisk/pjsip_auth.conf` → `trunk-SIP-auth`, `pjsip_outreg.conf` → `trunk-SIP-registeration` | **SIP trunk credential** | **1** |
+| `asterisk/users.conf` | Extension secrets | **44** |
+| `asterisk/manager.conf` | AMI account secrets — `LinkusUser`, `basicsrv` | 2 |
+| `openapi.log` | OpenAPI client identifier **and secret** | 1 |
+| `asterisk/cdr_redis.conf` | Redis password | 1 |
+| `asterisk/res_config_mysql.conf`, `voicemail_mysql.conf` | Database user, password and schema | 1 set |
+| `asterisk/voicemail.conf` | Voicemail passwords | 2 |
+
+**The trunk credential was not previously listed, and it belongs at the top.** An
+extension secret lets someone register a handset to *your PBX*, which needs network
+reach to it. A **trunk** credential authenticates the PBX to the **carrier** —
+stolen, it places calls billed to your account from anywhere, without touching the
+PBX at all. That is the standard toll-fraud route and the most expensive item here.
+Whether that trunk is live should be confirmed rather than assumed.
+
+**The extension count was also understated.** The rotation runbook asked whether to
+rotate "every extension, or only those in the bundle (116–135, 222)". That range is
+the 21 Linkus clients that happened to be *online* during the crash, not what the
+bundle exposes: `users.conf` carries **44** secrets, for extensions across 100–137,
+140, 150, 200, 201 and 222–224. The choice it offered rested on an undercount.
+
+**Exposure shape, corrected.** This entry said the credentials are in *git history*,
+so deleting the file would not remove them. They are in **the current tree of the
+default branch** — the bundle is still the repository's HEAD content. The history
+is three commits and the repository holds one tar and a 14-byte README.
+
+| | |
 |---|---|
-| `openapi.log` | OpenAPI client identifier **and secret** |
-| `asterisk/manager.conf` | Both AMI account secrets |
-| `asterisk/cdr_redis.conf` | Redis password |
-| `asterisk/pjsip_auth.conf`, `users.conf` | SIP authentication |
-| `res_config_mysql.conf`, `voicemail.conf` | Database and voicemail credentials |
+| Committed | **2026-07-27 07:18**, merged 07:24 — exposed **~8 weeks** |
+| Collaborators | **1** — the owner, `admin`. No other account has access |
+| Visibility | Private |
 
-The repository is private, which limits exposure — but these are in **git
-history**, so deleting the file does not remove them. Every one should be rotated.
+**That makes removal unusually cheap.** The force-push hazard that normally makes
+history rewriting a careful operation does not really apply: there is one
+collaborator and no other clone to invalidate. And once the bundle has been sent to
+Yeastar through their support channel — which B-07's ticket requires anyway — the
+repository has no remaining purpose, so **deleting it outright removes the exposure
+completely**, history included, with no rewrite at all. That is the owner's call and
+should follow rotation, not precede it.
+
+**Do not read anything into GitHub not having flagged this.** Secret scanning
+detects known provider token formats; SIP, AMI and Redis passwords in Asterisk
+config files are not among them. Silence here is not evidence of safety.
 
 **There is a second exposure in the same bundle.** It contains three Asterisk core
 dumps of 202–451 MB. A core dump is a snapshot of process memory, which for a PBX
