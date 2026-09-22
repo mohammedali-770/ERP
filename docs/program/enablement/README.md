@@ -9,6 +9,11 @@ parallel — and none of them depends on a decision being taken first.
 
 ---
 
+Arabic versions of all nine are in [`ar/`](./ar/) — machine-translated on
+2026-09-21 and **not yet reviewed by an Arabic speaker**, which that folder's
+README states plainly. Documents 6 and 8 keep their vendor-ticket text and SQL in
+English deliberately, since both are meant to be sent or executed verbatim.
+
 | | Document | Who acts | Time for them | What it unblocks |
 |---|---|---|---|---|
 | 1 | [Branch network capability check](./01-network-capability-check.md) | **IT** | ~30 min | **The network half of B-03** — and may decide the hardware standard outright (D-3) |
