@@ -7,15 +7,16 @@
  * Run in CI so the requirement baseline cannot drift silently.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname, normalize } from 'node:path';
 import { extractFromDocx } from '../../prd-extract/src/extract.ts';
 import { parseAnnotations } from '../../prd-extract/src/yaml.ts';
 import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
   ruleProposedRegister, ruleTestRefsResolve, ruleEvidenceIsProducible,
-  ruleArtifactsAreReferenced, ruleRiskCitationsResolve,
-  type Finding, type LintContext, type TestArtifacts, type ProposedEntry,
+  ruleArtifactsAreReferenced, ruleRiskCitationsResolve, ruleVerbatimBlocksMatchSource,
+  sectionBody, trimBlank, dequote,
+  type Finding, type LintContext, type TestArtifacts, type ProposedEntry, type VerbatimClaim,
 } from './rules.ts';
 
 const DOCX = 'docs/source/First_Taste_ERP_PRD_v0.9.docx';
@@ -93,6 +94,89 @@ function collectCitations(paths: readonly string[]): Citations {
     if (path.endsWith('.md')) scanCitations(path, out);
     else walk(path);
   }
+  return out;
+}
+
+/**
+ * `<!-- verbatim-from: <path>#<section> [dequoted] -->`
+ *
+ * Declares that the block below is a copy of a section of another document and
+ * must still match it. Two shapes are supported, and which one applies depends
+ * on whether a heading follows the marker:
+ *
+ *   - marker directly above a heading — that heading's section is the copy
+ *   - marker in a file's header, no heading after it — the rest of the file is
+ *
+ * `dequoted` strips one level of `>` blockquote from the source before
+ * comparing, which is what turns a drafted ticket into a pasteable one.
+ */
+const VERBATIM = /^<!--\s*verbatim-from:\s*(\S+?)#(\S+?)(\s+dequoted)?\s*-->\s*$/;
+
+/**
+ * Index of the first real content line, skipping blanks and HTML comments.
+ *
+ * Comments span lines, so `startsWith('<!--')` is not enough: a generated-file
+ * header's middle lines look like prose and were read as the copied block.
+ * Returns -1 when the lines are all header.
+ */
+function afterCommentHeader(lines: readonly string[]): number {
+  let inComment = false;
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i]!.trim();
+    if (inComment) {
+      if (t.includes('-->')) inComment = false;
+      continue;
+    }
+    if (t === '') continue;
+    if (t.startsWith('<!--')) {
+      if (!t.includes('-->')) inComment = true;
+      continue;
+    }
+    return i;
+  }
+  return -1;
+}
+
+function scanVerbatim(file: string, into: VerbatimClaim[]): void {
+  const lines = readFileSync(file, 'utf8').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = VERBATIM.exec(lines[i]!);
+    if (!m) continue;
+    const [, rel, slug, dequoted] = m;
+    const source = `${rel}#${slug}`;
+    const sourcePath = normalize(join(dirname(file), rel!));
+
+    // The copy: the next section when a heading follows, otherwise the rest of
+    // the file once its own comment header is past.
+    const rest = lines.slice(i + 1);
+    const headingAt = rest.findIndex((l) => /^#{1,6}\s+/.test(l));
+    const firstContent = afterCommentHeader(rest);
+    const claimed =
+      headingAt >= 0 && (firstContent < 0 || headingAt <= firstContent)
+        ? (sectionBody(rest.slice(headingAt).join('\n'), slug!) ?? [])
+        : trimBlank(firstContent < 0 ? [] : rest.slice(firstContent));
+
+    if (!existsSync(sourcePath)) {
+      into.push({ file, source, claimed, actual: null });
+      continue;
+    }
+    const body = sectionBody(readFileSync(sourcePath, 'utf8'), slug!);
+    into.push({ file, source, claimed, actual: body === null ? null : dequoted ? dequote(body) : body });
+  }
+}
+
+/** Collects every verbatim-from claim under the given trees. */
+function collectVerbatimClaims(paths: readonly string[]): VerbatimClaim[] {
+  const out: VerbatimClaim[] = [];
+  const walk = (d: string): void => {
+    if (!existsSync(d)) return;
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (entry.name.endsWith('.md')) scanVerbatim(p, out);
+    }
+  };
+  for (const path of paths) walk(path);
   return out;
 }
 
@@ -225,6 +309,7 @@ function main(): void {
     ...ruleEvidenceIsProducible(ctx, testArtifacts, gateActive, PROCEDURE_BLOCKER),
     ...ruleArtifactsAreReferenced(ctx, testArtifacts, proposedTestRefs),
     ...ruleF1BacklogCoverage(ctx, existsSync(F1_BACKLOG) ? readFileSync(F1_BACKLOG, 'utf8') : null),
+    ...ruleVerbatimBlocksMatchSource(collectVerbatimClaims(['docs'])),
   ];
 
   const errors = findings.filter((f) => f.severity === 'error');

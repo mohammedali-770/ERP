@@ -97,5 +97,9 @@ same interface.
 ## What this does not prove
 
 Which CDR fields identify an abandonment on the live PBX. That needs the real box,
-and could not be verified while its API was returning errors (see
-[B-07](../../docs/program/blocked.md)). The assumption is flagged in the design.
+and no connection to it exists: its credentials are exposed and unrotated
+([B-06](../../docs/program/blocked.md)), and its stability is unresolved with the
+vendor ([B-07](../../docs/program/blocked.md)). An earlier version of this note
+said the API "was returning errors" — that claim was retracted on 2026-09-21, when
+the failures turned out to date from October 2025 and to have never been retested.
+The assumption is flagged in the design.

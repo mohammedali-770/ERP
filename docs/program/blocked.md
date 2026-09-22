@@ -374,14 +374,18 @@ known to be compromised means doing the work twice.
 **Unblocked by:** IT, with a vendor support ticket and a resolution
 **Related:** ADR-0016
 
-On the captured day the PBX's Asterisk process **segfaulted three times**. The
-watchdog restarted it at 05:01, 15:42 and 20:57, and each time every softphone
-client dropped simultaneously.
+On **26 July 2026** the PBX's telephony service was interrupted three times. The
+watchdog restarted Asterisk at 05:01, 15:42 and 20:57, and three Asterisk core
+dumps were produced whose filenames carry signal 11.
 
-**No vendor reply, ticket or resolution appears anywhere on record.**
+**Nothing in the diagnostic bundle records a vendor reply, a ticket or a
+resolution.** Whether anyone raised one outside the bundle is a pre-send check on
+the ticket, not something this entry can settle.
 
 **Re-examined against the diagnostic bundle on 2026-09-21**, which corrected one
-claim and added one finding.
+claim and added one finding, and **again on 2026-09-22**, which corrected three
+more and added two. The 2026-09-22 pass read the archive directly rather than the
+earlier write-up.
 
 **Corrected — the `get_token` failure is not part of this incident.** This entry
 and ADR-0016 both read as though `POST /openapi/v1.0/get_token` was failing
@@ -395,17 +399,59 @@ symptom would have pointed them at the wrong year.
 
 **Added — a kernel memory allocation failure, previously unrecorded.** At
 **00:00:09 on 2026-07-27** the kernel logged an `order:0` `GFP_ATOMIC` page
-allocation failure in the FEC ethernet receive path. The accompanying `Mem-Info`
-shows ~2 GB RAM, **zero swap**, ~640 MB reserved to CMA, ~1 GB anonymous in use
-and ~64 MB in writeback — leaving roughly **57 MB genuinely allocatable**. It
-occurs **once**, and not at any of the three crash times, so it is evidence of a
-marginal memory envelope rather than a demonstrated cause.
+allocation failure in the FEC ethernet receive path. It occurs **once**, about
+three hours after the third restart rather than at any of them.
+
+> **Corrected 2026-09-22 — "marginal memory envelope" overstated it.** The
+> `Mem-Info` was read as leaving "roughly 57 MB genuinely allocatable", and that
+> figure is arithmetically right (free 87,726 pages less free_cma 73,614). But
+> read on its own it says the appliance was nearly out of memory, and it was not:
+> free was **350,904 kB against a min watermark of 22,528 kB**, about fifteen
+> times it, with **11,909 free order-0 blocks**. A `GFP_ATOMIC` request cannot
+> reclaim and cannot use CMA pages, so the ~57 MB is the pool that request could
+> draw on — with ~64 MB in writeback at the time. That points at atomic-reserve
+> and CMA composition under writeback pressure, not at exhaustion. The ticket now
+> gives the vendor both figures and asks rather than concludes.
+
+**Added — the process generations outnumber the logged restarts.** `trace-old.log`
+and `trace-new.log` carry periodic process captures. The distinct `/bin/asterisk`
+PIDs across them, in order, are **9096 · 9130 · 19360 · 22677 · 13362** — five
+generations, so **at least four** restarts against the three `astguard.log`
+records. Two of them (`9130`, `19360`) are core dumps, and the capture showing
+9130 at 433 MB resident matches its 413 MB dump, which is also what dates the
+dumps to this window: the archive's own timestamps are all packaging time.
+
+**Corrected — the three restarts are not one homogeneous fault.** The 05:01 event
+is **86 seconds after a cold boot** (`messages` logs `Booting Linux on physical
+CPU 0x0` at 05:00:20) and astguard reports `asterisk run twice` — a duplicate
+process, not an unresponsive one — recovering in about a second. The 15:42 and
+20:57 events both report `asterisk didnot done===restart` / `can not connect to
+asterisk` and take 21–22 seconds. `web_error.log` records client disconnections
+in the two later windows and **none at 05:01**. Calling all three segfaults, as
+this entry and ADR-0016 both did, is not supported.
+
+**Corrected — no log records a segfault at all.** `Segmentation fault`, `SIGSEGV`,
+`signal 11` and `core dump` appear in **zero** non-core files in the bundle. The
+crash attribution rests entirely on the `.11` suffix in the three core filenames.
+That is a fair reading of the default `core_pattern`, but it is an inference, and
+every document here had stated it as a logged fact.
 
 **What was ruled out.** `messages` contains no OOM kill and no
 `No space left on device`; `nginx_error.log` spans 2024-05 to 2026-07 and shows
 five routine notices on the incident day; the 124 `Internal Server Error` entries
 in `apigateway.log` are all from **2026-02-11**. A disk-exhaustion theory was
 tested against the bundle and is **not supported**.
+
+**The bundle carries a stale subdirectory, and it has been misread before.** Its
+`asterisk/` directory is a snapshot from **11 April 2026 running firmware
+37.22.0.17**, not from the incident. Reading `asterisk/pbxlog.*` as incident
+evidence gives answers three months out of date; the first pass on 2026-09-22 did
+exactly that before catching it. The incident-day logs are the top-level ones.
+
+**The appliance's serial is in the bundle: `3632D4574233`** (`basicsrv-run.log`,
+`analytics.log`), with MAC `44:db:d2:00:f2:32`. The ticket no longer asks IT to
+look either up — it asks them to confirm the serial. Neither is a credential; the
+bundle's actual secrets are B-06's business and are named there by file.
 
 **Firmware.** Running **37.23.0.123 (V24.3), released 2026-07-20 — six days
 before the crashes.** Current GA is **37.24.0.73 (V25.2)**, 2026-09-15. Neither
@@ -414,7 +460,7 @@ so **upgrading is not a known remedy** and the ticket now asks that explicitly
 rather than assuming it.
 
 **Why this blocks rather than merely complicates:** building a screen pop on a
-platform that crashes daily produces an ERP that appears broken when it is not,
+platform that restarts its telephony service three times in a day produces an ERP that appears broken when it is not,
 and makes every integration defect ambiguous — ours or theirs? The design already
 assumes reconnection and backfills after an outage, so the architecture survives
 this. The *diagnosis* of future problems does not.
@@ -424,7 +470,8 @@ critical path the moment call-centre work starts, and a vendor ticket has lead
 time.
 
 **Ready to send:** [`enablement/06-pbx-vendor-ticket.md`](./enablement/06-pbx-vendor-ticket.md)
-— drafted with the evidence assembled; fill in three fields and send.
+— drafted with the evidence assembled; confirm the serial, fill in three fields
+and send.
 
 ---
 

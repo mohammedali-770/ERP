@@ -9,8 +9,9 @@
 ## Why this is drafted rather than described
 
 The evidence is already assembled from the diagnostic bundle. Sending it should
-take minutes, not an afternoon of log-reading. **Fill in the three bracketed
-fields, check the facts against your records, and send.**
+take minutes, not an afternoon of log-reading. **Confirm the serial we read out
+of the bundle, fill in the three bracketed fields, check the facts against your
+records, and send.**
 
 Some of this is genuinely uncertain — flagged inline. Say "we don't know" rather
 than guessing; a wrong detail costs more than a missing one.
@@ -19,10 +20,11 @@ than guessing; a wrong detail costs more than a missing one.
 
 ## Draft
 
-> **Subject:** P560 — repeated Asterisk crashes with automatic restarts, and
-> OpenAPI `get_token` returning INTERNAL SERVER ERROR
+> **Subject:** P560 — repeated Asterisk crashes with automatic restarts
 >
-> **Account / serial:** `[fill in]`
+> **Serial:** `3632D4574233`, read from the diagnostic bundle
+> (`basicsrv-run.log`) — **please confirm against your records**
+> **Account:** `[fill in — the support or reseller account reference, if we have one]`
 > **Reseller:** `[fill in, if purchased through one]`
 > **Contact:** `[fill in]`
 >
@@ -37,18 +39,17 @@ than guessing; a wrong detail costs more than a missing one.
 >
 > **Summary**
 >
-> On 26 July 2026 the Asterisk process terminated three times with SIGSEGV, and
-> the system watchdog restarted it each time. During each restart every Linkus
-> client lost its connection simultaneously. Separately and throughout, the
-> OpenAPI token endpoint was returning an internal server error, which prevents
-> any API integration from authenticating at all.
+> On 26 July 2026 telephony was interrupted three times. The watchdog logged
+> three Asterisk restarts, and three Asterisk core dumps were produced whose
+> filenames carry signal 11. At the second and third restarts every Linkus client
+> lost its connection simultaneously.
 >
-> We are planning an API integration against this system and need both issues
-> understood before we proceed.
+> We are planning an API integration against this system and need the platform's
+> stability understood before we proceed.
 >
 > **Evidence — crashes**
 >
-> Three core dumps were produced, all signal 11:
+> Three Asterisk core dumps were produced. Their filenames carry signal 11:
 >
 > | File | Size |
 > |---|---|
@@ -56,14 +57,38 @@ than guessing; a wrong detail costs more than a missing one.
 > | `core.asterisk.9130.11` | 413 MB |
 > | `core.asterisk.19360.11` | 451 MB |
 >
-> `astguard.log` records watchdog restarts at approximately **05:01**, **15:42**
-> and **20:57**. At 15:42 it logged `asterisk didnot done===restart` followed by
-> `can not connect to asterisk`.
+> No log in the export contains the words `Segmentation fault`, `SIGSEGV`,
+> `signal 11` or `core dump`. The crash attribution above rests on the `.11`
+> suffix in the core filenames, so please treat it as our reading rather than as
+> something the logs state.
 >
-> During each restart, `web_error.log` shows nginx returning
+> `astguard.log` records three watchdog restarts, and **the first is not the same
+> event as the other two**:
+>
+> | Time | What astguard logged | Recovery |
+> |---|---|---|
+> | 05:01:46 | `asterisk run twice, restart asterisk`, then `asterisk has no response` | ~1 s |
+> | 15:42:09 | `asterisk didnot done===restart`, then `can not connect to asterisk` | 22 s |
+> | 20:57:17 | `asterisk didnot done===restart`, then `can not connect to asterisk` | 21 s |
+>
+> The 05:01 entry is **86 seconds after a cold boot** — `messages` records
+> `Booting Linux on physical CPU 0x0` at 05:00:20 — and reports a duplicate
+> process rather than an unresponsive one. It may be a startup race and not the
+> same fault as the two later events.
+>
+> **The process generations outnumber the restarts.** `trace-old.log` and
+> `trace-new.log` contain periodic process captures. The distinct `/bin/asterisk`
+> PIDs across them, in order, are **9096 · 9130 · 19360 · 22677 · 13362** — five
+> generations, so **at least four** restarts, against three the watchdog logged.
+> Two of those PIDs are the core dumps above (`9130`, `19360`), and the capture
+> showing PID 9130 at 433 MB resident is consistent with its 413 MB dump.
+>
+> During the **15:42 and 20:57** restarts, `web_error.log` shows nginx returning
 > `connect() failed (111: Connection refused)` while proxying to `127.0.0.1:81`
 > for every Linkus client websocket — extensions 116 to 135 and 222 — confirming
-> all clients dropped together rather than individually.
+> all clients dropped together rather than individually. `web_error.log` records
+> **nothing at 05:01**, which is a further reason we think that event differs
+> from the other two.
 >
 > **A separate, older observation — API token issuance**
 >
@@ -87,7 +112,7 @@ than guessing; a wrong detail costs more than a missing one.
 >
 > **Evidence — a kernel memory allocation failure**
 >
-> At **00:00:09 on 27 July 2026**, shortly after the third restart, the kernel
+> At **00:00:09 on 27 July 2026**, about three hours after the third restart, the kernel
 > logged a page allocation failure in the ethernet receive path:
 >
 > ```
@@ -102,13 +127,20 @@ than guessing; a wrong detail costs more than a missing one.
 > | | |
 > |---|---|
 > | Total RAM | 523264 pages (~2 GB) |
-> | Free | ~351 MB, of which **~294 MB is CMA** |
+> | Free | **350904 kB**, of which **~294 MB is CMA** |
+> | Free vs. min watermark | 350904 kB against **min 22528 kB** — about 15× |
+> | Free order-0 blocks | **11909 × 4 kB** (~48 MB) |
 > | CMA reserved | 163840 pages (~640 MB) |
 > | Anonymous in use | ~1.0 GB |
 > | Dirty / writeback | ~40 MB / **~64 MB** |
 > | **Swap** | **Total 0 kB, free 0 kB** |
 >
-> So roughly **57 MB of genuinely allocatable memory** remained, with no swap.
+> We want to be careful not to overstate this. The appliance was **not** out of
+> memory: free was roughly fifteen times the minimum watermark, and nearly 12,000
+> single pages were free. But a `GFP_ATOMIC` allocation cannot reclaim and cannot
+> use CMA pages, and with ~294 MB of the free total being CMA, only about **57 MB**
+> was available to an atomic non-movable request — while 64 MB sat in writeback.
+>
 > **Is this within the expected operating envelope for a P560, and is zero swap
 > the intended configuration?** It occurred once in the captured period and we
 > are not asserting it caused the crashes.
@@ -118,32 +150,45 @@ than guessing; a wrong detail costs more than a missing one.
 > We do not know whether these are related, contributory or incidental, and we are
 > not asserting that they are causes:
 >
-> - Continuous `pjsip … CreatePermission failed … 443/Peer Address Family Mismatch (4)`
->   — appears to be IPv6 or TURN related
+> - `pjsip … CreatePermission failed … 443/Peer Address Family Mismatch (4)` —
+>   **278 times**, appears to be IPv6 or TURN related
 > - `channel.c:1270 Exceptionally long voice queue length` on queue
->   `only-dialextension-queue`
-> - A dialplan evaluation error: `ast_expr2 syntax error, unexpected '='`
-> - A high volume of `{"errcode":20004,"errmsg":"no active collaboration"}` from
->   the third-party application module
+>   `only-dialextension-queue` — 4 times, all at 00:01 on 27 July, about a minute
+>   after the kernel allocation failure below
+> - A dialplan evaluation error, `ast_expr2 syntax error, unexpected '='` —
+>   **464 times**
+> - `{"errcode":20004,"errmsg":"no active collaboration"}` from the third-party
+>   application module — **9,740 times**
+>
+> All four counts are from the top-level incident-day logs. Note for whoever
+> opens the export: the `asterisk/` subdirectory inside it is a **stale snapshot
+> from 11 April 2026 running firmware 37.22.0.17**, not from the incident, so
+> please do not read those files as evidence for this day.
 >
 > **What we are asking**
 >
 > 1. Analysis of the core dumps — we can upload them on request. Please advise how
 >    you would prefer to receive files of this size.
-> 2. Whether firmware 37.23.0.123 has a known issue matching this crash signature.
+> 2. Why the number of Asterisk process generations we can see (five distinct
+>    PIDs) exceeds the number of restarts the watchdog logged (three), and
+>    whether astguard is expected to log every restart.
+> 3. Whether firmware 37.23.0.123 has a known issue matching this crash signature.
 >    We note that **37.23.0.123 (V24.3) was released on 20 July 2026 and the
 >    crashes occurred on 26 July**, six days later — is this a known regression in
 >    that build?
-> 3. Whether any release since addresses it. We are aware that **V25.1
+> 4. Whether any release since addresses it. We are aware that **V25.1
 >    (37.24.0.30) and V25.2 (37.24.0.73) have shipped** and that neither set of
 >    release notes mentions an Asterisk crash, watchdog or stability fix, so we do
 >    not want to upgrade expecting a fix that is not there. **Please confirm
 >    whether upgrading is a remedy here or merely unrelated good practice.**
-> 4. Whether the `get_token` behaviour from October 2025 above is a known defect,
->    and whether anything in the intervening releases changes it.
-> 5. Whether `errcode 20004 "no active collaboration"` indicates a licensing or
+> 5. Whether the `get_token` behaviour from October 2025 above is a known defect,
+>    and whether anything in the intervening releases changes it. We also do not
+>    recognise the five public source addresses those six requests came from —
+>    **please confirm whether they belong to Yeastar cloud services.**
+> 6. Whether `errcode 20004 "no active collaboration"` indicates a licensing or
 >    provisioning state that needs correcting on our account.
-> 6. Whether the dialplan syntax error above needs correcting by us.
+> 7. Whether the dialplan syntax error above — which appears 464 times across
+>    26 and 27 July — needs correcting by us.
 >
 > **Business impact**
 >
@@ -166,7 +211,11 @@ than guessing; a wrong detail costs more than a missing one.
    is treated differently from a one-off.
 2. **Has the firmware changed since?** 37.23.0.123 was current at capture.
 3. **Did anyone already contact support informally?** A prior conversation with no
-   ticket is worth mentioning, so this is not treated as a first report.
+   ticket is worth mentioning, so this is not treated as a first report. The
+   bundle does not settle it: `ssh.log` shows the `support` account's password
+   changed twice on 26 July, but the account that changed it is the one the PBX's
+   own `/bin/asterisk` process runs under, so that is appliance-internal activity
+   and **not** evidence of vendor contact.
 
 ## After sending
 

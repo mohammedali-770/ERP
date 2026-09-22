@@ -229,7 +229,7 @@ ordering. This is the property the spike exists to prove.
 
 | | Step | Blocked by |
 |---|---|---|
-| 1 | Resolve the PBX segfaults with the vendor | **B-07** |
+| 1 | Resolve the PBX instability with the vendor | **B-07** |
 | 2 | Rotate the exposed credentials | **B-06** |
 | 3 | Confirm the active subscription plan | — |
 | 4 | Establish the API connection and event stream | 1, 2 |
