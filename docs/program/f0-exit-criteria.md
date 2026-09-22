@@ -5,12 +5,18 @@ not when the calendar says month 2.
 
 Run `npm run req:lint -- --gate f0-exit` to check the mechanical items.
 
-**It currently reports five errors, and that is correct.** `POS-008`, `PRN-014`,
-`OFF-012`, `OFF-013` and `OFF-014` name only the two procedure spikes, which
-cannot run until B-03 lifts, so those requirements have no acceptance evidence.
-The gate passed over this until 2026-09-18 because a reference that *resolves* was
-being read as evidence that *exists*. A green gate here would mean the check is
-not working, not that F0 is done.
+**It currently reports four errors, and that is correct.** `PRN-014`, `OFF-012`,
+`OFF-013` and `OFF-014` name only the two procedure spikes, which cannot run
+until B-03 lifts, so those requirements have no acceptance evidence. The gate
+passed over this until 2026-09-18 because a reference that *resolves* was being
+read as evidence that *exists*. A green gate here would mean the check is not
+working, not that F0 is done.
+
+**It was five until 2026-09-21, and this file said so for a day after it stopped
+being true.** `POS-008` also gained `SPIKE-offline-sync`, which is executable and
+whose sustained-load run passed, so it has producible evidence and correctly
+dropped out of the gate. Corrected 2026-09-22. The count is quoted in two places
+below; both are now derived from a real run rather than from memory.
 
 ---
 
@@ -53,9 +59,14 @@ not working, not that F0 is done.
 - [x] `payment-reconciliation` run passed — zero double charges, zero misattribution, refunds idempotent
 - [x] `callback-engine` run passed — nobody called after ordering, no duplicate or stale calls
 - [x] `rating-statistics` run passed — no score below the minimum sample, no driver moved by a kitchen
+- [x] `zatca-counter-chain` run passed — 9/9, per-unit counter gapless, hash chain intact, counter reuse
+      after an undetected restore refused. **This does not close B-02**: the spike's own output states
+      that deferred synchronisation, clearance, signatures and certificates are not proved here
 - [ ] **ADR-0004 hardware decision evidenced** (OFF-014 forbids approving hardware without this)
-- [ ] **`POS-008`, `PRN-014`, `OFF-012`, `OFF-013`, `OFF-014` have acceptance evidence** — they name
-      only the two procedure spikes, so `req:lint -- --gate f0-exit` reports them as errors until B-03 lifts
+- [ ] **`PRN-014`, `OFF-012`, `OFF-013`, `OFF-014` have acceptance evidence** — they name
+      only the two procedure spikes, so `req:lint -- --gate f0-exit` reports them as errors until B-03 lifts.
+      **These four are the entire remaining gate failure**: one branch visit with real iPads and a
+      real LAN printer clears all four. `POS-008` was a fifth until it gained `SPIKE-offline-sync`
 
 ## Estate
 
@@ -82,6 +93,12 @@ not working, not that F0 is done.
 - [x] T-01..T-10 expanded into executable specifications
 - [x] Evidence package template
 - [x] UAT packs written for cashier, kitchen, menu, customer app, reporting, support, lab readiness, release gate and executive acceptance
+- [x] UAT packs translated into Arabic ([`../lab/uat/ar/`](../lab/uat/ar/), PRG-014) — the packs' own
+      README made this a precondition for use, since running a pack in a participant's second language
+      measures their English rather than the system
+- [ ] **Arabic reviewed by someone who does the job** — the cashier and kitchen packs first. The
+      translation is consistent with the requirement data's terminology; consistent is not correct,
+      and a cashier reading formal Arabic nobody uses on the floor is the same failure as English
 - [ ] Lab physically built and accepting test traffic
 - [ ] Representative cashier and kitchen users identified for UAT
 
@@ -97,10 +114,12 @@ not working, not that F0 is done.
 
 ## The three that actually gate F1
 
-Everything above matters. These three stop F1 if unresolved:
+Everything above matters. These three stop F1 if unresolved. **One of the three is
+now closed:**
 
-1. **ADR-0003 decided.** Event-sourced or not. A half-event-sourced system is worse
-   than either, and the choice cannot be deferred past month 1.
+1. ~~**ADR-0003 decided.**~~ **Done — accepted 2026-09-20**, in month 1 as the ADR
+   itself required. Event-sourced or not; a half-event-sourced system is worse than
+   either, and the choice could not be deferred past month 1. It was not.
 2. **ADR-0004 evidenced.** The hardware standard, decided by spike results rather
    than preference. OFF-014 is explicit about this.
 3. **B-01 escalated.** Not resolved — escalated. If executive management knows the
