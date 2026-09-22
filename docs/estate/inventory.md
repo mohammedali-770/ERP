@@ -153,8 +153,12 @@ deployments, payment work, push broadcasts and any live write.
 
 ### `ExsistingWarehouseFactorySystem`
 
-*Verified.* 59 migrations (2025-10 → 2026-05), ~28 tables. React + Vite frontend
-generated from a scaffold tool, with no tests and no CI.
+*Verified.* 59 migrations (2025-10 → 2026-05) creating **28 tables** — counted
+2026-09-22, not approximated. React + Vite frontend **generated in bolt.new**
+(`package.json` still carries the template's name, `vite-react-typescript-starter`),
+with no tests, no CI and no Supabase CLI tooling. The README is three lines, one
+of which is an *Open in Bolt* badge for project **`sb1-vseddlse`** — which is
+where its environment file lives, and therefore the cheapest route to B-04.
 
 The **domain model is the valuable part** and is effectively F3's requirements
 specification, validated against real operations:
@@ -168,8 +172,19 @@ specification, validated against real operations:
 - Auto-numbered purchase orders and batches, low-stock alerting (INV-013)
 
 **Unresolved:** its Supabase connection lives in an untracked environment file, so
-the live database has not been identified. F3 migration cannot be scoped until it
-is.
+the live database has not been identified. **Scoping is no longer waiting on
+that** — the 59 migrations carry the full schema, so F3 scoping can start; only
+sizing, data quality and drift need the database itself. This entry said scoping
+was blocked until 2026-09-22, a day after [B-04](../program/blocked.md) was
+narrowed to say otherwise.
+
+> **Worth noting against its predecessor.** `SpicyMealFactoryWarehouse` is the
+> better-engineered repository of the two — 49 migrations, vitest, prettier, full
+> Supabase CLI local-development tooling, and an `.env.example` pointing at
+> `127.0.0.1:54321`. The successor dropped all of it and took a dependency on a
+> hosted Supabase project nobody has identified. That is the whole of B-04: a
+> rebuild traded local reproducibility for a connection string in someone's
+> environment file.
 
 ---
 
