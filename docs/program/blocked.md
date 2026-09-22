@@ -203,7 +203,17 @@ untracked environment file, so its live database has not been identified.
 this blocker was thought to withhold is already in the repository.
 
 **The schema is not missing.** `ExsistingWarehouseFactorySystem` carries **59
-migrations**, 2025-10-09 to 2026-05-07, and `SETUP_GUIDE.md` names every table:
+migrations**, 2025-10-09 to 2026-05-07, which between them create **28 tables**.
+`SETUP_GUIDE.md` names **18 of those 28** — not every table, as this entry
+previously claimed. The ten it omits are the eight daily-snapshot tables
+(`daily_production_entries`, `daily_process_entries`, `daily_supply_entries`,
+`daily_withdrawal_entries`, `daily_employee_meal_entries`, `daily_item_snapshots`,
+`daily_raw_material_snapshots`, `daily_factory_operations`) plus `order_history`
+and `trigger_debug_log`. **The conclusion below still holds — the migrations carry
+all 28 — but it rests on the migrations, not on the setup guide.** Checked
+2026-09-22 by counting `create table` across all 59.
+
+The 18 the guide does name:
 `profiles`, `branches`, `items`, `orders`, `order_items`, `suppliers`,
 `warehouse_units`, `raw_materials`, `warehouse_purchase_orders`,
 `warehouse_po_items`, `raw_material_purchase_orders`, `raw_material_po_items`,
@@ -220,14 +230,28 @@ database itself.
 why it was never in the repository. **`VITE_SUPABASE_URL` is the answer** — it is
 `https://<project-ref>.supabase.co`, and the ref is the database's identity.
 
-Three routes, cheapest first:
+Routes, cheapest first. **Reordered on 2026-09-22 after reading the repository:**
 
-1. **The deployed application's JavaScript bundle.** Vite inlines `VITE_*` at
-   build time, so the project ref is already baked into whatever is serving the
-   app. Anyone who can load it can read the ref out of the bundle — no server
-   access, no credentials, no waiting on anyone.
-2. **The `.env` on the machine that builds or deploys it.**
+1. **The bolt.new project, `sb1-vseddlse`.** The repository's README is three
+   lines, and one of them is an *Open in Bolt* badge pointing at
+   `https://bolt.new/~/sb1-vseddlse`. This system was generated in bolt.new and
+   runs in its WebContainer, where the `.env` holding `VITE_SUPABASE_URL` lives.
+   **Whoever can open that project reads the ref directly.** This route was not
+   previously listed and is cheaper than everything below it.
+2. **The `.env` on the machine that builds or runs it.**
 3. **The Supabase dashboard of the account that owns it.**
+
+> **The route this entry previously called cheapest may not exist.** It named
+> "the deployed application's JavaScript bundle", on the reasoning that Vite
+> inlines `VITE_*` at build time — which is true, and is how the ref would be
+> recovered *if the application were deployed somewhere*. Checked 2026-09-22:
+> the repository has **no CI, no `.github/`, no `vercel.json`, no `netlify.toml`,
+> no Dockerfile and no deployment reference in any file**, and its setup guide
+> says the application "will start automatically", which is bolt.new's
+> WebContainer rather than a host. Nothing in the repository evidences a
+> deployed instance. If one exists, route 1's logic is sound and it is still the
+> cheapest — but its existence is an assumption, and this entry presented it as
+> a fact that would "answer in minutes".
 
 **It is not in the Supabase account this programme can see.** Checked read-only:
 the organisation `Spicy Meal Org` holds exactly two projects, and neither is this
@@ -237,9 +261,23 @@ inbox migrations from September 2026 — neither shows any of the 59 above. So t
 warehouse database lives in **a different Supabase account or organisation**, and
 whoever holds it is a person, not a setting.
 
+**`.env` was never committed, and that is now verified rather than assumed.** The
+repository has two commits in its entire reachable history, `.gitignore` covered
+`.env` in the first of them, and no `supabase.co` host or project-ref-shaped
+string appears anywhere in the working tree or that history. So the ref genuinely
+is not recoverable from the repository, by any route.
+
+**The predecessor cannot be used as a substitute.** `SpicyMealFactoryWarehouse`
+is public and is the better-engineered of the two — 49 migrations, vitest,
+prettier, full Supabase CLI tooling, and an `.env.example` pointing at
+`http://127.0.0.1:54321`, so it was built local-first and names no hosted project
+either. **49 migrations against 59 is a different schema state**, so its database,
+if it has one, is not safe to assume is this one's.
+
 **Cost of staying blocked:** lower than recorded, because the schema is in hand
 and F3 scoping is no longer waiting on this. Sizing and drift still are. Resolve
-it early; it is a question, and route 1 above may answer it in minutes.
+it early; it is a question, and **route 1 above may answer it in minutes for
+whoever can open that bolt project.**
 
 ---
 
