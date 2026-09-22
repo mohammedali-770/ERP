@@ -4,7 +4,8 @@ import {
   ruleStableIds, ruleUniqueIds, ruleBilingual, ruleAdrRefsResolve,
   ruleF1Coverage, ruleOpenDecisionsHaveAdrs, ruleCitationsResolve, ruleF1BacklogCoverage,
   ruleProposedRegister, ruleTestRefsResolve, ruleEvidenceIsProducible,
-  ruleArtifactsAreReferenced, ruleRiskCitationsResolve,
+  ruleArtifactsAreReferenced, ruleRiskCitationsResolve, ruleVerbatimBlocksMatchSource,
+  sectionBody, dequote, trimBlank,
   type LintContext, type TestArtifacts,
 } from '../src/rules.ts';
 import type { Requirement } from '../../prd-extract/src/extract.ts';
@@ -370,4 +371,98 @@ test('risk-citations-resolve is inert before the register exists', () => {
 test('open-decisions-have-adrs is an error, so the enforcement claim holds', () => {
   const findings = ruleOpenDecisionsHaveAdrs(ctx({ adrCorpus: '' }), ['OPN-001']);
   assert.equal(findings[0]!.severity, 'error');
+});
+
+const DOC = [
+  '# Ticket', '', '## Draft', '',
+  '> **Subject:** crashes', '>', '> Body line.', '',
+  '---', '', '## After', '', 'Not part of the draft.',
+].join('\n');
+
+test('section-body takes a section without its heading or neighbours', () => {
+  assert.deepEqual(sectionBody(DOC, 'draft'), ['> **Subject:** crashes', '>', '> Body line.']);
+});
+
+test('section-body stops at a heading of the same level', () => {
+  const doc = ['## A', '', 'one', '', '## B', '', 'two'].join('\n');
+  assert.deepEqual(sectionBody(doc, 'a'), ['one']);
+});
+
+test('section-body returns null for a section that does not exist', () => {
+  assert.equal(sectionBody(DOC, 'nowhere'), null);
+});
+
+test('dequote strips one blockquote level, including the bare marker', () => {
+  assert.deepEqual(dequote(['> a', '>', '> b']), ['a', '', 'b']);
+});
+
+test('trim-blank drops surrounding blank lines but not interior ones', () => {
+  assert.deepEqual(trimBlank(['', 'a', '', 'b', '']), ['a', '', 'b']);
+});
+
+test('verbatim-blocks-match-source accepts an identical copy', () => {
+  const block = sectionBody(DOC, 'draft')!;
+  assert.deepEqual(
+    ruleVerbatimBlocksMatchSource([{ file: 'ar/t.md', source: '../t.md#draft', claimed: block, actual: block }]),
+    [],
+  );
+});
+
+test('verbatim-blocks-match-source accepts a de-quoted copy', () => {
+  const block = sectionBody(DOC, 'draft')!;
+  assert.deepEqual(
+    ruleVerbatimBlocksMatchSource([
+      { file: 'extracts/t.md', source: '../t.md#draft', claimed: dequote(block), actual: dequote(block) },
+    ]),
+    [],
+  );
+});
+
+/**
+ * The control. This is the drift that actually happened: a correction rewrote the
+ * source's evidence section and left the copy's Subject asserting the old claim.
+ * If this passes, the rule proves nothing.
+ */
+test('verbatim-blocks-match-source catches a copy whose subject was left behind', () => {
+  const findings = ruleVerbatimBlocksMatchSource([{
+    file: 'ar/t.md', source: '../t.md#draft',
+    claimed: ['> **Subject:** crashes, and get_token errors', '>', '> Body line.'],
+    actual: ['> **Subject:** crashes', '>', '> Body line.'],
+  }]);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]!.severity, 'error');
+  assert.match(findings[0]!.message, /block line 1/);
+  assert.match(findings[0]!.message, /get_token/);
+});
+
+test('verbatim-blocks-match-source reports only the first difference per claim', () => {
+  const findings = ruleVerbatimBlocksMatchSource([
+    { file: 'a.md', source: 's.md#d', claimed: ['x', 'y'], actual: ['a', 'b'] },
+  ]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /block line 1/);
+});
+
+test('verbatim-blocks-match-source catches a copy that ends early', () => {
+  const findings = ruleVerbatimBlocksMatchSource([
+    { file: 'a.md', source: 's.md#d', claimed: ['a'], actual: ['a', 'b'] },
+  ]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /ends early/);
+});
+
+test('verbatim-blocks-match-source rejects a marker naming a section that does not exist', () => {
+  const findings = ruleVerbatimBlocksMatchSource([
+    { file: 'a.md', source: 'gone.md#draft', claimed: ['a'], actual: null },
+  ]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /no section that exists/);
+});
+
+test('verbatim-blocks-match-source rejects a marker with nothing beneath it', () => {
+  const findings = ruleVerbatimBlocksMatchSource([
+    { file: 'a.md', source: 's.md#d', claimed: [], actual: ['a'] },
+  ]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /no block to compare/);
 });

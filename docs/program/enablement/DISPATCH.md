@@ -20,11 +20,15 @@ eventually reach**, and two of them say things that should not travel further:
 - **2** carries a section headed *"Before sending — one thing to check
   internally"*, which states that card payments have never run and that our own
   records disagree about which provider is configured. It also carries our scoring
-  weights. **Finance forwards sections A–E only.** A provider-facing extract of
-  exactly those sections exists as a separate file.
+  weights. **Finance forwards sections A–E only** — the five `## Section …`
+  headings and nothing after them. A previous version of this note said a
+  provider-facing extract "exists as a separate file"; **it did not**, and Finance
+  would have gone looking for something that was never in the repository.
 - **6** is a document *about* a ticket. Only the `## Draft` block is the ticket.
   **Paste that block**; the material around it is guidance for the sender. A
-  de-quoted extract of just the body exists as a separate file.
+  de-quoted, paste-ready copy is
+  [`extracts/06-ticket-body.md`](./extracts/06-ticket-body.md), kept in step with
+  the source by `req-lint`.
 
 Everything else can go to its named recipient as it stands.
 
@@ -175,14 +179,16 @@ obtained and why. **Clears:** §2 of B-05 (PRG-010, PRG-012).
 ## 6 · PBX support ticket → **IT**, who sends it to Yeastar
 
 *Leaves the company. **Paste the `## Draft` block only**, and it stays English —
-Yeastar's support works in English. The extract file is that block, de-quoted.*
+Yeastar's support works in English. Or send
+[`extracts/06-ticket-body.md`](./extracts/06-ticket-body.md), which is that block
+already de-quoted.*
 
 > **Subject:** Please raise this with Yeastar support
 >
 > The evidence is already assembled from the diagnostic bundle, so this should take
-> minutes rather than an afternoon of log reading. Fill in the three bracketed
-> fields — account or serial, reseller, contact — check the facts against your
-> records, and send.
+> minutes rather than an afternoon of log reading. Confirm the serial we read out
+> of the bundle, fill in the three bracketed fields — account, reseller, contact —
+> check the facts against your records, and send.
 >
 > Where something is uncertain the document says so. Please say "we don't know"
 > rather than guessing; a wrong detail costs more than a missing one.

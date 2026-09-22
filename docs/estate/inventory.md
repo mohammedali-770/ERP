@@ -61,11 +61,13 @@ What it already does that F1 also specifies:
 |---|---|
 | Model | **Yeastar P560** — not a P650; no such model exists |
 | Firmware | 37.23.0.123 (above the 37.7.0.16 the API requires) |
+| Careful | the bundle's `asterisk/` subdirectory is a **stale 2026-04-11 snapshot on firmware 37.22.0.17** — not incident evidence |
 | Hardware | NXP i.MX8MM, 2 GB RAM |
 | Reachable from the ERP | **OpenAPI over HTTPS only** |
 | Not reachable | AMI (loopback ACL), CDR feed (loopback Redis), internal web API |
 | Access path | Yeastar RAS cloud tunnel, not a direct address |
-| Stability | **Three Asterisk segfaults in one captured day**, plus a kernel allocation failure in the ethernet path on a 2 GB appliance with no swap. No vendor resolution on record |
+| Stability | **Three watchdog restarts of Asterisk in one captured day** (at least four by PID count), three core dumps naming signal 11, plus a kernel allocation failure in the ethernet path. No vendor resolution on record |
+| Serial | `3632D4574233`, MAC `44:db:d2:00:f2:32` |
 
 The P650 designation appears to originate from a Saudi reseller publishing a
 `/yeastar-p650/` URL for what is a P560 product page.

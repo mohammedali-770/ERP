@@ -3351,9 +3351,11 @@ requirements:
     text_ar: "يجب أن يتكامل النظام مع بيئة مركز الاتصال Yeastar من خلال الواجهات المدعومة."
     status: "baselined"
     owner: null
-    adr_refs: []
+    adr_refs:
+      - "ADR-0016"
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-002"
     module: "CC"
     phase: "F2"
@@ -3365,7 +3367,8 @@ requirements:
     owner: null
     adr_refs: []
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-003"
     module: "CC"
     phase: "F2"
@@ -3377,7 +3380,8 @@ requirements:
     owner: null
     adr_refs: []
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-004"
     module: "CC"
     phase: "F2"
@@ -3389,7 +3393,8 @@ requirements:
     owner: null
     adr_refs: []
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-005"
     module: "CC"
     phase: "F2"
@@ -3401,7 +3406,8 @@ requirements:
     owner: null
     adr_refs: []
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-006"
     module: "CC"
     phase: "F2"
@@ -3413,7 +3419,8 @@ requirements:
     owner: null
     adr_refs: []
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-007"
     module: "CC"
     phase: "F2"
@@ -3423,9 +3430,11 @@ requirements:
     text_ar: "يجب أن يعرض النظام توفر الموظف وحجم المكالمات ونسبة الرد والمكالمات المتروكة ومدة المعالجة وتحويل المكالمة إلى طلب عند توفر البيانات."
     status: "baselined"
     owner: null
-    adr_refs: []
+    adr_refs:
+      - "ADR-0016"
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-008"
     module: "CC"
     phase: "F2"
@@ -3435,9 +3444,11 @@ requirements:
     text_ar: "يجب ألا يؤدي فشل تكامل المقسم إلى منع إدخال الطلب يدويا."
     status: "baselined"
     owner: null
-    adr_refs: []
+    adr_refs:
+      - "ADR-0016"
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-009"
     module: "CC"
     phase: "F5"
@@ -3447,9 +3458,11 @@ requirements:
     text_ar: "يجب أن تخصص المعمارية واجهات منضبطة لوكيل صوتي مستقبلي بالذكاء الاصطناعي."
     status: "baselined"
     owner: null
-    adr_refs: []
+    adr_refs:
+      - "ADR-0016"
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "CC-010"
     module: "CC"
     phase: "F5"
@@ -3459,9 +3472,11 @@ requirements:
     text_ar: "يجب ألا ينشئ وكيل الصوت المستقبلي طلبات مدفوعة أو يصدر استردادات أو يجري تغييرات حساسة دون ضوابط معتمدة."
     status: "baselined"
     owner: null
-    adr_refs: []
+    adr_refs:
+      - "ADR-0016"
     test_refs: []
-    estate_refs: []
+    estate_refs:
+      - "docs/estate/inventory.md#the-pbx"
   - id: "MKT-001"
     module: "MKT"
     phase: "F5"

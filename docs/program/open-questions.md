@@ -369,6 +369,41 @@ Related: ADR-0002, ADR-0003, B-05, `../lab/lab-design.md`.
 
 ---
 
+## Q-19 — Where does the PBX tunnel's availability risk get recorded?
+
+**Decides:** Product Owner · **Expensive after:** an availability commitment is
+made for anything call-centre shaped
+
+ADR-0016 concluded that reaching the PBX depends on **Yeastar's RAS cloud tunnel**
+(`*.ras.yeastar.com`) rather than on a direct address, and said in as many words
+that this "belongs in the integration's risk register and in any availability
+commitment".
+
+**There is nowhere to put it.** `docs/program/risk-register.md` is a generated
+extract of the PRD's ten key risks, carries a do-not-edit-by-hand header, and is
+rebuilt by `npm run prd:extract`. Anything written there by hand is erased on the
+next run. The nearest existing entry, `R-10`, is about provider lock-in generally
+and does not describe a latency-and-availability dependency on a vendor's cloud
+relay sitting between us and a system inside our own building.
+
+So the question is which of these the programme wants:
+
+1. A second, hand-maintained register for risks discovered after the PRD — with
+   its own identifier space, the way `proposed.yaml` holds requirements that
+   originate outside the PRD.
+2. An `annotations`-style overlay merged into the generated register, so one
+   document still reads as the whole picture.
+3. Accept that ADR consequences are where such risks live, and drop the claim in
+   ADR-0016 that a register entry is owed.
+
+Recorded rather than guessed, per the standing instruction: an invented risk
+identifier would collide with the next `prd:extract` run, and silently picking
+option 3 would quietly retire something an ADR says is owed.
+
+Related: ADR-0016, `R-10`, B-07.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

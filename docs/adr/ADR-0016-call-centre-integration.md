@@ -40,10 +40,10 @@ Access reaches the PBX through Yeastar's **RAS cloud tunnel**
 
 On the captured day, 26 July 2026:
 
-- Asterisk segfaulted **three times** — three core dumps, signal 11
-- The watchdog restarted it at 05:01, 15:42 and 20:57
-- At each restart every Linkus softphone client dropped simultaneously,
-  with nginx logging connection refused for every client websocket
+- The watchdog restarted Asterisk **three times** — at 05:01, 15:42 and 20:57 —
+  and three core dumps were produced whose filenames carry signal 11
+- At the 15:42 and 20:57 restarts every Linkus softphone client dropped
+  simultaneously, with nginx logging connection refused for every client websocket
 - A kernel `order:0` `GFP_ATOMIC` page allocation failure in the ethernet receive
   path at 00:00:09 the following morning, on a 2 GB appliance with **no swap**
 - A flood of `"no active collaboration"` errors from the third-party app module,
@@ -61,6 +61,24 @@ Nothing in the bundle records a vendor reply, a ticket or a resolution.
 > because that one genuinely belongs to this incident. **Nothing in the decision
 > below rested on the `get_token` claim** — OpenAPI is chosen as the integration
 > surface on the grounds in §1, not on that error.
+
+> **Corrected again 2026-09-22**, by reading the archive rather than the earlier
+> write-up. Three things above were stated more strongly than the evidence
+> supports. **No log in the bundle records a segfault** — the words
+> `Segmentation fault`, `SIGSEGV`, `signal 11` and `core dump` appear in zero
+> non-core files, so the crash attribution rests on the `.11` suffix in the core
+> filenames and is an inference. **The three restarts are not one fault**: the
+> 05:01 event is 86 seconds after a cold boot, reports a duplicate process rather
+> than an unresponsive one, recovers in about a second, and drops no clients,
+> while the other two share a signature and take 21–22 seconds. And **there were
+> more restarts than the watchdog logged** — five distinct `/bin/asterisk` PIDs
+> appear in the process captures (9096, 9130, 19360, 22677, 13362), implying at
+> least four. B-07 carries the detail.
+>
+> **This strengthens §3 rather than weakening it.** Two unexplained crashes with
+> core dumps, plus at least one restart the watchdog did not log, is if anything
+> a worse diagnostic position than three understood ones. Nothing in the decisions
+> below changes.
 
 ## Decision
 

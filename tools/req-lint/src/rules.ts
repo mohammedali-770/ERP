@@ -400,3 +400,111 @@ export function ruleOpenDecisionsHaveAdrs(ctx: LintContext, openDecisionIds: str
   }
   return findings;
 }
+
+/** One `verbatim-from` marker: a block that must still match the source it was copied from. */
+export interface VerbatimClaim {
+  /** The file carrying the marker, for the message. */
+  file: string;
+  /** The source the marker names, as written, for the message. */
+  source: string;
+  /** Lines in `file` that claim to be a copy. */
+  claimed: string[];
+  /**
+   * The source section's lines, already de-quoted when the marker says `dequoted`,
+   * or null when the source file or its section could not be found.
+   */
+  actual: string[] | null;
+}
+
+/**
+ * A block copied from another document must still match it.
+ *
+ * Written because it did not. `06-pbx-vendor-ticket.md` carries a support ticket
+ * that stays in English inside an otherwise-Arabic mirror, and is also extracted
+ * de-quoted for pasting. A correction on 2026-09-21 rewrote the English evidence
+ * section and left the Subject and Summary of all three copies asserting a fault
+ * that belonged to a different year. Nothing caught it, because nothing checked
+ * that the copies still agreed with their source.
+ *
+ * An error, not a warning: the copies are what actually leave the company.
+ */
+export function ruleVerbatimBlocksMatchSource(claims: ReadonlyArray<VerbatimClaim>): Finding[] {
+  const findings: Finding[] = [];
+  for (const c of claims) {
+    if (c.actual === null) {
+      findings.push({
+        rule: 'verbatim-blocks-match-source', severity: 'error', requirement: null,
+        message: `${c.file} declares verbatim-from ${c.source}, which names no section that exists.`,
+      });
+      continue;
+    }
+    if (c.claimed.length === 0) {
+      findings.push({
+        rule: 'verbatim-blocks-match-source', severity: 'error', requirement: null,
+        message: `${c.file} declares verbatim-from ${c.source} but carries no block to compare.`,
+      });
+      continue;
+    }
+    const n = Math.max(c.claimed.length, c.actual.length);
+    for (let i = 0; i < n; i++) {
+      const got = c.claimed[i];
+      const want = c.actual[i];
+      if (got === want) continue;
+      const detail =
+        got === undefined ? `the copy ends early; the source still has ${JSON.stringify(want)}`
+        : want === undefined ? `the copy has trailing ${JSON.stringify(got)} the source does not`
+        : `copy has ${JSON.stringify(got)}, source has ${JSON.stringify(want)}`;
+      findings.push({
+        rule: 'verbatim-blocks-match-source', severity: 'error', requirement: null,
+        message: `${c.file} has drifted from ${c.source} at block line ${i + 1}: ${detail}`,
+      });
+      break; // one finding per claim: the first difference is the one to fix
+    }
+  }
+  return findings;
+}
+
+/**
+ * The body of a markdown section, excluding its heading and surrounding blank lines.
+ *
+ * A section ends at the next heading of the same or higher level, or at a
+ * top-level `---`. Returns null when no heading has that slug.
+ */
+export function sectionBody(text: string, slug: string): string[] | null {
+  const lines = text.split('\n');
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  let start = -1;
+  let level = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(#{1,6})\s+(.*)$/.exec(lines[i]!);
+    if (m && slugify(m[2]!) === slug) {
+      start = i;
+      level = m[1]!.length;
+      break;
+    }
+  }
+  if (start < 0) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const h = /^(#{1,6})\s+/.exec(lines[i]!);
+    if ((h && h[1]!.length <= level) || lines[i]!.trim() === '---') {
+      end = i;
+      break;
+    }
+  }
+  return trimBlank(lines.slice(start + 1, end));
+}
+
+/** Drop leading and trailing blank lines. */
+export function trimBlank(lines: string[]): string[] {
+  let s = 0;
+  let e = lines.length;
+  while (s < e && lines[s]!.trim() === '') s++;
+  while (e > s && lines[e - 1]!.trim() === '') e--;
+  return lines.slice(s, e);
+}
+
+/** Strip one level of markdown blockquote, so a quoted draft can be compared with a pasteable one. */
+export function dequote(lines: string[]): string[] {
+  return lines.map((l) => (l.startsWith('> ') ? l.slice(2) : l === '>' ? '' : l));
+}

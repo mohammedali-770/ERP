@@ -1044,3 +1044,72 @@ ACC-008:
   test_refs:
     - T-01
     - SPIKE-offline-sync
+
+# Call centre and PBX (PRD 5.18).
+#
+# Added 2026-09-22. The module had no annotations at all, so ADR-0016 named
+# CC-001, CC-007, CC-008, CC-009 and CC-010 while none of them pointed back at
+# it — the traceability ran one way only. No owner and no test_refs here: these
+# are F2, the PBX platform is unresolved (B-07), and assigning either would be a
+# coverage claim rather than a fact. estate_refs is the PBX's entry, which every
+# CC requirement depends on being accurate.
+
+CC-001:
+  status: "baselined"
+  adr_refs:
+    - ADR-0016
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-002:
+  status: "baselined"
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-003:
+  status: "baselined"
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-004:
+  status: "baselined"
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-005:
+  status: "baselined"
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-006:
+  status: "baselined"
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-007:
+  status: "baselined"
+  adr_refs:
+    - ADR-0016
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-008:
+  status: "baselined"
+  adr_refs:
+    - ADR-0016
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-009:
+  status: "baselined"
+  adr_refs:
+    - ADR-0016
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx
+
+CC-010:
+  status: "baselined"
+  adr_refs:
+    - ADR-0016
+  estate_refs:
+    - docs/estate/inventory.md#the-pbx

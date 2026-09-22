@@ -113,6 +113,7 @@ npm run db:test       # pgTAP suites against the local stack
 | **A requirement's evidence can actually be produced** | `req:lint` — error under `--gate f0-exit` |
 | Every runnable spike and UAT pack is named by a requirement | `req:lint` |
 | Every risk cited in a document exists | `req:lint` against `risk-register.md` |
+| **A block copied from another document still matches it** | `req:lint` |
 | Proposed requirement identifiers are well formed and never collide | `req:lint` against `proposed.yaml` |
 | Services do not import each other | `boundary:check` |
 | Every PRD open decision maps to an ADR | `req:lint` |
