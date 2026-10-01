@@ -86,16 +86,32 @@ export function extractImports(source: string): string[] {
  * `fromFile` is the importing file's repo-relative path. Relative specifiers
  * resolve against its DIRECTORY — resolving against the workspace root instead
  * would miscount `..` segments by one and silently miss violations.
+ *
+ * `packageNames` maps a published package name to its workspace path and is
+ * REQUIRED, not derived. Until 2026-10-01 this function guessed the name as
+ * `@firsttaste/<directory>`, which is true of `packages/contracts` and `tools/*`
+ * and false of every service and app — they publish `@firsttaste/service-orders`
+ * and `@firsttaste/app-pos`. So a service importing another service by package
+ * name resolved to null and was skipped, and `checkEdge` never saw the one edge
+ * it exists to reject. The parameter is mandatory so that a caller cannot
+ * reintroduce the guess by omitting it.
  */
 export function resolveWorkspace(
   fromFile: string,
   specifier: string,
   workspaces: readonly string[],
+  packageNames: ReadonlyMap<string, string>,
 ): string | null {
   if (specifier.startsWith('node:') || !specifier.startsWith('.')) {
-    // A workspace package referenced by name, e.g. "@firsttaste/contracts".
-    const byName = workspaces.find((w) => specifier === `@firsttaste/${w.split('/')[1]}`);
-    return byName ?? null;
+    // A workspace package referenced by name, e.g. "@firsttaste/service-orders".
+    // Longest-prefix match so a deep import ("@firsttaste/contracts/src/x.ts")
+    // still resolves, while an unknown name is never guessed at.
+    const exact = packageNames.get(specifier);
+    if (exact !== undefined) return exact;
+    for (const [name, workspace] of packageNames) {
+      if (specifier.startsWith(`${name}/`)) return workspace;
+    }
+    return null;
   }
   const dir = fromFile.split('/').slice(0, -1).join('/');
   const segments = `${dir}/${specifier}`.split('/');
