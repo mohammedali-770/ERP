@@ -43,7 +43,7 @@ unenforced, and all of it is needed before an application can land safely.
 |---|---|
 | 1 | **Correct the record** — supersede ADR-0020, re-scope B-10/B-11, rewrite this plan *(this PR)* |
 | 2 | **Fix `tools/boundary-check`'s resolver.** It matches `@firsttaste/<directory>` while workspaces publish prefixed names, so a cross-workspace import written as a package name resolves to null and is silently skipped. Every containment claim resting on it is currently false |
-| 3 | **`tools/dep-policy`** — make the two-dependency and no-build-step rules mechanical. Stated in `CLAUDE.md`, `README.md` and ADR-0001; enforced nowhere, absent from the enforced table, invisible to `boundary-check`, read by no test. Must assert **lockfile shape**, because npm workspaces hoist into one lockfile and nesting does not isolate a supply chain |
+| 3 | **`tools/dep-policy`** — make the two-dependency and no-build-step rules mechanical. Stated in `CLAUDE.md:168-171` and `README.md:77-79` — **not** ADR-0001, which states only the no-emit half and as a consequence of rejecting project references, not as a rule. Enforced nowhere, absent from the enforced table, invisible to `boundary-check`, read by no test. Must assert **lockfile shape**, because npm workspaces hoist into one lockfile and nesting does not isolate a supply chain |
 | 4 | **Widen `tsconfig.json` include and the test glob together**, so tests under `apps/*/test` and `services/*/test` are both run *and* typechecked — today the globs disagree |
 | 5 | **`apps/console`** as a real Vite + React workspace, empty shell, under ADR-0021 §4 |
 
