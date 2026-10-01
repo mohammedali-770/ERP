@@ -18,6 +18,31 @@ rather than the migration, and that one finding here is more urgent than either.
 
 ---
 
+> ## Superseded on 2026-10-01, on a premise this evaluation got wrong
+>
+> This document assumed the warehouse system was in production use. **It is not.**
+> Checked read-only against its live database the same day: `private.demo_users`
+> holds **7** rows against **8** profiles, so seven of eight accounts are demo
+> accounts, with **18 items, 5 branches, 6 suppliers** and five distinct actors — all
+> of them demo. That is a test fixture.
+>
+> Every argument below that turns on protecting a running business is therefore void,
+> and **the recommendation in §4 is withdrawn.** The strategy that scored highest did
+> so largely because it left the live system untouched; the strategy that won on
+> compliance and on data-and-security lost only on delivery costs — parity before
+> cutover, two systems in parallel, a specification freeze — that exist solely because
+> of production. Remove production and that strategy is simply the right one.
+>
+> **The decision is now: one project, built here, on the ERP's foundation, with the
+> warehouse system as the specification and its UI carried over.** See
+> [ADR-0021](../adr/ADR-0021-one-project.md), which supersedes ADR-0020, and
+> [`consolidation-plan.md`](./consolidation-plan.md), which has been rewritten.
+>
+> **What survives unchanged**, because it is fact rather than inference: §1's account
+> of what the two systems are, §2's finding that the two security models cannot share
+> one database, §3's scoring and the 23 adversarial findings, the B-04 answer, and the
+> corrected estate record. The mechanics did not change. Only the premise did.
+
 ## 0. Read this part first
 
 While establishing the facts, the evaluation found a live exposure on the warehouse

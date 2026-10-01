@@ -615,9 +615,26 @@ customers rather than by the programme.
 
 ---
 
-## B-10 — The warehouse system's authorisation surface, and a published demo password · **URGENT**
+## B-10 — The warehouse system's authorisation surface, and a published demo password
 
-**Blocks:** consolidation of any kind; and it is an open incident regardless of consolidation
+> **Re-scoped down the same day it was opened.** This entry was written `**URGENT**`
+> and described as an open incident, on the assumption that the warehouse system was
+> in production. It is not. Checked read-only on 2026-10-01: **seven of its eight
+> accounts are demo accounts**, against 18 items, 5 branches and 6 suppliers, with all
+> five actors in `stock_movements` demo users. There is no business data behind the
+> exposure.
+>
+> **What that changes:** the severity, not the facts. Every finding below is still
+> true and still verified. What it is *not* is an emergency — it is a test project
+> that should be tidied up, and under [ADR-0021](../adr/ADR-0021-one-project.md) it is
+> decommissioned entirely at the end of the consolidation.
+>
+> **What to still do, and it is cheap:** confirm whether public sign-up is open and
+> close it; enable leaked-password protection; set the demo profiles `is_active =
+> false`. The deletion warning below no longer protects anything of value, but the
+> advice stands on its own merits until the project is deleted outright.
+
+**Blocks:** nothing. Housekeeping on a system scheduled for decommission
 **Unblocked by:** IT and the owner, on the live `warehouse-factory-system` project
 **Related:** ADR-0020, B-06 (same class), [`../estate/inventory.md`](../estate/inventory.md)
 
@@ -674,8 +691,20 @@ payments.
 
 ## B-11 — Attribution is destroyed by design in the warehouse system
 
-**Blocks:** treating the warehouse system's records as an audit trail; F3 data migration provenance
-**Unblocked by:** a schema change in the warehouse system, owner-approved
+> **Re-scoped 2026-10-01.** Opened on the assumption that this system's history would
+> become the ERP's opening balance. Under [ADR-0021](../adr/ADR-0021-one-project.md)
+> it will not: there is no real history — 18 items and seven demo users — and the data
+> is discarded rather than migrated. **So this blocks nothing.**
+>
+> It is kept, rather than deleted, because it is a **design lesson the rebuilt schema
+> must not repeat**: an actor reference that nulls on delete, a delete that removes
+> the actor, and no actor column on line-level tables. The ERP's `I-8` exists for the
+> same reason — a record that cannot be checked against its ledger is the failure the
+> invariant forbids. Phase 4 of the plan inherits this as a constraint on every table
+> it writes, not as a migration risk.
+
+**Blocks:** nothing. Retained as a design constraint on the rebuilt schema
+**Unblocked by:** writing the new schema so it cannot happen again
 **Related:** B-10, ADR-0020, [`../compliance/pdpl-assessment.md`](../compliance/pdpl-assessment.md)
 
 **Found 2026-10-01, read-only.** Deleting a user erases who did what, rather than

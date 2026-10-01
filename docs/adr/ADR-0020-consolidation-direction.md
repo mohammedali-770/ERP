@@ -1,7 +1,10 @@
 # ADR-0020 — The warehouse system and the ERP stay in two databases
 
-- **Status:** Proposed — the direction decision is **D-5** and belongs to the owner,
-  with executive management where it moves the roadmap
+- **Status:** **Superseded by [ADR-0021](./ADR-0021-one-project.md) on 2026-10-01**,
+  the day it was written. Its premise — that the warehouse system is in production —
+  is false: seven of its eight accounts are demo accounts and it holds 18 items. The
+  decision below was sound reasoning from a wrong fact. **Its findings about the two
+  security models stand and are carried forward; its conclusion does not.**
 - **Date:** 2026-10-01
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011
 - **Deciders:** Product Owner, with executive management on the resequencing
