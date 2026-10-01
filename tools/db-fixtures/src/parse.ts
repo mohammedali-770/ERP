@@ -65,3 +65,25 @@ export function parseFixtures(sql: string): Fixture[] {
 export function expected(f: Fixture): string {
   return f.want ?? 'NONE';
 }
+
+/**
+ * Rewrites a fixture for plpgsql, where `select` is not a statement.
+ *
+ * A fixture is valid pgTAP SQL, and pgTAP runs it as plain SQL. This tool runs it
+ * inside a DO block to catch the SQLSTATE, and plpgsql rejects a query with no
+ * destination — `perform` is the spelling that discards a result. Without this, a
+ * fixture calling a void function reported 42601 when the function SUCCEEDED and
+ * the function's own error when it failed, so a lives_ok looked broken and a
+ * throws_ok looked fine. Found while adding the capability registry's suite, whose
+ * fixtures are function calls rather than the INSERTs every earlier suite used.
+ *
+ * Splits on `;` to reach every segment. A semicolon inside a string literal would
+ * split wrongly; no fixture has one, and a fixture that needs one should say so
+ * here rather than be guessed at.
+ */
+export function forPlpgsql(statement: string): string {
+  return statement
+    .split(';')
+    .map((segment) => segment.replace(/^(\s*)select\b/i, '$1perform'))
+    .join(';');
+}

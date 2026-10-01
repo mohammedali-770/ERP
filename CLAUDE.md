@@ -121,7 +121,7 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
-| **Every projection row names the event that produced it** | `db:check` + pgTAP |
+| **Every projection row names the record that produced it** | `db:check` + pgTAP — the stamp column is **discovered**, not listed, so a new projection cannot be added uncovered |
 | **A migration never leaves a pgTAP fixture uncompilable** | `db:fixtures` |
 | The seed is synthetic, and two builds are identical | `db:check` |
 | No credential-shaped string is committed | `secret:scan` |

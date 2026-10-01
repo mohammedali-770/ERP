@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFixtures, expected } from '../src/parse.ts';
+import { parseFixtures, expected, forPlpgsql } from '../src/parse.ts';
 
 const THROWS = `
 select throws_ok(
@@ -85,4 +85,31 @@ test('CONTROL: a fixture missing its stamp is visibly different from one that ha
   assert.notEqual(without[0]!.statement, with_[0]!.statement);
   assert.match(with_[0]!.statement, /as_of_event_id/);
   assert.doesNotMatch(without[0]!.statement, /as_of_event_id/);
+});
+
+/**
+ * plpgsql has no bare `select`, so a fixture that calls a void function has to be
+ * rewritten before it can run inside the DO block this tool uses to catch a
+ * SQLSTATE. Before this, such a fixture reported 42601 ("query has no destination")
+ * when the function SUCCEEDED, and the function's own error when it failed — so a
+ * lives_ok looked broken and a throws_ok looked correct for the wrong reason.
+ */
+test('a select fixture becomes perform, because plpgsql has no bare select', () => {
+  assert.equal(forPlpgsql(" select erp.f('x')"), " perform erp.f('x')");
+  assert.equal(forPlpgsql('SELECT 1'), 'perform 1');
+});
+
+test('every statement of a multi-statement fixture is reached', () => {
+  assert.equal(
+    forPlpgsql('set local role erp_app; select erp.f()'),
+    'set local role erp_app; perform erp.f()',
+  );
+});
+
+test('a statement that is not a select is left alone', () => {
+  const insert = "insert into erp.t (a) values ('x')";
+  assert.equal(forPlpgsql(insert), insert);
+  assert.equal(forPlpgsql('update erp.t set a = 1'), 'update erp.t set a = 1');
+  // `selection` must not be mangled into `performion` — the word boundary matters.
+  assert.equal(forPlpgsql('selections()'), 'selections()');
 });

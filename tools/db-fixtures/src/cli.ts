@@ -20,7 +20,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { findPostgresBin, startCluster, type Cluster } from '../../db-check/src/cluster.ts';
-import { parseFixtures, expected, type Fixture } from './parse.ts';
+import { parseFixtures, expected, type Fixture, forPlpgsql } from './parse.ts';
 
 const MIGRATIONS = 'supabase/migrations';
 const SEEDS = 'supabase/seeds';
@@ -45,7 +45,7 @@ function seedOrder(): string[] {
 function outcome(c: Cluster, statement: string): string {
   c.sql('truncate db_fixture_outcome');
   c.sql(`do $fixture$ begin
-           ${statement};
+           ${forPlpgsql(statement)};
            insert into db_fixture_outcome values ('NONE');
          exception when others then
            insert into db_fixture_outcome values (sqlstate);

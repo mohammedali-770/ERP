@@ -74,6 +74,25 @@ The owner's original request, and the mechanism the rest of the plan runs on.
 - `erp.capability` and `erp.capability_state` in `erp`, event-sourced,
   projection-stamped per I-8, following `20260920000400_event_log.sql`'s
   grant-**and**-trigger shape so the protection binds the owner too.
+
+> **Built 2026-10-01, and the first precondition was resolved differently from the
+> way this plan proposed.** The plan said to fix `erp.event_log.device_id` being
+> `not null`. Reading the event log showed that is not a defect to fix: `device_id`,
+> `device_seq`, `prev_hash`, `branch_id` and `business_date` are all `not null`,
+> `device_seq` is gapless per device, `prev_hash` is a **per-device hash chain**, and
+> `actor_type` admits only `('cashier','system','integration')`. That table is the
+> **branch runtime's** log by construction, and its twenty fields are a contract with
+> `packages/contracts/src/events/envelope.ts`. A central administrative decision has
+> no device, no place in any device's chain, no branch and no fitting actor type;
+> putting one there needs a sentinel device and a fabricated hash link, which is a
+> fiction inside the system of record.
+>
+> So central decisions got **their own append-only log**, `erp.capability_decision`,
+> with the same double protection, and **`erp.event_log` is untouched** — no
+> owner-approved migration to the system of record was needed after all. Because the
+> decision log is not partitioned, the projection's stamp is a **real foreign key**,
+> which `20260921000100` explains the event-log projections cannot have. That is
+> strictly stronger than the convention it replaces.
 - States `hidden | pilot | enabled | read_only | withdrawn`, **default-deny**: a
   capability with no recorded state is `hidden`, so exposure is always a recorded
   decision.
