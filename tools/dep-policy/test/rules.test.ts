@@ -262,6 +262,31 @@ test('a workspace covered by neither is a finding', () => {
   assert.match(findings[0]!.message, /apps\/console is in no tsconfig include/);
 });
 
+/**
+ * The coarse version of this rule did not fire for the case it was written for.
+ * `apps/console`'s .ts files ARE covered by the root include `apps/*\/src/**\/*.ts`,
+ * so the workspace looked covered while its .tsx files were seen by no tsc at all —
+ * TypeScript matches an explicit `.ts` glob literally. Found by running the control
+ * and watching nothing happen.
+ */
+test('a workspace with JSX and no project of its own is a finding, even when the root covers its .ts', () => {
+  const findings = ruleEveryWorkspaceIsTypechecked(
+    ['apps/console'], ['apps/*/src/**/*.ts'], 'tsc --noEmit', ['apps/console'],
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /contains JSX/);
+  assert.match(findings[0]!.remedy, /tsc --noEmit -p apps\/console/);
+});
+
+test('a workspace with JSX and its own project passes', () => {
+  assert.deepEqual(
+    ruleEveryWorkspaceIsTypechecked(
+      ['apps/console'], ['apps/*/src/**/*.ts'], 'tsc --noEmit && tsc --noEmit -p apps/console', ['apps/console'],
+    ),
+    [],
+  );
+});
+
 // --- meta -------------------------------------------------------------------
 
 /**

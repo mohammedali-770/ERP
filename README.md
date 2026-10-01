@@ -74,9 +74,13 @@ npm run verify        # generated files + traceability + boundaries + typecheck 
 | `npm run spike:callback-engine` | Abandoned-call recovery rules |
 | `npm run spike:rating-statistics` | Rating sample size, ranking and attribution |
 
-No build step: Node 22 runs the TypeScript sources directly by stripping types.
-The only dependencies are TypeScript and Node type definitions — deliberately, so
-the tooling that defines the requirement baseline carries no supply-chain risk.
+No build step **outside `apps/*`**: Node 22 runs the TypeScript sources directly by
+stripping types. Outside `apps/*` the only dependencies are TypeScript and Node type
+definitions — deliberately, so the tooling that defines the requirement baseline
+carries no supply-chain risk. `apps/*` is exempt under
+[ADR-0021](docs/adr/ADR-0021-one-project.md) §4 because a browser application cannot
+honour either rule, and `npm run dep:policy` is what keeps the exemption from
+spreading.
 
 ## Layout
 
@@ -92,9 +96,13 @@ tools/         prd-extract, req-lint, boundary-check
 supabase/      migrations, synthetic seed, pgTAP tests — the database's source of truth
 ```
 
-Service and application workspaces are **reserved boundaries**, not
-implementations. The boundary exists now so that when F1 code arrives it lands
-inside a shape the architecture gate approved.
+Service workspaces are **reserved boundaries**, not implementations. The boundary
+exists now so that when F1 code arrives it lands inside a shape the architecture
+gate approved.
+
+`apps/console` is no longer a boundary — it is a Vite + React workspace as of
+2026-10-01, and the shell the consolidated system is built in
+([ADR-0021](docs/adr/ADR-0021-one-project.md)). `apps/pos` is still reserved.
 
 ## Requirement baseline
 

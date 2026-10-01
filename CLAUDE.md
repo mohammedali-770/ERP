@@ -163,14 +163,26 @@ architecture gate (PRG-010, PRG-011) has not been passed.
 - `supabase/` — **the source of truth for the database.** Migrations, synthetic
   seed and pgTAP suites. No hosted project exists; development is local (Docker),
   and the hosted one is created ~6–8 weeks before launch (ADR-0018).
-- `services/`, `apps/` — reserved boundaries, not implementations.
+- `services/` — reserved boundaries, not implementations.
+- `apps/console` — a **real** Vite + React workspace since 2026-10-01, and the shell
+  the consolidation's modules land in (ADR-0021). `apps/pos` is still a reserved
+  boundary. **`apps/*` is the one place a build step and third-party dependencies
+  are permitted** (ADR-0021 §4); `dep:policy` enforces that everywhere else.
 
 ### Conventions
 
-- Node 22 runs TypeScript directly by stripping types. **There is no build step.**
-- Only two dependencies, deliberately: TypeScript and Node types. Think hard
-  before adding a third — the tooling that defines the requirement baseline should
-  carry no supply-chain risk.
+- Node 22 runs TypeScript directly by stripping types. **There is no build step
+  outside `apps/*`**, which ADR-0021 §4 exempts because a browser application cannot
+  honour the rule and does not threaten what it protects.
+- Only two dependencies outside `apps/*`, deliberately: TypeScript and Node types.
+  Think hard before adding a third — the tooling that defines the requirement
+  baseline should carry no supply-chain risk. **`dep:policy` enforces both**, by
+  provenance rather than by counting: a package no `apps/*` manifest can account for
+  is a finding.
+- **Node cannot load `.tsx` at all** — `Unknown file extension ".tsx"` under both
+  `--experimental-strip-types` and `--experimental-transform-types`, verified on
+  v22.22.2. So `npm test` can only exercise plain TypeScript. Keep logic that needs a
+  test in a `.ts` file; a runner that transforms JSX belongs inside `apps/*`.
 - English prose; the requirement data carries Arabic and English (PRG-014).
 - Generated files say so in their first lines. Do not hand-edit them.
 
