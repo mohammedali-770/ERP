@@ -12,6 +12,12 @@
 -- BEFORE UPDATE OR DELETE trigger rejects this statement — as it rejected the
 -- first version of this file. Its ingested_at is set explicitly at insert
 -- instead, which is the only way to put a value there and is the point.
+--
+-- erp.capability_decision is excluded for exactly the same reason (0010). It was
+-- already excluded by accident — its timestamps are named decided_at and
+-- recorded_at, neither of which is in the column list below — and an accident is
+-- not a reason. Naming it means a later migration cannot add a `created_at` to an
+-- append-only table and discover this the hard way.
 
 do $$
 declare
@@ -33,7 +39,7 @@ begin
       and a.attnum > 0
       and not a.attisdropped
       and ty.typname = 'timestamptz'
-      and c.relname <> 'event_log'
+      and c.relname not in ('event_log', 'capability_decision')
       and a.attname in ('created_at', 'enrolled_at', 'ingested_at', 'applied_at', 'updated_at')
   loop
     execute format('update erp.%I set %I = $1 where %I is not null', t.relname, t.attname, t.attname)

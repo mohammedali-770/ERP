@@ -154,20 +154,50 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'projection-stamp-is-mandatory',
-    title: 'as_of_event_id is NOT NULL on every projection table',
+    title: 'every projection stamp column is NOT NULL',
     because:
-      'Invariant I-8 — a materialised row carries the event it was computed through, ' +
+      'Invariant I-8 — a materialised row carries the record it was computed through, ' +
       'so it can always be checked. A nullable stamp permits a row that cannot be ' +
-      'checked against the log at all, which is the failure the column exists to ' +
-      'prevent. Migration 0006 left all four nullable; 0009 fixed it.',
+      'checked against its log at all, which is the failure the column exists to ' +
+      'prevent. Migration 0006 left all four nullable; 0009 fixed it. ' +
+      'The table list USED to be four names written out here, which meant a fifth ' +
+      'projection passed this assertion while proving nothing about itself. It now ' +
+      'discovers the columns by name, so a projection cannot be added without being ' +
+      'covered — 0010 was the fifth and is how the gap was noticed.',
     sql: `select c.relname || '.' || a.attname as violation
           from pg_attribute a
           join pg_class c on c.oid = a.attrelid
           join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'erp'
-            and c.relname in ('orders','payment_intents','shifts','drawer_assignments')
-            and a.attname = 'as_of_event_id'
+            and c.relkind in ('r', 'p')
+            and a.attnum > 0
+            and not a.attisdropped
+            and a.attname like 'as\\_of\\_%\\_id'
             and not a.attnotnull`,
+  },
+  {
+    id: 'projection-stamp-is-a-foreign-key-where-it-can-be',
+    title: 'erp.capability_state.as_of_decision_id is a real foreign key',
+    because:
+      'The four event-log projections cannot have one: erp.event_log is partitioned ' +
+      'on business_date, so its primary key is composite and a single-column ' +
+      'reference is unavailable (0009 says so in full). erp.capability_decision is ' +
+      'NOT partitioned, so 0010 enforces its stamp by structure instead of by a ' +
+      'tool. That is strictly stronger than an assertion, and dropping it would ' +
+      'silently downgrade the guarantee to the weaker one — so losing it is a ' +
+      'failure in its own right.',
+    sql: `select 'capability_state.as_of_decision_id has no foreign key' as violation
+          where not exists (
+            select 1
+            from pg_constraint k
+            join pg_class c on c.oid = k.conrelid
+            join pg_namespace n on n.oid = c.relnamespace
+            join pg_class f on f.oid = k.confrelid
+            where n.nspname = 'erp'
+              and c.relname = 'capability_state'
+              and f.relname = 'capability_decision'
+              and k.contype = 'f'
+          )`,
   },
 ];
 
