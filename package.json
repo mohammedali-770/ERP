@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
+    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"services/*/test/*.test.ts\" \"apps/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
     "prd:extract": "node --experimental-strip-types tools/prd-extract/src/cli.ts",
     "req:lint": "node --experimental-strip-types tools/req-lint/src/cli.ts",
     "req:index": "node --experimental-strip-types tools/req-lint/src/index-gen.ts",
