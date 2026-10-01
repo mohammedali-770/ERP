@@ -4,7 +4,7 @@ import {
   ruleNoEmittedArtifactCommitted, ruleDeclaredDependencies, ruleLockfileMatchesManifests,
   ruleToolingClosureIsPinned, ruleNoBuildStepOutsideApps, ruleEveryWorkspaceIsTypechecked,
   TOOLING_CLOSURE,
-  type Manifest, type Lockfile, type Finding,
+  type Manifest, type Lockfile, type LockEntry, type Finding,
 } from '../src/rules.ts';
 
 const ROOT: Manifest = {
@@ -18,7 +18,9 @@ const APP: Manifest = { workspace: 'apps/console', name: '@firsttaste/app-consol
 const TSCONFIG = { compilerOptions: { noEmit: true } };
 
 function lock(packages: Record<string, unknown>): Lockfile {
-  return { lockfileVersion: 3, packages: packages as Lockfile['packages'] };
+  // Cast to the non-optional shape: `Lockfile['packages']` includes `undefined`,
+  // which exactOptionalPropertyTypes refuses to assign to an optional property.
+  return { lockfileVersion: 3, packages: packages as Readonly<Record<string, LockEntry>> };
 }
 
 // --- no-emitted-artifact-committed ------------------------------------------
