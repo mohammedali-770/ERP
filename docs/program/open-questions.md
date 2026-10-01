@@ -404,6 +404,42 @@ Related: ADR-0016, `R-10`, B-07.
 
 ---
 
+## Q-20 — Is a free-tier project in Frankfurt the right home for the financial record?
+
+**Decides:** Executive management, on a legal determination · **Expensive after:**
+the warehouse data becomes the ERP's opening balance
+
+Established read-only on 2026-10-01: the warehouse system's live database is
+`warehouse-factory-system`, ref `dyhkydedckizhxckryvq`, region **`eu-central-1`**
+(Frankfurt), Postgres 17, created 2026-09-27, on the **free plan**.
+
+It already holds the business's stock, moving-average costs, supplier invoices,
+supplier payments and month-end closes. ADR-0020 proposes it keeps holding them for
+as long as the seam exists. So three facts now apply to the authoritative financial
+record of a Saudi business:
+
+1. **It is in Germany.** B-05 and the counsel brief establish that `eu-central-1` is
+   the only realistic region and that no live Saudi AWS region is available — but that
+   analysis was about *where to put* the ERP. This is about data that is already there.
+2. **The free plan has no point-in-time recovery.** B-10's remediation and B-11's
+   cascade behaviour both turn on this: there is no undo. A deletion that destroys
+   attribution is permanent.
+3. **PDPL applies to it now**, not after a migration. `pdpl-assessment.md` was written
+   about systems this programme would build.
+
+The question is not which region to choose. It is **whether the record stays on a free
+plan with no recovery while it is the authoritative one**, and if not, who pays for
+what and when. ADR-0018 defers the ERP's own hosted project to roughly April–May 2027;
+nothing defers this, because this project already exists and is already in use.
+
+Recorded rather than guessed: the tier decision has a price and a residency
+determination attached, and neither is an engineering call. It is **D-6** in the
+decision pack.
+
+Related: B-05, B-10, B-11, ADR-0018, ADR-0020, `../compliance/pdpl-assessment.md`.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

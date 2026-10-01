@@ -119,7 +119,7 @@ Seventeen repositories exist under the account. Those with ERP relevance:
 | Repository | Visibility | Last push | Classification |
 |---|---|---|---|
 | **`SMA`** | public | 2026-09-16 | **Canonical.** Customer app + ops console + entire backend definition |
-| `ExsistingWarehouseFactorySystem` | private | 2026-09-14 | **Migration source** for F3 |
+| `ExsistingWarehouseFactorySystem` | private | **2026-10-01** | **Migration source** for F3 — and now a live, deployed system; see B-10, B-11, ADR-0020 |
 | `SpicyMealFactoryWarehouse` | public | 2026-07-05 | Predecessor of the above; assess before relying on it |
 | `DeliveryApp` | public | 2026-09-09 | Superseded by the one employee app (ADR-0014) |
 | `Spicymeal` | public | 2026-08-10 | WhatsApp inbox web client. Adjacent |
@@ -155,12 +155,39 @@ deployments, payment work, push broadcasts and any live write.
 
 ### `ExsistingWarehouseFactorySystem`
 
-*Verified.* 59 migrations (2025-10 → 2026-05) creating **28 tables** — counted
-2026-09-22, not approximated. React + Vite frontend **generated in bolt.new**
+> **Re-verified 2026-10-01 and substantially changed.** The description below was
+> accurate on 2026-09-22 and is now out of date in almost every number. This system
+> is under active, rapid development: **98 commits across 41 pull requests between
+> 2026-09-14 and 2026-10-01**, built largely by agent sessions on `claude/*` branches.
+> See [`../program/consolidation-evaluation.md`](../program/consolidation-evaluation.md)
+> for the current picture and [ADR-0020](../adr/ADR-0020-consolidation-direction.md)
+> for what it means.
+>
+> | | 2026-09-22 | 2026-10-01 |
+> |---|---|---|
+> | Migrations | 59 | **99** |
+> | Tables | 28, all `public` | **54 in `public` + 7 in `private`** |
+> | Application | ~46 files | **~74 files, ~26,900 lines, 39 page components** |
+> | CI | none | **on every pull request** since 2026-09-29 |
+> | Deployment | no config | **Vercel** (`vercel.json`) since 2026-09-30 |
+> | Hosted database | unidentified (B-04) | **`warehouse-factory-system`, ref `dyhkydedckizhxckryvq`, `eu-central-1`, free plan**, created 2026-09-27 |
+> | Tests | none | **still none** — there is no `test` script |
+>
+> Two documents inside that repository are **actively misleading in opposite
+> directions**: its `INVENTORY_SYSTEM_PROGRESS.md` lists almost every screen as
+> pending, its `SETUP_GUIDE.md` says everything is complete. Its `docs/SYSTEM.md` is
+> the current one and says so itself. Plan from `SYSTEM.md` only.
+>
+> **Two blockers were opened against it on 2026-10-01:** [B-10](../program/blocked.md)
+> — 50 `SECURITY DEFINER` functions callable by any signed-in session,
+> leaked-password protection disabled, and a documented demo admin password — and
+> [B-11](../program/blocked.md), attribution destroyed on user deletion.
+
+*Verified 2026-09-22.* 59 migrations (2025-10 → 2026-05) creating **28 tables** —
+counted then, not approximated. React + Vite frontend **generated in bolt.new**
 (`package.json` still carries the template's name, `vite-react-typescript-starter`),
-with no tests, no CI and no Supabase CLI tooling. The README is three lines, one
-of which is an *Open in Bolt* badge for project **`sb1-vseddlse`** — which is
-where its environment file lives, and therefore the cheapest route to B-04.
+with no tests, no CI and no Supabase CLI tooling. The README was three lines, one
+of which is an *Open in Bolt* badge for project **`sb1-vseddlse`**.
 
 The **domain model is the valuable part** and is effectively F3's requirements
 specification, validated against real operations:
@@ -173,12 +200,13 @@ specification, validated against real operations:
 - Six roles driving six dashboards with an approval chain (PRC-002, PRC-003)
 - Auto-numbered purchase orders and batches, low-stock alerting (INV-013)
 
-**Unresolved:** its Supabase connection lives in an untracked environment file, so
-the live database has not been identified. **Scoping is no longer waiting on
-that** — the 59 migrations carry the full schema, so F3 scoping can start; only
-sizing, data quality and drift need the database itself. This entry said scoping
-was blocked until 2026-09-22, a day after [B-04](../program/blocked.md) was
-narrowed to say otherwise.
+**Resolved 2026-10-01.** The live database is `warehouse-factory-system`, ref
+`dyhkydedckizhxckryvq`, `eu-central-1`, Postgres 17, **free plan** — named in that
+repository's own `CLAUDE.md:7`, `.env.example:3` and `docs/SYSTEM.md:95-96`, and
+confirmed against the live account read-only. B-04 is answered. What replaces it is
+not identity but **residency and durability**: a payroll-adjacent financial record on
+a free-tier project with no point-in-time recovery, which is
+[Q-20](../program/open-questions.md) and interlocks with B-05.
 
 > **Worth noting against its predecessor.** `SpicyMealFactoryWarehouse` is the
 > better-engineered repository of the two — 49 migrations, vitest, prettier, full

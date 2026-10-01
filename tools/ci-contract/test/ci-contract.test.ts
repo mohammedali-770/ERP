@@ -100,3 +100,45 @@ test('without pull_request there is no duplication to report', () => {
   // A push-only workflow runs each job once, whatever its branch filter says.
   assert.deepEqual(duplicatedRunBranches("name: CI\non:\n  push:\n    branches: ['**']\n\npermissions:\n"), []);
 });
+
+/**
+ * The npm test glob and tsconfig's include list must cover the same workspace
+ * roots, or a test can be run without being typechecked — or typechecked without
+ * being run.
+ *
+ * Both halves had actually happened. Until 2026-10-01 the test glob covered
+ * packages, tools and spikes while tsconfig's include covered packages, tools and
+ * spikes for TESTS but services and apps only for SRC. So a test under a service's
+ * own test directory was neither executed nor typechecked, and CLAUDE.md's "tests
+ * that would fail without your change" was satisfiable there by a file nothing
+ * ran. ADR-0021 brings services and an application into this repository, which is
+ * when that stops being theoretical.
+ */
+function testRootsFromNpmScript(): string[] {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> };
+  return [...pkg.scripts.test!.matchAll(/"([a-z-]+)\/\*\/test\/[^"]*"/g)].map((m) => m[1]!).sort();
+}
+
+function testRootsFromTsconfig(): string[] {
+  // Comments are legal in tsconfig.json and this one has them.
+  const raw = readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '');
+  const tsconfig = JSON.parse(raw) as { include: string[] };
+  return tsconfig.include
+    .map((pattern) => /^([a-z-]+)\/\*\/test\//.exec(pattern)?.[1])
+    .filter((root): root is string => root !== undefined)
+    .sort();
+}
+
+test('the test glob and tsconfig cover the same workspace roots', () => {
+  assert.deepEqual(
+    testRootsFromNpmScript(),
+    testRootsFromTsconfig(),
+    'a root in one list and not the other means tests that are run but not typechecked, or the reverse',
+  );
+});
+
+test('every workspace root that can hold tests is covered', () => {
+  // spikes deliberately included: they carry control cases that must compile.
+  const expected = ['apps', 'packages', 'services', 'spikes', 'tools'];
+  assert.deepEqual(testRootsFromNpmScript(), expected);
+});

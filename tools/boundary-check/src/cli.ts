@@ -24,6 +24,33 @@ function discoverWorkspaces(): string[] {
   return out.sort();
 }
 
+/**
+ * Maps each workspace's PUBLISHED package name to its path, read from its own
+ * package.json rather than derived from its directory.
+ *
+ * Deriving it is what broke this checker: services publish `@firsttaste/service-*`
+ * and apps `@firsttaste/app-*`, so `@firsttaste/<directory>` matched only
+ * packages/contracts and tools/*, and every service-to-service import written by
+ * package name was invisible. A workspace with no package.json, or no name, is
+ * simply absent from the map — it is then reachable only by relative path, which
+ * resolves on its own.
+ */
+function packageNames(workspaces: readonly string[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const workspace of workspaces) {
+    const manifest = join(workspace, 'package.json');
+    if (!existsSync(manifest)) continue;
+    try {
+      const { name } = JSON.parse(readFileSync(manifest, 'utf8')) as { name?: unknown };
+      if (typeof name === 'string' && name.length > 0) names.set(name, workspace);
+    } catch {
+      // A malformed manifest is npm's problem to report, not this checker's.
+      continue;
+    }
+  }
+  return names;
+}
+
 function* sourceFiles(dir: string): Generator<string> {
   if (!existsSync(dir)) return;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -39,6 +66,7 @@ function* sourceFiles(dir: string): Generator<string> {
 
 function main(): void {
   const workspaces = discoverWorkspaces();
+  const names = packageNames(workspaces);
   const violations: Violation[] = [];
   let filesChecked = 0;
 
@@ -48,7 +76,7 @@ function main(): void {
       filesChecked++;
       const source = readFileSync(file, 'utf8');
       for (const specifier of extractImports(source)) {
-        const target = resolveWorkspace(file, specifier, workspaces);
+        const target = resolveWorkspace(file, specifier, workspaces, names);
         if (!target) continue;
         const v = checkEdge(from, classify(target), file);
         if (v) violations.push(v);

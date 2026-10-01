@@ -57,6 +57,12 @@ jobs:
       - name: Dependency rule
         run: npm run boundary:check
 
+      # The same argument, for the boundary between this repository and npm.
+      # A step rather than a job: ci-contract cannot catch a job that is neither
+      # required nor documented, so a new job would not block a merge.
+      - name: Dependency and build-step policy
+        run: npm run dep:policy
+
   build:
     name: Typecheck and tests
     runs-on: ubuntu-latest
