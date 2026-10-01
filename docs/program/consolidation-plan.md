@@ -47,6 +47,24 @@ unenforced, and all of it is needed before an application can land safely.
 | 4 | **Widen `tsconfig.json` include and the test glob together**, so tests under `apps/*/test` and `services/*/test` are both run *and* typechecked — today the globs disagree |
 | 5 | **`apps/console`** as a real Vite + React workspace, empty shell, under ADR-0021 §4 |
 
+**Phase 1 is complete.** Two decisions and one constraint were settled while building it:
+
+- **React 18.3 and Vite 5**, matching the ~26,900 lines being carried from the
+  warehouse rather than the estate console's React 19. Nineteen's breaking changes
+  would mean touching every component before any of them has a test. **Upgrading is a
+  separate decision** and is not taken here.
+- **`apps/console` carries its own tsconfig**, because `tsconfig.base.json` has
+  `lib: ["ES2023"]` with no DOM and `moduleResolution: NodeNext`. `typecheck` is now
+  two `tsc` invocations, and `dep:policy` asserts a workspace holding JSX has a project
+  of its own — the root include's globs end in an explicit `.ts`, which TypeScript
+  matches literally, so they can never cover `.tsx`.
+- **Node cannot load `.tsx` at all.** `Unknown file extension ".tsx"` under both
+  `--experimental-strip-types` and `--experimental-transform-types`, on v22.22.2. So
+  `npm test` cannot render a component, and **every carried module in Phase 4 needs its
+  testable logic in `.ts` files**, with a JSX-transforming runner inside `apps/console`
+  if components themselves are to be tested. This shapes Phase 4 more than anything
+  else settled here.
+
 ---
 
 ## Phase 2 — The capability registry

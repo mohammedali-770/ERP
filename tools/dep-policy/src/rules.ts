@@ -374,19 +374,38 @@ export function ruleEveryWorkspaceIsTypechecked(
   workspaceDirs: readonly string[],
   rootIncludes: readonly string[],
   typecheckScript: string,
+  /**
+   * Workspaces containing `.tsx` or `.jsx` sources. These need their OWN project:
+   * the root include's globs end in an explicit `.ts`, which TypeScript matches
+   * literally, so JSX is outside them however many `apps/*` patterns are listed.
+   * Passing them separately is what makes this assertion bite — without it the
+   * rule only noticed a whole workspace root being absent, which is a far rarer
+   * mistake than adding JSX to a workspace with no project of its own.
+   */
+  jsxWorkspaces: readonly string[] = [],
 ): Finding[] {
   const findings: Finding[] = [];
   const projects = [...typecheckScript.matchAll(/-p\s+(\S+)/g)].map((m) => m[1]!);
+  const hasProject = (dir: string): boolean => projects.some((p) => p === dir || p.startsWith(`${dir}/`));
 
   for (const dir of workspaceDirs) {
     const root = dir.split('/')[0]!;
     const coveredByRoot = rootIncludes.some((pattern) => pattern.startsWith(`${root}/`));
-    const coveredByProject = projects.some((p) => p === dir || p.startsWith(`${dir}/`));
-    if (!coveredByRoot && !coveredByProject) {
+    if (!coveredByRoot && !hasProject(dir)) {
       findings.push({
         rule: 'every-workspace-is-typechecked',
         message: `${dir} is in no tsconfig include and no -p project of the typecheck script`,
         remedy: 'add it to tsconfig.json\'s include, or give it its own tsconfig and a `tsc -p` in the typecheck script',
+      });
+    }
+  }
+
+  for (const dir of jsxWorkspaces) {
+    if (!hasProject(dir)) {
+      findings.push({
+        rule: 'every-workspace-is-typechecked',
+        message: `${dir} contains JSX, which the root tsconfig's explicit .ts globs cannot match, and has no -p project`,
+        remedy: `add \`tsc --noEmit -p ${dir}\` to the typecheck script; the root tsc does not see .tsx`,
       });
     }
   }

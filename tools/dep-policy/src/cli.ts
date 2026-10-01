@@ -32,6 +32,11 @@ function readJsonWithComments<T>(file: string): T {
  * the same reason. A directory with no manifest declares no dependency and has no
  * scripts, so there is nothing here for it to violate.
  */
+/** Workspaces holding a .tsx or .jsx source, which the root tsconfig cannot match. */
+function jsxWorkspaces(dirs: readonly string[], tracked: readonly string[]): string[] {
+  return dirs.filter((dir) => tracked.some((f) => f.startsWith(`${dir}/`) && /\.(?:tsx|jsx)$/.test(f)));
+}
+
 function discoverManifests(): { dirs: string[]; manifests: Manifest[] } {
   const dirs: string[] = [];
   const manifests: Manifest[] = [
@@ -72,7 +77,9 @@ const findings: Finding[] = [
   ...ruleLockfileMatchesManifests(lock, manifests, dirs),
   ...ruleToolingClosureIsPinned(lock, manifests),
   ...ruleNoBuildStepOutsideApps(manifests, tsconfig),
-  ...ruleEveryWorkspaceIsTypechecked(dirs, tsconfig.include ?? [], root.scripts?.typecheck ?? ''),
+  ...ruleEveryWorkspaceIsTypechecked(
+    dirs, tsconfig.include ?? [], root.scripts?.typecheck ?? '', jsxWorkspaces(dirs, tracked),
+  ),
 ];
 
 const registry = Object.keys(lock.packages ?? {}).filter(

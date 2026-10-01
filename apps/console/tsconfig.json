@@ -1,0 +1,27 @@
+{
+  // The console is the one workspace that targets a browser, so it overrides the
+  // base config in three ways the base cannot carry: the DOM libs, a bundler's
+  // module resolution, and JSX. ADR-0021 §4 is the authority for it existing.
+  //
+  // The root tsconfig still covers apps/*/src/**/*.ts — an explicit `.ts` glob,
+  // which TypeScript matches literally — so src/index.ts is checked by both and
+  // the .tsx files belong to this project alone. `npm run typecheck` runs both,
+  // and dep-policy's every-workspace-is-typechecked asserts nothing falls between.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    // Imports carry an explicit .ts/.tsx extension throughout this repository,
+    // which Node ESM requires of the test runner and Vite resolves happily.
+    "allowImportingTsExtensions": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "vite.config.ts"]
+}

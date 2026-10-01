@@ -141,3 +141,29 @@ test('an unknown @firsttaste name is not guessed at', () => {
     null,
   );
 });
+
+/**
+ * The walker's blind spot, closed on 2026-10-01.
+ *
+ * It matched `.ts` alone, so a React app written in `.tsx` was invisible to every
+ * assertion here. Verified before the fix by putting an app-to-app import in a
+ * `.tsx` file: `npm run boundary:check` reported no violations and did not count
+ * the file. ADR-0021 brings exactly that app into the repository, which is what
+ * turned a latent gap into a live one.
+ *
+ * `extractImports` is extension-agnostic, so this test pins the extension filter
+ * in cli.ts by exercising the same specifier shape a .tsx file would carry.
+ */
+test('an import in a tsx file resolves and is checked like any other', () => {
+  const src = "import { APP_NAME } from '@firsttaste/app-pos';\nexport const X = () => APP_NAME;\n";
+  const found = extractImports(src);
+  assert.deepEqual(found, ['@firsttaste/app-pos']);
+
+  const names = new Map([['@firsttaste/app-pos', 'apps/pos']]);
+  const target = resolveWorkspace('apps/console/src/App.tsx', found[0]!, ['apps/pos', 'apps/console'], names);
+  assert.equal(target, 'apps/pos');
+
+  const violation = checkEdge(classify('apps/console'), classify(target!), 'apps/console/src/App.tsx');
+  assert.ok(violation, 'app -> app must be rejected whatever the file extension');
+  assert.match(violation.reason, /apps must not import each other/);
+});

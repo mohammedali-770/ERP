@@ -51,6 +51,15 @@ function packageNames(workspaces: readonly string[]): Map<string, string> {
   return names;
 }
 
+/**
+ * Extensions that can carry an import. `.tsx` and `.jsx` are here because
+ * ADR-0021 brings a React console into apps/, and until 2026-10-01 this walker
+ * matched `.ts` alone — so an app written in `.tsx` sat outside every boundary
+ * assertion in the repository, silently. Verified before the fix: an app-to-app
+ * import in a `.tsx` file was reported as no violation at all.
+ */
+const SOURCE = /\.(?:ts|tsx|jsx)$/;
+
 function* sourceFiles(dir: string): Generator<string> {
   if (!existsSync(dir)) return;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -58,7 +67,7 @@ function* sourceFiles(dir: string): Generator<string> {
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === 'dist') continue;
       yield* sourceFiles(p);
-    } else if (entry.name.endsWith('.ts')) {
+    } else if (SOURCE.test(entry.name)) {
       yield p;
     }
   }
