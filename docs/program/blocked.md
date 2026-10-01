@@ -190,11 +190,33 @@ nowhere and the gate's meaning depends on it. Raised as
 
 ---
 
-## B-04 — Warehouse system database identity
+## B-04 — Warehouse system database identity · **ANSWERED 2026-10-01**
 
-**Blocks:** F3 migration scoping
-**Unblocked by:** Whoever holds the deployment environment for that system
-**Related:** ADR-0011, [`../estate/migration-map.md`](../estate/migration-map.md)
+**Blocks:** nothing further — the database is identified
+**Answered by:** reading the warehouse repository, read-only
+**Related:** ADR-0011, ADR-0020, [`../estate/migration-map.md`](../estate/migration-map.md)
+
+**The database is `warehouse-factory-system`, project ref `dyhkydedckizhxckryvq`,
+region `eu-central-1`, Postgres 17, status `ACTIVE_HEALTHY`.** It is in the
+organisation that already holds `spicy-meal-ordering`, and it is on the **free
+plan**, which means no point-in-time recovery.
+
+It is named in three places in the warehouse repository — its `CLAUDE.md:7`, its
+`.env.example:3` and `docs/SYSTEM.md:95-96` — and confirmed against the live
+account by a read-only project listing on 2026-10-01.
+
+**This entry was not wrong when it was written.** On 2026-09-21 it recorded that
+the organisation held exactly two projects and neither was this system. That was
+true: the project was **created 2026-09-27T05:13:48Z**, six days later. The
+blocker was overtaken by events rather than mistaken, and the reasoning below is
+left intact because the route it identified is the one that paid off — the answer
+came out of the repository, for free.
+
+**What remains is not identity but residency and durability**, which is
+[Q-20](./open-questions.md) and B-05: a payroll-adjacent financial record on a
+free-tier project in Frankfurt.
+
+The original entry follows, for the record.
 
 The existing warehouse and factory system reads its database connection from an
 untracked environment file, so its live database has not been identified.
@@ -374,9 +396,10 @@ known to be compromised means doing the work twice.
 **Unblocked by:** IT, with a vendor support ticket and a resolution
 **Related:** ADR-0016
 
-On **26 July 2026** the PBX's telephony service was interrupted three times. The
-watchdog restarted Asterisk at 05:01, 15:42 and 20:57, and three Asterisk core
-dumps were produced whose filenames carry signal 11.
+On **26 July 2026** the watchdog restarted Asterisk three times — at 05:01, 15:42
+and 20:57 — and three Asterisk core dumps were produced whose filenames carry signal
+11. **Two of the three are evidenced as user-visible outages**; `web_error.log`
+records every client dropping at 15:42 and 20:57 and nothing at 05:01.
 
 **Nothing in the diagnostic bundle records a vendor reply, a ticket or a
 resolution.** Whether anyone raised one outside the bundle is a pre-send check on
@@ -589,6 +612,97 @@ problem that does not need one.
 the counter rises with traffic — the most recent inbound message was 05:12:56 on
 2026-09-21. This is the only blocker on this list where the cost is being paid by
 customers rather than by the programme.
+
+---
+
+## B-10 — The warehouse system's authorisation surface, and a published demo password · **URGENT**
+
+**Blocks:** consolidation of any kind; and it is an open incident regardless of consolidation
+**Unblocked by:** IT and the owner, on the live `warehouse-factory-system` project
+**Related:** ADR-0020, B-06 (same class), [`../estate/inventory.md`](../estate/inventory.md)
+
+**Found 2026-10-01 while evaluating the consolidation. Verified against the live
+project by Supabase's own security advisors, observed 06:57Z that day, and against
+the warehouse repository read-only.**
+
+Three facts that compound:
+
+| | |
+|---|---|
+| **50 `SECURITY DEFINER` functions in `public`** are executable by the `authenticated` role over `/rest/v1/rpc/…` | Supabase advisor `authenticated_security_definer_function_executable`, count 50 |
+| **Leaked-password protection is disabled** | Supabase advisor `auth_leaked_password_protection` |
+| **A demo login's password is committed in the warehouse repository** | its `docs/SYSTEM.md:142-143` — named here by location only, never by value |
+
+Those 50 functions run with the owner's rights and include `admin_delete_user`,
+`admin_enable_user`, `close_month`, `reopen_month`, `set_stock_cost`,
+`set_item_unit_price`, `void_supplier_invoice`, `record_supplier_payment`,
+`import_master_data`, `import_opening_stock` and `accounting_journal`.
+
+**This is not a claim that anyone can call them successfully.** Each carries its
+own role check inside, read from `profiles.role` through
+`private.current_user_role()`, which is a sound design and better than trusting JWT
+metadata. The finding is narrower and still serious: **the entire authorisation
+model of a financial system is fifty internal checks, each individually reachable
+over HTTP by any signed-in session.** One function missing its check is a full
+compromise, and nothing outside the function bodies prevents that.
+
+What makes it urgent rather than architectural is the third row. The warehouse
+repository documents demo logins — including an admin — with their password, and
+`docs/SYSTEM.md:1059-1062` states public sign-ups are still enabled on the live
+project. **The sign-up claim is the repository's, not independently verified here**,
+and it is the first thing to check, because it is the difference between a published
+password and an open door.
+
+**The order matters, and the obvious order is wrong.** The repository ships
+`remove_demo_data()` (`20261011090000_demo_data_removal.sql`), and running it first
+looks like the fix. It is not: the warehouse carries **51 `ON DELETE CASCADE`
+constraints**, and deleting demo users runs `delete from auth.users`
+(`:167`) while `stock_movements.created_by` is `on delete set null`
+(`20260929200000_stock_ledger.sql:14`). On a free-tier project with no
+point-in-time recovery, that destroys attribution and any opening balance derived
+from it, irreversibly. **Do the non-destructive containment first:** confirm whether
+public sign-up is open and close it; enable leaked-password protection; set the demo
+profiles `is_active = false`, which `private.current_user_role()` already treats as
+removing every right; rotate the documented password. Only then consider deletion,
+and only after an export has been taken and verified.
+
+**Cost of staying blocked:** this is not a cost-of-delay item. It is a live
+exposure on the system that holds the business's stock, costing and supplier
+payments.
+
+---
+
+## B-11 — Attribution is destroyed by design in the warehouse system
+
+**Blocks:** treating the warehouse system's records as an audit trail; F3 data migration provenance
+**Unblocked by:** a schema change in the warehouse system, owner-approved
+**Related:** B-10, ADR-0020, [`../compliance/pdpl-assessment.md`](../compliance/pdpl-assessment.md)
+
+**Found 2026-10-01, read-only.** Deleting a user erases who did what, rather than
+preserving it:
+
+- `stock_movements.created_by` is `references auth.users(id) **on delete set
+  null**` — `20260929200000_stock_ledger.sql:14`
+- `admin_delete_user` runs `DELETE FROM auth.users WHERE id = p_user_id` —
+  `20260928090000_fix_known_issues.sql:234`, and again at
+  `20261013100000_test_fixes_users_accounting_security.sql:102`
+- **51 `ON DELETE CASCADE` constraints** across the migrations
+- line-level tables carry no actor column at all
+
+So an administrator removing a departed employee silently rewrites the history of
+every stock movement that employee made, to "nobody". For a system whose data is
+proposed as the opening balance of a repository that **will hold payroll and
+financial records**, that is a finding and not a note.
+
+This repository's own `I-8` exists because a cached balance must be checkable
+against its ledger. The warehouse equivalent cannot be checked against anything:
+the actor is gone and the deletion left no trace. Any migration that takes
+warehouse history as authoritative inherits that gap, which is why this is recorded
+before the migration rather than discovered during it.
+
+**Cost of staying blocked:** low today and rising with every row. The fix is cheap
+now (`on delete set null` → retain, plus an actor column on line tables) and
+expensive after a cutover makes the history authoritative.
 
 ---
 

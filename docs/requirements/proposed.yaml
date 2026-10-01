@@ -292,3 +292,138 @@ requirements:
     text_ar: "يجب عدم الكشف عن هوية العميل المقيم وبيانات تواصله للموظف المقيم في أي وقت، بما في ذلك بعد اكتمال الطلب."
     relates_to:
       - DLV-010
+
+  # ---------------------------------------------------------------------------
+  # Administrator-controlled capability exposure
+  #
+  # Requested 2026-10-01. An administrator exposes capabilities that are finished
+  # and fit to use, and withholds those still under construction, without a
+  # deployment and without hiding being mistaken for a control.
+  #
+  # The PRD has no requirement for this: IAM-003 and IAM-006 govern what a *user*
+  # may do, which is a different axis from whether a capability is open at all.
+  # So this is new behaviour and is proposed rather than assumed.
+  #
+  # Written deliberately WITHOUT reference to the warehouse system, the
+  # consolidation seam, retirement dates or any "estate" notion. PRG-015 makes a
+  # promoted identifier's meaning permanent, and encoding a temporary migration
+  # into the baseline is how a bridge becomes furniture. Capability exposure is a
+  # permanent platform capability; the migration is not.
+  #
+  # Context: ADR-0020, docs/program/consolidation-plan.md Phase 2.
+  # No test_refs yet: the harness and its control case are Phase 2 deliverables,
+  # and naming an artifact before it exists is the defect req-lint's
+  # test-refs-resolve rule was built to catch.
+  # ---------------------------------------------------------------------------
+
+  - id: "CAP-P01"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "The system shall maintain a register of capabilities, each identified by a stable key, named in Arabic and English, and recording the requirements it delivers."
+    text_ar: "يجب أن يحتفظ النظام بسجل للقدرات، لكل منها مفتاح ثابت واسم بالعربية والإنجليزية، مع تسجيل المتطلبات التي تحققها."
+
+  - id: "CAP-P02"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Each capability shall carry an administrator-set lifecycle state from a fixed set — not built, pilot, available, read only, withdrawn — and a capability with no recorded state shall resolve to not built."
+    text_ar: "يجب أن تحمل كل قدرة حالة دورة حياة يحددها المسؤول من مجموعة ثابتة — غير مبنية، تجريبية، متاحة، للقراءة فقط، مسحوبة — وأي قدرة بلا حالة مسجلة تُعدّ غير مبنية."
+
+  - id: "CAP-P03"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Every change to a capability's state shall be an appended decision record carrying the actor, the time, the scope and a stated reason, and the current state shall be derived from those records rather than overwritten."
+    text_ar: "يجب أن يكون كل تغيير في حالة قدرة سجلا مُضافا للقرار يحمل الفاعل والوقت والنطاق وسببا مذكورا، وأن تُستنتج الحالة الحالية من تلك السجلات بدلا من استبدالها."
+
+  - id: "CAP-P04"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "A capability that is not available shall refuse new commands in the database itself, and the removal of a menu entry or a screen shall never be the only control preventing its use."
+    text_ar: "يجب أن ترفض القدرة غير المتاحة الأوامر الجديدة في قاعدة البيانات نفسها، ولا يجوز أن يكون إخفاء عنصر قائمة أو شاشة هو الضابط الوحيد الذي يمنع استخدامها."
+
+  - id: "CAP-P05"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Closing a capability shall not prevent work already accepted from completing, from synchronising, or from being recorded, and no accepted event shall be discarded because the capability that produced it was later closed."
+    text_ar: "لا يجوز أن يمنع إغلاق قدرة إتمام عمل تم قبوله بالفعل أو مزامنته أو تسجيله، ولا يجوز إلغاء أي حدث مقبول لأن القدرة التي أنتجته أُغلقت لاحقا."
+
+  - id: "CAP-P06"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "The historical data of a withdrawn or read-only capability shall remain readable to users authorised for it, and shall not be hidden by the same control that stops new work."
+    text_ar: "يجب أن تبقى البيانات التاريخية لقدرة مسحوبة أو للقراءة فقط قابلة للقراءة للمستخدمين المصرح لهم بها، ولا يجوز إخفاؤها بالضابط نفسه الذي يوقف العمل الجديد."
+
+  - id: "CAP-P07"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Capability dependencies shall be recorded, and the system shall refuse a state change that would leave an available capability without a capability it depends on."
+    text_ar: "يجب تسجيل الاعتماديات بين القدرات، وأن يرفض النظام أي تغيير حالة يترك قدرة متاحة بلا قدرة تعتمد عليها."
+
+  - id: "CAP-P08"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Capabilities required to administer capabilities, identity and audit shall be designated protected and shall not be closable through the application."
+    text_ar: "يجب تصنيف القدرات اللازمة لإدارة القدرات والهوية والتدقيق كقدرات محمية، ولا يجوز إغلاقها من خلال التطبيق."
+
+  - id: "CAP-P09"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "A capability shall not be set generally available until the evidence for the requirements it delivers can be produced, and the system shall name the missing evidence when it refuses."
+    text_ar: "لا يجوز جعل قدرة متاحة للجميع قبل أن يكون بالإمكان إنتاج الدليل على المتطلبات التي تحققها، وعلى النظام أن يسمي الدليل الناقص عند الرفض."
+
+  - id: "CAP-P10"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "A branch operating without central connectivity shall apply the last capability state it received, and shall refuse new commands for a capability whose state is older than a configured limit rather than assuming it is open."
+    text_ar: "يجب أن يطبق الفرع العامل دون اتصال مركزي آخر حالة قدرات وصلته، وأن يرفض الأوامر الجديدة لقدرة حالتها أقدم من حد مُعَد بدلا من افتراض أنها مفتوحة."
+    relates_to:
+      - OFF-001
+
+  - id: "CAP-P11"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Where an administrator previews the system as another role, the preview shall apply that role's capability state and permissions and shall be read only, and shall be identified as a preview wherever it is shown."
+    text_ar: "عند معاينة المسؤول للنظام بدور آخر، يجب أن تطبق المعاينة حالة القدرات والصلاحيات الخاصة بذلك الدور وأن تكون للقراءة فقط، وأن يُبيَّن أنها معاينة في كل موضع تظهر فيه."
+    relates_to:
+      - IAM-003
+
+  - id: "CAP-P12"
+    module: "CAP"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner request, 2026-10-01"
+    status: "proposed"
+    text_en: "Capability states and every change to them shall be recorded in the audit log with actor, scope, the values before and after, and the stated reason, and shall be reportable."
+    text_ar: "يجب تسجيل حالات القدرات وكل تغيير فيها في سجل التدقيق مع الفاعل والنطاق والقيم قبل وبعد والسبب المذكور، وأن تكون قابلة للتقرير."

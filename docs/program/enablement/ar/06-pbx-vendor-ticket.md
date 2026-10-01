@@ -50,10 +50,11 @@
 >
 > **Summary**
 >
-> On 26 July 2026 telephony was interrupted three times. The watchdog logged
-> three Asterisk restarts, and three Asterisk core dumps were produced whose
-> filenames carry signal 11. At the second and third restarts every Linkus client
-> lost its connection simultaneously.
+> On 26 July 2026 the watchdog logged three Asterisk restarts, and three Asterisk
+> core dumps were produced whose filenames carry signal 11. **Two of those three
+> restarts are evidenced as user-visible outages** — at 15:42 and 20:57 every Linkus
+> client lost its connection simultaneously. The 05:01 event dropped no clients and
+> may be a different fault; the evidence below separates them.
 >
 > We are planning an API integration against this system and need the platform's
 > stability understood before we proceed.
@@ -203,7 +204,8 @@
 >
 > **Business impact**
 >
-> Telephony was unavailable to all users three times in one day. We are planning
+> Telephony was unavailable to all users twice in one day, in the two outages
+> evidenced below, following three watchdog restarts of the telephony service. We are planning
 > an API integration against this system and want the platform's stability
 > understood before we build on it.
 >
