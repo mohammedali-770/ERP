@@ -1,0 +1,38 @@
+-- Synthetic role permissions (IAM-003). SEC-012: no production data.
+--
+-- After 0030 because every row names a capability 0030 seeds. The administrator's
+-- permissions on the two protected platform capabilities are not here: 0011 creates
+-- those, because a real database needs them as much as this one does.
+--
+-- Chosen so the interesting combinations exist, not to be a realistic permission
+-- model — that is configuration an administrator owns:
+--
+--   * the accountant holds payroll read AND write, on a payroll capability nobody has
+--     opened (0030 records no decision for it). Granted but hidden, so the database
+--     must refuse it — the left half of the rule, tested in 070.
+--   * a branch worker may read stock and not write it. Enabled but not granted —
+--     the right half.
+--   * month close is read_only, so the accountant may read its history and may not
+--     start new work in it (CAP-P06).
+
+insert into erp.role_permission (role_key, capability_key, action) values
+  ('branch_worker',     'inventory.stock',     'read'),
+
+  ('warehouse_manager', 'inventory.stock',     'read'),
+  ('warehouse_manager', 'inventory.stock',     'write'),
+  ('warehouse_manager', 'factory.production',  'read'),
+
+  ('factory_manager',   'factory.production',  'read'),
+  ('factory_manager',   'factory.production',  'write'),
+  ('factory_manager',   'inventory.stock',     'read'),
+  ('factory_manager',   'inventory.stock',     'write'),
+
+  ('general_manager',   'inventory.stock',     'read'),
+  ('general_manager',   'factory.production',  'read'),
+  ('general_manager',   'factory.production',  'approve'),
+  ('general_manager',   'finance.month_close', 'read'),
+
+  ('accountant',        'finance.month_close', 'read'),
+  ('accountant',        'finance.month_close', 'write'),
+  ('accountant',        'hr.payroll',          'read'),
+  ('accountant',        'hr.payroll',          'write');

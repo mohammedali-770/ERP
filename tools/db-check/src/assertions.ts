@@ -177,27 +177,71 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'projection-stamp-is-a-foreign-key-where-it-can-be',
-    title: 'erp.capability_state.as_of_decision_id is a real foreign key',
+    title: 'every projection stamp that can be a foreign key is one',
     because:
       'The four event-log projections cannot have one: erp.event_log is partitioned ' +
       'on business_date, so its primary key is composite and a single-column ' +
-      'reference is unavailable (0009 says so in full). erp.capability_decision is ' +
-      'NOT partitioned, so 0010 enforces its stamp by structure instead of by a ' +
-      'tool. That is strictly stronger than an assertion, and dropping it would ' +
-      'silently downgrade the guarantee to the weaker one — so losing it is a ' +
-      'failure in its own right.',
-    sql: `select 'capability_state.as_of_decision_id has no foreign key' as violation
-          where not exists (
-            select 1
-            from pg_constraint k
-            join pg_class c on c.oid = k.conrelid
-            join pg_namespace n on n.oid = c.relnamespace
-            join pg_class f on f.oid = k.confrelid
-            where n.nspname = 'erp'
-              and c.relname = 'capability_state'
-              and f.relname = 'capability_decision'
-              and k.contype = 'f'
-          )`,
+      'reference is unavailable (0009 says so in full) — projection-stamp-resolves-' +
+      'to-a-real-event stands in for it. Every other log is unpartitioned, so its ' +
+      'stamps are enforced by structure, which is strictly stronger than a tool, and ' +
+      'dropping one would silently downgrade the guarantee. This USED to name ' +
+      'erp.capability_state alone; 0011 added three more stamped projections, and a ' +
+      'name list would have passed them unchecked — so it now discovers the columns, ' +
+      'and as_of_event_id is the one exception, named with its reason.',
+    sql: `select c.relname || '.' || a.attname as violation
+          from pg_attribute a
+          join pg_class c on c.oid = a.attrelid
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'erp'
+            and c.relkind in ('r', 'p')
+            and c.relispartition = false
+            and a.attnum > 0
+            and not a.attisdropped
+            and a.attname like 'as\\_of\\_%\\_id'
+            and a.attname <> 'as_of_event_id'
+            and not exists (
+              select 1 from pg_constraint k
+              where k.conrelid = c.oid and k.contype = 'f' and k.conkey = array[a.attnum]
+            )`,
+  },
+  {
+    id: 'no-erp-function-is-executable-by-public',
+    title: 'no erp function is executable by PUBLIC',
+    because:
+      'PostgreSQL grants EXECUTE on every new function to PUBLIC as a GLOBAL default, ' +
+      'and 0002\'s `alter default privileges … in schema erp revoke … on functions` ' +
+      'cannot undo it: a per-schema revoke only reverses a per-schema grant. So every ' +
+      'erp function was callable by anyone with USAGE on the schema — including ' +
+      'erp_read, which could call SECURITY DEFINER functions that write. 0011 revokes ' +
+      'it; this catches the next migration that adds a function and forgets to.',
+    sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'erp'
+            and exists (
+              select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+              where a.grantee = 0 and a.privilege_type = 'EXECUTE'
+            )`,
+  },
+  {
+    id: 'credential-tables-are-unreachable',
+    title: 'no role but the owner holds any privilege on a credential table',
+    because:
+      'A PIN hash is checked by erp.verify_pin(), which is SECURITY DEFINER and ' +
+      'answers with a status, so no role ever needs to read one. 0002 default-grants ' +
+      'SELECT on every new erp table to erp_read, which put the hash in the reporting ' +
+      'role\'s reach until 0011 revoked it. Discovered by name, so a credential table ' +
+      'added later is covered without anyone remembering to list it.',
+    sql: `select c.relname || ' — ' || a.privilege_type || ' to ' ||
+                 coalesce(r.rolname, 'PUBLIC') as violation
+          from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+          cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+          left join pg_roles r on r.oid = a.grantee
+          where n.nspname = 'erp'
+            and c.relkind in ('r', 'p')
+            and c.relname like '%credential%'
+            and a.grantee <> c.relowner`,
   },
 ];
 
@@ -241,6 +285,21 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
     sql: `select distinct substring(payload::text from '(SA[0-9]{22}|[0-9]{13,19})') as violation
           from erp.event_log
           where payload::text ~ '(SA[0-9]{22}|\\m[0-9]{13,19}\\M)'`,
+  },
+  {
+    id: 'cashier-actors-resolve-to-a-person',
+    title: 'every cashier named by the event log is a person',
+    because:
+      'erp.event_log.actor_id deliberately carries no foreign key: actor_type admits ' +
+      'integrations, whose identifiers are not people, the envelope contract declares ' +
+      'it nullable, and I-5 forbids an operational write that needs a central lookup. ' +
+      'So for the cashier rows, this is the check that stands in for the constraint — ' +
+      'the same arrangement as projection-stamp-resolves-to-a-real-event.',
+    sql: `select distinct e.actor_id::text as violation
+          from erp.event_log e
+          where e.actor_type = 'cashier'
+            and (e.actor_id is null
+                 or not exists (select 1 from erp.person p where p.person_id = e.actor_id))`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',

@@ -35,6 +35,12 @@ packages/contracts → (nothing)
 **Note:** role-capability composition must exist from the start — the employee app
 (ADR-0014) and every console assume it, and it cannot be retrofitted once screens
 assume fixed layouts.
+**Where its events are recorded** ([ADR-0022](../adr/ADR-0022-identity-and-authentication.md)):
+`EmployeeAuthenticated` happens at a device, so it belongs in `erp.event_log`, the
+branch runtime's log. `PermissionChanged`, and every other change to who exists and
+what they hold, is a central decision and belongs in `erp.identity_decision` — the
+same split the capability registry made. The runtime never reads a credential:
+`erp.verify_pin()` answers with a status.
 
 ### menu
 **Owns:** products, variants, modifier groups, recipes, price lists, menu versions, publication, availability.

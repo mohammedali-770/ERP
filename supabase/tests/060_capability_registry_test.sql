@@ -125,10 +125,16 @@ select is(
 -- CAP-P08 and CAP-P07 — what a decision may not do
 -- ---------------------------------------------------------------------------
 
+-- The actor is the seeded administrator, …0900. Since 0011, erp.decide_capability()
+-- asks first whether the actor may administer capabilities at all — so a fixture
+-- naming someone without that permission would be refused by the permission check
+-- with the same SQLSTATE these cases expect, and would pass while proving nothing
+-- about CAP-P08 or CAP-P07. The permission refusal itself is tested in 070.
+
 select throws_ok(
   $$ select erp.decide_capability(
        '01936f00-0000-7000-8000-0000000e0001'::uuid, 'platform.capability_admin', null,
-       'hidden', 'testing', '01936f00-0000-7000-8000-000000000901'::uuid,
+       'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid,
        'administrator', now()) $$,
   '23001', null,
   'a protected capability cannot be closed through the application'
@@ -140,7 +146,7 @@ select throws_ok(
 select throws_ok(
   $$ select erp.decide_capability(
        '01936f00-0000-7000-8000-0000000e0002'::uuid, 'inventory.stock', null,
-       'withdrawn', 'testing', '01936f00-0000-7000-8000-000000000901'::uuid,
+       'withdrawn', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid,
        'administrator', now()) $$,
   '23001', null,
   'a capability cannot be closed while an open capability depends on it'
@@ -152,7 +158,7 @@ select throws_ok(
 select throws_ok(
   $$ select erp.decide_capability(
        '01936f00-0000-7000-8000-0000000e0003'::uuid, 'hr.payroll', null,
-       'enabled', '   ', '01936f00-0000-7000-8000-000000000901'::uuid,
+       'enabled', '   ', '01936f00-0000-7000-8000-000000000900'::uuid,
        'administrator', now()) $$,
   '23514', null,
   'a decision without a stated reason is refused'
@@ -165,7 +171,7 @@ select lives_ok(
   $$ select erp.decide_capability(
        '01936f00-0000-7000-8000-0000000e0004'::uuid, 'factory.production', null,
        'withdrawn', 'Verified and superseded; closing it to new work.',
-       '01936f00-0000-7000-8000-000000000901'::uuid, 'administrator', now()) $$,
+       '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now()) $$,
   'a capability nothing depends on can be closed, and the decision is recorded'
 );
 

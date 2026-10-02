@@ -48,3 +48,7 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0016](./ADR-0016-call-centre-integration.md) | The reachable PBX surface, and designing for a platform that restarts |
 | [ADR-0017](./ADR-0017-ratings-and-feedback.md) | What ratings are for, and what they must never automatically do |
 | [ADR-0018](./ADR-0018-erp-database-home.md) | Where the ERP's database lives, and why not beside the live inbox |
+| [ADR-0019](./ADR-0019-vertical-slice-before-layers.md) | Prove one order end to end before building breadth |
+| [ADR-0020](./ADR-0020-consolidation-direction.md) | The warehouse system and the ERP stay in two databases — superseded by ADR-0021 |
+| [ADR-0021](./ADR-0021-one-project.md) | One project: the warehouse system is rebuilt into the ERP |
+| [ADR-0022](./ADR-0022-identity-and-authentication.md) | Identity is `erp`-native, and the runtime never reads a credential |
