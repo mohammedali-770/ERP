@@ -49,6 +49,16 @@ export const RULES: readonly SecretRule[] = [
     pattern: /\b(AKIA|ASIA)[0-9A-Z]{16}\b/,
   },
   {
+    id: 'bcrypt-hash',
+    description: 'a bcrypt password or PIN hash',
+    // The full 60-character form: $2a$/$2b$/$2y$, a two-digit cost, then 53
+    // characters of salt and digest. A hash is not the PIN, but six digits is a
+    // search space of a million, so a committed PIN hash is as good as the PIN.
+    // The ERP's synthetic seed holds only a 29-character salt prefix and passes;
+    // a real hash copied anywhere does not.
+    pattern: /\$2[aby]\$\d\d\$[./A-Za-z0-9]{53}/,
+  },
+  {
     id: 'generic-assignment',
     description: 'a long literal assigned to something named like a secret',
     // Deliberately narrow: an assignment, a quoted value, and 20+ characters.

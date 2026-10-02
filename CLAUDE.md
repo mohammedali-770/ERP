@@ -121,6 +121,11 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
+| Every decision log — event, capability, identity — refuses `UPDATE` and `DELETE` | pgTAP |
+| **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
+| **No role but the owner can touch a credential table** | `db:check` — discovered by name, so `erp_read`'s default `SELECT` cannot reach a PIN hash |
+| A capability or identity decision needs a permitted actor | pgTAP |
+| No bcrypt hash is committed | `secret:scan` |
 | **Every projection row names the record that produced it** | `db:check` + pgTAP — the stamp column is **discovered**, not listed, so a new projection cannot be added uncovered |
 | **A migration never leaves a pgTAP fixture uncompilable** | `db:fixtures` |
 | The seed is synthetic, and two builds are identical | `db:check` |

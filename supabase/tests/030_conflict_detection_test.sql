@@ -93,7 +93,10 @@ select throws_ok(
   $$ insert into erp.shifts (shift_id, branch_id, cashier_id, status, business_date, opened_at)
      values ('01936f00-0000-7000-8000-0000000e0004',
              '01936f00-0000-7000-8000-000000000401',
-             '01936f00-0000-7000-8000-0000000e0005',
+             -- A real cashier, so the row fails for ONE reason. Since 0011 an unknown
+             -- cashier_id breaks a foreign key too, and which of two violations
+             -- Postgres reports first is not what this case is about.
+             '01936f00-0000-7000-8000-000000000902',
              'closed', current_date, now()) $$,
   '23502', null,
   'a projection row with no as_of_event_id is rejected'

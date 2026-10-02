@@ -427,3 +427,107 @@ requirements:
     status: "proposed"
     text_en: "Capability states and every change to them shall be recorded in the audit log with actor, scope, the values before and after, and the stated reason, and shall be reportable."
     text_ar: "يجب تسجيل حالات القدرات وكل تغيير فيها في سجل التدقيق مع الفاعل والنطاق والقيم قبل وبعد والسبب المذكور، وأن تكون قابلة للتقرير."
+
+  # ---------------------------------------------------------------------------
+  # Branch-worker sign-in and the identity lifecycle
+  #
+  # Added 2026-10-02 with consolidation Phase 3. IAM-001 says employees sign in
+  # with an employee ID and a PASSWORD. Branch staff on a shared till sign in with
+  # a short numeric PIN instead, which IAM-001 does not describe — so it is
+  # proposed here rather than read into IAM-001, which stays untouched (owner's
+  # decision, 2026-10-02).
+  #
+  # The PIN design itself is proven: lockout after five misses, and unknown numbers
+  # that answer exactly as wrong PINs do. Written, like the CAP block, without
+  # reference to the system it was learned from, because a promoted identifier's
+  # meaning is permanent (PRG-015).
+  #
+  # Context: ADR-0022, docs/program/consolidation-plan.md Phase 3. The pgTAP suite
+  # supabase/tests/070_identity_test.sql exercises every one of these, but pgTAP
+  # suites are not an artifact type req-lint resolves, so no test_refs are named.
+  # ---------------------------------------------------------------------------
+
+  - id: "IAM-P01"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "Branch staff shall be able to sign in on a shared device with their employee number and a personal identification number, without an email address or password."
+    text_ar: "يجب أن يتمكن موظفو الفرع من تسجيل الدخول على جهاز مشترك برقمهم الوظيفي ورقم تعريف شخصي، دون بريد إلكتروني أو كلمة مرور."
+    relates_to:
+      - IAM-001
+
+  - id: "IAM-P02"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "A sign-in attempt with an employee number that does not exist, or that has no PIN, shall receive the same response, the same remaining-attempt count and the same lockout as a wrong PIN for an employee number that does exist."
+    text_ar: "يجب أن تتلقى محاولة تسجيل الدخول برقم وظيفي غير موجود، أو ليس له رقم تعريف شخصي، الاستجابة نفسها وعدد المحاولات المتبقية نفسه والقفل نفسه الذي يتلقاه رقم تعريف خاطئ لرقم وظيفي موجود."
+
+  - id: "IAM-P03"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "Five consecutive failed sign-in attempts shall lock the employee number for fifteen minutes, during which even a correct PIN shall be refused, and an administrator shall be able to lift the lock with a recorded reason."
+    text_ar: "يجب أن تؤدي خمس محاولات فاشلة متتالية لتسجيل الدخول إلى قفل الرقم الوظيفي لمدة خمس عشرة دقيقة يُرفض خلالها حتى رقم التعريف الصحيح، وأن يتمكن المسؤول من رفع القفل مع سبب مسجل."
+
+  - id: "IAM-P04"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "A PIN shall be exactly six digits, shall be stored only as a salted one-way hash, and shall never be stored, displayed, logged or recorded in clear."
+    text_ar: "يجب أن يتكون رقم التعريف الشخصي من ست خانات رقمية بالضبط، وأن يُخزن فقط كتجزئة أحادية الاتجاه مملحة، وألا يُخزن أو يُعرض أو يُسجل أو يُدون بنص صريح أبدا."
+    relates_to:
+      - SEC-003
+
+  - id: "IAM-P05"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "A suspended or terminated account shall not be able to sign in or be granted any permission, whatever credential or role it still holds."
+    text_ar: "لا يجوز لحساب موقوف أو منتهٍ تسجيل الدخول أو منحه أي صلاحية، أيا كانت بيانات الاعتماد أو الأدوار التي ما زال يحملها."
+    relates_to:
+      - IAM-009
+
+  - id: "IAM-P06"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "An identity that any record names as its actor shall be disabled rather than deleted, so that every record continues to name who performed it."
+    text_ar: "يجب تعطيل الهوية التي يسميها أي سجل فاعلا له بدلا من حذفها، بحيث يستمر كل سجل في تسمية من قام به."
+    relates_to:
+      - IAM-008
+
+  - id: "IAM-P07"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "The first administrator, or a replacement when no administrator is active, shall be created only through a recorded bootstrap that is refused while an active administrator exists, and the last active administrator shall not be removable through the application."
+    text_ar: "يجب ألا يُنشأ المسؤول الأول، أو بديله عند عدم وجود مسؤول نشط، إلا من خلال تهيئة مسجلة تُرفض ما دام يوجد مسؤول نشط، ولا يجوز إزالة آخر مسؤول نشط من خلال التطبيق."
+    relates_to:
+      - CAP-P08
+
+  - id: "IAM-P08"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-02"
+    status: "proposed"
+    text_en: "The application runtime and reporting access shall hold no privilege to read a stored credential; verification shall be performed by the database and shall return only an outcome."
+    text_ar: "لا يجوز أن تملك بيئة تشغيل التطبيق ولا صلاحيات التقارير أي امتياز لقراءة بيانات اعتماد مخزنة؛ ويجب أن تتم المصادقة داخل قاعدة البيانات وأن تعيد النتيجة فقط."
+    relates_to:
+      - SEC-003
+      - SEC-004

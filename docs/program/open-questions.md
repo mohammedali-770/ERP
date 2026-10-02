@@ -440,6 +440,49 @@ Related: B-05, B-10, B-11, ADR-0018, ADR-0020, `../compliance/pdpl-assessment.md
 
 ---
 
+## Q-21 — What holds the `erp_app` credential?
+
+**Decides:** Executive management, at the PRG-010/011 architecture gate · **Expensive
+after:** the first module's data layer is written against an assumed answer
+
+Found 2026-10-02 while building identity (ADR-0022). The ERP's privilege model, by
+design and enforced by `db:check`:
+
+- `anon`, `authenticated` and `service_role` hold **no USAGE on `erp`**
+  (`api-roles-cannot-reach-erp`), so nothing a browser can hold reaches the schema.
+- Only `erp_app` (the runtime) and `erp_read` (reporting) can, and both are
+  `nologin` roles.
+
+It follows that **PostgREST cannot be the ERP's API.** PostgREST runs every request as
+`anon` or `authenticated`, and neither can reach anything in `erp`. Every request from
+the console must therefore pass through something server-side that holds a
+connection able to act as `erp_app` — and **nothing in the repository names what that
+is.** The consolidation plan's Phase 4 step 2 ("data layer rewritten against the ERP's
+privilege model") assumes an answer without stating one.
+
+It matters beyond plumbing. 0011's functions check that the actor a caller *names* is
+permitted. They cannot check that the named actor is the person actually connected,
+because nothing yet connects as a person. The component that holds `erp_app` is the
+one that will turn `erp.verify_pin()`'s answer into a session and vouch for the actor
+on every call — so it is where IAM-008's "all sign-in attempts" get recorded, where
+IAM-010's revocation lives, and where CAP-P11's read-only preview can finally be
+enforced by the database rather than by the screen.
+
+Candidates, none chosen:
+
+| | What it is | Cost |
+|---|---|---|
+| **Edge functions** holding `erp_app` | The warehouse system already signs workers in through one, so the shape is familiar | Deno, per-function deployment, and a credential in each function's environment |
+| **A small API service** in `services/` | One process owning sessions and the `erp_app` connection | A server to run, which ADR-0018 has not costed |
+| **PostgREST on a second, `erp`-only role** | Keeps generated endpoints | Reopens ADR-0018 §3: an API role reaching `erp` is the thing it forbids |
+
+Recorded rather than guessed: it is a hosting and architecture decision with a running
+cost, and PRG-010/011 put those with executive management.
+
+Related: ADR-0018, ADR-0022, [`consolidation-plan.md`](./consolidation-plan.md) Phase 4.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

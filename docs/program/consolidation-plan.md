@@ -3,8 +3,9 @@
 - **Decided by:** [ADR-0021](../adr/ADR-0021-one-project.md), which supersedes
   ADR-0020
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
-- **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md)
-- **Status:** approved by the owner 2026-10-01. Phase 1 is in progress.
+- **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
+  [Q-21](./open-questions.md)
+- **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 is next.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -129,6 +130,39 @@ design and is rebuilt rather than reinvented, behind the ERP's privilege model.
 `navigation.tsx`'s six-role, 59-entry menu is carried over and driven by the registry,
 so a `hidden` capability simply has no entry — with the database refusal behind it, per
 `CAP-P04`.
+
+> **Built 2026-10-02** — [ADR-0022](../adr/ADR-0022-identity-and-authentication.md),
+> `supabase/migrations/20261002000100_identity.sql`, `apps/console/src/navigation.ts`.
+> Scope as the owner set it: identity in the database and the shell's logic, **no live
+> sign-in**, and the PIN flow proposed as `IAM-P01..P08` rather than read into IAM-001.
+>
+> - **The warehouse design was kept nearly constant for constant** — six-digit PIN,
+>   bcrypt at cost 10, five misses lock for fifteen minutes, and unknown numbers
+>   counted in their own table so the answer, the countdown, the lock and the time
+>   taken all match a wrong PIN. The current warehouse copy was read for this; an older
+>   two-commit clone on the same machine has none of it.
+> - **Not carried: "View as".** The warehouse's preview changes only the screen and
+>   runs actions with the administrator's rights. CAP-P11 forbids that; the console's
+>   preview makes nothing writable, and making the *database* refuse a preview's writes
+>   waits on sessions, which wait on Q-21.
+> - **The menu is one list, not six.** The warehouse keyed 59 entries by role, writing
+>   the same page out under several roles. Each entry now names a capability and an
+>   action; a role is a set of permissions.
+> - **Three things went further than planned**, each because the plan's version would
+>   have been decoration: `erp.decide_capability()` now asks whether its actor may
+>   administer capabilities; the two protected platform capabilities and the
+>   `administrator` role moved from the seed into the migration, because a real
+>   database needs them before anyone can decide anything; and the identity log grants
+>   the runtime **no** direct INSERT, unlike 0010's.
+> - **Two defects found and closed.** `0002`'s default privileges gave `erp_read`
+>   SELECT on every new table, which would have included the PIN hash; and **every
+>   `erp` function had been executable by PUBLIC since `0002`**, because a per-schema
+>   revoke cannot undo PostgreSQL's global default — so the reporting role could call
+>   `erp.decide_capability()`. Both are revoked and both now have a `db:check`
+>   assertion.
+> - **Q-21 is the open end.** Nothing names what holds the `erp_app` credential, and
+>   PostgREST cannot be the ERP's API because `authenticated` reaches nothing in `erp`.
+>   Phase 4's data layer cannot be written until that is decided.
 
 ---
 

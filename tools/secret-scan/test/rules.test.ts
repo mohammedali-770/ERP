@@ -21,6 +21,7 @@ const FIXTURES: ReadonlyArray<readonly [string, string]> = [
   ['postgres-url-with-password', join('postgresql://erp_app:', 'placeholder-pw', '@db.example.co:5432/postgres')],
   ['private-key', join('-----BEGIN RSA ', 'PRIVATE KEY', '-----')],
   ['aws-access-key', join('AKIA', z(16))],
+  ['bcrypt-hash', join('pin_hash = ', '$2', 'a$10$', z(53))],
   ['generic-assignment', join('client_secret = "', z(28), '"')],
 ];
 
@@ -39,6 +40,15 @@ test('ordinary prose about secrets does not fire', () => {
     'password: ""',
   ].join('\n');
   assert.deepEqual(scan('doc.md', prose), []);
+});
+
+test('a bcrypt salt prefix alone does not fire', () => {
+  // supabase/seeds/0015_identity.sql computes its synthetic hashes from a literal
+  // 29-character salt, so that two builds are identical. The salt is not a hash,
+  // and the rule must stay able to tell them apart or the seed would need an
+  // allowance — which is exactly what an allowance must never be used for.
+  const seedLine = join("extensions.crypt('100001', '$2", "a$06$", "SyntheticSeedSaltOnly.')");
+  assert.deepEqual(scan('0015_identity.sql', seedLine), []);
 });
 
 test('a finding never carries the matched value', () => {
