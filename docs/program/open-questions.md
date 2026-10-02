@@ -440,7 +440,14 @@ Related: B-05, B-10, B-11, ADR-0018, ADR-0020, `../compliance/pdpl-assessment.md
 
 ---
 
-## Q-21 — What holds the `erp_app` credential?
+## Q-21 — What holds the `erp_app` credential? · **ANSWERED**
+
+**Answered 2026-10-02 by the owner: Supabase Edge Functions. Recorded in
+[ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md).** The edge layer
+connects as a dedicated login role holding `erp_app`'s privileges, turns
+`erp.verify_pin()` into sessions, and names the actor on every call. The original
+question and its options are kept below, because the reasoning is the useful part.
+
 
 **Decides:** Executive management, at the PRG-010/011 architecture gate · **Expensive
 after:** the first module's data layer is written against an assumed answer
@@ -480,6 +487,33 @@ Recorded rather than guessed: it is a hosting and architecture decision with a r
 cost, and PRG-010/011 put those with executive management.
 
 Related: ADR-0018, ADR-0022, [`consolidation-plan.md`](./consolidation-plan.md) Phase 4.
+
+---
+
+## Q-22 — What is the business day for warehouse and factory operations?
+
+**Decides:** Operations, with Finance · **Expensive after:** the first branch-order or
+purchase-order schema in Phase 4 stamps a date
+
+Found 2026-10-02 while mapping the warehouse system into Phase 4. Two rules disagree:
+
+- **The warehouse system uses the Riyadh calendar day for everything.** An order's
+  `for_date`, order, PO and batch numbers, the daily factory sheet's day and month
+  boundaries all come from `private.riyadh_today()` and `private.riyadh_month()`.
+- **The ERP's rule is that a business date is set at shift open**, never derived from
+  calendar midnight (`erp.facility.tz_name`'s comment in
+  `20260920000300_organisation_hierarchy.sql`, and [Q-06](#q-06--is-business_date-set-at-shift-open)).
+  That rule was written for branch tills, where a shift crosses midnight.
+
+A warehouse or factory is not a till. Its day may honestly be the calendar day; or the
+factory's night shift may need the shift rule too; or the month close may need one rule
+for both. Whichever is chosen, it is stamped into every order, purchase order, batch
+and daily sheet, so changing it later means re-dating history.
+
+Recorded rather than guessed. It does not affect Phase 4's first module (items carry
+no business date) and must be answered before branch orders and purchasing.
+
+Related: Q-06, `consolidation-plan.md` Phase 4.
 
 ---
 

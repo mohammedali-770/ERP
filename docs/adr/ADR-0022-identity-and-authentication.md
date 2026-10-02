@@ -116,7 +116,7 @@ Named, so that silence is not read as a decision:
 
 | | Why not yet |
 |---|---|
-| **What holds the `erp_app` credential** | [Q-21](../program/open-questions.md). PostgREST cannot be the ERP's API, because `authenticated` never reaches `erp`. Until something is named, there is no session |
+| **What holds the `erp_app` credential** | **Answered since:** edge functions, [ADR-0023](./ADR-0023-edge-functions-hold-the-erp-credential.md) (2026-10-02). Sessions are built there, on top of `erp.verify_pin()` |
 | **Sessions and tokens** | No session exists. The functions check that the actor a caller *names* is permitted; they cannot yet check that the named actor is the one connected. That is the session layer's job, and it needs Q-21 first |
 | **Administrator sign-in and MFA** (IAM-002) | Administrators have no credential type yet. A PIN on a shared till is the wrong factor for them |
 | **Trusted devices and revocation** (IAM-010) | `erp.device` exists; binding a session to it waits on sessions existing |

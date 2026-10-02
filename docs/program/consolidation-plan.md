@@ -5,7 +5,8 @@
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
 - **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
   [Q-21](./open-questions.md)
-- **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 is next.
+- **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
+  3 of 28 steps done.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -168,22 +169,103 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 
 ## Phase 4 — Modules, in dependency order
 
-Items and units → suppliers → purchase orders and receipts → stock and movements →
-recipes and production → the daily factory sheet → costing and valuation → month
-close → supplier invoices and payments → accounting export → POS import.
+> **Re-scoped 2026-10-02, from a complete mapping of the warehouse system.** The list
+> this section used to carry had 11 modules. Mapping every table (60), live database
+> function (136), page (33) and edge function (5) of the current warehouse copy onto
+> modules — each assigned exactly once, checked by script — gives **22**. Nine are not
+> in the old list at all, including the warehouse's core workflow, **branch orders**;
+> two old modules split in two; raw materials folded into items by the owner's
+> decision; and the old order had two dependency errors.
 
-Each module, every time:
+### Progress
 
-1. Schema in `erp`, written fresh from the warehouse's design
-2. Data layer rewritten against the ERP's privilege model
+| | Steps | Done |
+|---|---|---|
+| Phases 1–3 — foundations | 3 | 3 |
+| Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 0 |
+| Phase 4 — modules | 22 | 0 |
+| Phase 5 — decommission | 1 | 0 |
+| **Total** | **28** | **3 — about 11%** |
+
+By warehouse functionality actually carried, it is near **0%**: about 23,800 lines of
+warehouse application code are still to come across, and 3 of its 60 tables have an
+ERP counterpart (Phase 3). Phases 1–3 built what the modules sit on.
+
+### Decided 2026-10-02
+
+- **[ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md): edge
+  functions hold the `erp_app` credential.** This answers Q-21, which gated every
+  module's data layer, screens, staff testing and promotion. The edge-layer foundation
+  — login role, connection, sessions from `erp.verify_pin()`, actor resolution — comes
+  before the first module's data layer.
+- **One item master with a type** (INV-002), not the warehouse's separate `items` and
+  `raw_materials` tables. Raw materials stop being a module of their own.
+
+### The modules
+
+Sizes are the warehouse's own: source lines of its screens and logic, and its tables.
+
+| # | Module | Warehouse size | In the old list? | Notes |
+|---|---|---|---|---|
+| 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies |
+| 2 | Suppliers | 367 · 1 | Yes | Moves before purchasing; the item–supplier link lives here |
+| 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7) |
+| 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | Partly covered by `erp.facility` |
+| 5 | Stock and movements | 1,834 · 4 | Yes | **Moved before purchasing**: receiving a PO writes stock |
+| 6 | **Notifications** — the in-app bell | 302 · 3 | **No** | Web push needs owner approval (`CLAUDE.md` §4) and ships off |
+| 7 | Stock alerts | 206 · 0 | Split out | |
+| 8 | Purchase orders and receipts | 3,124 · 7 | Yes | Commitments in money, no payment |
+| 9 | **Ordering setup** — cut-off times, par levels | 361 · 2 | **No** | Its invoice-tolerance section is payment-adjacent and stays hidden |
+| 10 | **Branch orders** — branches ordering from the warehouse and factory | 4,128 · 5 | **No** | **The largest module.** `erp.orders` is already the POS sales projection, so this needs another name (INV-014: replenishment) |
+| 11 | **Branch delivery confirmation** — received, short, damaged | 279 · 0 | **No** | INV-016 |
+| 12 | **Branch order reports** — monthly summary, customer overview | 514 · 0 | **No** | |
+| 13 | Recipes and production | 825 · 5 | Yes | |
+| 14 | **Factory lots** — lots, expiry, FEFO, write-off | 277 · 2 | **No** | INV-004, INV-012, MFG-007, MFG-008 |
+| 15 | The daily factory sheet | 1,276 · 8 | Yes | Records cash purchases; not frozen, but the owner should confirm |
+| 16 | Costing and valuation | 511 · 1 | Yes | |
+| 17 | **Data import** — opening master data and opening stock | 295 · 0 | **No** | Needed precisely because nothing is migrated |
+| 18 | POS import | 496 · 4 | Yes | **Moved before the frozen three**: it depends on none of them |
+| 19 | **Home dashboards** | 1,184 · 0 | **No** | |
+| 20 | Month close | 571 · 3 | Yes | **Frozen** — built, stays hidden |
+| 21 | Supplier invoices and payments | 808 · 4 | Yes | **Frozen** — built, stays hidden |
+| 22 | Accounting export | 259 · 1 | Yes | **Frozen** — built, stays hidden. FIN-001 requires native accounting, so this is a bridge at most |
+
+### Each module, every time
+
+1. Schema in `erp`, written fresh from the warehouse's design — through the process
+   mapping MFG-012 requires, not copied
+2. Data layer, as edge functions (ADR-0023)
 3. UI carried over
-4. Tests written — the module's first, since it arrives with none
+4. Tests — the module's first, since it arrives with none
 5. A UAT pack where real staff touch it
-6. **Then** promoted off `hidden`
+6. **Then** promoted off `hidden`, by a capability decision registered in a migration
+   — not by the synthetic seed, which is where `inventory.stock`, `factory.production`
+   and `finance.month_close` live today
+
+Steps 1 and 4 can run ahead of the edge-layer foundation; 2, 3, 5 and 6 cannot.
 
 **Payment-adjacent modules stay `hidden`** — supplier invoices, supplier payments,
-month close, accounting export — while `CLAUDE.md` §6 and Q-20 are open, so the freeze
-fails closed.
+month close, accounting export, and ordering setup's invoice-tolerance section — while
+`CLAUDE.md` §6 and Q-20 are open, so the freeze fails closed.
+
+### Carried into every module
+
+- **Money is integer minor units with an explicit currency**, the ERP's convention —
+  not the warehouse's `numeric(10,2)`.
+- **Disabled, never deleted**, with foreign keys that restrict: the warehouse cascades
+  in 51 places (B-11).
+- **Bilingual names** (PRG-014) and the ADR-0012 dimensions from the first migration.
+- **[Q-22](./open-questions.md) — the business day for warehouse and factory
+  operations — must be answered before branch orders and purchasing**, because every
+  order, PO, batch and daily sheet is stamped with one.
+- **The warehouse's `docs/SYSTEM.md` is the specification but holds a demo password and
+  branch-worker PINs in clear** (lines 142–144). Anything quoted from it is redacted
+  first; `secret:scan` would rightly refuse it otherwise.
+- **Several requirements these modules deliver are F3 in the PRD** — INV-002, INV-005,
+  INV-013, INV-014, INV-016 among them. ADR-0021 brought them forward deliberately; the
+  roadmap should say so when it is next revised.
+- **Per-person language** has no home yet: `erp.person` has no language column, and the
+  warehouse's per-user language setting needs one.
 
 ---
 

@@ -52,3 +52,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0020](./ADR-0020-consolidation-direction.md) | The warehouse system and the ERP stay in two databases — superseded by ADR-0021 |
 | [ADR-0021](./ADR-0021-one-project.md) | One project: the warehouse system is rebuilt into the ERP |
 | [ADR-0022](./ADR-0022-identity-and-authentication.md) | Identity is `erp`-native, and the runtime never reads a credential |
+| [ADR-0023](./ADR-0023-edge-functions-hold-the-erp-credential.md) | Edge functions hold the ERP's database credential |
