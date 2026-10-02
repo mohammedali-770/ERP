@@ -18,7 +18,7 @@
 -- The PINs below are the synthetic ones 0015_identity.sql seeds.
 
 begin;
-select plan(58);
+select plan(59);
 
 -- ---------------------------------------------------------------------------
 -- Structure, and the three actors
@@ -308,6 +308,31 @@ select throws_ok(
   '23001', null,
   'an identity decision cannot be deleted'
 );
+
+-- ---------------------------------------------------------------------------
+-- IAM-P07 — the recovery bootstrap makes a person an administrator, never a service
+-- ---------------------------------------------------------------------------
+
+-- With no active administrator, bootstrap is the recovery path. It must refuse the
+-- system principal: otherwise it granted administrator to a service identity, and
+-- since that row is active, every later bootstrap was refused. The exact message is
+-- asserted because "an active administrator already exists" carries the same
+-- SQLSTATE and would let this pass for the wrong reason. A VALID employee number is
+-- passed on purpose: with none, the old code was refused by a check constraint before
+-- reaching the conflict branch, and the case would not have exercised the defect.
+-- …0900 is suspended for this case only and reactivated straight after.
+update erp.person set status = 'suspended' where person_id = '01936f00-0000-7000-8000-000000000900';
+
+select throws_ok(
+  $$ select erp.bootstrap_administrator(
+       '01936f00-0000-7000-8000-0000000e0120'::uuid, erp.system_principal(),
+       '4244', 'System', 'النظام', 'testing') $$,
+  '23001',
+  'only an employee can be bootstrapped as administrator; 00000000-0000-0000-0000-000000000001 is not one (IAM-P07)',
+  'the system principal cannot be bootstrapped as administrator'
+);
+
+update erp.person set status = 'active' where person_id = '01936f00-0000-7000-8000-000000000900';
 
 -- LAST, because it is the one fixture that commits under db-fixtures. …0903 has no
 -- PIN; an administrator sets one, and it then works.

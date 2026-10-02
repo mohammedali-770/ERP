@@ -775,6 +775,18 @@ begin
             hint = 'Grant the role through erp.grant_role() as that administrator.';
   end if;
 
+  -- An existing EMPLOYEE is reactivated: that is the recovery path. Anyone else —
+  -- the system principal above all — is refused. Without this, the on-conflict
+  -- branch below kept a service identity as it was and made it an administrator,
+  -- bypassing grant_role()'s employee-only guard; and because that row is active,
+  -- every later bootstrap was refused, leaving no human able to administer
+  -- anything. Found in review on PR #28.
+  if exists (select 1 from erp.person p
+              where p.person_id = p_person_id and p.person_type <> 'employee') then
+    raise exception 'only an employee can be bootstrapped as administrator; % is not one (IAM-P07)', p_person_id
+      using errcode = 'restrict_violation';
+  end if;
+
   insert into erp.identity_decision (
     decision_id, kind, subject_person_id, status, role_key, reason, actor_id, actor_type, decided_at
   ) values (
