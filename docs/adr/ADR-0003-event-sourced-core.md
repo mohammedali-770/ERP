@@ -83,6 +83,21 @@ What now becomes binding rather than proposed:
 - `projection_applied` carries `(projection, event_id)`, so replay is idempotent.
 - Event schemas are additive only, and every event carries `schema_version`.
 
+**Corrected 2026-10-02 — protection two now holds on every partition.** The decision
+is unchanged; its implementation had a hole. 0004 attached the trigger to the
+partitioned `event_log` as a *statement* trigger. PostgreSQL fires a partitioned
+table's statement triggers only for statements that name the parent, so
+`delete from erp.event_log_default` deleted every event, and so could an `UPDATE` or a
+`TRUNCATE`. The runtime could not, since it holds no privilege on the partition; the
+owner could. `db:check`'s update attempt named the parent, so it passed.
+
+Migration `20261002000300_append_only_logs_hold_everywhere.sql` adds a row trigger,
+which PostgreSQL clones onto every partition, and `TRUNCATE` triggers on the log and
+its partition. `db:check` now finds every partition through `pg_inherits` and attempts
+all three writes on each. Statement triggers are not cloned, so whatever later creates
+dated partitions must give each one its `TRUNCATE` trigger, and `db:check` fails on any
+partition without one.
+
 Retention and partitioning remain design work, as the consequences below say.
 They are now scheduled work rather than an open question. The PRD's single Critical risk is duplicate or
 conflicting financial records under offline sync, and this is the architecture

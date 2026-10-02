@@ -18,7 +18,7 @@
 -- The PINs below are the synthetic ones 0015_identity.sql seeds.
 
 begin;
-select plan(59);
+select plan(60);
 
 -- ---------------------------------------------------------------------------
 -- Structure, and the three actors
@@ -309,6 +309,13 @@ select throws_ok(
   $$ delete from erp.identity_decision $$,
   '23001', null,
   'an identity decision cannot be deleted'
+);
+-- An UPDATE or DELETE trigger does not see TRUNCATE (0013). CASCADE, because the person
+-- tables reference the log, and the refusal must be the trigger's.
+select throws_ok(
+  $$ truncate erp.identity_decision cascade $$,
+  '23001', 'identity_decision is append-only (IAM-008): TRUNCATE denied on identity_decision',
+  'nor emptied by TRUNCATE'
 );
 
 -- ---------------------------------------------------------------------------
