@@ -241,10 +241,12 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 
 -- Facts rather than role-switch collisions, for the reason 060 gives: db-fixtures
--- replays each fixture body alone, where a `set local role` would be missing.
-select is(has_table_privilege('erp_app', 'erp.person_credential', 'SELECT,INSERT,UPDATE,DELETE'), false,
+-- replays each fixture body alone, where a `set local role` would be missing. Each list
+-- names every table privilege PostgreSQL 16 and 17 both know; TRUNCATE matters most,
+-- because a row trigger does not fire for it.
+select is(has_table_privilege('erp_app', 'erp.person_credential', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime holds no privilege of any kind on credentials — verify_pin answers for it');
-select is(has_table_privilege('erp_app', 'erp.credential_miss', 'SELECT,INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.credential_miss', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'nor on the unknown-number counter');
 -- 0002 default-grants SELECT on every new table to erp_read. Without 0011's revoke a
 -- PIN hash would be in the reporting role's reach.
@@ -252,11 +254,11 @@ select is(has_table_privilege('erp_read', 'erp.person_credential', 'SELECT'), fa
   'the reporting role cannot read a PIN hash');
 select is(has_table_privilege('erp_read', 'erp.credential_miss', 'SELECT'), false,
   'nor the miss counter');
-select is(has_table_privilege('erp_app', 'erp.person', 'INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.person', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime writes no person directly');
-select is(has_table_privilege('erp_app', 'erp.person_role', 'INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.person_role', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'nor any role assignment — each has one admitted route, which records it');
-select is(has_table_privilege('erp_app', 'erp.identity_decision', 'INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.identity_decision', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'nor any decision — one appended without its projection would be a decision never in force');
 select is(has_function_privilege('erp_app', 'erp.bootstrap_administrator(uuid,uuid,text,text,text,text)', 'EXECUTE'), false,
   'the runtime cannot reach the bootstrap');

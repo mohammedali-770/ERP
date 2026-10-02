@@ -31,7 +31,11 @@ The owner decided on 2026-10-02 that the ERP has **one item master with a type**
 
 The design was produced by three independent drafts — from the requirements, from what
 warehouse users rely on, and from what later modules need — scored and merged by a
-judge, then built and proved by 95 pgTAP cases and 22 controls.
+judge. It was then built, and proved by the 134 cases of
+`supabase/tests/080_items_test.sql` (those marked CONTROL among them) and by `db:check`.
+Separately, one-off mutation runs each removed one mechanism and confirmed that 080 or
+`db:check` then failed. That harness is not committed, so those runs are a record of
+what was checked, not something this repository can reproduce.
 
 ## Decision
 
@@ -42,6 +46,8 @@ judge, then built and proved by 95 pgTAP cases and 22 controls.
 the owner too. Not "once used": "used" is knowable only by enumerating every later
 table, and some references live in JSON no catalogue scan sees. A mistaken identity is
 corrected by retiring the item and creating another; the old code is never reused.
+Nothing is deleted either: row triggers refuse DELETE on items and conversions, and a
+statement trigger on each table refuses TRUNCATE, which row triggers never see.
 
 ### 2. Units come from a closed register; conversions are a star.
 
@@ -49,8 +55,8 @@ corrected by retiring the item and creating another; the old code is never reuse
 against g, ml or piece; a pack has none. Every item's conversions in `erp.item_unit`
 convert **straight to its base unit** — there is no unit-to-unit edge, so two paths
 cannot disagree — and every active conversion of one physical dimension must agree with
-the others, checked by trigger. A unit in an anchored dimension is derived, never
-typed. A pack's size is always stated. **No conversion is ever assumed**: a missing one
+the others, checked by trigger. A unit in an anchored dimension may be left for the
+system to derive, and a stated factor must equal the derived one. A pack's size is always stated. **No conversion is ever assumed**: a missing one
 raises, and nothing reads it as 1.
 
 ### 3. Conversions are immutable; a pack-size change is retire plus add.
@@ -76,7 +82,9 @@ why minimum stock goes to the stock module per location (INV-013).
 ### 6. Hidden hides the data.
 
 The runtime holds no privilege on the item tables; it writes through six recorded
-routes and reads through three gated functions. So a `hidden` capability hides the data
+routes and reads through three gated functions, each of which calls
+`erp.assert_permitted()` first. `db:check`'s `every-runtime-definer-route-is-gated`
+fails on any definer function the runtime may call that does not. So a `hidden` capability hides the data
 and not only the menu (CAP-P02), and brand-private reads at a facility (ADR-0012) are
 enforced in the database. This goes one step past ADR-0022, where the runtime may read
 `erp.person`.
@@ -98,6 +106,11 @@ asserts.
   invoker helper granted to the runtime that touches `erp.item` fails with 42501.
 - A typo in a code, kind or base unit costs a retired item and a burned code. The
   create form must make the fixed fields explicit.
+- **A retry is recognisable.** Every write route checks its decision id before any other
+  rule, so a retry of a write that already committed fails 23505 naming
+  `item_decision_pkey` ("decision … is already recorded"), rather than as a taken code
+  or a stale form. The edge then confirms through `erp.item_history()` before reporting
+  success.
 - Factors are exact to six decimal places, and a derived factor that does not
   terminate is refused ("declare the smaller unit first"). The stock module must
   choose its storage scale for base quantities before it is built.
@@ -107,9 +120,12 @@ asserts.
 Recorded rather than guessed. None blocks this module's tables; each must be answered
 before the module it names.
 
-1. **Who may write items once real staff use the system.** The warehouse let only the
-   administrator; the migration grants only the administrator. Is write by kind
-   wanted — a factory manager maintaining raw ingredients, say?
+1. **Who may write items once real staff use the system.** The warehouse's screens let
+   only the administrator write items and raw materials. Its row-level security also
+   let the factory manager update raw materials (its `SYSTEM.md` §6), a workaround for a
+   stock trigger that no screen used. The migration grants write to the administrator
+   alone, so that is narrowed. Should write by kind be restored or added — a factory
+   manager maintaining raw ingredients, say?
 2. **Code format.** People type 1–24 characters of A–Z, 0–9, `.`, `_` and `-`, as the
    warehouse's serials were. Are system-generated codes per kind wanted? Codes are
    reserved forever, so this is expensive to change once real data exists.
@@ -124,6 +140,12 @@ before the module it names.
    the private `erp-menu-media` bucket without `service_role`, and whether the owner
    wants the warehouse's public pictures instead. Until then `picture_path` stays null.
 7. **The Arabic unit names** need a native speaker's review (PRG-014).
+8. **Should an import be refused when an item changed after the file was exported?**
+   Today the file wins, as it did in the warehouse: a row matching an existing code
+   overwrites that item's names and descriptions, and a row with no description clears
+   them. Refusing instead needs the export to carry each item's stamp, so that a stale
+   row fails as a line error and refuses the whole file. Must be answered before the
+   import screen ships.
 
 ## Alternatives considered
 

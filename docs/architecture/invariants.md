@@ -9,7 +9,8 @@ remember is a rule that will eventually be forgotten at 2am during an incident.
 
 ## Which of these are enforced *today*
 
-**Audited against `supabase/migrations/` on 2026-09-21.** The "Enforced by"
+**Audited against `supabase/migrations/` on 2026-09-21; the I-7 row re-audited on
+2026-10-02.** The "Enforced by"
 lines below are written in the present tense throughout, and for most of them
 that describes a branch runtime which does not exist yet — F0 has no feature
 code. Saying so once here is cheaper than a reader discovering it per invariant,
@@ -21,7 +22,7 @@ claim a spike tested something when the spike had never been written.
 | **I-3** | **Live.** Three partial unique indexes, plus pgTAP | `20260920000600_projections_and_conflict_detection.sql` |
 | **I-10** | **Live.** `schema_version int not null check (>= 1)` on the event log | `20260920000400_event_log.sql` |
 | **I-8** | **Live.** `as_of_event_id` is `not null` on all four projection tables, and every stamp is checked to name a real event | `20260921000100_projection_stamp_is_mandatory.sql` |
-| **I-7** | **Partly live.** Payloads are embedded in immutable event rows; the append-only guard is enforced by grant *and* trigger. Unit conversions are immutable rows that later lines copy through a four-column foreign key (0012) | `20260920000400_event_log.sql` · `20261002000200_items_and_units.sql` |
+| **I-7** | **Partly live.** Payloads are embedded in immutable event rows; the append-only guard is enforced by grant *and* trigger. Unit conversions are immutable rows (trigger, 0012), and `item_unit_seam`, a unique key on `(item_unit_id, item_id, unit_key, factor)`, is in place for later quantity-bearing lines to reference together. No such line exists yet | `20260920000400_event_log.sql` · `20261002000200_items_and_units.sql` |
 | **I-1** | Partly. Identifiers are `uuid` primary keys at central; edge minting is runtime | — |
 | **I-2, I-4, I-5** | **Not yet.** All three describe the branch runtime | — |
 | **I-6, I-9** | Design rules, with no single structure to point at | — |

@@ -198,9 +198,9 @@ create index ix_item_decision_unit on erp.item_decision (item_unit_id, seq) wher
 
 -- Append-only, enforced twice as 0004, 0010 and 0011 do. erp_app holds NO privilege on
 -- it (0011's reasoning: a decision appended without its projection is a decision never
--- in force). TRUNCATE is covered as well, because TRUNCATE … CASCADE would reach the log
--- through the projections' stamps, and a statement trigger on UPDATE and DELETE does not
--- fire for it.
+-- in force). TRUNCATE is covered as well: a statement trigger on UPDATE and DELETE does
+-- not fire for it, and a TRUNCATE … CASCADE of a table the log references — erp.person,
+-- erp.brand, erp.unit — would reach it through the log's own foreign keys.
 create or replace function erp.item_decision_is_append_only()
 returns trigger
 language plpgsql
@@ -230,7 +230,9 @@ create table erp.item (
   item_id           uuid        primary key,
   -- One code, one item, for good: unique across retired items too, because lot codes
   -- (<code>-YYMMDD, MFG-008) and every printed document go on naming it. Stored canonical.
-  code              text        not null
+  -- In C collation whatever the database's locale, so ordering and paging by code are
+  -- byte order everywhere — the scratch cluster, the local stack and the hosted project.
+  code              text        collate "C" not null
     constraint item_code_key unique
     constraint item_code_is_canonical check (code ~ '^[A-Z0-9][A-Z0-9._-]{0,23}$'),
   -- INV-002: what the item IS. Fixed once created.
@@ -427,6 +429,14 @@ begin
       raise exception 'conversion % is retired for good; add a new one (I-6)', old.item_unit_id
         using errcode = 'restrict_violation', constraint = 'item_unit_retirement_final';
     end if;
+    -- A retired conversion restamped is a second retirement: a decision that changed
+    -- nothing, crediting someone who did nothing. Refused here so no route — and no race
+    -- between two routes — can append one. Timestamp-only updates (0090) leave the stamp
+    -- alone and pass.
+    if old.status = 'retired' and new.as_of_decision_id is distinct from old.as_of_decision_id then
+      raise exception 'conversion % is already retired', old.item_unit_id
+        using errcode = 'restrict_violation', constraint = 'item_unit_already_retired';
+    end if;
     if new.status = 'retired' and new.unit_key = v_base then
       raise exception 'the base unit of an item is never retired (INV-005)'
         using errcode = 'restrict_violation', constraint = 'item_base_unit_fixed';
@@ -470,6 +480,32 @@ create trigger item_unit_is_fixed
   before insert or update or delete on erp.item_unit
   for each row
   execute function erp.item_unit_is_fixed();
+
+-- Row triggers do not fire for TRUNCATE, so without these the two guards above would
+-- protect against DELETE and leave TRUNCATE open — "never deleted" would hold for one
+-- statement and not the other. These projections are not rebuilt by truncate-and-replay
+-- (0006's event-log projections are); a code is reserved for good on erp.item itself.
+create or replace function erp.item_tables_are_never_truncated()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, pg_temp
+as $$
+begin
+  raise exception '% is retired, never deleted (B-11): TRUNCATE denied', tg_table_name
+    using errcode = 'restrict_violation',
+          hint = 'Retire items and conversions through their routes. Every line that names one must go on naming it.';
+end;
+$$;
+
+create trigger item_never_truncated
+  before truncate on erp.item
+  for each statement
+  execute function erp.item_tables_are_never_truncated();
+
+create trigger item_unit_never_truncated
+  before truncate on erp.item_unit
+  for each statement
+  execute function erp.item_tables_are_never_truncated();
 
 -- ---------------------------------------------------------------------------
 -- Seams for later modules — owner-only, called from their own definer routes
@@ -540,10 +576,30 @@ $$;
 -- The admitted write routes — each records its decision and advances the projection
 -- ---------------------------------------------------------------------------
 
+-- A retried call carries the decision id it was first sent with. Checked FIRST, before
+-- any rule that a committed first attempt would itself now break (create_item's code
+-- check, amend_item's stale check), so a retry always answers the same way: 23505 on
+-- item_decision_pkey. On that answer the edge reads erp.item_history() back and reports
+-- success only if the decision is there (0011's precedent; no replay table).
+create or replace function erp.assert_item_decision_is_new(p_decision_id uuid)
+returns void
+language plpgsql
+stable
+set search_path = pg_catalog, pg_temp
+as $$
+begin
+  if exists (select 1 from erp.item_decision d where d.decision_id = p_decision_id) then
+    raise exception 'decision % is already recorded', p_decision_id
+      using errcode = 'unique_violation', constraint = 'item_decision_pkey',
+            hint = 'A retry of a call that already succeeded. Read erp.item_history() to confirm.';
+  end if;
+end;
+$$;
+
 -- The single admitted route to a new item, with its base conversion, in one transaction:
 -- the warehouse made four uncoordinated client calls (item, picture, units, minimum).
--- All four ids are minted by the console (I-1). A repeated decision id fails 23505 on
--- item_decision_pkey; the edge reads erp.item_history() back before reporting success.
+-- All four ids are minted by the console (I-1). A retry fails 23505 on
+-- item_decision_pkey, from erp.assert_item_decision_is_new().
 create or replace function erp.create_item(
   p_decision_id           uuid,
   p_item_id               uuid,
@@ -577,6 +633,7 @@ begin
   -- Organisation scope: the item master is organisation data, so only an
   -- organisation-wide role grants write.
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'write', null);
+  perform erp.assert_item_decision_is_new(p_decision_id);
 
   if v_name_en is null or v_name_ar is null then
     raise exception 'an item is named in both English and Arabic (PRG-014)'
@@ -668,6 +725,7 @@ declare
   v_desc_ar text := nullif(btrim(p_description_ar), '');
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'write', null);
+  perform erp.assert_item_decision_is_new(p_decision_id);
 
   select * into v from erp.item i where i.item_id = p_item_id for update;
   if not found then
@@ -732,6 +790,7 @@ declare
   v erp.item;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'write', null);
+  perform erp.assert_item_decision_is_new(p_decision_id);
 
   if p_status is null or p_status not in ('active', 'retired') then
     raise exception 'an item is active or retired'
@@ -795,6 +854,7 @@ declare
   v_factor  numeric;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'write', null);
+  perform erp.assert_item_decision_is_new(p_decision_id);
 
   -- Serialises conversion changes per item, so the dimension rule is checked against a
   -- stable set.
@@ -872,16 +932,23 @@ security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  u erp.item_unit;
-  v erp.item;
+  v_item_id uuid;
+  u         erp.item_unit;
+  v         erp.item;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'write', null);
+  perform erp.assert_item_decision_is_new(p_decision_id);
 
-  select * into u from erp.item_unit x where x.item_unit_id = p_item_unit_id;
+  -- The item first, then the conversion READ AFTER the lock — the order every other
+  -- conversion route takes. Reading the conversion before the lock let two concurrent
+  -- retirements both pass the "already retired" check below and both record a decision.
+  -- item_id never changes (erp.item_unit_is_fixed()), so reading it unlocked is safe.
+  select x.item_id into v_item_id from erp.item_unit x where x.item_unit_id = p_item_unit_id;
   if not found then
     raise exception 'no conversion %', p_item_unit_id using errcode = 'no_data_found', constraint = 'item_unit_exists';
   end if;
-  select * into v from erp.item i where i.item_id = u.item_id for update;
+  select * into v from erp.item i where i.item_id = v_item_id for update;
+  select * into u from erp.item_unit x where x.item_unit_id = p_item_unit_id for update;
   if v.status = 'retired' then
     raise exception 'item % is retired: reinstate it before changing it', v.code
       using errcode = 'restrict_violation', constraint = 'item_is_retired';
@@ -911,10 +978,18 @@ $$;
 -- The warehouse's Excel upload, made all-or-nothing in the database. The edge parses the
 -- cells in TypeScript and mints the ids. Each row runs in its own subtransaction through
 -- the SAME routes the form uses, so validation cannot diverge; any error refuses the
--- whole file, reporting up to 20 lines in the warehouse's IMPORT_ROWS format. A
+-- whole file, with up to 20 errors in the warehouse's `line n: …` wording, carried in
+-- the error's DETAIL rather than after the warehouse's IMPORT_ROWS: message prefix. A
 -- resubmitted file matches by code and finds nothing to change, so it is idempotent
 -- without a replay table. Like the warehouse upload it sets no further units, no stock
 -- and no pictures.
+--
+-- THE FILE WINS, as it did in the warehouse. A row whose names or descriptions differ
+-- from an existing item's overwrites them even if the item was edited after the file
+-- was exported — the row carries no stamp, so amend_item's stale check is passed the
+-- current one — and a row with no description clears the item's. Whether an import
+-- should instead be refused when the item has changed since export is ADR-0024's open
+-- question 8.
 create or replace function erp.import_items(
   p_actor_id   uuid,
   p_reason     text,
@@ -1012,7 +1087,10 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- Reads at a facility are brand-private (ADR-0012's default): a facility's brand is
--- reached through its operating unit. The facility is the session's (ADR-0023 §2).
+-- reached through its operating unit. The facility is the caller's argument, checked by
+-- erp.assert_permitted() against the actor's role assignment there. Whether the edge
+-- layer binds it to the session is for the foundation PR: ADR-0023 §2 binds only the
+-- actor.
 create or replace function erp.item_facility_brand(p_facility_id uuid)
 returns uuid
 language plpgsql
@@ -1174,18 +1252,22 @@ $$;
 -- capabilities Phase 4 found only in the synthetic seed (inventory.stock,
 -- factory.production, finance.month_close) exist nowhere real. No decision is recorded,
 -- so CAP-P02's default-deny makes it HIDDEN everywhere until a later migration promotes
--- it — never the seed. MFG-012 is listed so promotion waits on the approved process
--- mapping (CAP-P09). Not protected: CAP-P08 covers only the administration of
--- capabilities, identity and audit.
+-- it — never the seed. MFG-012 is listed so that CAP-P09, once built, can name it.
+-- Nothing reads requirement_refs today and erp.decide_capability() does not check it,
+-- so operations' sign-off of docs/estate/process-mapping-items-and-units.md is a manual
+-- precondition of the promoting migration, not an enforced one. Not protected: CAP-P08
+-- covers only the administration of capabilities, identity and audit.
 insert into erp.capability (capability_key, name_en, name_ar, requirement_refs, protected, created_at) values
   ('inventory.items', 'Items and units', 'الأصناف والوحدات',
    array['INV-002', 'INV-005', 'MFG-012', 'PRG-014'], false, timestamptz '2026-10-02 00:00:00+00');
 
 -- The administrator is the only role a real database has (0011), and nothing writes
 -- erp.role_permission at runtime, so without these rows nobody could ever write an item
--- once the capability opened. Warehouse fidelity: items were administrator-managed
--- (its SYSTEM.md §8.10). 'approve' is unused: no INV requirement asks for approval of
--- master data.
+-- once the capability opened. In the warehouse's screens, items and raw materials were
+-- administrator-managed (its SYSTEM.md §8.10); its row-level security also let the
+-- factory manager update raw materials (§6), a stock-trigger workaround no screen used.
+-- That is deliberately narrowed here — ADR-0024's open question 1. 'approve' is unused:
+-- no INV requirement asks for approval of master data.
 insert into erp.role_permission (role_key, capability_key, action) values
   ('administrator', 'inventory.items', 'read'),
   ('administrator', 'inventory.items', 'write');

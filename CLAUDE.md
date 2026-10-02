@@ -121,10 +121,11 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE` and `DELETE` at runtime | `db:check` + pgTAP |
-| Every decision log — event, capability, identity, item — refuses `UPDATE` and `DELETE` | `db:check` + pgTAP — discovered by name, so a new `%_decision` table cannot be added unprotected |
+| Every decision log — event, capability, identity, item — refuses `UPDATE` and `DELETE` | `db:check` + pgTAP — discovered by name; `db:check` requires an enabled, unconditional trigger and no write grant, then attempts both writes on every log it found, so a new `%_decision` table cannot be added unprotected |
 | **No foreign key in `erp` cascades, nulls or defaults** | `db:check` — B-11: records are retired, never deleted |
-| **The scratch database is UTF8, as Supabase's is** | `db:check` — in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
-| An item's code, kind, base unit and brand, and a conversion's factor, never change | pgTAP — triggers that bind the owner too |
+| **The scratch database is UTF8, as Supabase's is** | `db:check` and `db:fixtures` — the scratch cluster refuses to start otherwise: in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
+| An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
+| **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
 | **No role but the owner can touch a credential table** | `db:check` — discovered by name, so `erp_read`'s default `SELECT` cannot reach a PIN hash |

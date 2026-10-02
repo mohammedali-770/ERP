@@ -166,6 +166,40 @@ try {
     failures++;
     console.log('  FAIL  event_log accepted an UPDATE — ADR-0003 protection two is not working');
   }
+
+  // The same, for every central decision log every-decision-log-is-append-only discovers:
+  // that assertion proves an enabled trigger exists; only an attempted write proves it
+  // refuses. Each attempt runs in a transaction that is rolled back, so an unprotected
+  // log is reported without being changed. Statement triggers fire on an empty table;
+  // the seed puts rows in every log, so row triggers fire too.
+  const logs = cluster
+    .sql(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
+            and c.relname like '%\\_decision' order by 1`)
+    .split('\n').map((x) => x.trim()).filter(Boolean);
+  for (const log of logs) {
+    const column = cluster
+      .sql(`select attname from pg_attribute where attrelid = 'erp.${log}'::regclass and attnum = 1`).trim();
+    const unrefused: string[] = [];
+    for (const [op, statement] of [
+      ['UPDATE', `update erp.${log} set ${column} = ${column} where true`],
+      ['DELETE', `delete from erp.${log} where true`],
+    ] as const) {
+      let refused = false;
+      try {
+        cluster.sql(`begin; ${statement}; rollback;`);
+      } catch (error) {
+        refused = /append-only/i.test(String(error));
+      }
+      if (!refused) unrefused.push(op);
+    }
+    if (unrefused.length === 0) {
+      console.log(`  pass  ${log} rejects UPDATE and DELETE at runtime`);
+    } else {
+      failures++;
+      console.log(`  FAIL  ${log} accepted ${unrefused.join(' and ')} — a decision log that can be edited answers nothing`);
+    }
+  }
 } finally {
   cluster?.stop();
 }

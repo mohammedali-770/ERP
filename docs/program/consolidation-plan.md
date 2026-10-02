@@ -4,7 +4,9 @@
   ADR-0020
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
 - **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
-  [Q-21](./open-questions.md)
+  [Q-22](./open-questions.md) · [Q-23](./open-questions.md) · the edge-layer foundation.
+  [Q-21](./open-questions.md) was answered on 2026-10-02 by
+  [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md)
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
   3 of 28 steps done.
 
@@ -145,7 +147,7 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 > - **Not carried: "View as".** The warehouse's preview changes only the screen and
 >   runs actions with the administrator's rights. CAP-P11 forbids that; the console's
 >   preview makes nothing writable, and making the *database* refuse a preview's writes
->   waits on sessions, which wait on Q-21.
+>   waits on sessions, which wait on Q-21 (since answered: ADR-0023).
 > - **The menu is one list, not six.** The warehouse keyed 59 entries by role, writing
 >   the same page out under several roles. Each entry now names a capability and an
 >   action; a role is a set of permissions.
@@ -164,6 +166,10 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 > - **Q-21 is the open end.** Nothing names what holds the `erp_app` credential, and
 >   PostgREST cannot be the ERP's API because `authenticated` reaches nothing in `erp`.
 >   Phase 4's data layer cannot be written until that is decided.
+>
+> *Answered 2026-10-02 by [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md):
+> edge functions hold `erp_app`. The data layer now waits on the edge-layer foundation,
+> not on a decision.*
 
 ---
 
@@ -208,7 +214,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 | # | Module | Warehouse size | In the old list? | Notes |
 |---|---|---|---|---|
 | 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies. **Database layer and tests built** — [ADR-0024](../adr/ADR-0024-item-master-and-units.md), [process mapping](../estate/process-mapping-items-and-units.md) |
-| 2 | Suppliers | 367 · 1 | Yes | Moves before purchasing; the item–supplier link lives here |
+| 2 | Suppliers | 367 · 1 | Yes | Same place as before. The item–supplier link — the warehouse's `raw_materials.supplier_id`, now naming a conversion — lives here, not on the master, so items no longer depend on suppliers: the old order's second dependency error |
 | 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7) |
 | 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | Partly covered by `erp.facility` |
 | 5 | Stock and movements | 1,834 · 4 | Yes | **Moved before purchasing**: receiving a PO writes stock |
@@ -216,7 +222,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 | 7 | Stock alerts | 206 · 0 | Split out | |
 | 8 | Purchase orders and receipts | 3,124 · 7 | Yes | Commitments in money, no payment |
 | 9 | **Ordering setup** — cut-off times, par levels | 361 · 2 | **No** | Its invoice-tolerance section is payment-adjacent and stays hidden |
-| 10 | **Branch orders** — branches ordering from the warehouse and factory | 4,128 · 5 | **No** | **The largest module.** `erp.orders` is already the POS sales projection, so this needs another name (INV-014: replenishment) |
+| 10 | **Branch orders** — branches ordering from the warehouse and factory | 4,128 · 4 | **No** | **The largest module.** `erp.orders` is already the POS sales projection, so this needs another name (INV-014: replenishment). Its delivery note prints lot lines, which module 14 owns |
 | 11 | **Branch delivery confirmation** — received, short, damaged | 279 · 0 | **No** | INV-016 |
 | 12 | **Branch order reports** — monthly summary, customer overview | 514 · 0 | **No** | |
 | 13 | Recipes and production | 825 · 5 | Yes | |
@@ -240,7 +246,9 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 5. A UAT pack where real staff touch it
 6. **Then** promoted off `hidden`, by a capability decision registered in a migration
    — not by the synthetic seed, which is where `inventory.stock`, `factory.production`
-   and `finance.month_close` live today
+   and `finance.month_close` live today — and only after operations has signed off the
+   module's process mapping (MFG-012). Nothing enforces that sign-off yet
+   ([Q-23](./open-questions.md)), so the promoting PR states who approved it, and when
 
 Steps 1 and 4 can run ahead of the edge-layer foundation; 2, 3, 5 and 6 cannot.
 

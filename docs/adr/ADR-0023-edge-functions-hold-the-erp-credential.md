@@ -4,6 +4,11 @@
   conversation, choosing between the three options [Q-21](../program/open-questions.md)
   set out
 - **Date:** 2026-10-02
+- **Corrected:** 2026-10-02, after review, without changing the decision. §1's reasons
+  had said the warehouse system already ran this pattern, and its citations named
+  ADR-0018 §3 as the rule that keeps API roles out of `erp`. The warehouse's sign-in uses
+  `service_role` through PostgREST, so what §1 decides is new on this estate. The rule
+  lives in a migration and a `db:check` assertion, which are now cited
 - **Answers:** [Q-21](../program/open-questions.md)
 - **Requirements:** IAM-001 · IAM-008 · IAM-010 · SEC-003 · SEC-004 · CAP-P04 · CAP-P11 ·
   IAM-P01 · IAM-P08
@@ -35,12 +40,17 @@ Every request from the console reaches the database through an edge function, wh
 connects to Postgres directly — not through PostgREST — as a dedicated login role
 holding `erp_app`'s privileges and nothing else. Never `service_role`, which would
 bypass row-level security and is the credential the warehouse system's
-`admin-create-user` misused.
+`admin-create-user` misused: until that repository's commit `ae60684` (2026-09-27) it
+created users of any role, `admin` included, for any caller, without checking who was
+asking.
 
 Why this option: everything stays in one Supabase project, which ADR-0021 already
-committed to; the warehouse system has run its branch-worker sign-in this way, so the
-pattern is proven on this estate; and no server has to be hosted and paid for outside
-ADR-0018's costing.
+committed to. An edge function already signs branch workers in on this estate (the
+warehouse system's `worker-sign-in`), so writing, deploying and operating one is
+familiar. That function connects as `service_role` through PostgREST, which this
+decision rejects. So a direct connection as a non-`service_role` login role, with its
+connection limits, is new here: the foundation PR proves it, not precedent. And no
+server has to be hosted and paid for outside ADR-0018's costing.
 
 ### 2. The edge layer is where the actor becomes real.
 
@@ -68,11 +78,16 @@ tested in this repository; deploying any of them is a separate, approved act.
 
 ## Consequences
 
-- ADR-0018 §3 stands unchanged: no API role reaches `erp`.
+- The rule that no API role reaches `erp` stands unchanged. Migration
+  `20260920000200_roles_and_default_privileges.sql` revokes the schema from them, and
+  `db:check`'s `api-roles-cannot-reach-erp` fails if any of them can reach it. ADR-0018
+  §3 explains why withholding USAGE is what binds `service_role`.
 - **The foundation comes before any module's data layer**: the login role, the
   connection, sessions issued from `erp.verify_pin()`, actor resolution, and the
   console calling functions over HTTPS with a session token. It finishes Phase 3's
   remaining sign-in work, and every Phase 4 module's step 2 builds on it.
+- The foundation PR must show the direct connection working from the edge runtime,
+  within its connection limits, before any module's data layer depends on it.
 - The connection string is a secret held in the edge functions' environment.
   `secret:scan` keeps it out of the repository, as it does every credential shape.
 - Edge functions add a runtime — Deno — that the repository's two-dependency rule does
@@ -86,5 +101,7 @@ connection: the cleanest boundary, but a server to host and pay for that ADR-001
 not costed. Not chosen; revisit if edge functions' cold starts or connection limits
 bite.
 
-**PostgREST on a second, `erp`-only role.** Keeps generated endpoints, but an API role
-reaching `erp` is precisely what ADR-0018 §3 forbids. Rejected.
+**PostgREST on a second, `erp`-only role.** Keeps generated endpoints, but it would give
+an API role USAGE on `erp`. Migration `20260920000200` revokes exactly that, and
+`db:check`'s `api-roles-cannot-reach-erp` fails on it (ADR-0018 §3 explains why that
+revoke is what binds `service_role`). Rejected.

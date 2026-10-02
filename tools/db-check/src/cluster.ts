@@ -109,10 +109,16 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
   // session or CI runner with no LANG set gets SQL_ASCII — where length() counts BYTES.
   // Every Supabase database is UTF8, so the scratch cluster silently disagreed with the
   // real one about every Arabic string: an 11-character Arabic unit name measured 21 and
-  // failed a 12-character check (found by 0012). --locale=C keeps the byte-order
-  // collation the cluster always had, and C is compatible with any encoding, so this
-  // works on any machine. db-check's database-is-utf8 holds the line.
-  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync', '-E', 'UTF8', '--locale=C']);
+  // failed a 12-character check (found by 0012).
+  //
+  // Collation stays C — byte order, as the cluster always had. The character type is a
+  // UTF-8 locale where the machine has one, because ctype C makes lower(), upper() and
+  // [[:space:]] ASCII-only, unlike Supabase; 0012's case-insensitive name index and its
+  // whitespace folding depend on them. With no UTF-8 locale installed it falls back to C,
+  // and db-check's database-is-utf8 then says so rather than passing quietly.
+  const ctype = utf8Ctype();
+  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync', '-E', 'UTF8',
+    ...(ctype ? ['--lc-collate=C', `--lc-ctype=${ctype}`, '--lc-messages=C'] : ['--locale=C'])]);
   // Unix socket only: no TCP port, so concurrent runs and a developer's own
   // Postgres on 5432 cannot collide.
   mustRun('pg_ctl', ['-D', dataDir, '-o', `-k ${socketDir} -h '' -c fsync=off`, '-w', '-l', logFile, 'start']);
@@ -124,6 +130,16 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
   };
 
   psql(['-d', 'postgres', '-c', `create database ${database}`]);
+
+  // Checked here, before any migration, because a non-UTF8 cluster fails on 0012's
+  // Arabic unit names with a CHECK violation that says nothing about encoding — and every
+  // consumer of this cluster (db-check, db-fixtures) would see only that.
+  const encoding = psql(['-d', database, '-t', '-A', '-c', 'show server_encoding']).trim();
+  if (encoding !== 'UTF8') {
+    throw new Error(
+      `the scratch cluster is ${encoding}, not UTF8: length() would count bytes and every Arabic ` +
+      `string would measure twice its length. initdb was not given -E UTF8.`);
+  }
 
   const dump = (db: string): string => {
     const r = run('pg_dump', ['-h', socketDir, '-U', 'postgres', '--data-only', '--no-owner', '-d', db]);
@@ -152,6 +168,14 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
       rmSync(root, { recursive: true, force: true });
     },
   };
+}
+
+/** A UTF-8 locale installed on this machine, for the cluster's character type, if any. */
+function utf8Ctype(): string | null {
+  const listed = spawnSync('locale', ['-a'], { encoding: 'utf8' });
+  if (listed.status !== 0) return null;
+  const available = new Set(listed.stdout.split('\n').map((l) => l.trim()));
+  return ['C.UTF-8', 'C.utf8', 'en_US.UTF-8', 'en_US.utf8'].find((l) => available.has(l)) ?? null;
 }
 
 export function readSql(path: string): string {

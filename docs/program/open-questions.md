@@ -481,7 +481,7 @@ Candidates, none chosen:
 |---|---|---|
 | **Edge functions** holding `erp_app` | The warehouse system already signs workers in through one, so the shape is familiar | Deno, per-function deployment, and a credential in each function's environment |
 | **A small API service** in `services/` | One process owning sessions and the `erp_app` connection | A server to run, which ADR-0018 has not costed |
-| **PostgREST on a second, `erp`-only role** | Keeps generated endpoints | Reopens ADR-0018 §3: an API role reaching `erp` is the thing it forbids |
+| **PostgREST on a second, `erp`-only role** | Keeps generated endpoints | Undoes the revoke in migration `20260920000200`, which `db:check`'s `api-roles-cannot-reach-erp` enforces: an API role would reach `erp` |
 
 Recorded rather than guessed: it is a hosting and architecture decision with a running
 cost, and PRG-010/011 put those with executive management.
@@ -514,6 +514,38 @@ Recorded rather than guessed. It does not affect Phase 4's first module (items c
 no business date) and must be answered before branch orders and purchasing.
 
 Related: Q-06, `consolidation-plan.md` Phase 4.
+
+---
+
+## Q-23 — What keeps a module hidden until operations sign off its process mapping?
+
+**Decides:** Product Owner, with Operations · **Expensive after:** the first Phase 4
+module is promoted past `pilot`
+
+Found 2026-10-02 in the review of Phase 4's first module. MFG-012 asks for warehouse
+and factory workflows to be migrated "through approved process mapping rather than
+copied without review". `inventory.items` lists MFG-012 in its `requirement_refs`, and
+its process mapping (`docs/estate/process-mapping-items-and-units.md`) awaits
+operations' sign-off. **Nothing connects the two:**
+
+- Nothing reads `requirement_refs`. CAP-P09, which would refuse promotion until a
+  requirement's evidence can be produced, is proposed and not built. Even as specified
+  it checks producible evidence, and a sign-off by operations is not evidence of that
+  kind.
+- `erp.decide_capability()` lets any person holding `platform.capability_admin` promote a
+  capability at runtime. "Promoted by a reviewed migration" (ADR-0024) is a convention,
+  not a constraint.
+
+Until this is answered, the sign-off is a **manual precondition**: the PR that promotes
+a module states who in operations approved its process mapping, and when (consolidation
+plan, "Each module, every time", step 6).
+
+Options: keep it manual; record sign-offs as data (who, when, which revision of the
+mapping) and have `erp.decide_capability()` refuse `pilot` or `enabled` without one; or
+refuse runtime promotion past `pilot`, so only a migration can open a module.
+
+Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
+Phase 4.
 
 ---
 

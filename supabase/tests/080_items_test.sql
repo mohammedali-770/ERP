@@ -9,17 +9,20 @@
 -- ORDER MATTERS, as in 060 and 070:
 --   * throws_ok and lives_ok bodies are replayed alone by tools/db-fixtures against the
 --     seed, so none may depend on a plain statement earlier in this file;
---   * plain statements that change state (the read_only round trip, the derived g, the
---     amendment and the imports) come after every throws_ok that relies on the seeded
---     state;
+--   * plain statements that change state (the read_only round trip, the derived and the
+--     typed g, the amendments and the imports) come after every throws_ok that relies on
+--     the seeded state;
 --   * the two lives_ok that COMMIT under db-fixtures are last, with fresh ids, touching
 --     nothing an earlier fixture reads. Committed rows cannot be reset: the log is
 --     append-only and items are never deleted.
 --
--- Fixture ids are …0e08NN and …0e09NN, so tools/db-fixtures recognises them.
+-- Fixture ids are …0e08NN and …0e09NN, a range no seed row and no other suite uses, so a
+-- committed fixture cannot collide with anything. tools/db-fixtures' reset does not clean
+-- the item tables, and cannot: deletes are refused and the log is append-only. Isolation
+-- comes from the ordering rules above, not from cleanup.
 
 begin;
-select plan(95);
+select plan(134);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -44,12 +47,12 @@ select col_isnt_fk('erp', 'item_decision', 'item_id', 'the log does not referenc
 select col_is_unique('erp', 'item_unit', array['item_unit_id', 'item_id', 'unit_key', 'factor']::name[],
   'the conversion seam is a unique key later rows can reference');
 select col_is_unique('erp', 'item', array['code']::name[], 'a code names one item, retired items included');
-select ok((select indpred is not null from pg_index where indexrelid = 'erp.ux_item_active_name_en'::regclass),
-  'English names are unique among ACTIVE items only, so a retired item frees its name');
-select ok((select indpred is not null from pg_index where indexrelid = 'erp.ux_item_active_name_ar'::regclass),
-  'and so are Arabic names');
-select ok((select indpred is not null from pg_index where indexrelid = 'erp.ux_item_unit_one_active'::regclass),
-  'a unit word means one thing per item among ACTIVE conversions only');
+select is((select pg_get_expr(indpred, indrelid) from pg_index where indexrelid = 'erp.ux_item_active_name_en'::regclass),
+  '(status = ''active''::text)', 'English names are unique among ACTIVE items only, so a retired item frees its name');
+select is((select pg_get_expr(indpred, indrelid) from pg_index where indexrelid = 'erp.ux_item_active_name_ar'::regclass),
+  '(status = ''active''::text)', 'and so are Arabic names');
+select is((select pg_get_expr(indpred, indrelid) from pg_index where indexrelid = 'erp.ux_item_unit_one_active'::regclass),
+  '(status = ''active''::text)', 'a unit word means one thing per item among ACTIVE conversions only');
 
 -- ---------------------------------------------------------------------------
 -- Privilege facts — what the runtime cannot do at all
@@ -57,14 +60,28 @@ select ok((select indpred is not null from pg_index where indexrelid = 'erp.ux_i
 
 -- Facts rather than role-switch collisions, for 060's reason: db-fixtures replays each
 -- body alone, where a `set local role` would be missing.
-select is(has_table_privilege('erp_app', 'erp.item', 'SELECT,INSERT,UPDATE,DELETE'), false,
+-- Every table privilege PostgreSQL 16 and 17 both name. TRUNCATE matters most: the row
+-- guards do not fire for it. has_table_privilege also sees privileges held through a role.
+select is(has_table_privilege('erp_app', 'erp.item', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime holds no privilege of any kind on erp.item, so hidden hides the data');
-select is(has_table_privilege('erp_app', 'erp.item_unit', 'SELECT,INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.item_unit', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime holds no privilege of any kind on erp.item_unit, so hidden hides the data');
-select is(has_table_privilege('erp_app', 'erp.item_decision', 'SELECT,INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.item_decision', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime holds no privilege of any kind on erp.item_decision, so hidden hides the data');
-select is(has_table_privilege('erp_app', 'erp.unit', 'INSERT,UPDATE,DELETE'), false,
+select is(has_table_privilege('erp_app', 'erp.unit', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the unit register changes by migration only');
+-- And the ACLs themselves, which also show what that list cannot name: a column grant,
+-- PostgreSQL 17's MAINTAIN, or a privilege added later.
+select is((select count(*)::int from (
+    select a.grantee from pg_class c
+     cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+     where c.oid in ('erp.item'::regclass, 'erp.item_unit'::regclass, 'erp.item_decision'::regclass)
+    union all
+    select a.grantee from pg_attribute att
+     cross join lateral aclexplode(att.attacl) a
+     where att.attrelid in ('erp.item'::regclass, 'erp.item_unit'::regclass, 'erp.item_decision'::regclass)
+  ) g where g.grantee = 'erp_app'::regrole), 0,
+  'the runtime holds no direct grant on the item tables or any of their columns');
 select is(has_function_privilege('erp_read', 'erp.create_item(uuid,uuid,uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,uuid,timestamptz)', 'EXECUTE'), false,
   'the reporting role cannot create an item');
 select is(has_function_privilege('erp_app', 'erp.assert_item_active(uuid,text[])', 'EXECUTE'), false,
@@ -120,6 +137,86 @@ select throws_ok(
   '23001', 'person 01936f00-0000-7000-8000-000000000901 may not read on capability inventory.items here (IAM-003)',
   'nor at a branch that is not theirs (IAM-006)'
 );
+-- Every route asks. The cases above prove the gate on create_item and list_items; these
+-- prove each other route calls it, so erp.assert_permitted() dropped from any one of them
+-- fails here. db-check's every-runtime-definer-route-is-gated is the structural backstop.
+select throws_ok(
+  $$ select erp.amend_item('01936f00-0000-7000-8000-0000000e0912'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid, '01936f00-0000-7000-8000-000000004301'::uuid, 'Chicken breast fillet (synthetic)', 'فيليه صدر دجاج (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability inventory.items here (IAM-003)',
+  'amend_item asks for write permission as well'
+);
+select throws_ok(
+  $$ select erp.change_item_status('01936f00-0000-7000-8000-0000000e0913'::uuid, '01936f00-0000-7000-8000-000000004108'::uuid, '01936f00-0000-7000-8000-000000004315'::uuid, 'retired', 'testing', '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability inventory.items here (IAM-003)',
+  'change_item_status asks for write permission as well'
+);
+select throws_ok(
+  $$ select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0914'::uuid, '01936f00-0000-7000-8000-0000000e0915'::uuid, '01936f00-0000-7000-8000-000000004107'::uuid, 'carton', 10, 'testing', '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability inventory.items here (IAM-003)',
+  'add_item_unit asks for write permission as well'
+);
+select throws_ok(
+  $$ select erp.retire_item_unit('01936f00-0000-7000-8000-0000000e0916'::uuid, '01936f00-0000-7000-8000-000000004203'::uuid, 'testing', '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability inventory.items here (IAM-003)',
+  'retire_item_unit asks for write permission as well'
+);
+select throws_ok(
+  $$ select erp.import_items('01936f00-0000-7000-8000-000000000904'::uuid, 'testing', now(), '[{"line":2,"code":"ZZ-GATE","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Gate lid (synthetic)","name_ar":"غطاء البوابة (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0917","item_id":"01936f00-0000-7000-8000-0000000e0918","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0919","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0920"}]'::jsonb) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability inventory.items here (IAM-003)',
+  'import_items asks for write permission as well'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0921'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select erp.amend_item('01936f00-0000-7000-8000-0000000e0922'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid, '01936f00-0000-7000-8000-000000004301'::uuid, 'Chicken breast fillet (synthetic)', 'فيليه صدر دجاج (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'capability inventory.items is hidden for this scope and does not admit new work (CAP-P04)',
+  'amend_item is closed by a hidden capability, to the administrator too'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0923'::uuid, 'inventory.items', null, 'read_only', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select erp.change_item_status('01936f00-0000-7000-8000-0000000e0924'::uuid, '01936f00-0000-7000-8000-000000004108'::uuid, '01936f00-0000-7000-8000-000000004315'::uuid, 'retired', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'capability inventory.items is read_only for this scope and does not admit new work (CAP-P04)',
+  'change_item_status is closed by a read_only capability, to the administrator too'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0925'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0926'::uuid, '01936f00-0000-7000-8000-0000000e0927'::uuid, '01936f00-0000-7000-8000-000000004107'::uuid, 'carton', 10, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'capability inventory.items is hidden for this scope and does not admit new work (CAP-P04)',
+  'add_item_unit is closed by a hidden capability, to the administrator too'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0928'::uuid, 'inventory.items', null, 'read_only', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select erp.retire_item_unit('01936f00-0000-7000-8000-0000000e0929'::uuid, '01936f00-0000-7000-8000-000000004203'::uuid, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'capability inventory.items is read_only for this scope and does not admit new work (CAP-P04)',
+  'retire_item_unit is closed by a read_only capability, to the administrator too'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0930'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), '[{"line":2,"code":"ZZ-GATE","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Gate lid (synthetic)","name_ar":"غطاء البوابة (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0931","item_id":"01936f00-0000-7000-8000-0000000e0932","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0933","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0934"}]'::jsonb) $$,
+  '23001', 'capability inventory.items is hidden for this scope and does not admit new work (CAP-P04)',
+  'import_items is closed by a hidden capability, to the administrator too'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0935'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select * from erp.get_item('01936f00-0000-7000-8000-000000000900'::uuid, null, '01936f00-0000-7000-8000-000000004101'::uuid) $$,
+  '23001', 'capability inventory.items is hidden for this scope (CAP-P02)',
+  'get_item hides the data under a hidden capability'
+);
+select throws_ok(
+  $$ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0936'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+     select * from erp.item_history('01936f00-0000-7000-8000-000000000900'::uuid, null, '01936f00-0000-7000-8000-000000004101'::uuid) $$,
+  '23001', 'capability inventory.items is hidden for this scope (CAP-P02)',
+  'item_history hides the data under a hidden capability'
+);
+select throws_ok(
+  $$ select * from erp.get_item('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000402'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000901 may not read on capability inventory.items here (IAM-003)',
+  'get_item refuses a branch worker at a branch that is not theirs (IAM-006)'
+);
+select throws_ok(
+  $$ select * from erp.item_history('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000402'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid) $$,
+  '23001', 'person 01936f00-0000-7000-8000-000000000901 may not read on capability inventory.items here (IAM-003)',
+  'item_history refuses a branch worker at a branch that is not theirs (IAM-006)'
+);
 
 -- ---------------------------------------------------------------------------
 -- Brand-private reads (ADR-0012) and paging
@@ -127,6 +224,8 @@ select throws_ok(
 
 select is((select count(*) from erp.list_items('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid) where code = 'B2-PKG-MEAL-BOX-M'), 0::bigint,
   'at their own branch, a branch worker sees none of another brand''s items');
+select is((select count(*) from erp.list_items('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid) where code = 'PK-MEAL-BOX-M'), 1::bigint,
+  'CONTROL: while the same call shows their own brand''s item of the same name');
 select is((select count(*) from erp.list_items('01936f00-0000-7000-8000-000000000900'::uuid) where code = 'B2-PKG-MEAL-BOX-M'), 1::bigint,
   'the control: the organisation-wide administrator does see it');
 select throws_ok(
@@ -134,6 +233,15 @@ select throws_ok(
   'P0002', 'no item 01936f00-0000-7000-8000-000000004112',
   'another brand''s item answers exactly as a missing one'
 );
+select is((select code from erp.get_item('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid, '01936f00-0000-7000-8000-000000004104'::uuid)), 'PK-MEAL-BOX-M',
+  'CONTROL: while their own brand''s item answers at the same branch');
+select throws_ok(
+  $$ select * from erp.item_history('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid, '01936f00-0000-7000-8000-000000004112'::uuid) $$,
+  'P0002', 'no item 01936f00-0000-7000-8000-000000004112',
+  'and so does its history'
+);
+select is((select count(*) from erp.item_history('01936f00-0000-7000-8000-000000000901'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid, '01936f00-0000-7000-8000-000000004104'::uuid)), 4::bigint,
+  'CONTROL: while their own brand''s item''s history is there: its creation and three conversions');
 select throws_ok(
   $$ select * from erp.list_items('01936f00-0000-7000-8000-000000000900'::uuid, null, null, 'active', null, null, null, 501) $$,
   '22023', 'a page holds 1 to 500 items',
@@ -142,6 +250,9 @@ select throws_ok(
 select is(array(select code from erp.list_items('01936f00-0000-7000-8000-000000000900'::uuid, null, '01936f00-0000-7000-8000-000000000201'::uuid, 'active', null, null, 'PK-MEAL-BOX-M', 3)),
   array['RM-CHK-BREAST', 'RM-FRYING-OIL', 'RM-RICE'],
   'keyset paging in C collation, retired items excluded');
+select is((select c.collname::text from pg_attribute a join pg_collation c on c.oid = a.attcollation
+   where a.attrelid = 'erp.item'::regclass and a.attname = 'code'), 'C',
+  'codes compare in C collation by declaration, whatever the database''s locale');
 
 -- ---------------------------------------------------------------------------
 -- Codes, names, kinds (INV-002, PRG-014)
@@ -152,6 +263,14 @@ select throws_ok(
        'Breast twin (synthetic)', 'توأم الصدر (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23505', 'item code RM-CHK-BREAST is already used: a code names one item, for good (INV-002)',
   'CONTROL: a code is canonical — trimmed and upper-cased — and names one item'
+);
+-- A retry of a create that already committed — the seed's own decision, replayed. The
+-- decision id is checked first, so the edge can tell a replay from a code someone else took.
+select throws_ok(
+  $$ select erp.create_item('01936f00-0000-7000-8000-000000004301'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid, '01936f00-0000-7000-8000-000000004302'::uuid, '01936f00-0000-7000-8000-000000004201'::uuid, '01936f00-0000-7000-8000-000000000201'::uuid, 'RM-CHK-BREAST', 'raw_ingredient', 'kg',
+       'Chicken breast (synthetic)', 'صدر دجاج (تجريبي)', 'Boneless and skinless (synthetic)', 'بدون عظم وجلد (تجريبي)', null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23505', 'decision 01936f00-0000-7000-8000-000000004301 is already recorded',
+  'CONTROL: a replayed decision is reported as a replay, not as a taken code'
 );
 select throws_ok(
   $$ select erp.create_item('01936f00-0000-7000-8000-0000000e0826'::uuid, '01936f00-0000-7000-8000-0000000e0827'::uuid, '01936f00-0000-7000-8000-0000000e0828'::uuid, '01936f00-0000-7000-8000-0000000e0829'::uuid, '01936f00-0000-7000-8000-000000000201'::uuid, 'fp-cola-٣٣٠', 'packaging', 'piece',
@@ -243,10 +362,27 @@ select throws_ok(
   '23001', 'item SP-FRYER-GASKET is retired, never deleted (B-11)',
   'CONTROL: an item is retired, never deleted'
 );
+-- Row triggers do not fire for TRUNCATE; a statement trigger on each table does. erp.item
+-- needs CASCADE to get that far, because erp.item_unit references it.
+select throws_ok(
+  $$ truncate erp.item cascade $$,
+  '23001', 'item is retired, never deleted (B-11): TRUNCATE denied',
+  'CONTROL: nor emptied by TRUNCATE'
+);
+select throws_ok(
+  $$ truncate erp.item_unit $$,
+  '23001', 'item_unit is retired, never deleted (B-11): TRUNCATE denied',
+  'CONTROL: and neither are the conversions'
+);
 select throws_ok(
   $$ select erp.amend_item('01936f00-0000-7000-8000-0000000e0866'::uuid, '01936f00-0000-7000-8000-000000004111'::uuid, '01936f00-0000-7000-8000-000000004321'::uuid, 'Rice (synthetic)', 'أرز (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23001', 'item RM-RICE has changed since it was read',
   'an edit made from a stale form is refused, not silently last-writer-wins'
+);
+select throws_ok(
+  $$ select erp.change_item_status('01936f00-0000-7000-8000-0000000e0937'::uuid, '01936f00-0000-7000-8000-000000004111'::uuid, '01936f00-0000-7000-8000-000000004321'::uuid, 'retired', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'item RM-RICE has changed since it was read',
+  'and so is a retirement made from a stale screen'
 );
 select throws_ok(
   $$ select erp.amend_item('01936f00-0000-7000-8000-0000000e0867'::uuid, '01936f00-0000-7000-8000-000000004109'::uuid, '01936f00-0000-7000-8000-000000004341'::uuid, 'Old oil (synthetic)', 'زيت قديم (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
@@ -318,14 +454,49 @@ select throws_ok(
   'and is above zero'
 );
 select throws_ok(
+  $$ insert into erp.item_unit (item_unit_id, item_id, unit_key, factor, status, as_of_decision_id)
+     values ('01936f00-0000-7000-8000-0000000e0938'::uuid, '01936f00-0000-7000-8000-000000004104'::uuid, 'case', 0.1234567, 'active', '01936f00-0000-7000-8000-000000004308'::uuid) $$,
+  '23514', 'new row for relation "item_unit" violates check constraint "item_unit_factor_is_exact"',
+  'and the table refuses it too, for the owner: no numeric(p,s) rounds it silently'
+);
+select throws_ok(
+  $$ select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0939'::uuid, '01936f00-0000-7000-8000-0000000e0940'::uuid, '01936f00-0000-7000-8000-000000004104'::uuid, 'kg', 0.0003, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+     select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0941'::uuid, '01936f00-0000-7000-8000-0000000e0942'::uuid, '01936f00-0000-7000-8000-000000004104'::uuid, 'g', null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23514', 'one g of PK-MEAL-BOX-M is not an exact number of piece; declare the smaller unit first (INV-005)',
+  'a derived factor that would need a seventh decimal place is refused, not rounded'
+);
+select throws_ok(
   $$ select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0884'::uuid, '01936f00-0000-7000-8000-0000000e0885'::uuid, '01936f00-0000-7000-8000-000000004101'::uuid, 'kg', 1, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23001', 'kg is the base unit of RM-CHK-BREAST and converts at 1 (INV-005)',
   'the base cannot be declared twice'
 );
 select throws_ok(
+  $$ insert into erp.item_unit (item_unit_id, item_id, unit_key, factor, status, as_of_decision_id)
+     values ('01936f00-0000-7000-8000-0000000e0943'::uuid, '01936f00-0000-7000-8000-000000004111'::uuid, 'kg', 2, 'active', '01936f00-0000-7000-8000-000000004322'::uuid) $$,
+  '23001', 'the base unit of RM-RICE converts at 1 and is never retired (INV-005)',
+  'the owner cannot write a base row at another factor'
+);
+select throws_ok(
+  $$ insert into erp.item_unit (item_unit_id, item_id, unit_key, factor, status, as_of_decision_id)
+     values ('01936f00-0000-7000-8000-0000000e0944'::uuid, '01936f00-0000-7000-8000-000000004103'::uuid, 'can', 2, 'retired', '01936f00-0000-7000-8000-000000004306'::uuid) $$,
+  '23001', 'the base unit of FP-COLA-330 converts at 1 and is never retired (INV-005)',
+  'nor a retired one — on a pack base, where no dimension rule stands in'
+);
+select throws_ok(
   $$ select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0886'::uuid, '01936f00-0000-7000-8000-0000000e0887'::uuid, '01936f00-0000-7000-8000-000000004103'::uuid, 'carton', 12, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23001', 'item FP-COLA-330 already has an active conversion for carton; retire it first, so carton never means two things at once (INV-005)',
   'a unit word means one thing per item at a time'
+);
+-- For the owner the index is the only guard: a pack has no dimension for the trigger to
+-- check, and add_item_unit's own test is skipped. Decision and row in one body, so both
+-- roll back together.
+select throws_ok(
+  $$ insert into erp.item_decision (decision_id, kind, item_id, item_unit_id, unit_key, factor, status, reason, actor_id, decided_at)
+     values ('01936f00-0000-7000-8000-0000000e0945'::uuid, 'unit_added', '01936f00-0000-7000-8000-000000004103'::uuid, '01936f00-0000-7000-8000-0000000e0946'::uuid, 'carton', 12, 'active', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+     insert into erp.item_unit (item_unit_id, item_id, unit_key, factor, status, as_of_decision_id)
+     values ('01936f00-0000-7000-8000-0000000e0946'::uuid, '01936f00-0000-7000-8000-000000004103'::uuid, 'carton', 12, 'active', '01936f00-0000-7000-8000-0000000e0945'::uuid) $$,
+  '23505', 'duplicate key value violates unique constraint "ux_item_unit_one_active"',
+  'CONTROL: the owner cannot hold two active cartons on one item either: the index refuses it'
 );
 select throws_ok(
   $$ update erp.item_unit set factor = 12 where item_unit_id = '01936f00-0000-7000-8000-000000004210'::uuid $$,
@@ -338,9 +509,24 @@ select throws_ok(
   'retirement is final'
 );
 select throws_ok(
+  $$ update erp.item_unit set as_of_decision_id = '01936f00-0000-7000-8000-000000004330'::uuid where item_unit_id = '01936f00-0000-7000-8000-000000004209'::uuid $$,
+  '23001', 'conversion 01936f00-0000-7000-8000-000000004209 is already retired',
+  'CONTROL: and happens once — a restamp would be a second retirement, so no race can record one'
+);
+select throws_ok(
+  $$ select erp.retire_item_unit('01936f00-0000-7000-8000-0000000e0947'::uuid, '01936f00-0000-7000-8000-000000004209'::uuid, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'conversion 01936f00-0000-7000-8000-000000004209 is already retired',
+  'which the route says too'
+);
+select throws_ok(
   $$ select erp.retire_item_unit('01936f00-0000-7000-8000-0000000e0888'::uuid, '01936f00-0000-7000-8000-000000004201'::uuid, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23001', 'the base unit of an item is never retired (INV-005)',
   'the base unit never goes'
+);
+select throws_ok(
+  $$ update erp.item_unit set status = 'retired' where item_unit_id = '01936f00-0000-7000-8000-000000004201'::uuid $$,
+  '23001', 'the base unit of an item is never retired (INV-005)',
+  'CONTROL: not for the owner either'
 );
 select throws_ok(
   $$ delete from erp.item_unit where item_unit_id = '01936f00-0000-7000-8000-000000004203'::uuid $$,
@@ -417,7 +603,30 @@ select throws_ok(
   '22023', 'item import refused: 1 line(s) failed and nothing was saved',
   'CONTROL: one bad line refuses the whole file — and an import cannot change a kind'
 );
-select is((select count(*) from erp.item where code = 'ZZ-IMP-1'), 0::bigint, 'the valid line was not saved either');
+-- The refusal's DETAIL carries the lines. A test-local function reads it; it lives in
+-- pg_temp, so it changes nothing in erp and nothing a later case reads.
+create function pg_temp.import_refusal(p_rows jsonb) returns text language plpgsql as $f$
+declare
+  v_detail text;
+begin
+  perform erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), p_rows);
+  return '(the import was not refused)';
+exception when invalid_parameter_value then
+  get stacked diagnostics v_detail = pg_exception_detail;
+  return v_detail;
+end
+$f$;
+select is(pg_temp.import_refusal('[{"line":2,"code":"ZZ-IMP-1","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Import lid (synthetic)","name_ar":"غطاء مستورد (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0889","item_id":"01936f00-0000-7000-8000-0000000e0890","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0891","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0892"},{"line":3,"code":"rm-rice","item_kind":"packaging","base_unit_key":"kg","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Basmati rice (synthetic)","name_ar":"أرز بسمتي (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0893"}]'::jsonb),
+  'line 3: item RM-RICE is a raw_ingredient in brand SPICY with base unit kg: kind, base unit and brand are fixed (INV-002, INV-005)',
+  'only line 3 failed: line 2 passed every check and was refused with it');
+select throws_ok(
+  $$ select erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), '[{"line":2,"code":"ZZ-IMP-D","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Doubled lid (synthetic)","name_ar":"غطاء مكرر (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0948","item_id":"01936f00-0000-7000-8000-0000000e0949","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0950","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0951"},{"line":3,"code":"zz-imp-d","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Doubled lid again (synthetic)","name_ar":"غطاء مكرر ثانية (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0952","item_id":"01936f00-0000-7000-8000-0000000e0953","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0954","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0955"}]'::jsonb) $$,
+  '22023', 'item import refused: 1 line(s) failed and nothing was saved',
+  'a code twice in one file is refused, however it is typed'
+);
+select is(pg_temp.import_refusal('[{"line":2,"code":"ZZ-IMP-D","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Doubled lid (synthetic)","name_ar":"غطاء مكرر (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0948","item_id":"01936f00-0000-7000-8000-0000000e0949","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0950","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0951"},{"line":3,"code":"zz-imp-d","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Doubled lid again (synthetic)","name_ar":"غطاء مكرر ثانية (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0952","item_id":"01936f00-0000-7000-8000-0000000e0953","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0954","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0955"}]'::jsonb),
+  'line 3: code ZZ-IMP-D appears twice in the file (lines 2 and 3)',
+  'and the line names both');
 
 -- ---------------------------------------------------------------------------
 -- Plain statements — pgTAP only, after every case that reads the seeded state
@@ -431,15 +640,30 @@ select erp.decide_capability('01936f00-0000-7000-8000-0000000e0809'::uuid, 'inve
 select erp.create_item('01936f00-0000-7000-8000-0000000e0810'::uuid, '01936f00-0000-7000-8000-0000000e0811'::uuid, '01936f00-0000-7000-8000-0000000e0812'::uuid, '01936f00-0000-7000-8000-0000000e0813'::uuid, '01936f00-0000-7000-8000-000000000201'::uuid, 'ZZ-WINGS', 'raw_ingredient', 'kg',
        '  Chicken   wings (synthetic) ', 'أجنحة دجاج (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
 select is((select name_en from erp.item where code = 'ZZ-WINGS'), 'Chicken wings (synthetic)', 'a name is stored collapsed and trimmed');
--- A unit in an anchored dimension is DERIVED, never typed.
+-- A unit in an anchored dimension can be DERIVED rather than typed (a typed factor must
+-- agree with it).
 select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0894'::uuid, '01936f00-0000-7000-8000-0000000e0895'::uuid, '01936f00-0000-7000-8000-000000004102'::uuid, 'g', null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
 select is((select factor from erp.item_unit where item_unit_id = '01936f00-0000-7000-8000-0000000e0895'::uuid), 0.008::numeric,
   'g on a piece item is derived through its 1 kg = 8 piece anchor');
+select erp.add_item_unit('01936f00-0000-7000-8000-0000000e0956'::uuid, '01936f00-0000-7000-8000-0000000e0957'::uuid, '01936f00-0000-7000-8000-000000004111'::uuid, 'g', 0.001, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select is((select factor from erp.item_unit where item_unit_id = '01936f00-0000-7000-8000-0000000e0957'::uuid), 0.001::numeric,
+  'and a typed factor equal to the derived one is accepted');
+-- A form saved without a change records nothing. The import's idempotency below never
+-- reaches amend_item, so this is the only case that does.
+select erp.amend_item('01936f00-0000-7000-8000-0000000e0958'::uuid, '01936f00-0000-7000-8000-000000004111'::uuid, '01936f00-0000-7000-8000-000000004342'::uuid, 'Basmati rice (synthetic)', 'أرز بسمتي (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select is((select count(*) from erp.item_decision where decision_id = '01936f00-0000-7000-8000-0000000e0958'::uuid), 0::bigint, 'an unchanged form records no decision');
+select is((select as_of_decision_id from erp.item where item_id = '01936f00-0000-7000-8000-000000004111'::uuid), '01936f00-0000-7000-8000-000000004342'::uuid, 'and leaves the stamp where it was');
 -- The import is idempotent: a resubmitted file finds nothing to change and records nothing.
 select is(erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), '[{"line":2,"code":"ZZ-IMP-2","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Imported cup (synthetic)","name_ar":"كوب مستورد (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0896","item_id":"01936f00-0000-7000-8000-0000000e0897","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0898","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0900"},{"line":3,"code":"ZZ-IMP-3","item_kind":"cleaning_supply","base_unit_key":"l","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Imported soap (synthetic)","name_ar":"صابون مستورد (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0901","item_id":"01936f00-0000-7000-8000-0000000e0902","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0903","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0904"}]'::jsonb),
   '{"created": 2, "amended": 0, "unchanged": 0}'::jsonb, 'an import creates new codes');
 select is(erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), '[{"line":2,"code":"ZZ-IMP-2","item_kind":"packaging","base_unit_key":"piece","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Imported cup (synthetic)","name_ar":"كوب مستورد (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0896","item_id":"01936f00-0000-7000-8000-0000000e0897","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0898","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0900"},{"line":3,"code":"ZZ-IMP-3","item_kind":"cleaning_supply","base_unit_key":"l","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Imported soap (synthetic)","name_ar":"صابون مستورد (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0901","item_id":"01936f00-0000-7000-8000-0000000e0902","base_unit_decision_id":"01936f00-0000-7000-8000-0000000e0903","base_item_unit_id":"01936f00-0000-7000-8000-0000000e0904"}]'::jsonb),
   '{"created": 0, "amended": 0, "unchanged": 2}'::jsonb, 'and the same file again changes nothing');
+-- THE FILE WINS, as in the warehouse (ADR-0024, open question 8): a matched row overwrites
+-- the item's names and descriptions, and a row with no description clears them.
+select is(erp.import_items('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(), '[{"line":2,"code":"RM-CHK-BREAST","item_kind":"raw_ingredient","base_unit_key":"kg","brand_id":"01936f00-0000-7000-8000-000000000201","name_en":"Chicken breast (synthetic)","name_ar":"صدر دجاج (تجريبي)","decision_id":"01936f00-0000-7000-8000-0000000e0959"}]'::jsonb),
+  '{"created": 0, "amended": 1, "unchanged": 0}'::jsonb, 'a matched row with no description amends the item');
+select ok((select description_en is null and description_ar is null from erp.item where code = 'RM-CHK-BREAST'),
+  'and clears its descriptions');
 -- I-8: a row EQUALS the latest decision about it — db-check's assertion, run here over
 -- everything the statements above changed.
 select erp.amend_item('01936f00-0000-7000-8000-0000000e0905'::uuid, '01936f00-0000-7000-8000-000000004105'::uuid, '01936f00-0000-7000-8000-000000004309'::uuid, 'Surface sanitiser 5 l (synthetic)', 'معقم أسطح ٥ لتر (تجريبي)', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
