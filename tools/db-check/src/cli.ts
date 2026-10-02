@@ -203,9 +203,10 @@ try {
 
   // A retry that OVERLAPS its original must still be answered as a retry: 23505 naming
   // item_decision_pkey, the one answer the edge reads back through erp.item_history().
-  // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording. Two sessions, one decision id, for every item write
-  // route. The original commits only once the retry is seen waiting on a lock, so the
-  // overlap is arranged rather than hoped for. Without erp.assert_item_decision_is_new()'s
+  // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording.
+  // Two sessions, one decision id, for every item write route. The original commits only
+  // once the retry is seen waiting on a lock, so the overlap is arranged rather than
+  // hoped for. Without erp.assert_item_decision_is_new()'s
   // lock, both passed its check before either committed, and the retry came back "has
   // changed since it was read" although the original had succeeded (found in review).
   // Last, because the originals commit: an amendment, a retirement, a conversion added, a
