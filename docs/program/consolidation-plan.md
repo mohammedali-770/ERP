@@ -183,7 +183,7 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 |---|---|---|
 | Phases 1–3 — foundations | 3 | 3 |
 | Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 0 |
-| Phase 4 — modules | 22 | 0 |
+| Phase 4 — modules | 22 | 0 — module 1 has 2 of its 6 sub-steps |
 | Phase 5 — decommission | 1 | 0 |
 | **Total** | **28** | **3 — about 11%** |
 
@@ -207,7 +207,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 
 | # | Module | Warehouse size | In the old list? | Notes |
 |---|---|---|---|---|
-| 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies |
+| 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies. **Database layer and tests built** — [ADR-0024](../adr/ADR-0024-item-master-and-units.md), [process mapping](../estate/process-mapping-items-and-units.md) |
 | 2 | Suppliers | 367 · 1 | Yes | Moves before purchasing; the item–supplier link lives here |
 | 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7) |
 | 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | Partly covered by `erp.facility` |

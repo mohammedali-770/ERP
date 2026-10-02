@@ -105,7 +105,14 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
     return r.stdout;
   };
 
-  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync']);
+  // UTF8, stated. Without -E, initdb takes the encoding from the environment, and a
+  // session or CI runner with no LANG set gets SQL_ASCII — where length() counts BYTES.
+  // Every Supabase database is UTF8, so the scratch cluster silently disagreed with the
+  // real one about every Arabic string: an 11-character Arabic unit name measured 21 and
+  // failed a 12-character check (found by 0012). --locale=C keeps the byte-order
+  // collation the cluster always had, and C is compatible with any encoding, so this
+  // works on any machine. db-check's database-is-utf8 holds the line.
+  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync', '-E', 'UTF8', '--locale=C']);
   // Unix socket only: no TCP port, so concurrent runs and a developer's own
   // Postgres on 5432 cannot collide.
   mustRun('pg_ctl', ['-D', dataDir, '-o', `-k ${socketDir} -h '' -c fsync=off`, '-w', '-l', logFile, 'start']);

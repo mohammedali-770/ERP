@@ -21,6 +21,8 @@
 --
 -- erp.identity_decision (0011) is excluded for the same reason again: a third
 -- append-only log, whose seed and whose structural rows in 0011 carry literal times.
+--
+-- erp.item_decision (0012) likewise: a fourth append-only log, seeded with literal times.
 
 do $$
 declare
@@ -42,7 +44,7 @@ begin
       and a.attnum > 0
       and not a.attisdropped
       and ty.typname = 'timestamptz'
-      and c.relname not in ('event_log', 'capability_decision', 'identity_decision')
+      and c.relname not in ('event_log', 'capability_decision', 'identity_decision', 'item_decision')
       and a.attname in ('created_at', 'enrolled_at', 'ingested_at', 'applied_at', 'updated_at')
   loop
     execute format('update erp.%I set %I = $1 where %I is not null', t.relname, t.attname, t.attname)

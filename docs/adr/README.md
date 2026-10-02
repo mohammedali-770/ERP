@@ -53,3 +53,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0021](./ADR-0021-one-project.md) | One project: the warehouse system is rebuilt into the ERP |
 | [ADR-0022](./ADR-0022-identity-and-authentication.md) | Identity is `erp`-native, and the runtime never reads a credential |
 | [ADR-0023](./ADR-0023-edge-functions-hold-the-erp-credential.md) | Edge functions hold the ERP's database credential |
+| [ADR-0024](./ADR-0024-item-master-and-units.md) | One item master, and conversions that cannot be read two ways |
