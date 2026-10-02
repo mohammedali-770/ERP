@@ -576,18 +576,28 @@ $$;
 -- The admitted write routes — each records its decision and advances the projection
 -- ---------------------------------------------------------------------------
 
--- A retried call carries the decision id it was first sent with. Checked FIRST, before
--- any rule that a committed first attempt would itself now break (create_item's code
--- check, amend_item's stale check), so a retry always answers the same way: 23505 on
--- item_decision_pkey. On that answer the edge reads erp.item_history() back and reports
--- success only if the decision is there (0011's precedent; no replay table).
+-- A retried call carries the decision id it was first sent with. Locked and checked
+-- FIRST, before any rule that a committed first attempt would itself now break
+-- (create_item's code check, amend_item's stale check), so a retry always answers the
+-- same way: 23505 on item_decision_pkey. On that answer the edge reads
+-- erp.item_history() back and reports success only if the decision is there (0011's
+-- precedent; no replay table).
+--
+-- The lock is what makes that hold when a retry OVERLAPS its original. Without it both
+-- passed the check before either committed, and the retry, waiting on the item's lock,
+-- came back "has changed since it was read" or "already retired" although the original
+-- had succeeded (found in review, reproduced with two sessions). Now the retry waits for
+-- the original's transaction to end, and its check then sees the original's decision.
+-- Transaction-scoped, so it is released by the route's own commit or rollback; the key
+-- is namespaced, so it meets no other advisory lock. VOLATILE, so the check reads a
+-- snapshot taken after the lock is granted.
 create or replace function erp.assert_item_decision_is_new(p_decision_id uuid)
 returns void
 language plpgsql
-stable
 set search_path = pg_catalog, pg_temp
 as $$
 begin
+  perform pg_advisory_xact_lock(hashtextextended('erp.item_decision:' || p_decision_id::text, 0));
   if exists (select 1 from erp.item_decision d where d.decision_id = p_decision_id) then
     raise exception 'decision % is already recorded', p_decision_id
       using errcode = 'unique_violation', constraint = 'item_decision_pkey',

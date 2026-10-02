@@ -6,7 +6,7 @@
  * provable in more places than the full Supabase stack is. It proves structure,
  * not Supabase behaviour — storage and auth policies are the pgTAP suite's job.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, chownSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -70,9 +70,22 @@ export interface Cluster {
   dumpData(database: string): string;
   /** Runs SQL as the superuser and returns stdout. Throws with psql's stderr on failure. */
   sql(statement: string): string;
+  /**
+   * Runs SQL in a session of its own WITHOUT waiting, named so other sessions can find it
+   * in pg_stat_activity. For probes that need two sessions at once; it never throws.
+   * Errors are verbose, so a probe can tell one refusal from another by SQLSTATE and
+   * constraint rather than by wording.
+   */
+  sqlConcurrently(statement: string, applicationName: string): Promise<SessionResult>;
   /** Runs a file. Fails on the first error rather than continuing. */
   file(path: string): string;
   stop(): void;
+}
+
+export interface SessionResult {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
 }
 
 export function startCluster(binDir: string, database = 'erp_check'): Cluster {
@@ -96,6 +109,21 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
       : args;
     return spawnSync(exe, argv, { encoding: 'utf8', input, env: { ...process.env, PGHOST: socketDir } });
   };
+
+  /** run(), but without blocking: a second session can act while this one waits. */
+  const runConcurrently = (bin: string, args: string[], env: Record<string, string>) =>
+    new Promise<SessionResult>((resolve) => {
+      const exe = as ? 'setpriv' : join(binDir, bin);
+      const argv = as
+        ? [`--reuid=${as.uid}`, `--regid=${as.gid}`, '--clear-groups', join(binDir, bin), ...args]
+        : args;
+      const child = spawn(exe, argv, { env: { ...process.env, PGHOST: socketDir, ...env } });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (chunk) => (stdout += chunk));
+      child.stderr.on('data', (chunk) => (stderr += chunk));
+      child.on('close', (status) => resolve({ status, stdout, stderr }));
+    });
 
   const mustRun = (bin: string, args: string[]): string => {
     const r = run(bin, args);
@@ -158,6 +186,9 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
     socketDir,
     database,
     sql: (statement) => psql(['-d', database, '-t', '-A', '-c', statement]),
+    sqlConcurrently: (statement, applicationName) =>
+      runConcurrently('psql', ['-h', socketDir, '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose',
+        '-d', database, '-t', '-A', '-c', statement], { PGAPPNAME: applicationName }),
     file: (path) => psql(['-d', database, '-f', path]),
     createDatabase: (name) => { psql(['-d', 'postgres', '-c', `create database ${name}`]); },
     sqlIn: (db, statement) => psql(['-d', db, '-t', '-A', '-c', statement]),

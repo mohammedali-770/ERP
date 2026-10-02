@@ -106,11 +106,13 @@ asserts.
   invoker helper granted to the runtime that touches `erp.item` fails with 42501.
 - A typo in a code, kind or base unit costs a retired item and a burned code. The
   create form must make the fixed fields explicit.
-- **A retry is recognisable.** Every write route checks its decision id before any other
-  rule, so a retry of a write that already committed fails 23505 naming
+- **A retry is recognisable.** Every write route locks and checks its decision id before
+  any other rule, so a retry of a write that already committed fails 23505 naming
   `item_decision_pkey` ("decision … is already recorded"), rather than as a taken code
-  or a stale form. The edge then confirms through `erp.item_history()` before reporting
-  success.
+  or a stale form. That holds when the retry overlaps its original too: the lock makes
+  the retry wait for the original's transaction to end, and `db:check` proves it with
+  two sessions on every write route. The edge then confirms through
+  `erp.item_history()` before reporting success.
 - Factors are exact to six decimal places, and a derived factor that does not
   terminate is refused ("declare the smaller unit first"). The stock module must
   choose its storage scale for base quantities before it is built.

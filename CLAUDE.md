@@ -127,6 +127,7 @@ npm run db:test       # pgTAP suites against the local stack
 | An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
 | **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
+| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item write route; checked by SQLSTATE and constraint, which is what the edge matches |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
 | **No role but the owner can touch a credential table** | `db:check` — discovered by name, so `erp_read`'s default `SELECT` cannot reach a PIN hash |
 | A capability or identity decision needs a permitted actor | pgTAP |
