@@ -47,12 +47,20 @@ It answers `ok` with the `person_id`, or why the token names nobody: `invalid`,
 `ended`, `expired`, `idle` or `disabled`. `disabled` is IAM-P05 applied at every
 request.
 
-A session also ends, answering `ended`, once the person's status or PIN has been decided
-since it began: a status change in either direction, or a PIN set. The first draft
-checked status only, so suspending a cashier whose till was stolen merely paused the
-thief's session: reactivated within thirty minutes, even with a new PIN, the stolen
-token worked again (found in review). The check reads the identity log, so no identity
-route has to remember to end sessions.
+A session also ends, answering `ended`, once the person's status or credential has been
+decided since it was signed in. That means a status change in either direction, a PIN
+set, or an unlock. An unlock follows a lockout, which means someone else was trying the
+number. The first draft checked status only, so suspending a cashier whose till was
+stolen merely paused the thief's session: reactivated within thirty minutes, even with a
+new PIN, the stolen token worked again (found in review). So no identity route has to
+remember to end sessions.
+
+Each session records the decision behind the person's status and the one behind their
+credential, read while `verify_pin()` still holds the credential row it checked. A later
+decision about either replaces it, and the session is superseded. The second draft
+compared times instead, and Codex found the race on PR #31: a PIN reset whose
+transaction began first could commit a decision stamped *earlier* than a session made
+with the old PIN, which then never ended. Identifiers cannot be ordered wrongly.
 
 The row is not locked. Ending a session and moving its idle clock are each a
 conditional UPDATE that applies only while the session is open, so a sign-out or

@@ -80,6 +80,12 @@ create table erp.session (
   -- A revocation is an administrative act, so it names the decision that recorded it.
   -- The other endings are events at a device, and need none.
   revoked_by_decision_id uuid        references erp.identity_decision (decision_id),
+  -- What the session was signed in under: the decision behind the person's status, and
+  -- the one behind their credential, as they stood when the PIN was checked. A later
+  -- decision about either replaces it, and resolve_session() then ends the session
+  -- ('superseded'). Identifiers, not times, so no race can order them wrongly.
+  person_decision_id     uuid        not null references erp.identity_decision (decision_id),
+  credential_decision_id uuid        not null references erp.identity_decision (decision_id),
   constraint session_ends_whole check ((ended_at is null) = (ended_reason is null)),
   constraint session_revocation_names_its_decision
     check (coalesce(ended_reason = 'revoked', false) = (revoked_by_decision_id is not null)),
@@ -111,8 +117,10 @@ begin
     raise exception 'session % has ended and never changes again (ADR-0025)', old.session_id
       using errcode = 'restrict_violation';
   end if;
-  if (new.session_id, new.person_id, new.token_hash, new.created_at, new.expires_at)
-     is distinct from (old.session_id, old.person_id, old.token_hash, old.created_at, old.expires_at) then
+  if (new.session_id, new.person_id, new.token_hash, new.created_at, new.expires_at,
+      new.person_decision_id, new.credential_decision_id)
+     is distinct from (old.session_id, old.person_id, old.token_hash, old.created_at, old.expires_at,
+                       old.person_decision_id, old.credential_decision_id) then
     raise exception 'a session''s person, token and lifetime are fixed when it starts (ADR-0025)'
       using errcode = 'restrict_violation';
   end if;
@@ -234,8 +242,16 @@ begin
     v_person  := (v_answer ->> 'person_id')::uuid;
     v_token   := extensions.gen_random_bytes(32);
     v_expires := now() + erp.session_max_age();
-    insert into erp.session (person_id, token_hash, expires_at)
-    values (v_person, pg_catalog.sha256(v_token), v_expires)
+    -- The stamps are read here, in verify_pin()'s transaction, while it still holds the
+    -- credential row it checked FOR UPDATE: a concurrent erp.set_pin() waits on that lock
+    -- and then commits a NEW credential decision, which supersedes this session. Stamping
+    -- by time instead let a PIN reset whose transaction began first commit a decision
+    -- "older" than a session made with the old PIN (found by Codex on PR #31).
+    insert into erp.session (person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
+    select v_person, pg_catalog.sha256(v_token), v_expires, p.as_of_decision_id, c.as_of_decision_id
+      from erp.person p
+      join erp.person_credential c on c.person_id = p.person_id
+     where p.person_id = v_person
     returning session_id into v_session;
   elsif p_employee_number ~ '^[0-9]{1,10}$' then
     -- For the log only. The caller's answer is verify_pin()'s, unchanged.
@@ -271,12 +287,14 @@ comment on function erp.sign_in(text, text) is
 -- an expired session is never revived by its clock moving back. Reads now() and takes
 -- no clock, for the reason verify_pin() gives.
 --
--- SUPERSEDED. A session also ends, answering 'ended', once the person's status or PIN has
--- been decided since it began: a status change of either direction, or a PIN set. Without
--- this, suspending a cashier whose till was stolen only PAUSED the thief's session — reactivate
--- them within thirty minutes, even with a new PIN, and the stolen token answered 'ok'
--- again (found in review). Read from the identity log, so no identity route has to
--- remember to end sessions.
+-- SUPERSEDED. A session also ends, answering 'ended', once the person's status or
+-- credential has been decided since it was signed in: a status change of either
+-- direction, a PIN set, or an unlock (an unlock follows a lockout, which means someone
+-- else was trying the number). Without this, suspending a cashier whose till was stolen
+-- only PAUSED the thief's session — reactivate them within thirty minutes, even with a new
+-- PIN, and the stolen token answered 'ok' again (found in review). Compared by the
+-- decision each projection names, not by time (see erp.sign_in()), so no identity route
+-- has to remember to end sessions and no race can order the two wrongly.
 --
 -- AN ORDINARY REQUEST IS A READ. The row is not locked; ending it and moving its idle
 -- clock are each one conditional UPDATE that applies only while it is still open. A
@@ -314,10 +332,10 @@ begin
   elsif not exists (select 1 from erp.person p
                      where p.person_id = v_session.person_id and p.status = 'active') then
     v_ending := 'disabled';
-  elsif exists (select 1 from erp.identity_decision d
-                 where d.subject_person_id = v_session.person_id
-                   and d.kind in ('status_changed', 'credential_set')
-                   and d.recorded_at > v_session.created_at) then
+  elsif (select p.as_of_decision_id from erp.person p where p.person_id = v_session.person_id)
+          is distinct from v_session.person_decision_id
+     or (select c.as_of_decision_id from erp.person_credential c where c.person_id = v_session.person_id)
+          is distinct from v_session.credential_decision_id then
     v_ending := 'superseded';
   end if;
 
@@ -346,7 +364,7 @@ end;
 $$;
 
 comment on function erp.resolve_session(text) is
-  'ADR-0025. The only way the edge layer learns who is calling: ok with person_id, or invalid | ended | expired | idle | disabled. Ends the session on the last three, and when the person''s status or PIN was decided after it began.';
+  'ADR-0025. The only way the edge layer learns who is calling: ok with person_id, or invalid | ended | expired | idle | disabled. Ends the session on the last three, and when the person''s status or credential has been decided since it was signed in.';
 
 -- The caller's own session, by the token that proves it is theirs. Answers ok whether it
 -- ended now or had already ended, so signing out twice is harmless; invalid for a token
@@ -381,7 +399,7 @@ comment on function erp.sign_out(text) is
 -- departing employee, a PIN seen over a shoulder. Recorded as an identity decision
 -- (IAM-008), and each session it ended names that decision. Returns how many it ended.
 -- Suspending someone, or setting their PIN, needs no revocation: resolve_session() ends
--- every session that began before such a decision, at its next use.
+-- every session signed in under an earlier decision, at its next use.
 create or replace function erp.revoke_sessions(
   p_decision_id uuid,
   p_person_id   uuid,

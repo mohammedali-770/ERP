@@ -18,7 +18,7 @@
 -- The PINs are the synthetic ones 0015_identity.sql seeds.
 
 begin;
-select plan(67);
+select plan(70);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -59,6 +59,12 @@ select is((select count(*)::int from erp.session s, signed_in t
               and s.expires_at = (t.answer ->> 'expires_at')::timestamptz
               and s.ended_at is null), 1,
   'the session belongs to the person, ends when the answer says, and is open');
+
+-- What the session was signed in under: the seed's decisions behind …0901's status and PIN.
+select is((select array[s.person_decision_id, s.credential_decision_id] from erp.session s, signed_in t
+            where s.token_hash = sha256(decode(t.answer ->> 'token', 'hex'))),
+          array['01936f00-0000-7000-8000-00000000d001', '01936f00-0000-7000-8000-00000000d031']::uuid[],
+  'the session records the status and credential decisions the PIN was checked under');
 
 -- IAM-008. Every attempt is recorded, whatever its outcome.
 select is((select count(*)::int from erp.sign_in_log l, erp.session s, signed_in t
@@ -116,9 +122,11 @@ select is((select erp.resolve_session(upper(answer ->> 'token')) from signed_in)
   'a token is compared exactly as issued');
 
 -- Sessions of chosen ages, made as the owner. Each token below is synthetic.
-insert into erp.session (session_id, person_id, token_hash, created_at, last_seen_at, expires_at) values
+insert into erp.session (session_id, person_id, token_hash, created_at, last_seen_at, expires_at, person_decision_id, credential_decision_id)
+select v.*, p.as_of_decision_id, c.as_of_decision_id
+  from (values
   -- past its twelve hours, though used a minute ago
-  ('01936f00-0000-7000-8000-0000000e0901', '01936f00-0000-7000-8000-000000000901',
+  ('01936f00-0000-7000-8000-0000000e0901'::uuid, '01936f00-0000-7000-8000-000000000901'::uuid,
    sha256(decode(repeat('e1', 32), 'hex')),
    now() - interval '13 hours', now() - interval '1 minute', now() - interval '1 hour'),
   -- unused for thirty-one minutes
@@ -136,7 +144,9 @@ insert into erp.session (session_id, person_id, token_hash, created_at, last_see
   -- belongs to the suspended person
   ('01936f00-0000-7000-8000-0000000e0905', '01936f00-0000-7000-8000-000000000905',
    sha256(decode(repeat('e5', 32), 'hex')),
-   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours');
+   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours')) as v(session_id, person_id, token_hash, created_at, last_seen_at, expires_at)
+  join erp.person p on p.person_id = v.person_id
+  join erp.person_credential c on c.person_id = v.person_id;
 
 -- CONTROL. IAM-P09: the twelve hours bind however busy the session is.
 select is(erp.resolve_session(repeat('e1', 32)), '{"status": "expired"}'::jsonb,
@@ -171,25 +181,32 @@ select is(erp.resolve_session(repeat('e5', 32)), '{"status": "disabled"}'::jsonb
 select is((select ended_reason from erp.session where session_id = '01936f00-0000-7000-8000-0000000e0905'), 'disabled',
   'and ended');
 
--- CONTROL. A session that began before the person's status or PIN was decided is
+-- CONTROL. A session signed in under an earlier status or credential decision is
 -- superseded. Without this, suspending a cashier whose till was stolen only paused the
 -- thief's session: reactivated within thirty minutes, the stolen token worked again.
-insert into erp.session (session_id, person_id, token_hash, created_at, last_seen_at, expires_at) values
-  ('01936f00-0000-7000-8000-0000000e0906', '01936f00-0000-7000-8000-000000000906',
+-- Compared by decision, not by time: a PIN reset whose transaction began first could
+-- commit a decision stamped earlier than a session made with the old PIN (Codex, PR #31).
+insert into erp.session (session_id, person_id, token_hash, created_at, last_seen_at, expires_at, person_decision_id, credential_decision_id)
+select v.*, p.as_of_decision_id, c.as_of_decision_id
+  from (values
+  ('01936f00-0000-7000-8000-0000000e0906'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
    sha256(decode(repeat('c1', 32), 'hex')),
-   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours'),
-  ('01936f00-0000-7000-8000-0000000e0907', '01936f00-0000-7000-8000-000000000904',
-   sha256(decode(repeat('c2', 32), 'hex')),
-   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours');
+   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours')) as v(session_id, person_id, token_hash, created_at, last_seen_at, expires_at)
+  join erp.person p on p.person_id = v.person_id
+  join erp.person_credential c on c.person_id = v.person_id;
 
 select erp.change_person_status('01936f00-0000-7000-8000-0000000e0941'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
   'suspended', 'Till reported stolen.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
 select erp.change_person_status('01936f00-0000-7000-8000-0000000e0942'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
   'active', 'Cleared.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
 -- The control for the case below: a session begun after the decisions is untouched.
-insert into erp.session (session_id, person_id, token_hash, expires_at) values
-  ('01936f00-0000-7000-8000-0000000e0908', '01936f00-0000-7000-8000-000000000906',
-   sha256(decode(repeat('c3', 32), 'hex')), now() + interval '12 hours');
+insert into erp.session (session_id, person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
+select v.*, p.as_of_decision_id, c.as_of_decision_id
+  from (values
+  ('01936f00-0000-7000-8000-0000000e0908'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
+   sha256(decode(repeat('c3', 32), 'hex')), now() + interval '12 hours')) as v(session_id, person_id, token_hash, expires_at)
+  join erp.person p on p.person_id = v.person_id
+  join erp.person_credential c on c.person_id = v.person_id;
 
 select is(erp.resolve_session(repeat('c1', 32)), '{"status": "ended"}'::jsonb,
   'suspending and reactivating a person ends the sessions they held before');
@@ -197,11 +214,6 @@ select is((select ended_reason from erp.session where session_id = '01936f00-000
   'and records why');
 select is(erp.resolve_session(repeat('c3', 32)) ->> 'status', 'ok',
   'a session begun after the decision is not affected');
-
-select erp.set_pin('01936f00-0000-7000-8000-0000000e0943'::uuid, '01936f00-0000-7000-8000-000000000904'::uuid,
-  '100004', 'PIN seen over a shoulder.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
-select is(erp.resolve_session(repeat('c2', 32)), '{"status": "ended"}'::jsonb,
-  'setting a new PIN ends the sessions begun under the old one');
 
 -- ---------------------------------------------------------------------------
 -- Signing out
@@ -220,11 +232,15 @@ select is(erp.sign_out(repeat('0', 64)), '{"status": "invalid"}'::jsonb,
 -- Revoking (IAM-010) — gated, and recorded
 -- ---------------------------------------------------------------------------
 
-insert into erp.session (session_id, person_id, token_hash, expires_at) values
-  ('01936f00-0000-7000-8000-0000000e0911', '01936f00-0000-7000-8000-000000000902',
+insert into erp.session (session_id, person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
+select v.*, p.as_of_decision_id, c.as_of_decision_id
+  from (values
+  ('01936f00-0000-7000-8000-0000000e0911'::uuid, '01936f00-0000-7000-8000-000000000902'::uuid,
    sha256(decode(repeat('f1', 32), 'hex')), now() + interval '12 hours'),
   ('01936f00-0000-7000-8000-0000000e0912', '01936f00-0000-7000-8000-000000000902',
-   sha256(decode(repeat('f2', 32), 'hex')), now() + interval '12 hours');
+   sha256(decode(repeat('f2', 32), 'hex')), now() + interval '12 hours')) as v(session_id, person_id, token_hash, expires_at)
+  join erp.person p on p.person_id = v.person_id
+  join erp.person_credential c on c.person_id = v.person_id;
 
 -- CONTROL. The gate: a branch worker cannot revoke anyone.
 select throws_ok(
@@ -256,6 +272,28 @@ select is((select count(*)::int from erp.identity_decision
 select is(erp.resolve_session(repeat('f1', 32)), '{"status": "ended"}'::jsonb,
   'a revoked token names nobody');
 
+-- A new PIN supersedes what the old one signed in. …0902 holds a PIN; its session is
+-- signed in under the credential decision it holds now.
+insert into erp.session (session_id, person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
+select v.*, p.as_of_decision_id, c.as_of_decision_id
+  from (values
+  ('01936f00-0000-7000-8000-0000000e0913'::uuid, '01936f00-0000-7000-8000-000000000902'::uuid,
+   sha256(decode(repeat('c2', 32), 'hex')), now() + interval '12 hours')) as v(session_id, person_id, token_hash, expires_at)
+  join erp.person p on p.person_id = v.person_id
+  join erp.person_credential c on c.person_id = v.person_id;
+select is(erp.resolve_session(repeat('c2', 32)) ->> 'status', 'ok',
+  'before the PIN is reset, the session is open');
+select erp.set_pin('01936f00-0000-7000-8000-0000000e0943'::uuid, '01936f00-0000-7000-8000-000000000902'::uuid,
+  '100012', 'PIN seen over a shoulder.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select is(erp.resolve_session(repeat('c2', 32)), '{"status": "ended"}'::jsonb,
+  'setting a new PIN ends the sessions signed in under the old one');
+
+-- An unlock follows a lockout — someone else was trying the number — so it supersedes too.
+select erp.unlock_credential('01936f00-0000-7000-8000-0000000e0944'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
+  'Locked by repeated wrong PINs.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select is(erp.resolve_session(repeat('c3', 32)), '{"status": "ended"}'::jsonb,
+  'unlocking a credential ends the sessions signed in before it');
+
 select throws_ok(
   $$ select erp.revoke_sessions(
        '01936f00-0000-7000-8000-0000000e0923'::uuid, '01936f00-0000-7000-8000-0000000e09ff'::uuid,
@@ -270,9 +308,11 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
-  $$ insert into erp.session (session_id, person_id, token_hash, expires_at)
+  $$ insert into erp.session (session_id, person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
      values ('01936f00-0000-7000-8000-0000000e0931', '01936f00-0000-7000-8000-000000000901',
-             sha256(decode(repeat('a1', 32), 'hex')), now() + interval '1 hour');
+             sha256(decode(repeat('a1', 32), 'hex')), now() + interval '1 hour',
+             (select as_of_decision_id from erp.person where person_id = '01936f00-0000-7000-8000-000000000901'),
+             (select as_of_decision_id from erp.person_credential where person_id = '01936f00-0000-7000-8000-000000000901'));
      update erp.session set expires_at = expires_at + interval '1 day'
       where session_id = '01936f00-0000-7000-8000-0000000e0931' $$,
   '23001',
@@ -280,9 +320,11 @@ select throws_ok(
   'a session cannot be extended'
 );
 select throws_ok(
-  $$ insert into erp.session (session_id, person_id, token_hash, expires_at, ended_at, ended_reason)
+  $$ insert into erp.session (session_id, person_id, token_hash, expires_at, ended_at, ended_reason, person_decision_id, credential_decision_id)
      values ('01936f00-0000-7000-8000-0000000e0932', '01936f00-0000-7000-8000-000000000901',
-             sha256(decode(repeat('a2', 32), 'hex')), now() + interval '1 hour', now(), 'signed_out');
+             sha256(decode(repeat('a2', 32), 'hex')), now() + interval '1 hour', now(), 'signed_out',
+             (select as_of_decision_id from erp.person where person_id = '01936f00-0000-7000-8000-000000000901'),
+             (select as_of_decision_id from erp.person_credential where person_id = '01936f00-0000-7000-8000-000000000901'));
      update erp.session set ended_at = null, ended_reason = null
       where session_id = '01936f00-0000-7000-8000-0000000e0932' $$,
   '23001',
@@ -290,9 +332,11 @@ select throws_ok(
   'an ended session cannot be reopened'
 );
 select throws_ok(
-  $$ insert into erp.session (session_id, person_id, token_hash, expires_at)
+  $$ insert into erp.session (session_id, person_id, token_hash, expires_at, person_decision_id, credential_decision_id)
      values ('01936f00-0000-7000-8000-0000000e0933', '01936f00-0000-7000-8000-000000000901',
-             sha256(decode(repeat('a3', 32), 'hex')), now() + interval '1 hour');
+             sha256(decode(repeat('a3', 32), 'hex')), now() + interval '1 hour',
+             (select as_of_decision_id from erp.person where person_id = '01936f00-0000-7000-8000-000000000901'),
+             (select as_of_decision_id from erp.person_credential where person_id = '01936f00-0000-7000-8000-000000000901'));
      delete from erp.session where session_id = '01936f00-0000-7000-8000-0000000e0933' $$,
   '23001',
   'a session is ended, never deleted (ADR-0025): DELETE denied on session',

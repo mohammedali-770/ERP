@@ -98,6 +98,56 @@ test('a body that is not two short strings is refused before the database', asyn
   }
 });
 
+test('CONTROL: an endless body is abandoned at the limit, not buffered', async () => {
+  // Sign-in needs no credential, so a body read whole before its size is checked lets
+  // anyone make every call hold the platform's largest body (Codex, PR #31).
+  let pulled = 0;
+  const chunk = new TextEncoder().encode('x'.repeat(256));
+  // Endless as far as a reader that does not stop can tell: it fails only past 64 KiB, so a
+  // reader that buffers everything gets an error (a 500) instead of hanging the suite.
+  const endless = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulled >= 64 * 1024) return controller.error(new Error('read past 64 KiB'));
+      pulled += chunk.byteLength;
+      controller.enqueue(chunk);
+    },
+  });
+  const db = fakeDb();
+  const request = new Request('https://edge.example.test/sign-in', {
+    method: 'POST', body: endless, duplex: 'half',
+  } as RequestInit);
+  const response = await signIn(request, deps(db));
+  assert.equal(response.status, 400);
+  assert.deepEqual(db.calls, []);
+  // At most the limit plus the chunk that crossed it, and what the stream pulled ahead.
+  assert.ok(pulled <= 1024 + 4 * chunk.byteLength, `read ${pulled} bytes of an endless body`);
+});
+
+test('a declared length over the limit is refused without reading the body', async () => {
+  // The body itself is a valid sign-in, so only the declared length can refuse it.
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.enqueue(new TextEncoder().encode('{"employee_number":"1001","pin":"100001"}'));
+      controller.close();
+    },
+  });
+  const db = fakeDb();
+  const request = new Request('https://edge.example.test/sign-in', {
+    method: 'POST', body, duplex: 'half', headers: { 'content-length': '5000' },
+  } as RequestInit);
+  const response = await signIn(request, deps(db));
+  assert.equal(response.status, 400);
+  assert.deepEqual(db.calls, [], 'the database is never asked');
+});
+
+test('a body that is not UTF-8 is malformed', async () => {
+  const request = new Request('https://edge.example.test/sign-in', {
+    method: 'POST', body: new Uint8Array([0x7b, 0xff, 0x7d]),
+  });
+  const response = await signIn(request, deps(fakeDb()));
+  assert.equal(response.status, 400);
+});
+
 test('sign-in takes POST only', async () => {
   const response = await signIn(get(), deps(fakeDb()));
   assert.equal(response.status, 405);

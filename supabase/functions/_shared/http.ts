@@ -59,12 +59,42 @@ export function bearerToken(request: Request): string | null {
   return token !== undefined && TOKEN.test(token) ? token : null;
 }
 
-/** A JSON object body of at most `limit` bytes, or null. */
+/**
+ * A JSON object body of at most `limit` bytes, or null.
+ *
+ * Read chunk by chunk, and abandoned the moment it passes the limit: sign-in needs no
+ * credential to call, so buffering the whole body first (as `request.text()` does) let
+ * anyone make every call hold the platform's largest body in memory (found by Codex on
+ * PR #31). A declared Content-Length over the limit is refused without reading at all.
+ */
 export async function readJsonObject(request: Request, limit = 1024): Promise<Record<string, unknown> | null> {
-  const text = await request.text();
-  if (text.length === 0 || text.length > limit) return null;
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (request.body === null) return null;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  if (size === 0) return null;
+
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   try {
-    const value: unknown = JSON.parse(text);
+    const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     return typeof value === 'object' && value !== null && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : null;
