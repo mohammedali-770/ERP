@@ -531,3 +531,36 @@ requirements:
     relates_to:
       - SEC-003
       - SEC-004
+
+  # ---------------------------------------------------------------------------
+  # Sessions (ADR-0025). IAM-P09's two numbers are the owner's (2026-10-03);
+  # IAM-P10 is what makes ADR-0022's open gap close: a caller cannot name the actor.
+  # supabase/tests/090_sessions_test.sql exercises both, and the Node suite under
+  # supabase/functions/_shared/test holds IAM-P10's second half; neither is an
+  # artifact type req-lint resolves, so no test_refs are named.
+  # ---------------------------------------------------------------------------
+
+  - id: "IAM-P09"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner decision, 2026-10-03"
+    status: "proposed"
+    text_en: "A sign-in session shall end no later than twelve hours after it began, and after thirty minutes without use, and shall be refused from then on."
+    text_ar: "يجب أن تنتهي جلسة تسجيل الدخول بعد اثنتي عشرة ساعة على الأكثر من بدايتها، وبعد ثلاثين دقيقة دون استخدام، وأن تُرفض بعد ذلك."
+    relates_to:
+      - IAM-010
+      - IAM-P01
+
+  - id: "IAM-P10"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P0"
+    origin: "Owner-approved plan, 2026-10-03"
+    status: "proposed"
+    text_en: "A session token shall be shown only once, to the device that signed in, and stored only as a one-way hash; the person a request acts as shall be resolved from its token and never taken from the request."
+    text_ar: "يجب ألا يُعرض رمز الجلسة إلا مرة واحدة للجهاز الذي سجّل الدخول، وألا يُخزَّن إلا كقيمة تجزئة أحادية الاتجاه؛ ويجب أن يُستخلص الشخص الذي يعمل الطلب باسمه من رمزه، وألا يؤخذ من الطلب نفسه أبداً."
+    relates_to:
+      - IAM-008
+      - SEC-003
+      - IAM-P08

@@ -255,24 +255,44 @@ export const ASSERTIONS: readonly Assertion[] = [
       'answers with a status, so no role ever needs to read one. 0002 default-grants ' +
       'SELECT on every new erp table to erp_read, which put the hash in the reporting ' +
       'role\'s reach until 0011 revoked it. Discovered by name, so a credential table ' +
-      'added later is covered without anyone remembering to list it.',
-    sql: `select c.relname || ' — ' || a.privilege_type || ' to ' ||
+      'added later is covered without anyone remembering to list it: a table named for ' +
+      'credentials, or one with a column named for a token. erp.session holds only a ' +
+      'token\'s SHA-256 (0014), and is unreachable all the same: the routes answer for it.',
+    sql: `with credential as (
+            select c.oid, c.relname, c.relowner, c.relacl
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'erp'
+              and c.relkind in ('r', 'p')
+              and (c.relname like '%credential%'
+                   or exists (select 1 from pg_attribute t
+                               where t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+                                 and t.attname like '%token%'))
+          )
+          select c.relname || ' — ' || a.privilege_type || ' to ' ||
                  coalesce(r.rolname, 'PUBLIC') as violation
-          from pg_class c
-          join pg_namespace n on n.oid = c.relnamespace
+          from credential c
           cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
           left join pg_roles r on r.oid = a.grantee
-          where n.nspname = 'erp'
-            and c.relkind in ('r', 'p')
-            and c.relname like '%credential%'
-            and a.grantee <> c.relowner`,
+          where a.grantee <> c.relowner
+          union all
+          -- A column-level grant reaches a column as surely as a table grant reaches the
+          -- table, and relacl does not show it (found in review).
+          select c.relname || '.' || t.attname || ' — ' || a.privilege_type || ' to ' ||
+                 coalesce(r.rolname, 'PUBLIC')
+          from credential c
+          join pg_attribute t on t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+          cross join lateral aclexplode(t.attacl) a
+          left join pg_roles r on r.oid = a.grantee
+          where a.grantee <> c.relowner`,
   },
   {
     id: 'every-decision-log-is-append-only',
     title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant',
     because:
-      'A log that can be edited answers nothing. Discovered by name — event_log and every ' +
-      '%_decision table — and through pg_inherits, so a new log or partition is covered ' +
+      'A log that can be edited answers nothing. Discovered by name — every %_log and ' +
+      '%_decision table, event_log and sign_in_log among them — and through pg_inherits, so a ' +
+      'new log or partition is covered ' +
       'without being listed. Each needs an enabled BEFORE UPDATE OR DELETE trigger with no ' +
       'WHEN clause, an enabled BEFORE TRUNCATE trigger (no UPDATE or DELETE trigger sees ' +
       'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. A ' +
@@ -287,7 +307,7 @@ export const ASSERTIONS: readonly Assertion[] = [
             from pg_class c
             join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-              and (c.relname = 'event_log' or c.relname like '%\\_decision')
+              and (c.relname like '%\\_log' or c.relname like '%\\_decision')
           ),
           partitions as (
             select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid
@@ -377,16 +397,92 @@ export const ASSERTIONS: readonly Assertion[] = [
       'review found the gate proved on 2 of its 9 routes by tests; this finds a missing gate ' +
       'on any route, in any module, by reading the catalogue. It reads the source, so it ' +
       'proves the call is written, not that it runs first: each module\'s pgTAP suite proves ' +
-      'that, route by route. erp.verify_pin() is the one exception: it is how a person comes ' +
-      'to be named at all (ADR-0022).',
+      'that, route by route. The exceptions are the session routes, which are how a person ' +
+      'comes to be named at all, so there is nobody yet to ask (ADR-0025): erp.sign_in(), ' +
+      'erp.resolve_session() and erp.sign_out(), which ends only the session its own token ' +
+      'proves. erp.verify_pin() is no longer one: since 0014 the runtime cannot call it, ' +
+      'and granting it back would be a way round the sign-in log, so this would report it. ' +
+      'The exceptions are named by signature, not by name: an overload such as ' +
+      'erp.sign_out(uuid) is reported like any other route (found in review).',
     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'erp'
             and p.prosecdef
             and has_function_privilege('erp_app', p.oid, 'EXECUTE')
-            and p.proname not in ('verify_pin')
+            and p.oid::regprocedure::text not in
+                ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
             and strpos(p.prosrc, 'erp.assert_permitted(') = 0`,
+  },
+  {
+    id: 'session-guard-triggers-exist',
+    title: 'erp.session carries its enabled guard triggers, TRUNCATE included',
+    because:
+      'ADR-0025: a session\'s person, token and lifetime are fixed when it starts, an ended ' +
+      'session never reopens, and none is deleted, because the sign-in log names it. Only ' +
+      '0014\'s triggers say so, and they bind the owner too. A BEFORE UPDATE OR DELETE row ' +
+      'trigger, and a BEFORE TRUNCATE statement trigger, which row triggers do not see. Both ' +
+      'must fire erp.session_guard(): a trigger of the right shape that calls something else ' +
+      'guards nothing (found in review). That the function still refuses is pgTAP 090\'s job.',
+    sql: `select 'erp.session: no enabled ' || x.what as violation
+          from (values (27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
+                       (34, 0, 'BEFORE TRUNCATE statement trigger')) as x(mask, row_bit, what)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = 'erp.session'::regclass and not t.tgisinternal
+              and t.tgfoid = 'erp.session_guard()'::regprocedure
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
+    id: 'erp-edge-is-erp-app-and-nothing-more',
+    title: 'erp_edge logs in, is a member of erp_app alone, and holds nothing of its own',
+    because:
+      'ADR-0023: the edge functions hold the database credential, and erp_edge is what it ' +
+      'logs in as. It must be able to do exactly what the runtime can and nothing more: no ' +
+      'second role, no superuser, CREATEROLE, CREATEDB, REPLICATION or BYPASSRLS, no grant ' +
+      'of its own on any erp object, and a connection limit. And no password from a ' +
+      'migration — one in the repository would be a credential in the repository; it is set ' +
+      'out of band (0014). INHERIT, because a transaction-mode pooler keeps no SET ROLE.',
+    sql: `with edge as (select * from pg_roles where rolname = 'erp_edge')
+          select 'erp_edge does not exist' as violation where not exists (select 1 from edge)
+          union all
+          select 'erp_edge ' || p.problem
+          from edge e
+          cross join lateral (
+            select 'cannot log in' as problem where not e.rolcanlogin
+            union all select 'does not inherit, so erp_app''s grants do not reach it' where not e.rolinherit
+            union all select 'is a superuser' where e.rolsuper
+            union all select 'may create roles' where e.rolcreaterole
+            union all select 'may create databases' where e.rolcreatedb
+            union all select 'may replicate' where e.rolreplication
+            union all select 'bypasses row-level security' where e.rolbypassrls
+            union all select 'has no connection limit' where e.rolconnlimit < 0
+            union all select 'has a password set by a migration'
+             where exists (select 1 from pg_authid a where a.oid = e.oid and a.rolpassword is not null)
+            union all select 'is not a member of erp_app'
+             where not exists (select 1 from pg_auth_members m join pg_roles g on g.oid = m.roleid
+                                where m.member = e.oid and g.rolname = 'erp_app')
+            union all select 'is also a member of ' || g.rolname
+             from pg_auth_members m join pg_roles g on g.oid = m.roleid
+             where m.member = e.oid and g.rolname <> 'erp_app'
+            union all select 'holds a grant of its own on ' || c.oid::regclass::text
+             from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             cross join lateral aclexplode(c.relacl) a
+             where n.nspname = 'erp' and a.grantee = e.oid
+            union all select 'holds a column grant of its own on ' || c.oid::regclass::text || '.' || t.attname
+             from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             join pg_attribute t on t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+             cross join lateral aclexplode(t.attacl) a
+             where n.nspname = 'erp' and a.grantee = e.oid
+            union all select 'holds a grant of its own on ' || p.oid::regprocedure::text
+             from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             cross join lateral aclexplode(p.proacl) a
+             where n.nspname = 'erp' and a.grantee = e.oid
+            union all select 'holds a grant of its own on schema ' || n.nspname
+             from pg_namespace n cross join lateral aclexplode(n.nspacl) a
+             where a.grantee = e.oid
+          ) p`,
   },
 ];
 

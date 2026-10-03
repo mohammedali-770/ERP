@@ -4,11 +4,13 @@
   ADR-0020
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
 - **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
-  [Q-22](./open-questions.md) · [Q-23](./open-questions.md) · the edge-layer foundation.
-  [Q-21](./open-questions.md) was answered on 2026-10-02 by
-  [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md)
+  [Q-22](./open-questions.md) · [Q-23](./open-questions.md) · [Q-24](./open-questions.md)
+  (before the first deployment). [Q-21](./open-questions.md) was answered on 2026-10-02 by
+  [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md), and the
+  edge-layer foundation it called for was built on 2026-10-03
+  ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  3 of 28 steps done.
+  4 of 28 steps done.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -170,6 +172,17 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 > *Answered 2026-10-02 by [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md):
 > edge functions hold `erp_app`. The data layer now waits on the edge-layer foundation,
 > not on a decision.*
+>
+> **The foundation, built 2026-10-03** — [ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md),
+> `supabase/migrations/20261003000100_sessions.sql`, `supabase/functions/`. Sessions
+> issued by `erp.sign_in()` over `verify_pin()`, held only as a hash, ended at twelve
+> hours or thirty minutes idle (the owner's numbers); every attempt recorded; revocation
+> gated and recorded; the `erp_edge` login role; and sign-in, session and sign-out
+> functions in which `withSession` supplies the actor, so a caller cannot name one. CI
+> signs in through `erp_edge` with the real driver. **Not done:** nothing is deployed,
+> the edge runtime itself and the hosted pooler are first exercised at the first
+> approved deployment, and the console has no sign-in screen yet — that belongs to the
+> console-layout residual below.
 
 ---
 
@@ -188,10 +201,10 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 | | Steps | Done |
 |---|---|---|
 | Phases 1–3 — foundations | 3 | 3 |
-| Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 0 |
+| Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 1 — the API layer and sign-in, 2026-10-03 |
 | Phase 4 — modules | 22 | 0 — module 1 has 2 of its 6 sub-steps |
 | Phase 5 — decommission | 1 | 0 |
-| **Total** | **28** | **3 — about 11%** |
+| **Total** | **28** | **4 — about 14%** |
 
 By warehouse functionality actually carried, it is near **0%**: about 23,800 lines of
 warehouse application code are still to come across, and 3 of its 60 tables have an
@@ -250,7 +263,10 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
    module's process mapping (MFG-012). Nothing enforces that sign-off yet
    ([Q-23](./open-questions.md)), so the promoting PR states who approved it, and when
 
-Steps 1 and 4 can run ahead of the edge-layer foundation; 2, 3, 5 and 6 cannot.
+Steps 1 and 4 could run ahead of the edge-layer foundation; 2, 3, 5 and 6 could not.
+The foundation is built (2026-10-03), so step 2 can now begin: each module's functions
+wrap their handlers in `withSession` and pass `session.personId` as the actor
+(ADR-0025).
 
 **Payment-adjacent modules stay `hidden`** — supplier invoices, supplier payments,
 month close, accounting export, and ordering setup's invoice-tolerance section — while

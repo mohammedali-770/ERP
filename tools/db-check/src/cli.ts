@@ -154,7 +154,7 @@ try {
   // Asserted by attempting the write, not by reading the catalogue: a trigger
   // that exists and does not fire is the failure this is looking for.
   console.log('');
-  // Every log every-decision-log-is-append-only discovers — event_log and each %_decision
+  // Every log every-decision-log-is-append-only discovers — each %_log and %_decision
   // table — and every partition of one. That assertion proves the triggers exist; only an
   // attempted write proves they refuse. A partition is tried by name because naming it
   // is what slipped past 0004's statement trigger (0013). Each attempt runs in a
@@ -175,7 +175,7 @@ try {
     .sql(`with recursive logs as (
             select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-              and (c.relname = 'event_log' or c.relname like '%\\_decision')
+              and (c.relname like '%\\_log' or c.relname like '%\\_decision')
           ),
           partitions as (
             select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid

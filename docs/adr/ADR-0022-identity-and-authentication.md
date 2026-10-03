@@ -117,9 +117,9 @@ Named, so that silence is not read as a decision:
 | | Why not yet |
 |---|---|
 | **What holds the `erp_app` credential** | **Answered since:** edge functions, [ADR-0023](./ADR-0023-edge-functions-hold-the-erp-credential.md) (2026-10-02). Sessions are built there, on top of `erp.verify_pin()` |
-| **Sessions and tokens** | No session exists. The functions check that the actor a caller *names* is permitted; they cannot yet check that the named actor is the one connected. That is the session layer's job, and it needs Q-21 first |
+| **Sessions and tokens** | **Answered since:** [ADR-0025](./ADR-0025-sessions-and-the-edge-layer.md) (2026-10-03). `erp.sign_in()` issues a session, and the edge layer's `withSession` passes the person `erp.resolve_session()` resolves as the actor, so a caller cannot name one. The database routes still trust the actor they are given; what changed is that the edge gives them the right one |
 | **Administrator sign-in and MFA** (IAM-002) | Administrators have no credential type yet. A PIN on a shared till is the wrong factor for them |
-| **Trusted devices and revocation** (IAM-010) | `erp.device` exists; binding a session to it waits on sessions existing |
+| **Trusted devices and revocation** (IAM-010) | **Revocation answered since** ADR-0025: `erp.revoke_sessions()`, gated and recorded. Trusted devices are not: `erp.device` exists, and binding a session to one waits on device enrolment |
 | **Database enforcement of a read-only preview** (CAP-P11) | `erp.role_permissions()` lets a preview be computed from the role, and the console makes nothing writable in one. Making the *database* refuse a preview's writes needs a session that knows it is a preview |
 | **Temporary access** (IAM-007) and **approval limits** (IAM-005) | Not attempted. `role_permission` has no amount or date dimension yet |
 
