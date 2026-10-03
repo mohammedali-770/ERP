@@ -4,6 +4,8 @@
   lasts at most twelve hours and ends after thirty minutes idle. The rest is this ADR's
   proposal
 - **Date:** 2026-10-03
+- **Open:** [Q-24](../program/open-questions.md), rate limiting and the log's retention,
+  before the first deployment
 - **Requirements:** IAM-001 · IAM-008 · IAM-009 · IAM-010 · SEC-003 · SEC-004 · SEC-008 ·
   IAM-P01 · IAM-P02 · IAM-P05 · IAM-P09 · IAM-P10
 - **Related:** ADR-0022 · ADR-0023 (and its addendum) ·
@@ -43,8 +45,19 @@ forget to check. The idle clock moves at most once a minute
 
 It answers `ok` with the `person_id`, or why the token names nobody: `invalid`,
 `ended`, `expired`, `idle` or `disabled`. `disabled` is IAM-P05 applied at every
-request: suspending someone ends their sessions at their next use, with no separate
-step.
+request.
+
+A session also ends, answering `ended`, once the person's status or PIN has been decided
+since it began: a status change in either direction, or a PIN set. The first draft
+checked status only, so suspending a cashier whose till was stolen merely paused the
+thief's session: reactivated within thirty minutes, even with a new PIN, the stolen
+token worked again (found in review). The check reads the identity log, so no identity
+route has to remember to end sessions.
+
+The row is not locked. Ending a session and moving its idle clock are each a
+conditional UPDATE that applies only while the session is open, so a sign-out or
+revocation that commits first turns either into `ended`. Nothing stops a request that
+had already resolved `ok` a moment earlier from finishing.
 
 In the edge layer, `withSession(handler)` reads the bearer token, calls
 `resolve_session`, and hands the handler a frozen `{ personId, expiresAt }`. **Every
@@ -93,9 +106,11 @@ would report `verify_pin` if it were granted back.
 - A stolen token works until it expires, idles out, is signed out or is revoked. It is
   not bound to a device yet; `erp.device` and IAM-010's trusted devices wait on device
   enrolment.
-- Sign-in is not rate-limited beyond `verify_pin()`'s five-miss lockout per number. A
-  caller trying many numbers is recorded in the log but not slowed. Rate limiting by
-  source address belongs at the edge and is not built.
+- Sign-in is not rate-limited beyond `verify_pin()`'s five-miss lockout per number, and
+  the log cannot be pruned. A caller trying many numbers is neither slowed nor
+  identifiable: the log holds no source or device. A script can grow the log without
+  limit. Both need an answer before the first deployment:
+  [Q-24](../program/open-questions.md).
 - `erp.session` grows by one row per sign-in and nothing prunes it, because a session
   the log names cannot be deleted. Retention is a decision for when the volume is
   known.

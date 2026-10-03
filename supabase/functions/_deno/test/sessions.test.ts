@@ -15,8 +15,11 @@
  * project's password is the owner's to set (CLAUDE.md §4). CI runs it against the
  * Database stack job's throwaway containers.
  *
- * The employee numbers and PINs are the synthetic ones supabase/seeds/0015_identity.sql
- * seeds.
+ * The employee number and PIN that succeed are the synthetic ones
+ * supabase/seeds/0015_identity.sql seeds. The one that fails is a random number nobody
+ * holds, so repeated local runs neither lock a seeded person nor move the counters
+ * pgTAP 070 and 090 count from; 090 also counts only its own attempts. What the run
+ * commits — a signed-out session and two log rows — stays until the next `db reset`.
  */
 import postgres from 'postgres';
 import { connect, type Connection } from '../db.ts';
@@ -52,6 +55,8 @@ Deno.test('the edge signs in, resolves and signs out through erp_edge', async (t
   const edge = postgres(edgeUrl.toString(), { max: 1, prepare: false, onnotice: () => {} });
   const db: Connection = connect(edgeUrl.toString());
   const deps: Deps = { db, allowedOrigins: new Set() };
+  const [started] = await owner`select clock_timestamp() as at`;
+  const nobody = `7${String(crypto.getRandomValues(new Uint32Array(1))[0]).padStart(9, '0').slice(0, 9)}`;
 
   try {
     await t.step('it is connected as erp_edge, which is not service_role', async () => {
@@ -93,16 +98,16 @@ Deno.test('the edge signs in, resolves and signs out through erp_edge', async (t
       equal((await response.json()).person_id, CASHIER, 'person');
     });
 
-    await t.step('a wrong PIN is refused, and every attempt was recorded', async () => {
+    await t.step('a number nobody holds is refused, and both attempts were recorded', async () => {
       const response = await signIn(new Request('http://edge.test/sign-in', {
-        method: 'POST', body: JSON.stringify({ employee_number: '1002', pin: '000000' }),
+        method: 'POST', body: JSON.stringify({ employee_number: nobody, pin: '000000' }),
       }), deps);
       equal(response.status, 401, 'status');
-      equal((await response.json()).status, 'wrong', 'answer');
-      const [row] = await owner`select count(*)::int as n from erp.sign_in_log
-                                 where person_id in ('01936f00-0000-7000-8000-000000000901',
-                                                     '01936f00-0000-7000-8000-000000000902')`;
-      assert(Number(row?.['n']) >= 2, 'both attempts are in the sign-in log');
+      equal(await response.json(), { status: 'wrong', attempts_left: 4 }, 'answer');
+      const rows = await owner`select outcome, person_id from erp.sign_in_log
+                               where attempted_at >= ${started?.['at']} order by attempted_at`;
+      equal(rows.map((r) => [r['outcome'], r['person_id']]),
+        [['ok', CASHIER], ['wrong', null]], 'this run\'s attempts, in order');
     });
 
     await t.step('signing out ends the session', async () => {

@@ -18,7 +18,7 @@
 -- The PINs are the synthetic ones 0015_identity.sql seeds.
 
 begin;
-select plan(63);
+select plan(67);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -52,7 +52,7 @@ select is((select count(*)::int from erp.session s, signed_in t
   'the session is found by the SHA-256 of its token');
 select is((select count(*)::int from erp.session s, signed_in t
             where s.token_hash = decode(t.answer ->> 'token', 'hex')), 0,
-  'and the token itself is stored nowhere');
+  'and the raw token is not what is stored');
 select is((select count(*)::int from erp.session s, signed_in t
             where s.token_hash = sha256(decode(t.answer ->> 'token', 'hex'))
               and s.person_id = (t.answer ->> 'person_id')::uuid
@@ -72,18 +72,18 @@ select is(erp.sign_in('1002', '000000'), '{"status": "wrong", "attempts_left": 4
   'a wrong PIN is answered as verify_pin answers it, and carries no token');
 -- CONTROL. The log knows who was tried; the caller is not told.
 select is((select count(*)::int from erp.sign_in_log
-            where outcome = 'wrong' and session_id is null
+            where outcome = 'wrong' and session_id is null and attempted_at = now()
               and person_id = '01936f00-0000-7000-8000-000000000902'), 1,
   'a wrong PIN against a real person is recorded against that person');
 
 -- IAM-P02 still holds through sign-in.
 select is(erp.sign_in('9999', '000000'), '{"status": "wrong", "attempts_left": 4}'::jsonb,
   'an unknown number is answered exactly as a wrong PIN is');
-select is((select count(*)::int from erp.sign_in_log where outcome = 'wrong' and person_id is null), 1,
+select is((select count(*)::int from erp.sign_in_log where outcome = 'wrong' and person_id is null and attempted_at = now()), 1,
   'and is recorded with no person and no number');
 select is(erp.sign_in('12ab', '100001'), '{"status": "wrong"}'::jsonb,
   'a malformed number is refused before anything is read');
-select is((select count(*)::int from erp.sign_in_log where outcome = 'wrong' and person_id is null), 2,
+select is((select count(*)::int from erp.sign_in_log where outcome = 'wrong' and person_id is null and attempted_at = now()), 2,
   'and is recorded too');
 
 -- CONTROL. IAM-P05: a suspended person holding the right PIN gets no session.
@@ -92,11 +92,11 @@ select is(erp.sign_in('1005', '100005'), '{"status": "disabled"}'::jsonb,
 select is((select count(*)::int from erp.session where person_id = '01936f00-0000-7000-8000-000000000905'), 0,
   'and no session is created for them');
 select is((select count(*)::int from erp.sign_in_log
-            where outcome = 'disabled' and session_id is null
+            where outcome = 'disabled' and session_id is null and attempted_at = now()
               and person_id = '01936f00-0000-7000-8000-000000000905'), 1,
   'and the attempt is recorded');
 
-select is((select count(*)::int from erp.sign_in_log), 5,
+select is((select count(*)::int from erp.sign_in_log where attempted_at = now()), 5,
   'five attempts, five records: nothing is answered without being recorded');
 
 -- ---------------------------------------------------------------------------
@@ -163,13 +163,45 @@ select is((select last_seen_at from erp.session where session_id = '01936f00-000
 select is(erp.resolve_session(repeat('e4', 32)) ->> 'status', 'ok', 'a session used moments ago resolves');
 select is((select last_seen_at from erp.session where session_id = '01936f00-0000-7000-8000-0000000e0904'),
           now() - interval '30 seconds',
-  'without a write: the idle clock moves at most once a minute');
+  'and its idle clock is left alone: it moves at most once a minute');
 
 -- CONTROL. IAM-P05: suspending a person ends their sessions at their next use.
 select is(erp.resolve_session(repeat('e5', 32)), '{"status": "disabled"}'::jsonb,
   'a session of a person who is no longer active is refused');
 select is((select ended_reason from erp.session where session_id = '01936f00-0000-7000-8000-0000000e0905'), 'disabled',
   'and ended');
+
+-- CONTROL. A session that began before the person's status or PIN was decided is
+-- superseded. Without this, suspending a cashier whose till was stolen only paused the
+-- thief's session: reactivated within thirty minutes, the stolen token worked again.
+insert into erp.session (session_id, person_id, token_hash, created_at, last_seen_at, expires_at) values
+  ('01936f00-0000-7000-8000-0000000e0906', '01936f00-0000-7000-8000-000000000906',
+   sha256(decode(repeat('c1', 32), 'hex')),
+   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours'),
+  ('01936f00-0000-7000-8000-0000000e0907', '01936f00-0000-7000-8000-000000000904',
+   sha256(decode(repeat('c2', 32), 'hex')),
+   now() - interval '1 hour', now() - interval '5 minutes', now() + interval '11 hours');
+
+select erp.change_person_status('01936f00-0000-7000-8000-0000000e0941'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
+  'suspended', 'Till reported stolen.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select erp.change_person_status('01936f00-0000-7000-8000-0000000e0942'::uuid, '01936f00-0000-7000-8000-000000000906'::uuid,
+  'active', 'Cleared.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+-- The control for the case below: a session begun after the decisions is untouched.
+insert into erp.session (session_id, person_id, token_hash, expires_at) values
+  ('01936f00-0000-7000-8000-0000000e0908', '01936f00-0000-7000-8000-000000000906',
+   sha256(decode(repeat('c3', 32), 'hex')), now() + interval '12 hours');
+
+select is(erp.resolve_session(repeat('c1', 32)), '{"status": "ended"}'::jsonb,
+  'suspending and reactivating a person ends the sessions they held before');
+select is((select ended_reason from erp.session where session_id = '01936f00-0000-7000-8000-0000000e0906'), 'superseded',
+  'and records why');
+select is(erp.resolve_session(repeat('c3', 32)) ->> 'status', 'ok',
+  'a session begun after the decision is not affected');
+
+select erp.set_pin('01936f00-0000-7000-8000-0000000e0943'::uuid, '01936f00-0000-7000-8000-000000000904'::uuid,
+  '100004', 'PIN seen over a shoulder.', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+select is(erp.resolve_session(repeat('c2', 32)), '{"status": "ended"}'::jsonb,
+  'setting a new PIN ends the sessions begun under the old one');
 
 -- ---------------------------------------------------------------------------
 -- Signing out

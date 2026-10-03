@@ -1,6 +1,6 @@
 -- 0014 · Sessions — turning a correct PIN into a signed-in person, and back
 --
--- Requirements: IAM-001 · IAM-008 · IAM-009 · IAM-010 · SEC-003 · SEC-004 · SEC-006
+-- Requirements: IAM-001 · IAM-008 · IAM-009 · IAM-010 · SEC-003 · SEC-004
 --               IAM-P01 · IAM-P05 · IAM-P09 · IAM-P10
 -- ADR-0023 (accepted) · ADR-0025 (proposed) · ADR-0022 · invariant I-8
 --
@@ -53,7 +53,8 @@ set search_path = pg_catalog, pg_temp
 as $$ select interval '30 minutes' $$;
 
 -- How stale last_seen_at may get before a request moves it. Without this, every request
--- a till makes is a write; with it, the idle limit is honoured to within a minute.
+-- a till makes is a write; with it, most are reads, and the idle limit is honoured to
+-- within a minute.
 create or replace function erp.session_touch_interval()
 returns interval
 language sql
@@ -74,7 +75,8 @@ create table erp.session (
   last_seen_at           timestamptz not null default now(),
   expires_at             timestamptz not null,
   ended_at               timestamptz,
-  ended_reason           text        check (ended_reason in ('signed_out', 'revoked', 'expired', 'idle', 'disabled')),
+  ended_reason           text        check (ended_reason in ('signed_out', 'revoked', 'expired', 'idle', 'disabled',
+                                                              'superseded')),
   -- A revocation is an administrative act, so it names the decision that recorded it.
   -- The other endings are events at a device, and need none.
   revoked_by_decision_id uuid        references erp.identity_decision (decision_id),
@@ -257,9 +259,10 @@ comment on function erp.sign_in(text, text) is
 
 -- Who a token names, now. Answers, as jsonb:
 --
---   {status: 'ok', person_id, expires_at}  the session is open and was used just now
+--   {status: 'ok', person_id, expires_at}  the session is open
 --   {status: 'invalid'}                     no session has this token, or it is malformed
---   {status: 'ended'}                       signed out, revoked, or ended by an earlier call
+--   {status: 'ended'}                       signed out, revoked, superseded, or ended by an
+--                                           earlier call
 --   {status: 'expired'}                     older than erp.session_max_age()
 --   {status: 'idle'}                        unused for longer than erp.session_idle_limit()
 --   {status: 'disabled'}                    the person is no longer active (IAM-P05)
@@ -268,8 +271,18 @@ comment on function erp.sign_in(text, text) is
 -- an expired session is never revived by its clock moving back. Reads now() and takes
 -- no clock, for the reason verify_pin() gives.
 --
--- The row is locked for the call, so a sign-out or a revocation is never overtaken by a
--- request that read the session open a moment earlier.
+-- SUPERSEDED. A session also ends, answering 'ended', once the person's status or PIN has
+-- been decided since it began: a status change of either direction, or a PIN set. Without
+-- this, suspending a cashier whose till was stolen only PAUSED the thief's session — reactivate
+-- them within thirty minutes, even with a new PIN, and the stolen token answered 'ok'
+-- again (found in review). Read from the identity log, so no identity route has to
+-- remember to end sessions.
+--
+-- AN ORDINARY REQUEST IS A READ. The row is not locked; ending it and moving its idle
+-- clock are each one conditional UPDATE that applies only while it is still open. A
+-- sign-out or revocation that commits first makes that UPDATE match nothing, and the
+-- answer is 'ended'. None of this stops a request that had already resolved 'ok' a moment
+-- earlier from finishing: nothing can, short of resolving inside every write.
 create or replace function erp.resolve_session(p_token text)
 returns jsonb
 language plpgsql
@@ -286,8 +299,7 @@ begin
 
   select * into v_session
     from erp.session s
-   where s.token_hash = pg_catalog.sha256(decode(p_token, 'hex'))
-   for update;
+   where s.token_hash = pg_catalog.sha256(decode(p_token, 'hex'));
   if not found then
     return jsonb_build_object('status', 'invalid');
   end if;
@@ -302,17 +314,29 @@ begin
   elsif not exists (select 1 from erp.person p
                      where p.person_id = v_session.person_id and p.status = 'active') then
     v_ending := 'disabled';
+  elsif exists (select 1 from erp.identity_decision d
+                 where d.subject_person_id = v_session.person_id
+                   and d.kind in ('status_changed', 'credential_set')
+                   and d.recorded_at > v_session.created_at) then
+    v_ending := 'superseded';
   end if;
 
   if v_ending is not null then
     update erp.session
        set ended_at = now(), ended_reason = v_ending
-     where session_id = v_session.session_id;
+     where session_id = v_session.session_id and ended_at is null;
+    if not found or v_ending = 'superseded' then
+      return jsonb_build_object('status', 'ended');
+    end if;
     return jsonb_build_object('status', v_ending);
   end if;
 
   if v_session.last_seen_at < now() - erp.session_touch_interval() then
-    update erp.session set last_seen_at = now() where session_id = v_session.session_id;
+    update erp.session set last_seen_at = now()
+     where session_id = v_session.session_id and ended_at is null;
+    if not found then
+      return jsonb_build_object('status', 'ended');
+    end if;
   end if;
 
   return jsonb_build_object('status', 'ok',
@@ -322,7 +346,7 @@ end;
 $$;
 
 comment on function erp.resolve_session(text) is
-  'ADR-0025. The only way the edge layer learns who is calling: ok with person_id, or invalid | ended | expired | idle | disabled. Ends the session on the last three.';
+  'ADR-0025. The only way the edge layer learns who is calling: ok with person_id, or invalid | ended | expired | idle | disabled. Ends the session on the last three, and when the person''s status or PIN was decided after it began.';
 
 -- The caller's own session, by the token that proves it is theirs. Answers ok whether it
 -- ended now or had already ended, so signing out twice is harmless; invalid for a token
@@ -356,8 +380,8 @@ comment on function erp.sign_out(text) is
 -- IAM-010. An administrator ends every open session of a person: a lost till, a
 -- departing employee, a PIN seen over a shoulder. Recorded as an identity decision
 -- (IAM-008), and each session it ended names that decision. Returns how many it ended.
--- Suspending someone needs no revocation: resolve_session() refuses a person who is not
--- active, and ends the session as it does.
+-- Suspending someone, or setting their PIN, needs no revocation: resolve_session() ends
+-- every session that began before such a decision, at its next use.
 create or replace function erp.revoke_sessions(
   p_decision_id uuid,
   p_person_id   uuid,

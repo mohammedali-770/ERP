@@ -4,8 +4,8 @@
   ADR-0020
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
 - **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
-  [Q-22](./open-questions.md) · [Q-23](./open-questions.md).
-  [Q-21](./open-questions.md) was answered on 2026-10-02 by
+  [Q-22](./open-questions.md) · [Q-23](./open-questions.md) · [Q-24](./open-questions.md)
+  (before the first deployment). [Q-21](./open-questions.md) was answered on 2026-10-02 by
   [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md), and the
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))

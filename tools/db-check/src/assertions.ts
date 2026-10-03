@@ -258,19 +258,33 @@ export const ASSERTIONS: readonly Assertion[] = [
       'added later is covered without anyone remembering to list it: a table named for ' +
       'credentials, or one with a column named for a token. erp.session holds only a ' +
       'token\'s SHA-256 (0014), and is unreachable all the same: the routes answer for it.',
-    sql: `select c.relname || ' — ' || a.privilege_type || ' to ' ||
+    sql: `with credential as (
+            select c.oid, c.relname, c.relowner, c.relacl
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'erp'
+              and c.relkind in ('r', 'p')
+              and (c.relname like '%credential%'
+                   or exists (select 1 from pg_attribute t
+                               where t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+                                 and t.attname like '%token%'))
+          )
+          select c.relname || ' — ' || a.privilege_type || ' to ' ||
                  coalesce(r.rolname, 'PUBLIC') as violation
-          from pg_class c
-          join pg_namespace n on n.oid = c.relnamespace
+          from credential c
           cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
           left join pg_roles r on r.oid = a.grantee
-          where n.nspname = 'erp'
-            and c.relkind in ('r', 'p')
-            and (c.relname like '%credential%'
-                 or exists (select 1 from pg_attribute t
-                             where t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
-                               and t.attname like '%token%'))
-            and a.grantee <> c.relowner`,
+          where a.grantee <> c.relowner
+          union all
+          -- A column-level grant reaches a column as surely as a table grant reaches the
+          -- table, and relacl does not show it (found in review).
+          select c.relname || '.' || t.attname || ' — ' || a.privilege_type || ' to ' ||
+                 coalesce(r.rolname, 'PUBLIC')
+          from credential c
+          join pg_attribute t on t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+          cross join lateral aclexplode(t.attacl) a
+          left join pg_roles r on r.oid = a.grantee
+          where a.grantee <> c.relowner`,
   },
   {
     id: 'every-decision-log-is-append-only',
@@ -387,14 +401,17 @@ export const ASSERTIONS: readonly Assertion[] = [
       'comes to be named at all, so there is nobody yet to ask (ADR-0025): erp.sign_in(), ' +
       'erp.resolve_session() and erp.sign_out(), which ends only the session its own token ' +
       'proves. erp.verify_pin() is no longer one: since 0014 the runtime cannot call it, ' +
-      'and granting it back would be a way round the sign-in log, so this would report it.',
+      'and granting it back would be a way round the sign-in log, so this would report it. ' +
+      'The exceptions are named by signature, not by name: an overload such as ' +
+      'erp.sign_out(uuid) is reported like any other route (found in review).',
     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'erp'
             and p.prosecdef
             and has_function_privilege('erp_app', p.oid, 'EXECUTE')
-            and p.proname not in ('sign_in', 'resolve_session', 'sign_out')
+            and p.oid::regprocedure::text not in
+                ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
             and strpos(p.prosrc, 'erp.assert_permitted(') = 0`,
   },
   {
@@ -404,13 +421,16 @@ export const ASSERTIONS: readonly Assertion[] = [
       'ADR-0025: a session\'s person, token and lifetime are fixed when it starts, an ended ' +
       'session never reopens, and none is deleted, because the sign-in log names it. Only ' +
       '0014\'s triggers say so, and they bind the owner too. A BEFORE UPDATE OR DELETE row ' +
-      'trigger, and a BEFORE TRUNCATE statement trigger, which row triggers do not see.',
+      'trigger, and a BEFORE TRUNCATE statement trigger, which row triggers do not see. Both ' +
+      'must fire erp.session_guard(): a trigger of the right shape that calls something else ' +
+      'guards nothing (found in review). That the function still refuses is pgTAP 090\'s job.',
     sql: `select 'erp.session: no enabled ' || x.what as violation
           from (values (27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
                        (34, 0, 'BEFORE TRUNCATE statement trigger')) as x(mask, row_bit, what)
           where not exists (
             select 1 from pg_trigger t
             where t.tgrelid = 'erp.session'::regclass and not t.tgisinternal
+              and t.tgfoid = 'erp.session_guard()'::regprocedure
               and t.tgenabled in ('O', 'A') and t.tgqual is null
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
@@ -449,6 +469,11 @@ export const ASSERTIONS: readonly Assertion[] = [
             union all select 'holds a grant of its own on ' || c.oid::regclass::text
              from pg_class c join pg_namespace n on n.oid = c.relnamespace
              cross join lateral aclexplode(c.relacl) a
+             where n.nspname = 'erp' and a.grantee = e.oid
+            union all select 'holds a column grant of its own on ' || c.oid::regclass::text || '.' || t.attname
+             from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             join pg_attribute t on t.attrelid = c.oid and t.attnum > 0 and not t.attisdropped
+             cross join lateral aclexplode(t.attacl) a
              where n.nspname = 'erp' and a.grantee = e.oid
             union all select 'holds a grant of its own on ' || p.oid::regprocedure::text
              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
