@@ -47,6 +47,16 @@ to assigned companies, brands, branches, departments and functions (IAM-006).
 Screens compose from capabilities rather than role names — which is what makes
 EMP-012 (add functions without new apps) possible.
 
+### Item and unit
+Anything stocked, bought, made or consumed: raw ingredients, semi-finished and finished
+goods, packaging, cleaning and operating supplies, equipment and spare parts (INV-002).
+**One master, not one per kind.** An item's code, kind, base unit and brand are fixed
+from creation; it is retired, never deleted. Every unit it is counted, bought or used in
+converts **straight to its base unit**, and a conversion never changes — a new pack size
+is a new conversion. Every document line copies the conversion it used. Distinct from a
+*product*, which is what a customer orders; a product's recipe consumes items.
+See [ADR-0024](../adr/ADR-0024-item-master-and-units.md).
+
 ### Product, variant, modifier
 - **Product** — a sellable item with bilingual names, descriptions, images, receipt
   and kitchen labels (MNU-006).

@@ -11,9 +11,14 @@ insert into erp.legal_entity (legal_entity_id, company_id, code, name_en, name_a
   ('01936f00-0000-7000-8000-000000000101', '01936f00-0000-7000-8000-000000000001',
    'FT-LE1', 'First Taste Trading (synthetic)', 'شركة الطعم الأول التجارية (بيانات تجريبية)', '300000000000003');
 
+-- Two brands, because a single-brand seed hides every cross-brand bug, as a
+-- single-branch seed hides cross-branch ones. The second owns no facility: it exists so
+-- brand-private reads (ADR-0012) have something to keep private (0012).
 insert into erp.brand (brand_id, legal_entity_id, code, name_en, name_ar) values
   ('01936f00-0000-7000-8000-000000000201', '01936f00-0000-7000-8000-000000000101',
-   'SPICY', 'Spicy Meal (synthetic)', 'سبايسي ميل (بيانات تجريبية)');
+   'SPICY', 'Spicy Meal (synthetic)', 'سبايسي ميل (بيانات تجريبية)'),
+  ('01936f00-0000-7000-8000-000000000202', '01936f00-0000-7000-8000-000000000101',
+   'SECOND', 'Second Brand (synthetic)', 'العلامة الثانية (بيانات تجريبية)');
 
 insert into erp.operating_unit (operating_unit_id, brand_id, code, name_en, name_ar) values
   ('01936f00-0000-7000-8000-000000000301', '01936f00-0000-7000-8000-000000000201',

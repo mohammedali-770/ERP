@@ -54,6 +54,13 @@ insert into erp.capability_decision (
   ('01936f00-0000-7000-8000-00000000c004', 'finance.month_close', null, 'read_only',
    'Closed to new work while the payment freeze stands; its history stays readable.',
    '01936f00-0000-7000-8000-000000000900', 'administrator',
+   timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  -- inventory.items is registered HIDDEN by migration 0012. This opens it for the suites
+  -- only: a real database records no decision, so the module stays hidden there until a
+  -- migration promotes it after its data layer, screens and staff testing exist.
+  ('01936f00-0000-7000-8000-00000000c005', 'inventory.items', null, 'pilot',
+   'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
+   '01936f00-0000-7000-8000-000000000900', 'administrator',
    timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00');
 
 -- The projection, stamped with the decision each row was computed through (I-8).
@@ -66,4 +73,6 @@ insert into erp.capability_state (capability_key, facility_id, state, as_of_deci
   ('factory.production',        erp.capability_org_scope(), 'pilot',
    '01936f00-0000-7000-8000-00000000c003', timestamptz '2026-09-20 00:00:00+00'),
   ('finance.month_close',       erp.capability_org_scope(), 'read_only',
-   '01936f00-0000-7000-8000-00000000c004', timestamptz '2026-09-20 00:00:00+00');
+   '01936f00-0000-7000-8000-00000000c004', timestamptz '2026-09-20 00:00:00+00'),
+  ('inventory.items',           erp.capability_org_scope(), 'pilot',
+   '01936f00-0000-7000-8000-00000000c005', timestamptz '2026-09-20 00:00:00+00');

@@ -6,7 +6,7 @@
  * provable in more places than the full Supabase stack is. It proves structure,
  * not Supabase behaviour — storage and auth policies are the pgTAP suite's job.
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readFileSync, chownSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -70,9 +70,22 @@ export interface Cluster {
   dumpData(database: string): string;
   /** Runs SQL as the superuser and returns stdout. Throws with psql's stderr on failure. */
   sql(statement: string): string;
+  /**
+   * Runs SQL in a session of its own WITHOUT waiting, named so other sessions can find it
+   * in pg_stat_activity. For probes that need two sessions at once; it never throws.
+   * Errors are verbose, so a probe can tell one refusal from another by SQLSTATE and
+   * constraint rather than by wording.
+   */
+  sqlConcurrently(statement: string, applicationName: string): Promise<SessionResult>;
   /** Runs a file. Fails on the first error rather than continuing. */
   file(path: string): string;
   stop(): void;
+}
+
+export interface SessionResult {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
 }
 
 export function startCluster(binDir: string, database = 'erp_check'): Cluster {
@@ -97,6 +110,21 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
     return spawnSync(exe, argv, { encoding: 'utf8', input, env: { ...process.env, PGHOST: socketDir } });
   };
 
+  /** run(), but without blocking: a second session can act while this one waits. */
+  const runConcurrently = (bin: string, args: string[], env: Record<string, string>) =>
+    new Promise<SessionResult>((resolve) => {
+      const exe = as ? 'setpriv' : join(binDir, bin);
+      const argv = as
+        ? [`--reuid=${as.uid}`, `--regid=${as.gid}`, '--clear-groups', join(binDir, bin), ...args]
+        : args;
+      const child = spawn(exe, argv, { env: { ...process.env, PGHOST: socketDir, ...env } });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (chunk) => (stdout += chunk));
+      child.stderr.on('data', (chunk) => (stderr += chunk));
+      child.on('close', (status) => resolve({ status, stdout, stderr }));
+    });
+
   const mustRun = (bin: string, args: string[]): string => {
     const r = run(bin, args);
     if (r.status !== 0) {
@@ -105,7 +133,20 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
     return r.stdout;
   };
 
-  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync']);
+  // UTF8, stated. Without -E, initdb takes the encoding from the environment, and a
+  // session or CI runner with no LANG set gets SQL_ASCII — where length() counts BYTES.
+  // Every Supabase database is UTF8, so the scratch cluster silently disagreed with the
+  // real one about every Arabic string: an 11-character Arabic unit name measured 21 and
+  // failed a 12-character check (found by 0012).
+  //
+  // Collation stays C — byte order, as the cluster always had. The character type is a
+  // UTF-8 locale where the machine has one, because ctype C makes lower(), upper() and
+  // [[:space:]] ASCII-only, unlike Supabase; 0012's case-insensitive name index and its
+  // whitespace folding depend on them. With no UTF-8 locale installed it falls back to C,
+  // and db-check's database-is-utf8 then says so rather than passing quietly.
+  const ctype = utf8Ctype();
+  mustRun('initdb', ['-D', dataDir, '-A', 'trust', '-U', 'postgres', '--no-sync', '-E', 'UTF8',
+    ...(ctype ? ['--lc-collate=C', `--lc-ctype=${ctype}`, '--lc-messages=C'] : ['--locale=C'])]);
   // Unix socket only: no TCP port, so concurrent runs and a developer's own
   // Postgres on 5432 cannot collide.
   mustRun('pg_ctl', ['-D', dataDir, '-o', `-k ${socketDir} -h '' -c fsync=off`, '-w', '-l', logFile, 'start']);
@@ -117,6 +158,16 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
   };
 
   psql(['-d', 'postgres', '-c', `create database ${database}`]);
+
+  // Checked here, before any migration, because a non-UTF8 cluster fails on 0012's
+  // Arabic unit names with a CHECK violation that says nothing about encoding — and every
+  // consumer of this cluster (db-check, db-fixtures) would see only that.
+  const encoding = psql(['-d', database, '-t', '-A', '-c', 'show server_encoding']).trim();
+  if (encoding !== 'UTF8') {
+    throw new Error(
+      `the scratch cluster is ${encoding}, not UTF8: length() would count bytes and every Arabic ` +
+      `string would measure twice its length. initdb was not given -E UTF8.`);
+  }
 
   const dump = (db: string): string => {
     const r = run('pg_dump', ['-h', socketDir, '-U', 'postgres', '--data-only', '--no-owner', '-d', db]);
@@ -135,6 +186,9 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
     socketDir,
     database,
     sql: (statement) => psql(['-d', database, '-t', '-A', '-c', statement]),
+    sqlConcurrently: (statement, applicationName) =>
+      runConcurrently('psql', ['-h', socketDir, '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose',
+        '-d', database, '-t', '-A', '-c', statement], { PGAPPNAME: applicationName }),
     file: (path) => psql(['-d', database, '-f', path]),
     createDatabase: (name) => { psql(['-d', 'postgres', '-c', `create database ${name}`]); },
     sqlIn: (db, statement) => psql(['-d', db, '-t', '-A', '-c', statement]),
@@ -145,6 +199,14 @@ export function startCluster(binDir: string, database = 'erp_check'): Cluster {
       rmSync(root, { recursive: true, force: true });
     },
   };
+}
+
+/** A UTF-8 locale installed on this machine, for the cluster's character type, if any. */
+function utf8Ctype(): string | null {
+  const listed = spawnSync('locale', ['-a'], { encoding: 'utf8' });
+  if (listed.status !== 0) return null;
+  const available = new Set(listed.stdout.split('\n').map((l) => l.trim()));
+  return ['C.UTF-8', 'C.utf8', 'en_US.UTF-8', 'en_US.utf8'].find((l) => available.has(l)) ?? null;
 }
 
 export function readSql(path: string): string {

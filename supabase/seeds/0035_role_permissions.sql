@@ -35,4 +35,13 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('accountant',        'finance.month_close', 'read'),
   ('accountant',        'finance.month_close', 'write'),
   ('accountant',        'hr.payroll',          'read'),
-  ('accountant',        'hr.payroll',          'write');
+  ('accountant',        'hr.payroll',          'write'),
+
+  -- inventory.items (0012). Every role reads the item master; only the administrator
+  -- writes it, which 0012 grants in the migration. So the warehouse manager — org-wide,
+  -- read only — is the IAM-003 control in 080.
+  ('branch_worker',     'inventory.items',     'read'),
+  ('warehouse_manager', 'inventory.items',     'read'),
+  ('factory_manager',   'inventory.items',     'read'),
+  ('general_manager',   'inventory.items',     'read'),
+  ('accountant',        'inventory.items',     'read');

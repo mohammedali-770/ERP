@@ -18,6 +18,22 @@ export interface Assertion {
 
 export const ASSERTIONS: readonly Assertion[] = [
   {
+    id: 'database-is-utf8',
+    title: 'the database is UTF8 with a Unicode character type, as Supabase\'s is',
+    because:
+      'In SQL_ASCII, length() counts bytes, so every Arabic string measures about twice ' +
+      'its length; with ctype C, lower(), upper() and [[:space:]] are ASCII-only. The ' +
+      'scratch cluster took both from the environment and disagreed with the real database ' +
+      'about non-ASCII text wherever LANG was unset. Found when an 11-character Arabic unit ' +
+      'name failed a 12-character check in 0012. The encoding is also checked before any ' +
+      'migration runs (cluster.ts); this catches the character type, and a fallback to C ' +
+      'on a machine with no UTF-8 locale installed.',
+    sql: `select 'database ' || datname || ' is ' || pg_encoding_to_char(encoding) || ' with ctype ' || datctype as violation
+          from pg_database
+          where datname = current_database()
+            and (pg_encoding_to_char(encoding) <> 'UTF8' or datctype in ('C', 'POSIX'))`,
+  },
+  {
     id: 'no-erp-object-in-public',
     title: 'public holds no ERP relation',
     because:
@@ -243,6 +259,96 @@ export const ASSERTIONS: readonly Assertion[] = [
             and c.relname like '%credential%'
             and a.grantee <> c.relowner`,
   },
+  {
+    id: 'every-decision-log-is-append-only',
+    title: 'every decision log carries an enabled, unconditional append-only trigger and no write grant',
+    because:
+      'A log that can be edited answers nothing. event_log has its own two assertions ' +
+      'above, but each later central log (capability, identity, item) was protected only by ' +
+      'its migration remembering to, and checked only by its own pgTAP suite. Discovered ' +
+      'by name — event_log and every %_decision table — so a new log is covered without ' +
+      'being listed. The trigger must be enabled and carry no WHEN clause; UPDATE is checked ' +
+      'per column too, since a column-level grant also lets a role rewrite a row. That the ' +
+      'trigger actually REFUSES is proved at runtime, below, for every log found here. ' +
+      'TRUNCATE by trigger is not yet required: only item_decision has it so far.',
+    sql: `select c.relname || ': ' || p.problem as violation
+          from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+          cross join lateral (
+            select 'no BEFORE UPDATE OR DELETE trigger' as problem
+             where not exists (
+               select 1 from pg_trigger t
+               where t.tgrelid = c.oid and not t.tgisinternal
+                 and t.tgenabled in ('O', 'A') and t.tgqual is null
+                 and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16 and (t.tgtype & 8) = 8)
+            union all select 'erp_app may UPDATE' where has_any_column_privilege('erp_app', c.oid, 'UPDATE')
+            union all select 'erp_app may DELETE or TRUNCATE'
+             where has_table_privilege('erp_app', c.oid, 'DELETE') or has_table_privilege('erp_app', c.oid, 'TRUNCATE')
+            union all select 'erp_read may UPDATE, DELETE or TRUNCATE'
+             where has_any_column_privilege('erp_read', c.oid, 'UPDATE')
+                or has_table_privilege('erp_read', c.oid, 'DELETE') or has_table_privilege('erp_read', c.oid, 'TRUNCATE')
+          ) p
+          where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
+            and (c.relname = 'event_log' or c.relname like '%\\_decision')`,
+  },
+  {
+    id: 'no-foreign-key-cascades-or-nulls-in-erp',
+    title: 'no foreign key in erp cascades, nulls or defaults on delete or update',
+    because:
+      'B-11: the warehouse system cascades in 51 places and nulls the actor of a stock ' +
+      'movement when a user is deleted, so removing a person or an item silently rewrote ' +
+      'history. Here records are retired, never deleted, and a reference that could ' +
+      'change underneath a row is refused. It passes for every migration so far; it binds ' +
+      'every Phase 4 module from 0012 on.',
+    sql: `select c.conrelid::regclass::text || ' ' || c.conname as violation
+          from pg_constraint c
+          join pg_namespace n on n.oid = c.connamespace
+          where n.nspname = 'erp' and c.contype = 'f'
+            and (c.confdeltype in ('c', 'n', 'd') or c.confupdtype in ('c', 'n', 'd'))`,
+  },
+  {
+    id: 'item-guard-triggers-exist',
+    title: 'erp.item and erp.item_unit carry their enabled guard triggers, TRUNCATE included',
+    because:
+      'INV-002, INV-005, B-11: an item\'s identity and a conversion\'s factor are fixed, and ' +
+      'neither is ever deleted, only because 0012\'s triggers say so — and they bind the ' +
+      'owner too. A seed written to be consistent passes with the triggers gone, so their ' +
+      'presence is checked here directly: a BEFORE row trigger on UPDATE and DELETE (and ' +
+      'INSERT, for conversions), and a BEFORE TRUNCATE statement trigger, since row ' +
+      'triggers do not fire for TRUNCATE.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.item'::regclass,      27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
+                  ('erp.item_unit'::regclass, 31, 1, 'BEFORE INSERT OR UPDATE OR DELETE row trigger'),
+                  ('erp.item'::regclass,      34, 0, 'BEFORE TRUNCATE statement trigger'),
+                  ('erp.item_unit'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger')
+               ) as x(rel, mask, row_bit, what)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
+    id: 'every-runtime-definer-route-is-gated',
+    title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
+    because:
+      'A definer function runs as its owner, so the capability gate and the permission check ' +
+      'are the only thing standing between the runtime and the tables it writes. 0012\'s ' +
+      'review found the gate proved on 2 of its 9 routes by tests; this finds a missing gate ' +
+      'on any route, in any module, by reading the catalogue. It reads the source, so it ' +
+      'proves the call is written, not that it runs first: each module\'s pgTAP suite proves ' +
+      'that, route by route. erp.verify_pin() is the one exception: it is how a person comes ' +
+      'to be named at all (ADR-0022).',
+    sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'erp'
+            and p.prosecdef
+            and has_function_privilege('erp_app', p.oid, 'EXECUTE')
+            and p.proname not in ('verify_pin')
+            and strpos(p.prosrc, 'erp.assert_permitted(') = 0`,
+  },
 ];
 
 /**
@@ -261,7 +367,8 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
       'A seed that silently inserts nothing still exits zero, and every test built ' +
       'on it then passes against an empty database.',
     sql: `select 'no rows in ' || t as violation
-          from unnest(array['erp.company','erp.facility','erp.orders','erp.event_log']) as t
+          from unnest(array['erp.company','erp.facility','erp.orders','erp.event_log',
+                             'erp.item','erp.item_unit','erp.item_decision']) as t
           where (xpath('/row/c/text()',
                  query_to_xml('select count(*) as c from ' || t, false, true, '')))[1]::text::int = 0`,
   },
@@ -300,6 +407,73 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           where e.actor_type = 'cashier'
             and (e.actor_id is null
                  or not exists (select 1 from erp.person p where p.person_id = e.actor_id))`,
+  },
+  {
+    id: 'item-projections-match-their-decisions',
+    title: 'every item and conversion equals the latest decision about it',
+    because:
+      'I-8 asks that a projection row name the record that produced it. erp.item_decision ' +
+      'carries whole states, so 0012 can ask more: that the row EQUALS that record, and that ' +
+      'no later decision about the same subject exists. It also stands in for the foreign ' +
+      'keys the log deliberately lacks — every decision must name a real item and ' +
+      'conversion — as projection-stamp-resolves-to-a-real-event does for the event log.',
+    sql: `select 'item ' || i.code as violation
+          from erp.item i
+          left join erp.item_decision d on d.decision_id = i.as_of_decision_id
+          where d.decision_id is null
+             or d.kind not in ('item_created', 'item_amended', 'item_status_changed')
+             or (d.code, d.item_kind, d.base_unit_key, d.brand_id, d.name_en, d.name_ar,
+                 d.description_en, d.description_ar, d.picture_path, d.status)
+                is distinct from
+                (i.code, i.item_kind, i.base_unit_key, i.brand_id, i.name_en, i.name_ar,
+                 i.description_en, i.description_ar, i.picture_path, i.status)
+             or exists (select 1 from erp.item_decision l
+                         where l.item_id = i.item_id and l.item_unit_id is null and l.seq > d.seq)
+          union all
+          select 'conversion ' || u.item_unit_id
+          from erp.item_unit u
+          left join erp.item_decision d on d.decision_id = u.as_of_decision_id
+          where d.decision_id is null
+             or d.kind not in ('unit_added', 'unit_retired')
+             or (d.item_id, d.unit_key, d.factor, d.status) is distinct from (u.item_id, u.unit_key, u.factor, u.status)
+             or exists (select 1 from erp.item_decision l
+                         where l.item_unit_id = u.item_unit_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names nothing'
+          from erp.item_decision d
+          where not exists (select 1 from erp.item i where i.item_id = d.item_id)
+             or (d.item_unit_id is not null
+                 and not exists (select 1 from erp.item_unit u
+                                  where u.item_unit_id = d.item_unit_id and u.item_id = d.item_id))`,
+  },
+  {
+    id: 'item-units-are-consistent',
+    title: 'every item has one active base conversion at 1, and same-dimension conversions agree',
+    because:
+      'INV-005: a quantity in any unit must have exactly one meaning in the base unit. The ' +
+      'warehouse let an item exist with no ratio and then read it as 1, and let a ratio be ' +
+      'edited under the stock it described. 0012 enforces this by trigger and pgTAP 080 ' +
+      'tests the trigger; this holds it over the seeded data, so a seed that contradicts ' +
+      'INV-005 fails the build even where the trigger is absent. Whether the triggers exist ' +
+      'is item-guard-triggers-exist\'s job.',
+    sql: `select i.code || ': no single active base conversion at factor 1' as violation
+          from erp.item i
+          where (select count(*) from erp.item_unit u
+                  where u.item_id = i.item_id and u.unit_key = i.base_unit_key
+                    and u.status = 'active' and u.factor = 1) <> 1
+             or exists (select 1 from erp.item_unit u
+                         where u.item_id = i.item_id and u.unit_key = i.base_unit_key
+                           and (u.status <> 'active' or u.factor <> 1))
+          union all
+          select i.code || ': ' || a.unit_key || ' and ' || b.unit_key || ' disagree'
+          from erp.item_unit a
+          join erp.item_unit b on b.item_id = a.item_id and b.item_unit_id > a.item_unit_id
+          join erp.unit ua on ua.unit_key = a.unit_key
+          join erp.unit ub on ub.unit_key = b.unit_key
+          join erp.item i on i.item_id = a.item_id
+          where a.status = 'active' and b.status = 'active'
+            and ua.dimension = ub.dimension and ua.dimension <> 'pack'
+            and a.factor * ub.per_reference <> b.factor * ua.per_reference`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',

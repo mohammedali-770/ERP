@@ -166,6 +166,101 @@ try {
     failures++;
     console.log('  FAIL  event_log accepted an UPDATE — ADR-0003 protection two is not working');
   }
+
+  // The same, for every central decision log every-decision-log-is-append-only discovers:
+  // that assertion proves an enabled trigger exists; only an attempted write proves it
+  // refuses. Each attempt runs in a transaction that is rolled back, so an unprotected
+  // log is reported without being changed. Statement triggers fire on an empty table;
+  // the seed puts rows in every log, so row triggers fire too.
+  const logs = cluster
+    .sql(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
+            and c.relname like '%\\_decision' order by 1`)
+    .split('\n').map((x) => x.trim()).filter(Boolean);
+  for (const log of logs) {
+    const column = cluster
+      .sql(`select attname from pg_attribute where attrelid = 'erp.${log}'::regclass and attnum = 1`).trim();
+    const unrefused: string[] = [];
+    for (const [op, statement] of [
+      ['UPDATE', `update erp.${log} set ${column} = ${column} where true`],
+      ['DELETE', `delete from erp.${log} where true`],
+    ] as const) {
+      let refused = false;
+      try {
+        cluster.sql(`begin; ${statement}; rollback;`);
+      } catch (error) {
+        refused = /append-only/i.test(String(error));
+      }
+      if (!refused) unrefused.push(op);
+    }
+    if (unrefused.length === 0) {
+      console.log(`  pass  ${log} rejects UPDATE and DELETE at runtime`);
+    } else {
+      failures++;
+      console.log(`  FAIL  ${log} accepted ${unrefused.join(' and ')} — a decision log that can be edited answers nothing`);
+    }
+  }
+
+  // A retry that OVERLAPS its original must still be answered as a retry: 23505 naming
+  // item_decision_pkey, the one answer the edge reads back through erp.item_history().
+  // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording.
+  // Two sessions, one decision id, for every item write route. The original commits only
+  // once the retry is seen waiting on a lock, so the overlap is arranged rather than
+  // hoped for. Without erp.assert_item_decision_is_new()'s
+  // lock, both passed its check before either committed, and the retry came back "has
+  // changed since it was read" although the original had succeeded (found in review).
+  // Last, because the originals commit: an amendment, a retirement, a conversion added, a
+  // conversion retired and an item created, all on the synthetic seed.
+  console.log('');
+  const id = (tail: string) => `'01936f00-0000-7000-8000-${tail}'::uuid`;
+  const admin = id('000000000900');
+  const routes: ReadonlyArray<readonly [string, (decision: string) => string]> = [
+    ['amend_item', (d) => `select erp.amend_item(${d}, ${id('000000004111')}, ${id('000000004342')},
+       'Basmati rice, aged (synthetic)', 'أرز بسمتي معتق (تجريبي)', null, null, null, 'db-check retry probe', ${admin}, now())`],
+    ['change_item_status', (d) => `select erp.change_item_status(${d}, ${id('000000004108')}, ${id('000000004315')},
+       'retired', 'db-check retry probe', ${admin}, now())`],
+    ['add_item_unit', (d) => `select erp.add_item_unit(${d}, ${id('0000000d0101')}, ${id('000000004107')}, 'carton', 10,
+       'db-check retry probe', ${admin}, now())`],
+    ['retire_item_unit', (d) => `select erp.retire_item_unit(${d}, ${id('000000004203')}, 'db-check retry probe', ${admin}, now())`],
+    ['create_item', (d) => `select erp.create_item(${d}, ${id('0000000d0102')}, ${id('0000000d0103')}, ${id('0000000d0104')},
+       ${id('000000000201')}, 'ZZ-RETRY-PROBE', 'packaging', 'piece', 'Retry probe lid (synthetic)', 'غطاء فحص الإعادة (تجريبي)',
+       null, null, null, 'db-check retry probe', ${admin}, now())`],
+  ];
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const errorOf = (r: { status: number | null; stderr: string }) =>
+    r.status === 0 ? 'nothing (it succeeded)' : (r.stderr.split('\n').find((l) => l.includes('ERROR')) ?? r.stderr).replace(/^.*ERROR:\s*/, '');
+  const isRetrySignal = (stderr: string) =>
+    /ERROR:\s+23505:/.test(stderr) && /CONSTRAINT NAME:\s+item_decision_pkey/.test(stderr);
+  for (const [index, [route, call]] of routes.entries()) {
+    const decision = id(`0000000d${String(index + 1).padStart(4, '0')}`);
+    const original = cluster.sqlConcurrently(`begin; ${call(decision)};
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = 'erp_retry_duplicate' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, 'erp_retry_original');
+    // The retry starts only once the original has written, and so holds its locks.
+    for (let i = 0; i < 400; i++) {
+      const written = cluster.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                    where a.application_name = 'erp_retry_original'
+                                      and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    const retry = cluster.sqlConcurrently(call(decision), 'erp_retry_duplicate');
+    const [first, second] = await Promise.all([original, retry]);
+    if (first.status === 0 && isRetrySignal(second.stderr)) {
+      console.log(`  pass  ${route}: a retry that overlaps its original is answered as a retry`);
+    } else {
+      failures++;
+      console.log(`  FAIL  ${route}: an overlapping retry was answered "${errorOf(second)}"` +
+        (first.status === 0 ? ', not as a retry, although the original succeeded' : `; the original failed too: ${errorOf(first)}`));
+    }
+  }
 } finally {
   cluster?.stop();
 }
