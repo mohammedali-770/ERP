@@ -162,8 +162,15 @@ try {
   // changed. TRUNCATE takes CASCADE, or a log that others reference would be refused for
   // that instead of by its trigger. And a refusal counts only if it names the table tried:
   // CASCADE reaches other logs, and truncating a parent reaches its partitions, whose own
-  // triggers would otherwise refuse on its behalf (found by this check's controls). The
-  // seed puts rows in every log and partition, so row triggers have something to fire on.
+  // triggers would otherwise refuse on its behalf (found by this check's controls).
+  //
+  // An EMPTY table is a partition made ahead of its dates, legitimately. UPDATE and DELETE
+  // there touch no row, so a row trigger has nothing to fire on and proves nothing either
+  // way; what does exist is asserted by every-decision-log-is-append-only, which requires
+  // the enabled trigger on every partition. So an empty table is still tried with
+  // TRUNCATE, which statement triggers refuse on an empty table, and its UPDATE and
+  // DELETE are reported as not tried rather than failed. A row is never fabricated in a
+  // log to make one fire (found in review).
   const guarded = cluster
     .sql(`with recursive logs as (
             select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -197,13 +204,16 @@ try {
       }
       if (!refused) unrefused.push(op);
     }
-    if (unrefused.length === 0) {
-      console.log(`  pass  ${table} rejects UPDATE, DELETE and TRUNCATE at runtime`);
-    } else {
+    const empty = cluster.sql(`select not exists (select 1 from erp.${table})`).trim() === 't';
+    const failed = empty ? unrefused.filter((op) => op === 'TRUNCATE') : unrefused;
+    if (failed.length > 0) {
       failures++;
-      const empty = cluster.sql(`select not exists (select 1 from erp.${table})`).trim() === 't';
-      console.log(`  FAIL  ${table} did not itself refuse ${unrefused.join(', ')} — a log that can be edited answers nothing` +
-        (empty ? ' (it is empty, so a row trigger had nothing to fire on: seed a row)' : ''));
+      console.log(`  FAIL  ${table} did not itself refuse ${failed.join(', ')} — a log that can be edited answers nothing`);
+    } else if (unrefused.length > 0) {
+      console.log(`  pass  ${table} rejects TRUNCATE at runtime; it is empty, so UPDATE and DELETE had no row ` +
+        'to refuse and were not tried (its row trigger is asserted by every-decision-log-is-append-only)');
+    } else {
+      console.log(`  pass  ${table} rejects UPDATE, DELETE and TRUNCATE at runtime`);
     }
   }
 
