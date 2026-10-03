@@ -2,6 +2,7 @@
   "name": "@firsttaste/erp",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "First Taste ERP \u2014 company-level platform. F0 planning pack and foundation.",
   "license": "UNLICENSED",
   "engines": {
@@ -17,7 +18,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/console",
-    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"services/*/test/*.test.ts\" \"apps/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\"",
+    "test": "node --test --experimental-strip-types \"packages/*/test/*.test.ts\" \"services/*/test/*.test.ts\" \"apps/*/test/*.test.ts\" \"tools/*/test/*.test.ts\" \"spikes/*/test/*.test.ts\" \"supabase/functions/_shared/test/*.test.ts\"",
     "prd:extract": "node --experimental-strip-types tools/prd-extract/src/cli.ts",
     "req:lint": "node --experimental-strip-types tools/req-lint/src/cli.ts",
     "req:index": "node --experimental-strip-types tools/req-lint/src/index-gen.ts",

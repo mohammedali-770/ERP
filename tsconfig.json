@@ -18,6 +18,7 @@
     "tools/*/src/**/*.ts",
     "tools/*/test/**/*.ts",
     "spikes/*/src/**/*.ts",
-    "spikes/*/test/**/*.ts"
+    "spikes/*/test/**/*.ts",
+    "supabase/functions/_shared/**/*.ts"
   ]
 }

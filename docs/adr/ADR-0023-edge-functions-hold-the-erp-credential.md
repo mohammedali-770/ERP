@@ -12,8 +12,9 @@
 - **Answers:** [Q-21](../program/open-questions.md)
 - **Requirements:** IAM-001 · IAM-008 · IAM-010 · SEC-003 · SEC-004 · CAP-P04 · CAP-P11 ·
   IAM-P01 · IAM-P08
-- **Related:** ADR-0018 · ADR-0021 · ADR-0022 ·
+- **Related:** ADR-0018 · ADR-0021 · ADR-0022 · ADR-0025 ·
   [`../program/consolidation-plan.md`](../program/consolidation-plan.md) Phase 4
+- **Addendum:** 2026-10-03, the foundation as built — below
 
 ## Context
 
@@ -105,3 +106,50 @@ bite.
 an API role USAGE on `erp`. Migration `20260920000200` revokes exactly that, and
 `db:check`'s `api-roles-cannot-reach-erp` fails on it (ADR-0018 §3 explains why that
 revoke is what binds `service_role`). Rejected.
+
+## Addendum — 2026-10-03: the foundation as built
+
+Recorded here because §3 and the consequences above left these to the foundation PR.
+The session design itself is [ADR-0025](./ADR-0025-sessions-and-the-edge-layer.md).
+
+**The login role.** `erp_edge`, created by migration
+`20261003000100_sessions.sql`: `LOGIN`, a member of `erp_app` alone, no superuser,
+CREATEROLE, CREATEDB, REPLICATION or BYPASSRLS, and a connection limit of 20. `INHERIT`,
+because a transaction-mode pooler keeps no `SET ROLE` between transactions. It has **no
+password in any migration**: a login role without one cannot authenticate with one.
+Setting it on a hosted project, and putting the connection string in the functions'
+environment as `ERP_DATABASE_URL`, are owner-approved actions (`CLAUDE.md` §4).
+`db:check`'s `erp-edge-is-erp-app-and-nothing-more` holds all of this, including that no
+migration set a password.
+
+**The driver.** The owner chose postgres.js on 2026-10-03: `npm:postgres`, pinned to
+exactly `3.4.9`, which has no dependencies of its own. It is the first third-party
+runtime dependency outside `apps/*`, so it is held as the tooling's two are, by
+provenance:
+
+- `supabase/functions/deno.json` maps exactly that package to an exact version, with
+  `"nodeModulesDir": "none"` so Deno never resolves from the npm workspace;
+- `supabase/functions/deno.lock` records its sha512 integrity, and nothing else;
+- only `supabase/functions/_deno/` imports it. `_shared/`, where every handler and
+  `withSession` live, imports nothing but itself, so Node typechecks and tests it;
+- no second manifest, lockfile or import map exists under `supabase/`.
+
+`dep:policy` enforces all four (`tools/dep-policy/src/deno.ts`). Adding a second edge
+dependency needs an ADR, as a third tooling dependency would.
+
+**The connection.** `max: 1` and `prepare: false`, so it works through Supavisor's
+transaction mode, where consecutive statements can reach different server connections
+and a prepared statement made on one does not exist on the next.
+
+**What CI proves, and what it does not.** The `Database stack` job installs Deno 2.9.7,
+runs `deno check --frozen` on every function, and runs a Deno test that signs in,
+resolves, signs out and is refused, through the real postgres.js connection, logged in
+as `erp_edge` with a password set for that run on the job's throwaway database. It also
+shows that `erp_edge` is not `service_role` and cannot read a credential, a session or
+the sign-in log directly. That is the direct connection working as a non-`service_role`
+login role, which this ADR's consequences asked the foundation to show.
+
+The job still excludes `edge-runtime`, so `supabase functions serve` itself, and the
+hosted Supavisor pooler, are not exercised. Both are first exercised when the owner
+approves a deployment. The functions' configuration (`verify_jwt = false`, the shared
+import map) is in `supabase/config.toml`.

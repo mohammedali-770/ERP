@@ -60,3 +60,19 @@ enable_confirmations = false
 
 [analytics]
 enabled = false
+
+# Edge functions (ADR-0023, ADR-0025). verify_jwt is off for each: they authenticate
+# with the ERP's own session token, not a Supabase Auth JWT, which the ERP does not use
+# (ADR-0022). Every function resolves its one dependency through the same pinned,
+# locked map; dep:policy refuses a second one.
+[functions.sign-in]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.session]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.sign-out]
+verify_jwt = false
+import_map = "./functions/deno.json"
