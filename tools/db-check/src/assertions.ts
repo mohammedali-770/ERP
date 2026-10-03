@@ -72,17 +72,20 @@ export const ASSERTIONS: readonly Assertion[] = [
     title: 'no erp table is reachable by anon or authenticated',
     because:
       'The inbox project protects tables with a hand-written revoke in every migration. ' +
-      'That discipline failed four times out of nineteen.',
+      'That discipline failed four times out of nineteen. SELECT, INSERT and UPDATE are ' +
+      'checked per column too: a column-level grant reaches a table as surely as a table ' +
+      'one, and has_table_privilege does not see it.',
     sql: `select c.relname || ' -> ' || r.rolname as violation
           from pg_class c
           join pg_namespace n on n.oid = c.relnamespace
           cross join (select unnest(array['anon','authenticated']) as rolname) r
           where n.nspname = 'erp' and c.relkind in ('r','p')
             and (
-              has_table_privilege(r.rolname, c.oid, 'SELECT') or
-              has_table_privilege(r.rolname, c.oid, 'INSERT') or
-              has_table_privilege(r.rolname, c.oid, 'UPDATE') or
-              has_table_privilege(r.rolname, c.oid, 'DELETE')
+              has_any_column_privilege(r.rolname, c.oid, 'SELECT') or
+              has_any_column_privilege(r.rolname, c.oid, 'INSERT') or
+              has_any_column_privilege(r.rolname, c.oid, 'UPDATE') or
+              has_table_privilege(r.rolname, c.oid, 'DELETE') or
+              has_table_privilege(r.rolname, c.oid, 'TRUNCATE')
             )`,
   },
   {
@@ -115,13 +118,18 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'event-log-has-no-update-or-delete-grant',
-    title: 'erp_app holds no UPDATE or DELETE on event_log',
+    title: 'erp_app holds no UPDATE, DELETE or TRUNCATE on event_log',
     because:
       'ADR-0003 protection one. The grant is absent rather than revoked, so no future ' +
-      'migration restores it by forgetting a line.',
-    sql: `select 'erp_app has ' || priv as violation
-          from (select unnest(array['UPDATE','DELETE']) as priv) p
-          where has_table_privilege('erp_app', 'erp.event_log', p.priv)`,
+      'migration restores it by forgetting a line. UPDATE is checked per column too, since ' +
+      'a column-level grant also lets a role rewrite a row. Its partitions are checked by ' +
+      'every-decision-log-is-append-only.',
+    sql: `select 'erp_app has ' || p.priv as violation
+          from (values ('UPDATE'), ('DELETE'), ('TRUNCATE')) as p(priv)
+          where case p.priv
+                  when 'UPDATE' then has_any_column_privilege('erp_app', 'erp.event_log', 'UPDATE')
+                  else has_table_privilege('erp_app', 'erp.event_log', p.priv)
+                end`,
   },
   {
     id: 'event-log-append-only-trigger-exists',
@@ -261,35 +269,66 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'every-decision-log-is-append-only',
-    title: 'every decision log carries an enabled, unconditional append-only trigger and no write grant',
+    title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant',
     because:
-      'A log that can be edited answers nothing. event_log has its own two assertions ' +
-      'above, but each later central log (capability, identity, item) was protected only by ' +
-      'its migration remembering to, and checked only by its own pgTAP suite. Discovered ' +
-      'by name — event_log and every %_decision table — so a new log is covered without ' +
-      'being listed. The trigger must be enabled and carry no WHEN clause; UPDATE is checked ' +
-      'per column too, since a column-level grant also lets a role rewrite a row. That the ' +
-      'trigger actually REFUSES is proved at runtime, below, for every log found here. ' +
-      'TRUNCATE by trigger is not yet required: only item_decision has it so far.',
-    sql: `select c.relname || ': ' || p.problem as violation
-          from pg_class c
-          join pg_namespace n on n.oid = c.relnamespace
+      'A log that can be edited answers nothing. Discovered by name — event_log and every ' +
+      '%_decision table — and through pg_inherits, so a new log or partition is covered ' +
+      'without being listed. Each needs an enabled BEFORE UPDATE OR DELETE trigger with no ' +
+      'WHEN clause, an enabled BEFORE TRUNCATE trigger (no UPDATE or DELETE trigger sees ' +
+      'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. A ' +
+      'partitioned log also needs a ROW trigger: PostgreSQL fires a partitioned table\'s ' +
+      'statement triggers only for statements that name the parent, so 0004\'s statement ' +
+      'trigger never fired for "delete from erp.event_log_default", and the owner could ' +
+      'delete every event (0013). Row triggers are cloned onto partitions; statement ' +
+      'triggers are not, which is why each partition needs its own TRUNCATE trigger. That ' +
+      'the triggers actually REFUSE is proved at runtime, below, on every table found here.',
+    sql: `with recursive logs as (
+            select c.oid, c.relname, c.relkind
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
+              and (c.relname = 'event_log' or c.relname like '%\\_decision')
+          ),
+          partitions as (
+            select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid
+            union all
+            select i.inhrelid from partitions p join pg_inherits i on i.inhparent = p.oid
+          ),
+          guarded as (
+            select oid, relname, relkind from logs
+            union all
+            select c.oid, c.relname, c.relkind from partitions p join pg_class c on c.oid = p.oid
+          )
+          select g.relname || ': ' || p.problem as violation
+          from guarded g
           cross join lateral (
-            select 'no BEFORE UPDATE OR DELETE trigger' as problem
+            -- A trigger cloned from a partitioned parent counts: on PostgreSQL 14 and
+            -- earlier it is marked internal, and tgparentid names its parent.
+            select 'no enabled, unconditional BEFORE UPDATE OR DELETE trigger' as problem
              where not exists (
                select 1 from pg_trigger t
-               where t.tgrelid = c.oid and not t.tgisinternal
+               where t.tgrelid = g.oid and (not t.tgisinternal or t.tgparentid <> 0)
                  and t.tgenabled in ('O', 'A') and t.tgqual is null
                  and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16 and (t.tgtype & 8) = 8)
-            union all select 'erp_app may UPDATE' where has_any_column_privilege('erp_app', c.oid, 'UPDATE')
+            union all select 'no enabled, unconditional BEFORE TRUNCATE trigger'
+             where not exists (
+               select 1 from pg_trigger t
+               where t.tgrelid = g.oid and not t.tgisinternal
+                 and t.tgenabled in ('O', 'A') and t.tgqual is null
+                 and (t.tgtype & 2) = 2 and (t.tgtype & 32) = 32)
+            union all select 'partitioned, with no ROW trigger to reach its partitions'
+             where g.relkind = 'p' and not exists (
+               select 1 from pg_trigger t
+               where t.tgrelid = g.oid and not t.tgisinternal
+                 and t.tgenabled in ('O', 'A') and t.tgqual is null and (t.tgtype & 1) = 1
+                 and (t.tgtype & 2) = 2 and (t.tgtype & 16) = 16 and (t.tgtype & 8) = 8)
+            union all select 'erp_app may UPDATE' where has_any_column_privilege('erp_app', g.oid, 'UPDATE')
             union all select 'erp_app may DELETE or TRUNCATE'
-             where has_table_privilege('erp_app', c.oid, 'DELETE') or has_table_privilege('erp_app', c.oid, 'TRUNCATE')
+             where has_table_privilege('erp_app', g.oid, 'DELETE') or has_table_privilege('erp_app', g.oid, 'TRUNCATE')
             union all select 'erp_read may UPDATE, DELETE or TRUNCATE'
-             where has_any_column_privilege('erp_read', c.oid, 'UPDATE')
-                or has_table_privilege('erp_read', c.oid, 'DELETE') or has_table_privilege('erp_read', c.oid, 'TRUNCATE')
-          ) p
-          where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-            and (c.relname = 'event_log' or c.relname like '%\\_decision')`,
+             where has_any_column_privilege('erp_read', g.oid, 'UPDATE')
+                or has_table_privilege('erp_read', g.oid, 'DELETE') or has_table_privilege('erp_read', g.oid, 'TRUNCATE')
+          ) p`,
   },
   {
     id: 'no-foreign-key-cascades-or-nulls-in-erp',

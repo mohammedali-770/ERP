@@ -154,50 +154,66 @@ try {
   // Asserted by attempting the write, not by reading the catalogue: a trigger
   // that exists and does not fire is the failure this is looking for.
   console.log('');
-  let triggerHeld = false;
-  try {
-    cluster.sql(`update erp.event_log set event_type = 'tampered' where true`);
-  } catch (error) {
-    triggerHeld = /append-only/i.test(String(error));
-  }
-  if (triggerHeld) {
-    console.log('  pass  event_log rejects UPDATE at runtime, not only on paper');
-  } else {
-    failures++;
-    console.log('  FAIL  event_log accepted an UPDATE — ADR-0003 protection two is not working');
-  }
-
-  // The same, for every central decision log every-decision-log-is-append-only discovers:
-  // that assertion proves an enabled trigger exists; only an attempted write proves it
-  // refuses. Each attempt runs in a transaction that is rolled back, so an unprotected
-  // log is reported without being changed. Statement triggers fire on an empty table;
-  // the seed puts rows in every log, so row triggers fire too.
-  const logs = cluster
-    .sql(`select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-          where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-            and c.relname like '%\\_decision' order by 1`)
+  // Every log every-decision-log-is-append-only discovers — event_log and each %_decision
+  // table — and every partition of one. That assertion proves the triggers exist; only an
+  // attempted write proves they refuse. A partition is tried by name because naming it
+  // is what slipped past 0004's statement trigger (0013). Each attempt runs in a
+  // transaction that is rolled back, so an unprotected table is reported without being
+  // changed. TRUNCATE takes CASCADE, or a log that others reference would be refused for
+  // that instead of by its trigger. And a refusal counts only if it names the table tried:
+  // CASCADE reaches other logs, and truncating a parent reaches its partitions, whose own
+  // triggers would otherwise refuse on its behalf (found by this check's controls).
+  //
+  // An EMPTY table is a partition made ahead of its dates, legitimately. UPDATE and DELETE
+  // there touch no row, so a row trigger has nothing to fire on and proves nothing either
+  // way; what does exist is asserted by every-decision-log-is-append-only, which requires
+  // the enabled trigger on every partition. So an empty table is still tried with
+  // TRUNCATE, which statement triggers refuse on an empty table, and its UPDATE and
+  // DELETE are reported as not tried rather than failed. A row is never fabricated in a
+  // log to make one fire (found in review).
+  const guarded = cluster
+    .sql(`with recursive logs as (
+            select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
+              and (c.relname = 'event_log' or c.relname like '%\\_decision')
+          ),
+          partitions as (
+            select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid
+            union all
+            select i.inhrelid from partitions p join pg_inherits i on i.inhparent = p.oid
+          )
+          select c.relname from pg_class c
+          where c.oid in (select oid from logs union all select oid from partitions)
+          order by 1`)
     .split('\n').map((x) => x.trim()).filter(Boolean);
-  for (const log of logs) {
+  for (const table of guarded) {
     const column = cluster
-      .sql(`select attname from pg_attribute where attrelid = 'erp.${log}'::regclass and attnum = 1`).trim();
+      .sql(`select attname from pg_attribute where attrelid = 'erp.${table}'::regclass and attnum = 1`).trim();
     const unrefused: string[] = [];
     for (const [op, statement] of [
-      ['UPDATE', `update erp.${log} set ${column} = ${column} where true`],
-      ['DELETE', `delete from erp.${log} where true`],
+      ['UPDATE', `update erp.${table} set ${column} = ${column} where true`],
+      ['DELETE', `delete from erp.${table} where true`],
+      ['TRUNCATE', `truncate erp.${table} cascade`],
     ] as const) {
       let refused = false;
       try {
         cluster.sql(`begin; ${statement}; rollback;`);
       } catch (error) {
-        refused = /append-only/i.test(String(error));
+        // Every log's trigger says "<log> is append-only (...): <OP> denied on <table>".
+        refused = new RegExp(`append-only .*: ${op} denied on ${table}(\\s|$)`, 'm').test(String(error));
       }
       if (!refused) unrefused.push(op);
     }
-    if (unrefused.length === 0) {
-      console.log(`  pass  ${log} rejects UPDATE and DELETE at runtime`);
-    } else {
+    const empty = cluster.sql(`select not exists (select 1 from erp.${table})`).trim() === 't';
+    const failed = empty ? unrefused.filter((op) => op === 'TRUNCATE') : unrefused;
+    if (failed.length > 0) {
       failures++;
-      console.log(`  FAIL  ${log} accepted ${unrefused.join(' and ')} — a decision log that can be edited answers nothing`);
+      console.log(`  FAIL  ${table} did not itself refuse ${failed.join(', ')} — a log that can be edited answers nothing`);
+    } else if (unrefused.length > 0) {
+      console.log(`  pass  ${table} rejects TRUNCATE at runtime; it is empty, so UPDATE and DELETE had no row ` +
+        'to refuse and were not tried (its row trigger is asserted by every-decision-log-is-append-only)');
+    } else {
+      console.log(`  pass  ${table} rejects UPDATE, DELETE and TRUNCATE at runtime`);
     }
   }
 

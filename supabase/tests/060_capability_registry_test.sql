@@ -15,7 +15,7 @@
 -- also why this suite adds no entry to db-fixtures' reset list.
 
 begin;
-select plan(19);
+select plan(20);
 
 -- Structure. Four reads, because the stamp's EXISTENCE and its NULLability are
 -- different questions: db-check asserts `not attnotnull` over a discovered column,
@@ -91,6 +91,14 @@ select throws_ok(
   $$ delete from erp.capability_decision $$,
   '23001', null,
   'a decision cannot be deleted — it is unmade by appending another'
+);
+
+-- An UPDATE or DELETE trigger does not see TRUNCATE (0013). CASCADE, because
+-- erp.capability_state references the log, and the refusal must be the trigger's.
+select throws_ok(
+  $$ truncate erp.capability_decision cascade $$,
+  '23001', 'capability_decision is append-only (CAP-P03): TRUNCATE denied on capability_decision',
+  'nor emptied by TRUNCATE'
 );
 
 -- ---------------------------------------------------------------------------
