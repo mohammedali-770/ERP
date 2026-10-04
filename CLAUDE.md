@@ -126,7 +126,8 @@ npm run db:test       # pgTAP suites against the local stack
 | **The scratch database is UTF8, as Supabase's is** | `db:check` and `db:fixtures` — the scratch cluster refuses to start otherwise: in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
 | An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
 | **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed. The three session routes are the named exceptions (ADR-0025) |
-| **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025) |
+| **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025), and every items write is held to it |
+| **A database refusal is an answer; anything else is a 500 that says nothing** | Node tests (`refusal.ts`, `items.test.ts`) + the Deno items test, end to end |
 | A session's token is stored only as its hash; a session ends at 12 hours or 30 minutes idle, and is never deleted or reopened | pgTAP + `db:check` (`session-guard-triggers-exist`) |
 | **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |

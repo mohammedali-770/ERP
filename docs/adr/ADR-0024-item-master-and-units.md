@@ -149,6 +149,44 @@ before the module it names.
    row fails as a line error and refuses the whole file. Must be answered before the
    import screen ships.
 
+## Addendum — 2026-10-04: the data layer (module 1, step 2)
+
+The nine routes are reachable over HTTP through one edge function, `items`
+(`supabase/functions/_shared/items.ts`). Nothing about the routes changed.
+
+- **The actor is the session's.** Every route is wrapped in `withSession`, and the actor is
+  passed to the database as its own argument (ADR-0025). A request whose body and headers
+  name the administrator still acts as the person its token resolves to; a Node control
+  test holds this for every write.
+- **The facility is the caller's, and that is safe.** Reads take `facility_id` from the
+  query, unbound to the session. `erp.assert_permitted()` checks the actor's role AT that
+  facility, and reads there are limited to its brand (§6), so naming a facility grants
+  nothing a role there does not. Writes take none: they are gated organisation-wide. This
+  settles what 0012's comment on `erp.item_facility_brand()` left to the foundation.
+- **The edge checks shape, the database checks rules.** Ids must be UUIDs, text has a
+  bounded length, a factor is a decimal of at most six places, sent as text so no binary
+  float reaches it. Every rule stays in 0012, so the two can never disagree.
+- **A refusal is an answer.** Each refusal's SQLSTATE and constraint map to one answer
+  (`supabase/functions/_shared/refusal.ts`):
+  - `409 already_recorded` for a retry;
+  - `409 conflict` for a taken code or name;
+  - `409 stale` for a form loaded before someone else's change;
+  - `403 forbidden` from the gate;
+  - `422 refused` for a broken rule;
+  - `422 invalid` for a malformed value. An import's `detail` names its failing lines;
+  - `404 not_found`, including another brand's item.
+
+  The database's message reaches the person. Anything else is a 500 that says nothing.
+- **The decision time is the database's** `now()`, never the console's clock.
+- **Proved end to end** by `supabase/functions/_deno/test/items.test.ts`, which CI runs
+  against the Database stack:
+  - as `erp_edge`, a cashier reads their branch's items and is refused organisation-wide;
+  - every route then runs through the router and the driver in one transaction that is
+    rolled back, which the test checks afterwards.
+
+  It found a real defect: the driver sent an import's rows already JSON-encoded, so
+  postgres.js encoded them again and every import was refused as not an array.
+
 ## Alternatives considered
 
 **Keep the warehouse's three masters.** Rejected by the owner's decision.

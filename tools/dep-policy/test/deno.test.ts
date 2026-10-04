@@ -89,6 +89,16 @@ test('specifiers are read from every import form', () => {
     ['../x.ts', './c.ts', './db.ts', './side-effect.ts', 'npm:left-pad@1.0.0', 'postgres'].sort());
 });
 
+test('the word import inside a string is not an import', () => {
+  const source = [
+    "import { items } from './items.ts';",
+    "const r = post('/import', { reason: 'r', rows });",
+    "if (path[0] === 'import') { const note = \"import 'x' later\"; }",
+    "  export { a } from './a.ts';",
+  ].join('\n');
+  assert.deepEqual(specifiers(source).sort(), ['./a.ts', './items.ts']);
+});
+
 test('the committed layout passes', () => {
   assert.deepEqual(ruleEdgeImports([
     { path: 'supabase/functions/_deno/db.ts', source: "import postgres from 'postgres';\nimport { asSignInAnswer } from '../_shared/db.ts';" },

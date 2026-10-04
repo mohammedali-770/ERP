@@ -5,12 +5,18 @@ import {
   type Db, type SessionAnswer, type SignInAnswer, type SignOutAnswer,
 } from '../db.ts';
 import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.ts';
+import type { ItemsDb } from '../items-db.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 
 const TOKEN = 'ab'.repeat(32);
 const ADMIN = '01936f00-0000-7000-8000-000000000900';
 const CASHIER = '01936f00-0000-7000-8000-000000000901';
 const ORIGIN = 'https://console.example.test';
+
+/** The items routes, which these tests never reach. */
+const itemsNotUsed: ItemsDb = new Proxy({} as ItemsDb, {
+  get: (_target, name) => () => { throw new Error(`items route ${String(name)} called from a session test`); },
+});
 
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
@@ -20,6 +26,7 @@ function fakeDb(answers: {
 } = {}): Db & { calls: string[] } {
   const calls: string[] = [];
   return {
+    ...itemsNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);
