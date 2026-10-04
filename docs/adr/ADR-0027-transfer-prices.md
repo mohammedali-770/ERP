@@ -62,6 +62,12 @@ a moment is the latest active price in effect at it, so "what did a carton cost 
 that set it: an order already placed keeps its price, which is MNU-015's rule for selling
 prices, applied here. One price per pack per moment.
 
+Every price changes something. A price equal to the one in force at its moment is
+refused, and so is a price equal to the one the pack moves to next. Withdrawing a price
+that would leave its two neighbours equal is refused too: the later one is withdrawn
+first. Otherwise a second record of one amount would switch orders to a new price at a
+moment when nothing changed (found in review). `db:check` holds every row to this.
+
 ### 5. History is the table; prices are fixed once set
 
 One row per price ever set. A price's pack, amount and moment never change. **A price
@@ -99,6 +105,12 @@ The seam takes the same per-conversion lock, shared, so a branch order and a pri
 decision about its pack never interleave. The order is charged what history will say
 applied at its moment.
 
+The seam also refuses a retired pack, or a pack of a retired item. It checks both
+under the item's share lock, which retiring a pack takes for update. A check left to the
+caller, through `erp.active_item_unit()`'s unlocked read, let a pack be retired between
+that check and the price, and an order be priced for it. `db:check` proves this with two
+real sessions: a retirement held open while an order asks for the pack's price.
+
 `db:check` also holds every price's decision history to the price. All its decisions
 agree on the pack, the amount, the currency and the moment, and its first decision is
 its one `price_set`.
@@ -107,10 +119,9 @@ its one `price_set`.
 
 - **Branch orders (module 10) get a seam.** An order line calls `erp.transfer_price_at()`
   for its pack at the moment the order is placed. It copies the answer into its own
-  immutable record, and is refused when the pack has no price. The seam does not check
-  the pack is still active: a price set ahead outlives a pack retired meanwhile. So the
-  order line reaches its pack through `erp.active_item_unit()` first, as every
-  quantity-bearing line must.
+  immutable record, and is refused when the pack has no price, or when the pack or its
+  item is retired (§8). The share lock the seam takes on the item lasts to the end of the
+  order's transaction, so the order's own `erp.active_item_unit()` sees the same pack.
 - **Valuation and the journal (modules 16, 20) read the order lines,** not this table:
   the price a branch was charged is the line's, fixed when the order was placed.
 - **Changing a price is cheap and safe.** Set the new price from the moment it should

@@ -712,8 +712,9 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
       'EQUAL its stamp, with no later decision about it, and every decision must name a real ' +
       'price on the same pack. And the rule a branch order will rely on (I-7): no price was ' +
       'ever set to take effect before the decision that set it, and none was withdrawn once ' +
-      'in effect — otherwise "what a carton cost on the 3rd" could change after the 3rd. The ' +
-      'routes refuse both; this holds every row, the seed\'s included, to them.',
+      'in effect — otherwise "what a carton cost on the 3rd" could change after the 3rd. Nor ' +
+      'does any active price repeat the one before it. The routes refuse all three; this holds ' +
+      'every row, the seed\'s included, to them.',
     sql: `select 'price ' || p.price_id as violation
           from erp.transfer_price p
           left join erp.transfer_price_decision d on d.decision_id = p.as_of_decision_id
@@ -752,7 +753,17 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           union all
           select 'decision ' || d.decision_id || ' withdrew a price already in effect'
           from erp.transfer_price_decision d
-          where d.kind = 'price_withdrawn' and d.effective_from <= d.decided_at`,
+          where d.kind = 'price_withdrawn' and d.effective_from <= d.decided_at
+          union all
+          -- A price that changes nothing: the same as the active price before it. Setting
+          -- one out of order, or withdrawing the price between two equal ones, made one
+          -- (found in review); both routes refuse it now.
+          select 'price ' || x.price_id || ' repeats the price before it'
+          from (select p.price_id, p.price_minor, p.currency,
+                       lag(p.price_minor) over w as prev_minor, lag(p.currency) over w as prev_currency
+                from erp.transfer_price p where p.status = 'active'
+                window w as (partition by p.item_unit_id order by p.effective_from)) x
+          where (x.prev_minor, x.prev_currency) = (x.price_minor, x.currency)`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',

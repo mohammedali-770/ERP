@@ -277,9 +277,15 @@ $$;
 -- It takes the conversion's price lock SHARED, the lock every price decision about the
 -- conversion takes exclusively: an order waits for a price decision in flight, and a
 -- decision waits for orders in flight, so no order is charged a price that history then
--- says did not apply at its moment (found in review). It does not check the conversion
--- is active — a price set ahead outlives a pack retired meanwhile — so the caller reaches
--- the pack through erp.active_item_unit() first, as every quantity-bearing line must.
+-- says did not apply at its moment (found in review).
+--
+-- An order is new work, so the item and the conversion must both be active, and are
+-- checked here, under the item's share lock, which retire_item_unit() and retire_item()
+-- take for update. Checked by the caller alone, through erp.active_item_unit(), a
+-- conversion could be retired between that unlocked read and this one, and an order
+-- priced for a pack that no longer existed (found in review). The share lock is held to
+-- the end of the caller's transaction, so its own erp.active_item_unit() afterwards sees
+-- the same conversion. A retired pack's prices stay readable, through the gated reads.
 create or replace function erp.transfer_price_at(p_item_unit_id uuid, p_at timestamptz)
 returns erp.transfer_price
 language plpgsql
@@ -287,8 +293,23 @@ volatile
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  v erp.transfer_price;
+  v      erp.transfer_price;
+  u      erp.item_unit;
+  v_item uuid;
 begin
+  -- item_id never changes (erp.item_unit_is_fixed()), so reading it unlocked is safe.
+  select x.item_id into v_item from erp.item_unit x where x.item_unit_id = p_item_unit_id;
+  if not found then
+    raise exception 'no conversion %', p_item_unit_id using errcode = 'no_data_found', constraint = 'item_unit_exists';
+  end if;
+  -- The item, then the conversion read after its lock: the order every conversion route
+  -- takes, and the order set_transfer_price() takes before the price lock below.
+  perform erp.assert_item_active(v_item);
+  select * into u from erp.item_unit x where x.item_unit_id = p_item_unit_id;
+  if u.status <> 'active' then
+    raise exception 'conversion % is retired and admits no new work', u.item_unit_id
+      using errcode = 'restrict_violation', constraint = 'transfer_price_conversion_is_active';
+  end if;
   perform pg_advisory_xact_lock_shared(hashtextextended('erp.transfer_price:' || p_item_unit_id::text, 0));
   v := erp.transfer_price_in_force(p_item_unit_id, p_at);
   if v.price_id is null then
@@ -306,8 +327,8 @@ $$;
 
 -- A price for one conversion, from a moment: now when p_effective_from is NULL, or a
 -- later moment set ahead. Never earlier than the decision. Only an active pack of an
--- active item can be priced; a price already in force at that moment is refused rather
--- than recorded twice.
+-- active item can be priced; a price already in force at that moment, or the one the
+-- pack moves to next, is refused rather than recorded twice.
 create or replace function erp.set_transfer_price(
   p_decision_id    uuid,
   p_price_id       uuid,
@@ -329,6 +350,7 @@ declare
   v_from  timestamptz;
   v_clock timestamptz;
   v_now   erp.transfer_price;
+  v_next  erp.transfer_price;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.transfer_prices', 'write', null);
   perform erp.assert_transfer_price_decision_is_new(p_decision_id);
@@ -379,6 +401,18 @@ begin
     raise exception 'that price is already in force from %', v_from
       using errcode = 'restrict_violation', constraint = 'transfer_price_unchanged';
   end if;
+  -- Nor the price the pack already moves to next. With 100 in force and 200 set for
+  -- February, 200 from January would leave February's price changing nothing: a second
+  -- record of one price, and orders switching price at February for no change (found in
+  -- review). Withdraw February's first, then set January's.
+  select * into v_next from erp.transfer_price p
+   where p.item_unit_id = u.item_unit_id and p.status = 'active' and p.effective_from > v_from
+   order by p.effective_from
+   limit 1;
+  if v_next.price_id is not null and v_next.price_minor = p_price_minor and v_next.currency = p_currency then
+    raise exception 'that price is already set from %; withdraw that one first', v_next.effective_from
+      using errcode = 'restrict_violation', constraint = 'transfer_price_same_as_next';
+  end if;
 
   insert into erp.transfer_price_decision (
     decision_id, kind, price_id, item_unit_id, item_id, unit_key, factor, price_minor, currency, effective_from,
@@ -412,6 +446,8 @@ as $$
 declare
   v_unit uuid;
   p      erp.transfer_price;
+  v_prev erp.transfer_price;
+  v_next erp.transfer_price;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.transfer_prices', 'write', null);
   perform erp.assert_transfer_price_decision_is_new(p_decision_id);
@@ -430,6 +466,23 @@ begin
   if p.effective_from <= greatest(clock_timestamp(), p_decided_at) then
     raise exception 'transfer price % is in effect: set a new price instead of withdrawing it', p.price_id
       using errcode = 'restrict_violation', constraint = 'transfer_price_in_effect';
+  end if;
+  -- Nor a withdrawal that leaves two neighbouring prices the same: with 100 in force,
+  -- 200 set for February and 100 for March, withdrawing February's leaves March's
+  -- changing nothing, the case set_transfer_price() refuses. Withdraw March's first.
+  select * into v_prev from erp.transfer_price x
+   where x.item_unit_id = p.item_unit_id and x.status = 'active' and x.effective_from < p.effective_from
+   order by x.effective_from desc
+   limit 1;
+  select * into v_next from erp.transfer_price x
+   where x.item_unit_id = p.item_unit_id and x.status = 'active' and x.effective_from > p.effective_from
+   order by x.effective_from
+   limit 1;
+  if v_prev.price_id is not null and v_next.price_id is not null
+     and v_prev.price_minor = v_next.price_minor and v_prev.currency = v_next.currency then
+    raise exception 'withdrawing transfer price % leaves the price from % the same as the one before it; withdraw that one first',
+      p.price_id, v_next.effective_from
+      using errcode = 'restrict_violation', constraint = 'transfer_price_withdrawal_repeats';
   end if;
 
   insert into erp.transfer_price_decision (

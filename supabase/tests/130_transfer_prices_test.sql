@@ -15,7 +15,7 @@
 -- Fixture ids are …0e15NN and …0e16NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(69);
+select plan(77);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -169,6 +169,23 @@ select throws_ok(
   'P0002', null,
   'and so is a moment before any price took effect'
 );
+-- An order is new work: a retired pack keeps its prices on record, but is never charged
+-- one (found in review: checked by the caller alone, a pack retired in between was).
+select throws_ok(
+  $$ select erp.transfer_price_at('01936f00-0000-7000-8000-000000004209'::uuid, now()) $$,
+  '23001', 'conversion 01936f00-0000-7000-8000-000000004209 is retired and admits no new work',
+  'CONTROL: the seam refuses a retired pack, though a price is on record for it'
+);
+select throws_ok(
+  $$ select erp.transfer_price_at('01936f00-0000-7000-8000-000000004222'::uuid, now()) $$,
+  '23001', 'item RM-FRYING-OIL-OLD is retired and admits no new work',
+  'and a pack of a retired item'
+);
+select throws_ok(
+  $$ select erp.transfer_price_at('01936f00-0000-7000-8000-0000000e1599'::uuid, now()) $$,
+  'P0002', 'no conversion 01936f00-0000-7000-8000-0000000e1599',
+  'and a conversion that does not exist'
+);
 
 -- ---------------------------------------------------------------------------
 -- Setting and withdrawing: the rules
@@ -215,6 +232,12 @@ select throws_like(
        19000, 'SAR', null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   'that price is already in force from %',
   'the price already in force is refused rather than recorded twice'
+);
+select throws_like(
+  $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1534'::uuid, '01936f00-0000-7000-8000-0000000e1535'::uuid, '01936f00-0000-7000-8000-000000004203'::uuid,
+       19500, 'SAR', timestamptz '2098-06-01 00:00:00+00', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'that price is already set from %; withdraw that one first',
+  'CONTROL: and so is the price the pack already moves to next, which would then change nothing'
 );
 select throws_ok(
   $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1524'::uuid, '01936f00-0000-7000-8000-0000000e1525'::uuid, '01936f00-0000-7000-8000-000000004213'::uuid,
@@ -319,6 +342,34 @@ select lives_ok(
   $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1607'::uuid, '01936f00-0000-7000-8000-0000000e1608'::uuid, '01936f00-0000-7000-8000-000000004213'::uuid,
        1500, 'SAR', timestamptz '2099-06-01 00:00:00+00', 'testing: set again', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
   'its moment is free again for a new price'
+);
+
+-- A withdrawal never leaves two neighbouring prices the same: 1200 now, 1500 from June,
+-- 1200 from July; withdrawing June's would leave July's changing nothing.
+select lives_ok(
+  $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1616'::uuid, '01936f00-0000-7000-8000-0000000e1617'::uuid, '01936f00-0000-7000-8000-000000004213'::uuid,
+       1200, 'SAR', timestamptz '2099-07-01 00:00:00+00', 'testing: back to 1200', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
+  'the price can return to an earlier amount after a different one'
+);
+select throws_like(
+  $$ select erp.withdraw_transfer_price('01936f00-0000-7000-8000-0000000e1618'::uuid, '01936f00-0000-7000-8000-0000000e1608'::uuid, 'testing', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
+  '%leaves the price from % the same as the one before it; withdraw that one first',
+  'CONTROL: a withdrawal that would leave the next price changing nothing is refused'
+);
+select lives_ok(
+  $$ select erp.withdraw_transfer_price('01936f00-0000-7000-8000-0000000e1619'::uuid, '01936f00-0000-7000-8000-0000000e1617'::uuid, 'testing: later one first', '01936f00-0000-7000-8000-000000000907'::uuid, now());
+     select erp.withdraw_transfer_price('01936f00-0000-7000-8000-0000000e1620'::uuid, '01936f00-0000-7000-8000-0000000e1608'::uuid, 'testing: then this', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
+  'withdrawn later one first, both go'
+);
+-- No price changes nothing: each active price differs from the active one before it.
+select is_empty(
+  $$ select price_id from (
+       select p.price_id, p.price_minor, p.currency,
+              lag(p.price_minor) over w as prev_minor, lag(p.currency) over w as prev_currency
+       from erp.transfer_price p where p.status = 'active'
+       window w as (partition by p.item_unit_id order by p.effective_from)) x
+     where (prev_minor, prev_currency) = (price_minor, currency) $$,
+  'no active price repeats the one before it'
 );
 
 -- CONTROL: the decision time is the caller's to pass, so it is never trusted to say what

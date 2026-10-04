@@ -324,6 +324,45 @@ try {
         (first.status === 0 ? ', not as a retry, although the original succeeded' : `; the original failed too: ${errorOf(first)}`));
     }
   }
+
+  // An order priced while its pack is being retired must wait for the retirement and then
+  // be refused: erp.transfer_price_at() checks the pack under the item's share lock, which
+  // retire_item_unit() takes for update. Checked by the caller alone, through an unlocked
+  // read, the order saw the pack active, the retirement committed, and the order was
+  // charged a price for a pack that no longer existed (found in review). The meal box's
+  // carton of 200, priced in the seed; the retirement commits only once the order is seen
+  // waiting on a lock, so the overlap is arranged, as above.
+  {
+    const retirement = cluster.sqlConcurrently(`begin;
+      select erp.retire_item_unit(${id('0000000d0401')}, ${id('000000004212')}, 'db-check price probe', ${admin}, now());
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = 'erp_price_order' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, 'erp_price_retirement');
+    for (let i = 0; i < 400; i++) {
+      const written = cluster.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                    where a.application_name = 'erp_price_retirement'
+                                      and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    const order = cluster.sqlConcurrently(`select erp.transfer_price_at(${id('000000004212')}, now())`, 'erp_price_order');
+    const [retired, priced] = await Promise.all([retirement, order]);
+    const refused = /ERROR:\s+23001:/.test(priced.stderr)
+      && /CONSTRAINT NAME:\s+transfer_price_conversion_is_active(\s|$)/m.test(priced.stderr);
+    if (retired.status === 0 && refused) {
+      console.log('  pass  transfer_price_at: an order priced while its pack is retired waits, and is refused');
+    } else {
+      failures++;
+      console.log(`  FAIL  transfer_price_at: an order priced while its pack was retired was answered "${errorOf(priced)}"` +
+        (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+    }
+  }
 } finally {
   cluster?.stop();
 }
