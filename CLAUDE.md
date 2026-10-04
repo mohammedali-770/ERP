@@ -134,8 +134,8 @@ npm run db:test       # pgTAP suites against the local stack
 | **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
 | A supplier's code, and a supply's supplier and conversion, never change; neither is deleted or truncated; a retired supply stays retired | `db:check` (`supplier-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
-| **Every supplier and supply equals the latest decision about it, and no contact value is ever logged** | `db:check` (`supplier-projections-match-their-decisions`) + pgTAP — SEC-008: the log has no contact column, so an erasure request can always be honoured |
-| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item and supplier write route; checked by SQLSTATE and constraint, which is what the edge matches |
+| **Every supplier and supply equals the latest decision about it, and the log has nowhere to keep a contact** | `db:check` (`supplier-projections-match-their-decisions`) + pgTAP — SEC-008: no contact column, and a contact change records a fixed reason, not a typed one. A reason typed on any other decision is still free text kept for good (ADR-0026) |
+| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item and supplier write route and the supplier import; checked by SQLSTATE and constraint, which is what the edge matches |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
 | **No role but the owner can touch a credential table** | `db:check` — discovered by name, or by a `%token%` column, so `erp_read`'s default `SELECT` cannot reach a PIN hash or a session's token hash |
 | A capability or identity decision needs a permitted actor | pgTAP |

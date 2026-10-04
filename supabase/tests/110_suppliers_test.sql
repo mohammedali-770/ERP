@@ -15,7 +15,7 @@
 -- Fixture ids are …0e11NN and …0e12NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(118);
+select plan(138);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -111,7 +111,7 @@ select throws_ok(
   'change_supplier_status asks for write permission as well'
 );
 select throws_ok(
-  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1109'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, 'Someone', null, null, null, 'testing', '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
+  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1109'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, 'Someone', null, null, null, '01936f00-0000-7000-8000-000000000904'::uuid, now()) $$,
   '23001', 'person 01936f00-0000-7000-8000-000000000904 may not write on capability procurement.suppliers here (IAM-003)',
   'set_supplier_contact asks for write permission as well'
 );
@@ -239,17 +239,17 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
-  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1136'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, null, 'call me', null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1136'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, null, 'call me', null, null, '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23514', 'phone number is not valid: 6 to 15 digits, optionally after +',
   'a phone number is digits'
 );
 select throws_ok(
-  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1137'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, null, null, 'not an email', null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1137'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid, '01936f00-0000-7000-8000-000000005303'::uuid, null, null, 'not an email', null, '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23514', 'email address is not valid',
   'an email address has an @ and a domain'
 );
 select throws_ok(
-  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1138'::uuid, '01936f00-0000-7000-8000-000000005101'::uuid, '01936f00-0000-7000-8000-000000005301'::uuid, null, null, null, null, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1138'::uuid, '01936f00-0000-7000-8000-000000005101'::uuid, '01936f00-0000-7000-8000-000000005301'::uuid, null, null, null, null, '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   '23001', 'supplier SUP-POULTRY has changed since it was read',
   'contacts are changed against the loaded stamp too'
 );
@@ -447,7 +447,7 @@ select is((select count(*)::int from erp.supplier_decision where supplier_id = '
 -- business record carried unchanged.
 select lives_ok(
   $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1204'::uuid, '01936f00-0000-7000-8000-0000000e1202'::uuid, '01936f00-0000-7000-8000-0000000e1201'::uuid,
-    ' Sales Desk (synthetic) ', '+966 55 000 0003', 'Sales@Dates.Example.Test', 'Synthetic farm road', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+    ' Sales Desk (synthetic) ', '+966 55 000 0003', 'Sales@Dates.Example.Test', 'Synthetic farm road', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   'contacts are set'
 );
 select is((select (contact_person, phone, email)::text from erp.supplier where supplier_id = '01936f00-0000-7000-8000-0000000e1202'::uuid),
@@ -459,15 +459,19 @@ select is((select count(*)::int from erp.supplier_decision d
               and strpos(row_to_json(d)::text, '550000003') + strpos(lower(row_to_json(d)::text), 'sales desk')
                 + strpos(lower(row_to_json(d)::text), 'farm road') > 0),
   0, 'and no contact value is anywhere in it');
+select is((select reason from erp.supplier_decision where decision_id = '01936f00-0000-7000-8000-0000000e1204'::uuid),
+  'Contact details changed.', 'CONTROL: its reason is fixed text, so nobody can type a contact into the log');
 
 -- Erasure works on a retired supplier: it does not wait for a reinstatement.
 select lives_ok(
   $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1205'::uuid, '01936f00-0000-7000-8000-000000005101'::uuid, '01936f00-0000-7000-8000-000000005302'::uuid,
-    null, null, null, null, 'testing: erasure request', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+    null, null, null, null, '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   'contacts are erased on request'
 );
 select is((select num_nonnulls(contact_person, phone, email, address) from erp.supplier where supplier_id = '01936f00-0000-7000-8000-000000005101'::uuid),
   0, 'an erasure clears every contact field');
+select is((select reason from erp.supplier_decision where decision_id = '01936f00-0000-7000-8000-0000000e1205'::uuid),
+  'Contact details erased.', 'and the log says it was an erasure, and nothing else');
 select lives_ok(
   $$ select erp.change_supplier_status('01936f00-0000-7000-8000-0000000e1206'::uuid, '01936f00-0000-7000-8000-0000000e1202'::uuid, '01936f00-0000-7000-8000-0000000e1204'::uuid,
     'retired', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
@@ -475,7 +479,7 @@ select lives_ok(
 );
 select lives_ok(
   $$ select erp.set_supplier_contact('01936f00-0000-7000-8000-0000000e1207'::uuid, '01936f00-0000-7000-8000-0000000e1202'::uuid, '01936f00-0000-7000-8000-0000000e1206'::uuid,
-    null, null, null, null, 'testing: erasure request', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+    null, null, null, null, '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
   'and its contacts erased while it is retired'
 );
 select is((select (status, num_nonnulls(contact_person, phone, email, address))::text from erp.supplier where supplier_id = '01936f00-0000-7000-8000-0000000e1202'::uuid),
@@ -508,17 +512,40 @@ select lives_ok(
 select is((select status from erp.supplier_item where supplier_item_id = '01936f00-0000-7000-8000-0000000e1209'::uuid),
   'retired', 'a supply is retired');
 
--- Import: one new supplier, one existing supplier amended, one unchanged.
-select is(erp.import_suppliers('01936f00-0000-7000-8000-000000000900'::uuid, 'testing: opening list', now(),
-  '[{"line": "2", "code": "SUP-SPICE", "name_en": "Spice House (synthetic)", "name_ar": "دار البهارات (تجريبي)", "payment_terms_days": "30",
+-- Import: one new supplier, two existing suppliers amended (one in its record and its
+-- contacts both), one unchanged. A lives_ok, so a refused file fails a named case.
+select lives_ok(
+  $$ select erp.import_suppliers('01936f00-0000-7000-8000-000000000900'::uuid, 'testing: opening list', now(),
+  '[{"line": "2", "code": "SUP-SPICE", "name_en": "Spice House (synthetic)", "name_ar": "دار البهارات (تجريبي)", "payment_terms_days": "٣٠",
      "phone": "+966550000004", "decision_id": "01936f00-0000-7000-8000-0000000e1213", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1214", "supplier_id": "01936f00-0000-7000-8000-0000000e1215"},
     {"line": "3", "code": "sup-local", "name_en": "Corner Grocer (synthetic)", "name_ar": "بقالة الزاوية (تجريبي)", "payment_terms_days": "7",
      "decision_id": "01936f00-0000-7000-8000-0000000e1216", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1217"},
     {"line": "4", "code": "SUP-B2", "name_en": "Second Brand Boxes (synthetic)", "name_ar": "علب العلامة الثانية (تجريبي)", "vat_number": "310000000000303", "payment_terms_days": "30",
-     "decision_id": "01936f00-0000-7000-8000-0000000e1218", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1219"}]'::jsonb),
-  '{"amended": 1, "created": 1, "unchanged": 1}'::jsonb, 'an import creates, amends and leaves alone, matching by code');
+     "decision_id": "01936f00-0000-7000-8000-0000000e1218", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1219"},
+    {"line": "5", "code": "SUP-PACK", "name_en": "Gulf Packaging (synthetic)", "name_ar": "الخليج للتغليف (تجريبي)", "vat_number": "310000000000103", "cr_number": "1010000002",
+     "payment_terms_days": "75", "email": "orders@pack.example.test",
+     "decision_id": "01936f00-0000-7000-8000-0000000e1230", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1231"}]'::jsonb) $$,
+  'an import creates, amends and leaves alone, matching by code'
+);
+-- Sent again, it finds nothing to do: the same rows match by code, so a file re-sent
+-- after a lost answer creates nothing twice.
+select is(erp.import_suppliers('01936f00-0000-7000-8000-000000000900'::uuid, 'testing: sent again', now(),
+  '[{"line": "2", "code": "SUP-SPICE", "name_en": "Spice House (synthetic)", "name_ar": "دار البهارات (تجريبي)", "payment_terms_days": "٣٠",
+     "phone": "+966550000004", "decision_id": "01936f00-0000-7000-8000-0000000e1213", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1214", "supplier_id": "01936f00-0000-7000-8000-0000000e1215"},
+    {"line": "3", "code": "sup-local", "name_en": "Corner Grocer (synthetic)", "name_ar": "بقالة الزاوية (تجريبي)", "payment_terms_days": "7",
+     "decision_id": "01936f00-0000-7000-8000-0000000e1216", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1217"},
+    {"line": "4", "code": "SUP-B2", "name_en": "Second Brand Boxes (synthetic)", "name_ar": "علب العلامة الثانية (تجريبي)", "vat_number": "310000000000303", "payment_terms_days": "30",
+     "decision_id": "01936f00-0000-7000-8000-0000000e1218", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1219"},
+    {"line": "5", "code": "SUP-PACK", "name_en": "Gulf Packaging (synthetic)", "name_ar": "الخليج للتغليف (تجريبي)", "vat_number": "310000000000103", "cr_number": "1010000002",
+     "payment_terms_days": "75", "email": "orders@pack.example.test",
+     "decision_id": "01936f00-0000-7000-8000-0000000e1230", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1231"}]'::jsonb),
+  '{"amended": 0, "created": 0, "unchanged": 4}'::jsonb, 'a file sent again changes nothing');
 select is((select (payment_terms_days, phone)::text from erp.supplier where code = 'SUP-SPICE'),
-  '(30,+966550000004)', 'a new supplier from the file has its contacts set');
+  '(30,+966550000004)', 'a new supplier from the file has its contacts set, and terms typed in Arabic digits read');
+-- The record and the contacts both changed: two decisions, the second against the
+-- stamp the first left (the import re-reads it between them).
+select is((select (payment_terms_days, email, as_of_decision_id)::text from erp.supplier where code = 'SUP-PACK'),
+  '(75,orders@pack.example.test,01936f00-0000-7000-8000-0000000e1231)', 'an existing supplier''s record and contacts both change in one row');
 -- CONTROL. One bad line refuses the whole file, and each failing line is named.
 select throws_ok(
   $$ select erp.import_suppliers('01936f00-0000-7000-8000-000000000900'::uuid, 'testing', now(),
@@ -530,6 +557,81 @@ select throws_ok(
   'a file with a bad line saves nothing'
 );
 select is((select count(*)::int from erp.supplier where code = 'SUP-NEW'), 0, 'not even its good lines');
+
+-- Digits pasted from right-to-left text carry invisible marks; they are dropped.
+select is(erp.normalise_digits(E'\u200e310\u00a0000 000\u066c000 103\u200f'), '310000000000103',
+  'direction marks, no-break spaces and the Arabic thousands separator are dropped from digits');
+
+-- At a facility, a supplier's history leaves out what it sells to another brand.
+select is((select count(*)::int from erp.supplier_history('01936f00-0000-7000-8000-000000000904'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid, '01936f00-0000-7000-8000-000000005105'::uuid)),
+  1, 'at a facility, the history of a supplier hides its supplies to another brand');
+select is((select count(*)::int from erp.supplier_history('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000005105'::uuid)),
+  2, 'organisation-wide, it shows them');
+
+-- A retired supplier keeps an item's preferred slot only until it gives it up, and a
+-- purchase order form is offered live suppliers first.
+select lives_ok(
+  $$ select erp.change_supplier_status('01936f00-0000-7000-8000-0000000e1240'::uuid, '01936f00-0000-7000-8000-000000005101'::uuid, '01936f00-0000-7000-8000-0000000e1205'::uuid,
+    'retired', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'the preferred supplier of chicken breast is retired'
+);
+select lives_ok(
+  $$ select erp.add_supplier_item('01936f00-0000-7000-8000-0000000e1241'::uuid, '01936f00-0000-7000-8000-0000000e1242'::uuid, '01936f00-0000-7000-8000-000000005102'::uuid,
+    '01936f00-0000-7000-8000-000000004203'::uuid, null, false, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'another supplier is added for the same carton'
+);
+select is((select supplier_code from erp.item_suppliers('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000004101'::uuid) limit 1),
+  'SUP-PACK', 'CONTROL: a live supplier is offered before a retired one, even its preferred one');
+select throws_ok(
+  $$ select erp.amend_supplier_item('01936f00-0000-7000-8000-0000000e1243'::uuid, '01936f00-0000-7000-8000-000000005201'::uuid, '01936f00-0000-7000-8000-000000005311'::uuid,
+       'WP-CB-10-NEW', true, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'supplier SUP-POULTRY is retired: reinstate it before changing it',
+  'a retired supplier''s supply is not otherwise changed'
+);
+select lives_ok(
+  $$ select erp.amend_supplier_item('01936f00-0000-7000-8000-0000000e1244'::uuid, '01936f00-0000-7000-8000-000000005201'::uuid, '01936f00-0000-7000-8000-000000005311'::uuid,
+       'WP-CB-10', false, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'CONTROL: but it can give up the preferred slot'
+);
+select lives_ok(
+  $$ select erp.amend_supplier_item('01936f00-0000-7000-8000-0000000e1245'::uuid, '01936f00-0000-7000-8000-0000000e1242'::uuid, '01936f00-0000-7000-8000-0000000e1241'::uuid,
+       null, true, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'so the live supplier can take it'
+);
+
+-- A supply on a retired pack stays 'active' itself; the reads say the pack is retired,
+-- and it cannot be made preferred.
+select lives_ok(
+  $$ select erp.add_supplier_item('01936f00-0000-7000-8000-0000000e1246'::uuid, '01936f00-0000-7000-8000-0000000e1247'::uuid, '01936f00-0000-7000-8000-000000005103'::uuid,
+       '01936f00-0000-7000-8000-000000004202'::uuid, null, false, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now());
+     select erp.retire_item_unit('01936f00-0000-7000-8000-0000000e1248'::uuid, '01936f00-0000-7000-8000-000000004202'::uuid, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  'a supply is added for grams, and then the gram conversion is retired'
+);
+select is((select s ->> 'conversion_status' from erp.get_supplier('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000005103'::uuid) g,
+                  jsonb_array_elements(g.supplies) s
+            where s ->> 'supplier_item_id' = '01936f00-0000-7000-8000-0000000e1247'),
+  'retired', 'the read shows the supply''s pack is retired');
+select throws_ok(
+  $$ select erp.amend_supplier_item('01936f00-0000-7000-8000-0000000e1249'::uuid, '01936f00-0000-7000-8000-0000000e1247'::uuid, '01936f00-0000-7000-8000-0000000e1246'::uuid,
+       null, true, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23001', 'conversion 01936f00-0000-7000-8000-000000004202 is retired: a supplier sells an active pack (I-7)',
+  'a supply on a retired pack is never made preferred'
+);
+
+-- What a supplier sells names items, so it is shown only to someone who may read items
+-- (found in review). Plain statements, so db-fixtures never commits them; the
+-- suite's rollback undoes them.
+select erp.decide_capability('01936f00-0000-7000-8000-0000000e1250'::uuid, 'inventory.items', null, 'hidden', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+select is((select supplies from erp.get_supplier('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000005102'::uuid)),
+  null, 'CONTROL: while items are hidden, a supplier is read without its supplies (CAP-P02)');
+select is((select count(*)::int from erp.supplier_history('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000005104'::uuid)),
+  3, 'and its history without its supply decisions');
+select erp.decide_capability('01936f00-0000-7000-8000-0000000e1251'::uuid, 'inventory.items', null, 'pilot', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, 'administrator', now());
+delete from erp.role_permission where role_key = 'accountant' and capability_key = 'inventory.items';
+select is((select supplies from erp.get_supplier('01936f00-0000-7000-8000-000000000907'::uuid, null, '01936f00-0000-7000-8000-000000005102'::uuid)),
+  null, 'CONTROL: and so it is for a person who may read suppliers but not items (IAM-003)');
+select isnt((select supplies from erp.get_supplier('01936f00-0000-7000-8000-000000000904'::uuid, null, '01936f00-0000-7000-8000-000000005102'::uuid)),
+  null, 'while a person who may read both sees them');
 
 -- I-8: every supplier and supply equals the latest decision about it, after all of this.
 select is_empty(

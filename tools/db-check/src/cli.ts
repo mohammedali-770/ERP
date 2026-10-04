@@ -250,7 +250,7 @@ try {
     ['change_supplier_status', (d) => `select erp.change_supplier_status(${d}, ${id('000000005105')}, ${id('000000005309')},
        'retired', 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
     ['set_supplier_contact', (d) => `select erp.set_supplier_contact(${d}, ${id('000000005103')}, ${id('000000005304')},
-       null, '+966550000002', null, null, 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+       null, '+966550000002', null, null, ${admin}, now())`, 'supplier_decision_pkey'],
     ['add_supplier_item', (d) => `select erp.add_supplier_item(${d}, ${id('0000000d0201')}, ${id('000000005102')},
        ${id('000000004213')}, null, false, 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
     ['amend_supplier_item', (d) => `select erp.amend_supplier_item(${d}, ${id('000000005202')}, ${id('000000005312')},
@@ -260,6 +260,13 @@ try {
     ['create_supplier', (d) => `select erp.create_supplier(${d}, ${id('0000000d0202')}, 'ZZ-RETRY-PROBE',
        'Retry probe supplier (synthetic)', 'مورد فحص الإعادة (تجريبي)', null, null, 30,
        'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    // An import sent twice while the first is still running: its rows' decision ids are
+    // the first sending's, so the second must be answered as a retry, not as "nothing was
+    // saved" when the first saved everything.
+    ['import_suppliers', (d) => `select erp.import_suppliers(${admin}, 'db-check retry probe', now(),
+       jsonb_build_array(jsonb_build_object('code', 'ZZ-RETRY-IMPORT', 'name_en', 'Retry probe import (synthetic)',
+         'name_ar', 'استيراد فحص الإعادة (تجريبي)', 'payment_terms_days', '30', 'decision_id', ${d},
+         'contact_decision_id', ${id('0000000d0203')}, 'supplier_id', ${id('0000000d0204')})))`, 'supplier_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>

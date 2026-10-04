@@ -66,13 +66,22 @@ erasure request. So, as ADR-0022 decided for people:
 
 - **Contacts live only on `erp.supplier`,** mutable, through their own route,
   `erp.set_supplier_contact()`.
-- **That route logs a decision that carries no contact value.** It records who, when
-  and why, and the business record unchanged.
+- **That route logs a decision that carries no contact value, and no typed reason.** It
+  records who and when, a fixed reason ("Contact details changed." or "Contact details
+  erased."), and the business record unchanged. Every other decision keeps the reason a
+  person typed, and that is append-only; on a contact change the natural reason names
+  the person ("new rep Khalid, 055…"), so this route takes none (found in review).
 - **Erasure works on a retired supplier,** because an erasure request does not wait for
   a reinstatement.
 
 The log has no contact column at all. pgTAP 110 asserts that, and `db:check` asserts it
 as part of `supplier-projections-match-their-decisions`.
+
+What this does **not** guarantee: a reason typed on any other decision is free text, kept
+for good, and nothing stops a person typing a name into it. And a sole trader's business
+name and commercial registration identify a private individual as surely as an address
+does, and they are decided business fields, logged in full. Open question 7 asks what
+retention applies to both.
 
 ### 3. What a supplier sells is a conversion, not an item
 
@@ -84,6 +93,12 @@ table to stand on that seam.
   12 kg, that is a new conversion and a new supply; the old one goes on meaning 10.
 - A supply copies its conversion whole. Its supplier and conversion are fixed;
   retirement is final (I-6).
+- A supply on a pack or item retired since stays `active` itself, because purchasing
+  refuses the pack where it is used. The reads show the pack's and the item's status
+  beside it, and such a supply cannot be made preferred.
+- A retired supplier's supply can still give up the item's preferred slot, and nothing
+  else, so a slot is never held for good (found in review). Who sells an item is listed
+  live suppliers on live packs first, then preferred first.
 - Only an **active** pack of an **active** item can be supplied.
 - A supplier sells one conversion **once at a time**.
 - An item has **at most one preferred supplier at a time**: the warehouse's primary
@@ -100,8 +115,11 @@ Both brands buy from the same suppliers, so the supplier list is not filtered by
 facility. Every read still takes the facility and asks `erp.assert_permitted()` there.
 What a supplier sells is filtered by the facility's brand, as items are (ADR-0012), so
 another brand's catalogue is not revealed through its suppliers.
-`erp.item_suppliers()` needs read on both capabilities, because it reveals an item and
-its suppliers together.
+
+What a supplier sells names items, so it is shown only to someone who may read items
+there: `erp.get_supplier()` returns no supplies, and `erp.supplier_history()` no supply
+decisions, while `inventory.items` is hidden or not granted (found in review).
+`erp.item_suppliers()` asks for read on both capabilities outright.
 
 ### 5. Writes are organisation-wide; reads are for the managers
 
@@ -112,8 +130,11 @@ The capability `procurement.suppliers` ships **hidden**, like `inventory.items`.
 ### 6. Retries are recognisable
 
 Every write route locks and checks its decision id first, as 0012's do. A retry that
-overlaps its original waits, then answers 23505 on `supplier_decision_pkey`. `db:check`
-proves this with two sessions on all seven write routes.
+overlaps its original waits, then answers 23505 on `supplier_decision_pkey`. The import
+re-raises that answer from inside its rows rather than reporting the line as failed,
+so an import sent again while the first is still running is a retry, not "nothing was
+saved" (found in review; `erp.import_items()` has the same gap, for module 1's next
+change). `db:check` proves it with two sessions on all seven write routes and the import.
 
 ### 7. Import, matched by code; the file wins
 
@@ -133,8 +154,8 @@ clears a field.
     supply for this conversion".
 - **Retiring a supplier leaves its supplies alone.** They come back unchanged on
   reinstatement. Retiring a conversion does not retire the supplies that name it
-  either: purchasing refuses a retired conversion where it is used, and a supply on one
-  is visibly dead.
+  either: purchasing refuses a retired conversion where it is used, and the reads show
+  it as retired beside the supply.
 - **The edge layer and screens are module 2's next steps.** The edge's refusal mapping
   must then answer `already_recorded` for `supplier_decision_pkey` as it does for
   `item_decision_pkey`.
@@ -159,8 +180,10 @@ Recorded rather than guessed. Each must be answered before the module that needs
 5. **Who besides the administrator may maintain suppliers.** Purchasing staff, say?
 6. **A preferred supplier per facility** rather than per item. The warehouse had one
    per raw material; a branch-specific preference has not been asked for.
-7. **Retention of contact details** for a supplier no longer used: erase after a period,
-   or keep until asked (SEC-008)?
+7. **Retention (SEC-008).** For a supplier no longer used, should its contact details be
+   erased after a period, or kept until someone asks? And what applies to what the log
+   keeps for good: a sole trader's business name and commercial registration, and any
+   personal detail a person typed into a reason?
 8. **The import's file-wins rule**: the same question as ADR-0024's question 8.
 
 ## Alternatives considered

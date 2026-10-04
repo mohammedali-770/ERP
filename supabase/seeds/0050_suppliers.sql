@@ -35,7 +35,7 @@ insert into erp.supplier_decision (
   ('01936f00-0000-7000-8000-000000005301', 'supplier_created', '01936f00-0000-7000-8000-000000005101', null, 'SUP-POULTRY', 'Al Waha Poultry (synthetic)', 'دواجن الواحة (تجريبي)', '310000000000003', '1010000001', 30, null, null, null, null, null, null, 'active',
    'Synthetic suppliers.', '01936f00-0000-7000-8000-000000000900', timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
   ('01936f00-0000-7000-8000-000000005302', 'supplier_contact_changed', '01936f00-0000-7000-8000-000000005101', null, 'SUP-POULTRY', 'Al Waha Poultry (synthetic)', 'دواجن الواحة (تجريبي)', '310000000000003', '1010000001', 30, null, null, null, null, null, null, 'active',
-   'Synthetic: the sales contact.', '01936f00-0000-7000-8000-000000000900', timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+   'Contact details changed.', '01936f00-0000-7000-8000-000000000900', timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
   ('01936f00-0000-7000-8000-000000005303', 'supplier_created', '01936f00-0000-7000-8000-000000005102', null, 'SUP-PACK', 'Gulf Packaging (synthetic)', 'الخليج للتغليف (تجريبي)', '310000000000103', '1010000002', 60, null, null, null, null, null, null, 'active',
    'Synthetic suppliers.', '01936f00-0000-7000-8000-000000000900', timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
   ('01936f00-0000-7000-8000-000000005304', 'supplier_created', '01936f00-0000-7000-8000-000000005103', null, 'SUP-LOCAL', 'Corner Grocer (synthetic)', 'بقالة الزاوية (تجريبي)', null, null, 0, null, null, null, null, null, null, 'active',

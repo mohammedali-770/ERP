@@ -32,7 +32,7 @@
 -- status — is decided and logged in full. Its contact person, phone, email and address
 -- can name a private individual (a sole trader's address is their home), so they live
 -- only on erp.supplier, mutable and erasable. Changing them records a decision of kind
--- supplier_contact_changed that says who, when and why, and carries no contact value.
+-- supplier_contact_changed that says who and when, with a fixed reason, and no contact value.
 --
 -- NOT BUILT, deliberately, and recorded in ADR-0026 as the owner's to decide:
 --   * banking details (PRC-005). An IBAN is the field a payment fraud changes, so it
@@ -344,15 +344,18 @@ create trigger supplier_item_never_truncated
 -- Helpers — granted to nobody
 -- ---------------------------------------------------------------------------
 
--- Digits as typed on any keyboard: Arabic-Indic and Persian digits folded, spaces and
--- dashes dropped, blank as NULL. It does not validate; the CHECKs above do.
+-- Digits as typed or pasted from any keyboard: Arabic-Indic and Persian digits folded;
+-- spaces, dashes, no-break spaces, the Arabic thousands separator and the invisible
+-- direction marks (LRM, RLM, ALM) that copying from right-to-left text carries all
+-- dropped; blank as NULL. It does not validate; the CHECKs above do.
 create or replace function erp.normalise_digits(p_text text)
 returns text
 language sql
 immutable
 set search_path = pg_catalog, pg_temp
 as $$
-  select nullif(regexp_replace(translate(p_text, '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789'), '[[:space:]-]', '', 'g'), '');
+  select nullif(regexp_replace(translate(p_text, '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789'),
+                               E'[[:space:]\u00a0\u202f\u200e\u200f\u061c\u066c-]', '', 'g'), '');
 $$;
 
 -- A retried call carries the decision id it was first sent with: 0012's
@@ -630,6 +633,11 @@ $$;
 -- Contacts: the four erasable fields, whole, against the loaded stamp. Logged as a
 -- decision that carries the business record and NO contact value (SEC-008). Allowed on a
 -- retired supplier, because an erasure request does not wait for a reinstatement.
+--
+-- NO FREE-TEXT REASON. Every other decision records the reason a person typed, and it
+-- is append-only. Here the natural reason names the contact ("new rep Khalid, 055…"),
+-- which would put the person in the log for good (found in review). So this route takes
+-- none, and records a fixed one: that contact details changed, or were erased.
 create or replace function erp.set_supplier_contact(
   p_decision_id          uuid,
   p_supplier_id          uuid,
@@ -638,7 +646,6 @@ create or replace function erp.set_supplier_contact(
   p_phone                text,
   p_email                text,
   p_address              text,
-  p_reason               text,
   p_actor_id             uuid,
   p_decided_at           timestamptz
 )
@@ -688,7 +695,10 @@ begin
     status, reason, actor_id, decided_at
   ) values (
     p_decision_id, 'supplier_contact_changed', v.supplier_id, v.code, v.name_en, v.name_ar, v.vat_number, v.cr_number,
-    v.payment_terms_days, v.status, p_reason, p_actor_id, p_decided_at
+    v.payment_terms_days, v.status,
+    case when num_nonnulls(v_person, v_phone, v_email, v_address) = 0 then 'Contact details erased.'
+         else 'Contact details changed.' end,
+    p_actor_id, p_decided_at
   );
 
   update erp.supplier
@@ -821,10 +831,6 @@ begin
       using errcode = 'restrict_violation', constraint = 'supplier_item_stale',
             hint = 'Reload it and apply the change again.';
   end if;
-  if s.status = 'retired' then
-    raise exception 'supplier % is retired: reinstate it before changing it', s.code
-      using errcode = 'restrict_violation', constraint = 'supplier_is_retired';
-  end if;
   if x.status = 'retired' then
     raise exception 'supply % is retired for good; add a new one (I-6)', x.supplier_item_id
       using errcode = 'restrict_violation', constraint = 'supplier_item_retirement_final';
@@ -840,6 +846,26 @@ begin
 
   if (v_code, p_preferred) is not distinct from (x.supplier_code, x.preferred) then
     return;
+  end if;
+  -- A retired supplier may still give up an item's preferred slot, and nothing else:
+  -- otherwise the slot is held for good, and "make that supply not preferred first" is
+  -- advice the route then refuses to take (found in review).
+  if s.status = 'retired' and not (p_preferred = false and v_code is not distinct from x.supplier_code) then
+    raise exception 'supplier % is retired: reinstate it before changing it', s.code
+      using errcode = 'restrict_violation', constraint = 'supplier_is_retired',
+            hint = 'A retired supplier''s supply can only stop being preferred, or be retired.';
+  end if;
+  -- Preferred means "buy this pack from them next": never a pack, or an item, that admits
+  -- no new work.
+  if p_preferred and not x.preferred then
+    if exists (select 1 from erp.item i where i.item_id = x.item_id and i.status <> 'active') then
+      raise exception 'the item of supply % is retired and admits no new work', x.supplier_item_id
+        using errcode = 'restrict_violation', constraint = 'item_admits_no_new_work';
+    end if;
+    if exists (select 1 from erp.item_unit u where u.item_unit_id = x.item_unit_id and u.status <> 'active') then
+      raise exception 'conversion % is retired: a supplier sells an active pack (I-7)', x.item_unit_id
+        using errcode = 'restrict_violation', constraint = 'supplier_item_conversion_is_active';
+    end if;
   end if;
   if p_preferred and not x.preferred and exists (
        select 1 from erp.supplier_item y
@@ -944,6 +970,7 @@ declare
   v_created   integer := 0;
   v_amended   integer := 0;
   v_unchanged integer := 0;
+  v_constraint text;
 begin
   perform erp.assert_permitted(p_actor_id, 'procurement.suppliers', 'write', null);
 
@@ -970,7 +997,7 @@ begin
         v_seen := v_seen || jsonb_build_object(v_code, v_line);
       end if;
       -- A blank or non-numeric cell is an error on its line, not a silent 30.
-      v_terms := (r.row ->> 'payment_terms_days')::integer;
+      v_terms := erp.normalise_digits(r.row ->> 'payment_terms_days')::integer;
 
       select * into v_supplier from erp.supplier s where s.code = v_code;
       if found then
@@ -994,7 +1021,7 @@ begin
           perform erp.set_supplier_contact(
             (r.row ->> 'contact_decision_id')::uuid, v_supplier.supplier_id, v_supplier.as_of_decision_id,
             r.row ->> 'contact_person', r.row ->> 'phone', r.row ->> 'email', r.row ->> 'address',
-            p_reason, p_actor_id, p_decided_at);
+            p_actor_id, p_decided_at);
           v_changed := true;
         end if;
         if v_changed then v_amended := v_amended + 1; else v_unchanged := v_unchanged + 1; end if;
@@ -1008,12 +1035,22 @@ begin
           perform erp.set_supplier_contact(
             (r.row ->> 'contact_decision_id')::uuid, (r.row ->> 'supplier_id')::uuid, (r.row ->> 'decision_id')::uuid,
             r.row ->> 'contact_person', r.row ->> 'phone', r.row ->> 'email', r.row ->> 'address',
-            p_reason, p_actor_id, p_decided_at);
+            p_actor_id, p_decided_at);
         end if;
         v_created := v_created + 1;
       end if;
-    exception when others then
-      v_errors := v_errors || ('line ' || v_line || ': ' || sqlerrm);
+    exception
+      -- A decision id already recorded is the file sent again: re-raised as the routes
+      -- raise it, so the edge reads it as a retry rather than as "nothing was saved"
+      -- when the first sending saved everything (found in review).
+      when unique_violation then
+        get stacked diagnostics v_constraint = constraint_name;
+        if v_constraint = 'supplier_decision_pkey' then
+          raise;
+        end if;
+        v_errors := v_errors || ('line ' || v_line || ': ' || sqlerrm);
+      when others then
+        v_errors := v_errors || ('line ' || v_line || ': ' || sqlerrm);
     end;
   end loop;
 
@@ -1050,10 +1087,14 @@ as $$
            'supplier_item_id', x.supplier_item_id, 'item_unit_id', x.item_unit_id, 'item_id', x.item_id,
            'item_code', i.code, 'item_name_en', i.name_en, 'item_name_ar', i.name_ar,
            'unit_key', x.unit_key, 'factor', x.factor, 'supplier_code', x.supplier_code,
-           'preferred', x.preferred, 'status', x.status, 'as_of_decision_id', x.as_of_decision_id)
+           'preferred', x.preferred, 'status', x.status, 'as_of_decision_id', x.as_of_decision_id,
+           -- A supply on a retired pack or item stays 'active' itself (purchasing refuses
+           -- the pack where it is used), so the read says so beside it.
+           'conversion_status', u.status, 'item_status', i.status)
          order by x.status, i.code collate "C", x.unit_key, x.supplier_item_id), '[]'::jsonb)
   from erp.supplier_item x
   join erp.item i on i.item_id = x.item_id
+  join erp.item_unit u on u.item_unit_id = x.item_unit_id
   where x.supplier_id = p_supplier_id
     and (p_brand_id is null or i.brand_id = p_brand_id);
 $$;
@@ -1113,8 +1154,23 @@ begin
 end;
 $$;
 
+-- Whether the actor may read items here, as erp.assert_permitted() would answer: the
+-- capability is not hidden for the scope, and the permission is granted. A supply names
+-- an item's code, names and pack, so supplier reads show supplies only to someone who
+-- may read items (found in review). Granted to nobody.
+create or replace function erp.may_read_items(p_actor_id uuid, p_facility_id uuid)
+returns boolean
+language sql
+stable
+set search_path = pg_catalog, pg_temp
+as $$
+  select erp.capability_state_for('inventory.items', p_facility_id) <> 'hidden'
+     and erp.permission_granted(p_actor_id, 'inventory.items', 'read', p_facility_id);
+$$;
+
 -- One supplier, whatever its status, with its supplies at the facility's brand and the
--- stamp the edit forms send back.
+-- stamp the edit forms send back. supplies is NULL — not shown — for someone who may
+-- not read items here; an empty list means the supplier sells nothing visible.
 create or replace function erp.get_supplier(p_actor_id uuid, p_facility_id uuid, p_supplier_id uuid)
 returns table (
   supplier_id uuid, code text, name_en text, name_ar text, vat_number text, cr_number text,
@@ -1136,7 +1192,8 @@ begin
   return query
   select s.supplier_id, s.code, s.name_en, s.name_ar, s.vat_number, s.cr_number,
          s.payment_terms_days, s.status, s.contact_person, s.phone, s.email, s.address,
-         s.as_of_decision_id, erp.supplier_items_json(s.supplier_id, v_brand)
+         s.as_of_decision_id,
+         case when erp.may_read_items(p_actor_id, p_facility_id) then erp.supplier_items_json(s.supplier_id, v_brand) end
   from erp.supplier s
   where s.supplier_id = p_supplier_id;
   if not found then
@@ -1146,7 +1203,8 @@ end;
 $$;
 
 -- Every decision about the supplier and its supplies, in order (IAM-008). No contact
--- value is in any of them. Supplies of another brand's items are left out at a facility.
+-- value is in any of them. Supply decisions are left out for someone who may not read
+-- items here, and those about another brand's items are left out at a facility.
 create or replace function erp.supplier_history(p_actor_id uuid, p_facility_id uuid, p_supplier_id uuid)
 returns setof erp.supplier_decision
 language plpgsql
@@ -1156,17 +1214,20 @@ set search_path = pg_catalog, pg_temp
 as $$
 declare
   v_brand uuid;
+  v_items boolean;
 begin
   perform erp.assert_permitted(p_actor_id, 'procurement.suppliers', 'read', p_facility_id);
   v_brand := erp.item_facility_brand(p_facility_id);
   if not exists (select 1 from erp.supplier s where s.supplier_id = p_supplier_id) then
     raise exception 'no supplier %', p_supplier_id using errcode = 'no_data_found', constraint = 'supplier_exists';
   end if;
+  v_items := erp.may_read_items(p_actor_id, p_facility_id);
   return query
   select d.* from erp.supplier_decision d
   where d.supplier_id = p_supplier_id
-    and (d.item_id is null or v_brand is null
-         or exists (select 1 from erp.item i where i.item_id = d.item_id and i.brand_id = v_brand))
+    and (d.item_id is null
+         or (v_items and (v_brand is null
+                          or exists (select 1 from erp.item i where i.item_id = d.item_id and i.brand_id = v_brand))))
   order by d.seq;
 end;
 $$;
@@ -1178,7 +1239,7 @@ create or replace function erp.item_suppliers(p_actor_id uuid, p_facility_id uui
 returns table (
   supplier_item_id uuid, supplier_id uuid, supplier_code text, supplier_name_en text, supplier_name_ar text,
   supplier_status text, item_unit_id uuid, unit_key text, factor numeric, their_code text, preferred boolean,
-  status text, as_of_decision_id uuid
+  status text, as_of_decision_id uuid, conversion_status text, item_status text
 )
 language plpgsql
 stable
@@ -1198,11 +1259,17 @@ begin
 
   return query
   select x.supplier_item_id, s.supplier_id, s.code, s.name_en, s.name_ar, s.status,
-         x.item_unit_id, x.unit_key, x.factor, x.supplier_code, x.preferred, x.status, x.as_of_decision_id
+         x.item_unit_id, x.unit_key, x.factor, x.supplier_code, x.preferred, x.status, x.as_of_decision_id,
+         u.status, i.status
   from erp.supplier_item x
   join erp.supplier s on s.supplier_id = x.supplier_id
+  join erp.item_unit u on u.item_unit_id = x.item_unit_id
+  join erp.item i on i.item_id = x.item_id
   where x.item_id = p_item_id
-  order by x.status, x.preferred desc, s.code collate "C", x.unit_key, x.supplier_item_id;
+  -- What a purchase order form should offer first: live supplies of live suppliers on
+  -- live packs, preferred first. A retired supplier's preferred supply is not a suggestion.
+  order by x.status, (s.status = 'active' and u.status = 'active') desc, x.preferred desc,
+           s.code collate "C", x.unit_key, x.supplier_item_id;
 end;
 $$;
 
@@ -1238,7 +1305,7 @@ grant execute on function
   erp.create_supplier(uuid, uuid, text, text, text, text, text, integer, text, uuid, timestamptz),
   erp.amend_supplier(uuid, uuid, uuid, text, text, text, text, integer, text, uuid, timestamptz),
   erp.change_supplier_status(uuid, uuid, uuid, text, text, uuid, timestamptz),
-  erp.set_supplier_contact(uuid, uuid, uuid, text, text, text, text, text, uuid, timestamptz),
+  erp.set_supplier_contact(uuid, uuid, uuid, text, text, text, text, uuid, timestamptz),
   erp.add_supplier_item(uuid, uuid, uuid, uuid, text, boolean, text, uuid, timestamptz),
   erp.amend_supplier_item(uuid, uuid, uuid, text, boolean, text, uuid, timestamptz),
   erp.retire_supplier_item(uuid, uuid, text, uuid, timestamptz),

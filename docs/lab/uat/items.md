@@ -74,9 +74,9 @@ screens before this pack is run.
 | # | Task | Passes when |
 |---|---|---|
 | 4.1 | Add kilograms to the gram item, leaving the size empty | Added as 1 kg = 1000 g, worked out by the system |
-| 4.2 | Add a 25 kg sack | Asked for the size; recorded as 1 bag = 25000 g |
-| 4.3 | Try to add a second sack, of 20 kg, while the first is active | **Not possible:** the sack is not offered, and the form says to retire the active one first |
-| 4.4 | Retire the 25 kg sack, then add a 20 kg one | Both appear: the old one retired, the new one active |
+| 4.2 | Add a 25 kg bag | Asked for the size; recorded as 1 bag = 25000 g |
+| 4.3 | Try to add a second bag, of 20 kg, while the first is active | **Not possible:** Bag is not offered, and the form says to retire the active one first |
+| 4.4 | Retire the 25 kg bag, then add a 20 kg one | Both appear: the old one retired, the new one active |
 | 4.5 | Look for a way to retire the storage unit itself | There is none |
 
 ## Part 5 · Changing an item
