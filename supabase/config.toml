@@ -80,3 +80,7 @@ import_map = "./functions/deno.json"
 [functions.items]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.suppliers]
+verify_jwt = false
+import_map = "./functions/deno.json"

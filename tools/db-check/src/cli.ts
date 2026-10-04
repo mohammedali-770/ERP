@@ -220,8 +220,9 @@ try {
   // A retry that OVERLAPS its original must still be answered as a retry: 23505 naming
   // the log's primary key (item_decision_pkey, supplier_decision_pkey), the one answer the
   // edge reads back through the module's history read.
-  // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording.
-  // Two sessions, one decision id, for every item and supplier write route. The original commits only
+  // Checked by SQLSTATE, constraint and the server routine that raised it, which is what
+  // the edge matches, not by wording.
+  // Two sessions, one decision id, for every item and supplier write route and both imports. The original commits only
   // once the retry is seen waiting on a lock, so the overlap is arranged rather than
   // hoped for. Without erp.assert_item_decision_is_new()'s
   // lock, both passed its check before either committed, and the retry came back "has
@@ -267,12 +268,24 @@ try {
        jsonb_build_array(jsonb_build_object('code', 'ZZ-RETRY-IMPORT', 'name_en', 'Retry probe import (synthetic)',
          'name_ar', 'استيراد فحص الإعادة (تجريبي)', 'payment_terms_days', '30', 'decision_id', ${d},
          'contact_decision_id', ${id('0000000d0203')}, 'supplier_id', ${id('0000000d0204')})))`, 'supplier_decision_pkey'],
+    // The same for 0012's import, which swallowed the retry as a failed line until 0017.
+    ['import_items', (d) => `select erp.import_items(${admin}, 'db-check retry probe', now(),
+       jsonb_build_array(jsonb_build_object('code', 'ZZ-RETRY-IMPORT', 'item_kind', 'packaging', 'base_unit_key', 'piece',
+         'brand_id', ${id('000000000201')}, 'name_en', 'Retry probe import (synthetic)',
+         'name_ar', 'استيراد فحص الإعادة (تجريبي)', 'decision_id', ${d}, 'item_id', ${id('0000000d0105')},
+         'base_unit_decision_id', ${id('0000000d0106')}, 'base_item_unit_id', ${id('0000000d0107')})))`],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
     r.status === 0 ? 'nothing (it succeeded)' : (r.stderr.split('\n').find((l) => l.includes('ERROR')) ?? r.stderr).replace(/^.*ERROR:\s*/, '');
+  // And raised by a route (exec_stmt_raise, plpgsql's RAISE), as the edge requires: the
+  // same constraint raised by PostgreSQL itself (_bt_check_unique) is a collision, which
+  // the edge answers as a conflict. Without the lock, a create's retry collides natively
+  // on the log's primary key, and SQLSTATE and constraint alone would pass it (found in
+  // module 2 step 2's review).
   const isRetrySignal = (stderr: string, constraint: string) =>
-    /ERROR:\s+23505:/.test(stderr) && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr);
+    /ERROR:\s+23505:/.test(stderr) && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr)
+    && /LOCATION:\s+exec_stmt_raise,/.test(stderr);
   for (const [index, [route, call, constraint = 'item_decision_pkey']] of routes.entries()) {
     const decision = id(`0000000d${String(index + 1).padStart(4, '0')}`);
     const original = cluster.sqlConcurrently(`begin; ${call(decision)};

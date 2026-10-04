@@ -15,8 +15,8 @@
  * resolves to and is passed to the database as its own argument (ADR-0025). No field of
  * any body or query is read as an actor.
  *
- * What is checked here is SHAPE only: ids are UUIDs, text is text of a bounded length, a
- * factor is a decimal written as text. Every rule — who may act, whether the capability is open, codes,
+ * What is checked here is SHAPE only (./fields.ts): ids are UUIDs, text is text of a
+ * bounded length, a factor is a decimal written as text. Every rule — who may act, whether the capability is open, codes,
  * names, conversions, staleness — is the database's, and its refusal comes back through
  * ./refusal.ts. Checking a rule twice would let the two copies disagree.
  *
@@ -28,63 +28,16 @@
  * THE DECISION IDS are minted by the console (I-1). A retried write is answered
  * 409 already_recorded, and the console confirms it through the item's history.
  */
-import { endpoint, readJsonBody, type Handler, type Reply } from './http.ts';
-import { withSession, type Session } from './handlers.ts';
+import { endpoint, type Reply } from './http.ts';
+import type { Session } from './handlers.ts';
 import type { Deps } from './http.ts';
+import {
+  facilityOf, form, importRows, IMPORT_LIMIT, listLimit, listStatus, Malformed, noSuchRoute, ok, optionalText,
+  optionalUuid, routeOf, shaped, status, text, uuid, type Source,
+} from './fields.ts';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Up to six decimal places, as erp.item_unit.factor holds. */
 const DECIMAL = /^\d{1,12}(\.\d{1,6})?$/;
-
-/**
- * A write's body is a form; an import's is a file of up to 5000 rows (0012). A realistic
- * row is about 450 bytes, so 5000 of them are 2.2 MB, past the 2 MiB first chosen (found
- * in review); 8 MiB leaves room for descriptions.
- */
-const FORM_LIMIT = 8 * 1024;
-const IMPORT_LIMIT = 8 * 1024 * 1024;
-
-class TooLarge extends Error {
-  readonly limit: number;
-  constructor(limit: number) {
-    super('too large');
-    this.limit = limit;
-  }
-}
-
-class Malformed extends Error {
-  readonly field: string;
-  constructor(field: string) {
-    super(`malformed ${field}`);
-    this.field = field;
-  }
-}
-
-type Source = Readonly<Record<string, unknown>>;
-
-function uuid(source: Source, field: string): string {
-  const v = source[field];
-  if (typeof v !== 'string' || !UUID.test(v)) throw new Malformed(field);
-  return v;
-}
-
-function optionalUuid(source: Source, field: string): string | null {
-  const v = source[field];
-  if (v === undefined || v === null || v === '') return null;
-  return uuid(source, field);
-}
-
-function text(source: Source, field: string, max: number): string {
-  const v = source[field];
-  if (typeof v !== 'string' || v.length > max) throw new Malformed(field);
-  return v;
-}
-
-function optionalText(source: Source, field: string, max: number): string | null {
-  const v = source[field];
-  if (v === undefined || v === null) return null;
-  return text(source, field, max);
-}
 
 /**
  * Text only. A JSON number is already a binary float by the time it is read, so
@@ -98,38 +51,13 @@ function factor(source: Source): string | null {
   return v;
 }
 
-function status(source: Source): 'active' | 'retired' {
-  const v = source['status'];
-  if (v !== 'active' && v !== 'retired') throw new Malformed('status');
-  return v;
-}
-
-async function form(request: Request, limit = FORM_LIMIT): Promise<Source> {
-  const body = await readJsonBody(request, limit);
-  if (body.kind === 'too_large') throw new TooLarge(limit);
-  if (body.kind === 'malformed') throw new Malformed('body');
-  return body.value;
-}
-
-const ok = (body: Record<string, unknown> = {}): Reply => ({ http: 200, body: { status: 'ok', ...body } });
-
-/** The path after the function's own name: /functions/v1/items/a/b → ['a', 'b']. */
-function route(request: Request): string[] {
-  const segments = new URL(request.url).pathname.split('/').filter(Boolean);
-  const at = segments.indexOf('items');
-  return at === -1 ? [] : segments.slice(at + 1);
-}
-
 async function list(request: Request, s: Session, deps: Deps): Promise<Reply> {
   const q = Object.fromEntries(new URL(request.url).searchParams);
-  const wanted = q['status'] ?? 'active';
-  if (wanted !== 'active' && wanted !== 'retired' && wanted !== 'all') throw new Malformed('status');
-  const limit = q['limit'] === undefined ? 100 : Number(q['limit']);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Malformed('limit');
+  const limit = listLimit(q);
   const items = await deps.db.listItems(s.personId, {
     facilityId: optionalUuid(q, 'facility_id'),
     brandId: optionalUuid(q, 'brand_id'),
-    status: wanted === 'all' ? null : wanted,
+    status: listStatus(q),
     itemKind: optionalText(q, 'item_kind', 32),
     search: optionalText(q, 'search', 100),
     afterCode: optionalText(q, 'after', 64),
@@ -140,8 +68,8 @@ async function list(request: Request, s: Session, deps: Deps): Promise<Reply> {
 }
 
 async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply> {
-  const path = route(request);
-  const facility = () => optionalUuid(Object.fromEntries(new URL(request.url).searchParams), 'facility_id');
+  const path = routeOf(request, 'items');
+  const facility = () => facilityOf(request);
   const actor = s.personId;
 
   if (request.method === 'GET') {
@@ -183,12 +111,8 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
   }
   if (path.length === 1 && path[0] === 'import') {
     const b = await form(request, IMPORT_LIMIT);
-    const rows = b['rows'];
-    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 5000
-        || !rows.every((r) => typeof r === 'object' && r !== null && !Array.isArray(r))) {
-      throw new Malformed('rows');
-    }
-    const { created, amended, unchanged } = await deps.db.importItems(actor, text(b, 'reason', 500), rows as Record<string, unknown>[]);
+    const rows = importRows(b);
+    const { created, amended, unchanged } = await deps.db.importItems(actor, text(b, 'reason', 500), rows);
     return ok({ created, amended, unchanged });
   }
   if (path.length === 3 && path[0] === 'units' && path[2] === 'retire') {
@@ -244,17 +168,5 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
   return noSuchRoute;
 }
 
-const noSuchRoute: Reply = { http: 404, body: { status: 'no_such_route' } };
-
 /** Every route, signed in. A malformed field is a 400 naming the field, and nothing reaches the database. */
-const handler: Handler = withSession(async (request, s, deps) => {
-  try {
-    return await dispatch(request, s, deps);
-  } catch (error) {
-    if (error instanceof Malformed) return { http: 400, body: { status: 'malformed', field: error.field } };
-    if (error instanceof TooLarge) return { http: 413, body: { status: 'too_large', limit: error.limit } };
-    throw error;
-  }
-});
-
-export const items = endpoint(['GET', 'POST'], handler);
+export const items = endpoint(['GET', 'POST'], shaped(dispatch));

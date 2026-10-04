@@ -199,6 +199,11 @@ The nine routes are reachable over HTTP through one edge function, `items`
 
   It found a real defect: the driver sent an import's rows already JSON-encoded, so
   postgres.js encoded them again and every import was refused as not an array.
+- **Since migration 0017,** an import sent again while its first sending is still
+  running is answered `409 already_recorded`, not refused as a file in which every line
+  failed. The upload screen shows that as the file saved. A decision id used twice
+  within one file is a line error, never a retry. Both gaps were found in module 2's
+  reviews (ADR-0026 §6 and its addendum).
 
 ## Addendum — 2026-10-04: the screens (module 1, step 3)
 

@@ -29,6 +29,7 @@ import {
   type Db,
 } from '../_shared/db.ts';
 import type { ImportSummary, Item } from '../_shared/items-db.ts';
+import type { Supplier, SupplierDetail, SupplierImportSummary } from '../_shared/suppliers-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -108,6 +109,60 @@ export function makeDb(sql: Sql): Db {
       const [row] = await sql`select erp.import_items(
         ${actor}::uuid, ${reason}::text, now(), ${sql.json(rows as postgres.JSONValue)}::jsonb) as summary`;
       return row?.['summary'] as ImportSummary;
+    }),
+
+    listSuppliers: (actor, q) => run(async () => (await sql`
+      select * from erp.list_suppliers(${actor}::uuid, ${q.facilityId}::uuid, ${q.status}::text, ${q.search}::text,
+                                       ${q.afterCode}::text, ${q.limit}::integer)`
+    ) as unknown as Supplier[]),
+    getSupplier: (actor, facilityId, supplierId) => run(async () => {
+      const [row] = await sql`select * from erp.get_supplier(${actor}::uuid, ${facilityId}::uuid, ${supplierId}::uuid)`;
+      return row as unknown as SupplierDetail;
+    }),
+    supplierHistory: (actor, facilityId, supplierId) => run(async () =>
+      [...await sql`select * from erp.supplier_history(${actor}::uuid, ${facilityId}::uuid, ${supplierId}::uuid)`]),
+    itemSuppliers: (actor, facilityId, itemId) => run(async () =>
+      [...await sql`select * from erp.item_suppliers(${actor}::uuid, ${facilityId}::uuid, ${itemId}::uuid)`]),
+    createSupplier: (actor, i) => run(async () => {
+      await sql`select erp.create_supplier(
+        ${i.decisionId}::uuid, ${i.supplierId}::uuid, ${i.code}::text, ${i.nameEn}::text, ${i.nameAr}::text,
+        ${i.vatNumber}::text, ${i.crNumber}::text, ${i.paymentTermsDays}::integer, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    amendSupplier: (actor, i) => run(async () => {
+      await sql`select erp.amend_supplier(
+        ${i.decisionId}::uuid, ${i.supplierId}::uuid, ${i.expectedDecisionId}::uuid, ${i.nameEn}::text, ${i.nameAr}::text,
+        ${i.vatNumber}::text, ${i.crNumber}::text, ${i.paymentTermsDays}::integer, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    changeSupplierStatus: (actor, i) => run(async () => {
+      await sql`select erp.change_supplier_status(
+        ${i.decisionId}::uuid, ${i.supplierId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.status}::text, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    setSupplierContact: (actor, i) => run(async () => {
+      await sql`select erp.set_supplier_contact(
+        ${i.decisionId}::uuid, ${i.supplierId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.contactPerson}::text, ${i.phone}::text, ${i.email}::text, ${i.address}::text, ${actor}::uuid, now())`;
+    }),
+    addSupplierItem: (actor, i) => run(async () => {
+      await sql`select erp.add_supplier_item(
+        ${i.decisionId}::uuid, ${i.supplierItemId}::uuid, ${i.supplierId}::uuid, ${i.itemUnitId}::uuid,
+        ${i.supplierCode}::text, ${i.preferred}::boolean, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    amendSupplierItem: (actor, i) => run(async () => {
+      await sql`select erp.amend_supplier_item(
+        ${i.decisionId}::uuid, ${i.supplierItemId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.supplierCode}::text, ${i.preferred}::boolean, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    retireSupplierItem: (actor, i) => run(async () => {
+      await sql`select erp.retire_supplier_item(
+        ${i.decisionId}::uuid, ${i.supplierItemId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    importSuppliers: (actor, reason, rows) => run(async () => {
+      const [row] = await sql`select erp.import_suppliers(
+        ${actor}::uuid, ${reason}::text, now(), ${sql.json(rows as postgres.JSONValue)}::jsonb) as summary`;
+      return row?.['summary'] as SupplierImportSummary;
     }),
   };
 }

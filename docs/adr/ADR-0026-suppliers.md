@@ -133,8 +133,9 @@ Every write route locks and checks its decision id first, as 0012's do. A retry 
 overlaps its original waits, then answers 23505 on `supplier_decision_pkey`. The import
 re-raises that answer from inside its rows rather than reporting the line as failed,
 so an import sent again while the first is still running is a retry, not "nothing was
-saved" (found in review; `erp.import_items()` has the same gap, for module 1's next
-change). `db:check` proves it with two sessions on all seven write routes and the import.
+saved" (found in review). `erp.import_items()` had the same gap until migration 0017,
+which also narrowed both handlers to another call's decision (see the addendum). `db:check` proves it with two sessions on
+all seven write routes and both imports.
 
 ### 7. Import, matched by code; the file wins
 
@@ -156,9 +157,7 @@ clears a field.
   reinstatement. Retiring a conversion does not retire the supplies that name it
   either: purchasing refuses a retired conversion where it is used, and the reads show
   it as retired beside the supply.
-- **The edge layer and screens are module 2's next steps.** The edge's refusal mapping
-  must then answer `already_recorded` for `supplier_decision_pkey` as it does for
-  `item_decision_pkey`.
+- **The edge layer is built; the screens are module 2's next step.** See the addendum.
 - **`erp_read` reads contacts,** as it reads `erp.person`'s names. Erasure clears them at
   the source.
 
@@ -185,6 +184,72 @@ Recorded rather than guessed. Each must be answered before the module that needs
    keeps for good: a sole trader's business name and commercial registration, and any
    personal detail a person typed into a reason?
 8. **The import's file-wins rule**: the same question as ADR-0024's question 8.
+
+## Addendum — 2026-10-04: the data layer (module 2, step 2)
+
+The twelve routes are reachable over HTTP through one edge function, `suppliers`
+(`supabase/functions/_shared/suppliers.ts`), built as `items` is (ADR-0024's step 2
+addendum). Nothing about the routes changed.
+
+- **The actor is the session's,** through `withSession` (ADR-0025). A Node control test
+  holds it for all eight writes, and another for the four reads.
+- **The routes:**
+  - `GET /`, `/{id}`, `/{id}/history`, and `/items/{item_id}` for who sells an item, the
+    read a purchase order form will use;
+  - `POST /` to create, `/{id}/amend`, `/{id}/status` and `/{id}/contact`;
+  - `POST /{id}/supplies` to add a supply, `/supplies/{id}/amend` and `/supplies/{id}/retire`;
+  - `POST /import`.
+
+  A path beginning with `items`, `import` or `supplies` is its route or a 404, never a
+  malformed supplier id.
+- **The edge checks shape, the database checks rules.** The shape checks now live in one
+  file, `_shared/fields.ts`, which `items` uses too. Payment terms must be an integer
+  sent as a JSON number, and a preference a boolean. That terms run 0–365 is
+  `supplier_payment_terms_are_days`, in 0016. A form may be 8 KiB, an import 8 MiB.
+- **Two shape rules are new, both from 0016's design:**
+  - **A contact change that carries a `reason` is refused 400**, not quietly dropped. The
+    route keeps no typed reason (§2), so a console that asks for one must learn it is
+    never kept, not believe it was.
+  - **A field that a write overwrites must be stated**, as text or `null`: the VAT and CR
+    numbers on an amend, all four contact fields, and a supply's own code on an amend.
+    Each of those writes puts whole state in force, so an absent field would clear it.
+    A console that leaves one out is told so instead.
+- **Refusals** map as for items, through `_shared/refusal.ts`, which now names its logs
+  and stamps in two lists:
+  - `already_recorded` for a route-raised 23505 on `supplier_decision_pkey`, or the same
+    re-raised whole by the import;
+  - `stale` for `supplier_stale` and `supplier_item_stale`.
+
+  The same constraint raised by PostgreSQL itself stays a conflict.
+- **Migration 0017 corrects both imports.**
+  - **It closes §6's gap for items.** `erp.import_items()` now re-raises a retry's 23505
+    on `item_decision_pkey` whole, as `erp.import_suppliers()` does. So the edge answers
+    it as a retry, not as a refused file.
+  - **Only another call's decision is a retry (found in this step's review).**
+    Re-raising every 23505 on a log's key answered three cases as "already recorded"
+    that saved nothing:
+    - one decision id on two rows of a file;
+    - one decision id for two decisions of one row;
+    - an item's base-unit decision id already in the log, which PostgreSQL itself
+      refused, so the error was re-raised whole and every other line's error was lost.
+
+    Both imports now refuse a decision id used twice in a file as a line error. They
+    re-raise only the retry check's own answer, read from the error's context. pgTAP 120
+    holds all three cases and both controls.
+  - **`db:check`'s overlapping-retry probe covers both imports,** and now also requires
+    the answer to have been raised by a route (`exec_stmt_raise`). That is the third
+    thing the edge matches. Without it, a lost lock went unnoticed on every create
+    route, where the retry collides natively on the same key.
+- **The console's items upload shows `already_recorded` as the file saved,** clearing
+  its rows, instead of as an error in an item form's wording.
+- **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/suppliers.test.ts`:
+  - a cashier is refused at their branch and organisation-wide;
+  - then, in one transaction that is rolled back, every route runs through the router and
+    the driver. Every field is read back where it was written, including Arabic digits
+    folded and contacts made canonical.
+  - The warehouse manager reads who sells an item and is refused a write.
+  - The history holds no contact value and the two fixed reasons.
+  - The rollback is checked.
 
 ## Alternatives considered
 

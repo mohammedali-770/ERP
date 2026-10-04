@@ -6,6 +6,8 @@ import {
 } from '../db.ts';
 import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.ts';
 import type { ItemsDb } from '../items-db.ts';
+import type { SuppliersDb } from '../suppliers-db.ts';
+import { notUsed } from './not-used.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 
 const TOKEN = 'ab'.repeat(32);
@@ -19,8 +21,16 @@ const VIEWER: ViewerAnswer = {
 };
 
 /** The items routes, which these tests never reach. */
-const itemsNotUsed: ItemsDb = new Proxy({} as ItemsDb, {
-  get: (_target, name) => () => { throw new Error(`items route ${String(name)} called from a session test`); },
+const itemsNotUsed = notUsed<ItemsDb>('items', {
+  listItems: true, getItem: true, itemHistory: true, createItem: true, amendItem: true,
+  changeItemStatus: true, addItemUnit: true, retireItemUnit: true, importItems: true,
+});
+
+/** The suppliers routes, which these tests never reach either. */
+const suppliersNotUsed = notUsed<SuppliersDb>('suppliers', {
+  listSuppliers: true, getSupplier: true, supplierHistory: true, itemSuppliers: true, createSupplier: true,
+  amendSupplier: true, changeSupplierStatus: true, setSupplierContact: true, addSupplierItem: true,
+  amendSupplierItem: true, retireSupplierItem: true, importSuppliers: true,
 });
 
 /** A database that records what it was asked and answers what it is told to. */
@@ -32,6 +42,7 @@ function fakeDb(answers: {
   const calls: string[] = [];
   return {
     ...itemsNotUsed,
+    ...suppliersNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);

@@ -4,7 +4,7 @@ import type { Ctx } from '../context.ts';
 import { brandLookup, decodeCsv, IMPORT_COLUMNS, parseCsv, prepareImport, type ImportProblem } from '../csv.ts';
 import { formIds } from '../ids.ts';
 import { t } from '../i18n.ts';
-import { isUnanswered } from '../items.ts';
+import { isUnanswered, writeOutcome } from '../items.ts';
 import { importProblem } from '../messages.ts';
 import { FailureNotice, Field, Notice, ReasonField } from './ui.tsx';
 
@@ -23,6 +23,8 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [done, setDone] = useState<ImportSummary | null>(null);
+  /** The file was saved by an earlier sending of these same rows (0017). */
+  const [already, setAlready] = useState(false);
   /** An earlier attempt at these rows went unanswered, and may have saved them. */
   const [doubted, setDoubted] = useState(false);
   // Each file chosen takes a number, and only the newest may set the rows. Reading is
@@ -36,6 +38,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setNotUtf8(false);
     setFailure(null);
     setDone(null);
+    setAlready(false);
     setDoubted(false);
     const mine = ++choice.current;
     const file = e.target.files?.[0];
@@ -66,6 +69,14 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       setRows(null);
       return;
     }
+    // Sent again while an earlier sending of the same rows was still running, or after
+    // its answer was lost: that sending saved the file. The same success arriving twice,
+    // not an error; only its counts are lost (found in module 2 step 2's review).
+    if (writeOutcome(answer) === 'already') {
+      setAlready(true);
+      setRows(null);
+      return;
+    }
     if (isUnanswered(answer)) setDoubted(true);
     if (!ctx.onFailure(answer)) setFailure(answer);
   }
@@ -78,6 +89,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       <p>{t(lang, 'import_hint', { columns: IMPORT_COLUMNS.join(', ') })}</p>
       {done ? <Notice tone="ok" text={t(lang, 'import_done', { ...done })} /> : null}
       {done && doubted ? <Notice tone="info" text={t(lang, 'import_after_doubt')} /> : null}
+      {already ? <Notice tone="ok" text={t(lang, 'import_already')} /> : null}
       {notUtf8 ? <Notice tone="error" text={t(lang, 'import_not_utf8')} /> : null}
       {problems.length > 0 ? (
         <div className="notice notice-error" role="alert">

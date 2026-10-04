@@ -119,6 +119,15 @@ test('a write is saved, already recorded, stale or failed', () => {
   assert.equal(writeOutcome({ ...f('network'), http: 0 }), 'failed');
 });
 
+test('an import already recorded is shown as saved, not as an error', () => {
+  // 0017: an items file sent again while its first sending still runs is answered
+  // already_recorded. The screen is .tsx, which Node cannot load, so its source is read.
+  const screen = readFileSync(new URL('../src/screens/ItemImport.tsx', import.meta.url), 'utf8');
+  assert.match(screen, /if \(writeOutcome\(answer\) === 'already'\) \{\s+setAlready\(true\);\s+setRows\(null\);\s+return;/,
+    'the upload screen treats already_recorded as the file saved, and clears the rows');
+  assert.match(screen, /<Notice tone="ok" text=\{t\(lang, 'import_already'\)\} \/>/, 'and says so as good news');
+});
+
 test('an unanswered write is one with no answer to trust: none at all, or a server failure', () => {
   const f = (http: number, status: string) => ({ ok: false as const, http, status, message: null, constraint: null, detail: null, field: null });
   assert.equal(isUnanswered(f(0, 'network')), true);
