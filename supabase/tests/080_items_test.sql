@@ -362,15 +362,16 @@ select throws_ok(
   '23001', 'item SP-FRYER-GASKET is retired, never deleted (B-11)',
   'CONTROL: an item is retired, never deleted'
 );
--- Row triggers do not fire for TRUNCATE; a statement trigger on each table does. erp.item
--- needs CASCADE to get that far, because erp.item_unit references it.
+-- Row triggers do not fire for TRUNCATE; a statement trigger on each table does. Both
+-- need CASCADE to get that far: erp.item_unit references erp.item, and since 0016
+-- erp.supplier_item references erp.item_unit. The named table's trigger fires first.
 select throws_ok(
   $$ truncate erp.item cascade $$,
   '23001', 'item is retired, never deleted (B-11): TRUNCATE denied',
   'CONTROL: nor emptied by TRUNCATE'
 );
 select throws_ok(
-  $$ truncate erp.item_unit $$,
+  $$ truncate erp.item_unit cascade $$,
   '23001', 'item_unit is retired, never deleted (B-11): TRUNCATE denied',
   'CONTROL: and neither are the conversions'
 );

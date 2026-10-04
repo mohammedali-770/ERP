@@ -44,4 +44,12 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('warehouse_manager', 'inventory.items',     'read'),
   ('factory_manager',   'inventory.items',     'read'),
   ('general_manager',   'inventory.items',     'read'),
-  ('accountant',        'inventory.items',     'read');
+  ('accountant',        'inventory.items',     'read'),
+
+  -- procurement.suppliers (0016). The managers and the accountant read suppliers, as
+  -- they did in the warehouse; only the administrator writes, which 0016 grants. A
+  -- branch worker holds nothing here: the IAM-003 control in 110.
+  ('warehouse_manager', 'procurement.suppliers', 'read'),
+  ('factory_manager',   'procurement.suppliers', 'read'),
+  ('general_manager',   'procurement.suppliers', 'read'),
+  ('accountant',        'procurement.suppliers', 'read');

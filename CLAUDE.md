@@ -121,7 +121,7 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE`, `DELETE` and `TRUNCATE` at runtime, whichever partition a statement names | `db:check` + pgTAP — a statement trigger on the parent never fired for a statement naming a partition, so the owner could delete every event until 0013 |
-| Every decision log — event, capability, identity, item, sign-in — refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name (`%_log`, `%_decision`) and through `pg_inherits`; `db:check` requires enabled, unconditional triggers and no write grant on every log and partition, then attempts all three writes on each, so a new log or partition cannot be added unprotected |
+| Every decision log — event, capability, identity, item, supplier, sign-in — refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name (`%_log`, `%_decision`) and through `pg_inherits`; `db:check` requires enabled, unconditional triggers and no write grant on every log and partition, then attempts all three writes on each, so a new log or partition cannot be added unprotected |
 | **No foreign key in `erp` cascades, nulls or defaults** | `db:check` — B-11: records are retired, never deleted |
 | **The scratch database is UTF8, as Supabase's is** | `db:check` and `db:fixtures` — the scratch cluster refuses to start otherwise: in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
 | An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
@@ -133,7 +133,9 @@ npm run db:test       # pgTAP suites against the local stack
 | A session's token is stored only as its hash; a session ends at 12 hours or 30 minutes idle, and is never deleted or reopened | pgTAP + `db:check` (`session-guard-triggers-exist`) |
 | **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
-| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item write route; checked by SQLSTATE and constraint, which is what the edge matches |
+| A supplier's code, and a supply's supplier and conversion, never change; neither is deleted or truncated; a retired supply stays retired | `db:check` (`supplier-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
+| **Every supplier and supply equals the latest decision about it, and no contact value is ever logged** | `db:check` (`supplier-projections-match-their-decisions`) + pgTAP — SEC-008: the log has no contact column, so an erasure request can always be honoured |
+| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item and supplier write route; checked by SQLSTATE and constraint, which is what the edge matches |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
 | **No role but the owner can touch a credential table** | `db:check` — discovered by name, or by a `%token%` column, so `erp_read`'s default `SELECT` cannot reach a PIN hash or a session's token hash |
 | A capability or identity decision needs a permitted actor | pgTAP |
