@@ -1,21 +1,23 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import type { Failure, ImportSummary } from '../api.ts';
 import type { Ctx } from '../context.ts';
-import { brandLookup, decodeCsv, IMPORT_COLUMNS, parseCsv, prepareImport, type ImportProblem } from '../csv.ts';
+import { decodeCsv, parseCsv, prepareSupplierImport, SUPPLIER_IMPORT_COLUMNS, type ImportProblem } from '../csv.ts';
 import { formIds } from '../ids.ts';
 import { t } from '../i18n.ts';
 import { isUnanswered, writeOutcome } from '../items.ts';
 import { importProblem } from '../messages.ts';
 import { FailureNotice, Field, Notice, ReasonField } from './ui.tsx';
 
-const ROW_IDS = ['decision_id', 'item_id', 'base_unit_decision_id', 'base_item_unit_id'] as const;
+const ROW_IDS = ['decision_id', 'contact_decision_id', 'supplier_id'] as const;
 
 /**
- * Bulk upload from CSV. The file is read and checked for shape here; every row's rules
- * are the database's, which saves all of it or none and names each failing line.
+ * The warehouse's supplier upload, from CSV (ADR-0026 §7). As the items upload: the file
+ * is checked for shape here; every row's rules are erp.import_suppliers()'s, which saves
+ * all of it or none, names each failing line, and matches by code. The file wins: a blank
+ * cell clears that field of an existing supplier, contacts included.
  */
-export function ItemImport({ ctx }: { ctx: Ctx }) {
-  const { api, lang, data } = ctx;
+export function SupplierImport({ ctx }: { ctx: Ctx }) {
+  const { api, lang } = ctx;
   const [rows, setRows] = useState<readonly Record<string, string | null>[] | null>(null);
   const [problems, setProblems] = useState<readonly ImportProblem[]>([]);
   const [notUtf8, setNotUtf8] = useState(false);
@@ -59,8 +61,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       setNotUtf8(true);
       return;
     }
-    // Item writes are organisation-wide, so every brand is a valid target.
-    const prepared = prepareImport(parseCsv(decoded.text), brandLookup(data.brands), () => formIds(ROW_IDS));
+    const prepared = prepareSupplierImport(parseCsv(decoded.text), () => formIds(ROW_IDS));
     if (prepared.ok) setRows(prepared.rows);
     else setProblems(prepared.problems);
   }
@@ -71,7 +72,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     setFailure(null);
     // The same rows, with the same ids, on every attempt: a lost answer is safe to retry.
-    const answer = await api.importItems(reason.trim(), rows);
+    const answer = await api.importSuppliers(reason.trim(), rows);
     setUnanswered(isUnanswered(answer));
     setBusy(false);
     if (answer.ok) {
@@ -91,12 +92,12 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     if (!ctx.onFailure(answer)) setFailure(answer);
   }
 
-  if (!ctx.writable) return <Notice tone="info" text={t(lang, 'read_only_here')} />;
+  if (!ctx.suppliersWritable) return <Notice tone="info" text={t(lang, 'read_only_suppliers')} />;
   return (
     <section>
-      <a href="#items">{t(lang, 'back')}</a>
-      <h1>{t(lang, 'bulk_upload')}</h1>
-      <p>{t(lang, 'import_hint', { columns: IMPORT_COLUMNS.join(', ') })}</p>
+      <a href="#suppliers">{t(lang, 'back')}</a>
+      <h1>{t(lang, 'suppliers')} — {t(lang, 'bulk_upload')}</h1>
+      <p>{t(lang, 'supplier_import_hint', { columns: SUPPLIER_IMPORT_COLUMNS.join(', ') })}</p>
       {done ? <Notice tone="ok" text={t(lang, 'import_done', { ...done })} /> : null}
       {done && doubted ? <Notice tone="info" text={t(lang, 'import_after_doubt')} /> : null}
       {already ? <Notice tone="ok" text={t(lang, 'import_already')} /> : null}

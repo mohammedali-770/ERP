@@ -17,6 +17,10 @@ export interface Ctx {
   readonly facilityId: string | null;
   /** Whether the items screens offer changes here (viewer.ts, itemsWritable). */
   readonly writable: boolean;
+  /** Whether the supplier screens offer changes here (viewer.ts, suppliersWritable). */
+  readonly suppliersWritable: boolean;
+  /** Whether the person may read suppliers here: the item page then shows who sells it. */
+  readonly seesSuppliers: boolean;
   /** Goes to `route`, with a notice shown once on arrival (an `already_recorded` success). */
   readonly navigate: (route: Route, notice?: string) => void;
   /**

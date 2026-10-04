@@ -322,6 +322,10 @@ token exposure and no injection. It confirmed ten defects, all fixed before the 
 - The Arabic strings new in this step need a native speaker's review, as the unit names
   do (item 7). So does showing dates in the Gregorian calendar.
 
+**Corrected with module 2's screens:** choosing a file already chosen fired no change
+event, so items UAT 6.2, "upload the same file again", did nothing. The input is now
+cleared once read, and the file's name shown instead (ADR-0026's step 3 addendum).
+
 ## Alternatives considered
 
 **Keep the warehouse's three masters.** Rejected by the owner's decision.

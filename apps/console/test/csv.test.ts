@@ -7,7 +7,7 @@ const ITEMS_MIGRATION = readFileSync(new URL('../../../supabase/migrations/20261
 const BRANDS = brandLookup([{ brand_id: 'b-spicy', code: 'SPICY' }, { brand_id: 'b-second', code: 'SECOND' }]);
 let n = 0;
 const mint = (): ImportIds => ({ decision_id: `d${n}`, item_id: `i${n}`, base_unit_decision_id: `bd${n}`, base_item_unit_id: `bu${n++}` });
-const HEADER = 'code,item_kind,base_unit_key,brand,name_en,name_ar';
+const HEADER = 'code,item_kind,base_unit_key,brand,name_en,name_ar,description_en,description_ar';
 
 test('UTF-8 is read, a BOM dropped, and anything else refused rather than guessed', () => {
   const bom = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('code\nأرز')]);
@@ -28,7 +28,7 @@ test('quotes, doubled quotes, delimiters and newlines inside a field; CRLF; blan
 test('CONTROL: a quote inside an unquoted field is a character, and never merges two rows', () => {
   // Found in review: an inch mark opened a quoted field, so PK-2 vanished into PK-1's name
   // at exactly the header's width, and the database accepted the result.
-  const records = parseCsv(`${HEADER}\nPK-1,packaging,piece,SPICY,12" plate,صحن\nPK-2,packaging,piece,SPICY,9" plate,صحن ٢\n`);
+  const records = parseCsv(`${HEADER}\nPK-1,packaging,piece,SPICY,12" plate,صحن,,\nPK-2,packaging,piece,SPICY,9" plate,صحن ٢,,\n`);
   assert.deepEqual(records.slice(1).map((r) => r.fields[4]), ['12" plate', '9" plate']);
   const p = prepareImport(records, BRANDS, mint);
   assert.ok(p.ok);
@@ -38,15 +38,15 @@ test('CONTROL: a quote inside an unquoted field is a character, and never merges
 test('text after a closing quote, or a quote never closed, refuses its line', () => {
   assert.deepEqual(parseCsv('a,b\n"x"y,z'), [{ line: 1, fields: ['a', 'b'] }, { line: 2, fields: ['xy', 'z'], malformed: true }]);
   assert.deepEqual(parseCsv('a,b\n"x,z').at(-1)!.malformed, true);
-  const p = prepareImport(parseCsv(`${HEADER}\n"A"B,raw_ingredient,g,SPICY,a,أ`), BRANDS, mint);
+  const p = prepareImport(parseCsv(`${HEADER}\n"A"B,raw_ingredient,g,SPICY,a,أ,,`), BRANDS, mint);
   assert.deepEqual(p.ok ? [] : p.problems, [{ kind: 'quote', line: 2 }]);
 });
 
 test('rows of bare delimiters, as Excel writes below the data, are skipped', () => {
-  const p = prepareImport(parseCsv(`${HEADER}\nA,raw_ingredient,g,SPICY,a,أ\n,,,,,\n,,,,,\n`), BRANDS, mint);
+  const p = prepareImport(parseCsv(`${HEADER}\nA,raw_ingredient,g,SPICY,a,أ,,\n,,,,,,,\n,,,,,,,\n`), BRANDS, mint);
   assert.ok(p.ok);
   assert.equal(p.rows.length, 1);
-  assert.deepEqual(prepareImport(parseCsv(`${HEADER}\n,,,,,`), BRANDS, mint), { ok: false, problems: [{ kind: 'empty' }] });
+  assert.deepEqual(prepareImport(parseCsv(`${HEADER}\n,,,,,,,`), BRANDS, mint), { ok: false, problems: [{ kind: 'empty' }] });
 });
 
 test('a semicolon header means semicolons, as a European or Arabic Excel writes', () => {
@@ -61,7 +61,7 @@ test('a file with no final newline, and a lone quoted empty field, are records',
 });
 
 test('rows become erp.import_items() rows: line, ids, brand id, blank as null', () => {
-  const records = parseCsv(`${HEADER},description_en,description_ar\nRM-RICE,raw_ingredient,kg,spicy,Rice,أرز,,\n`);
+  const records = parseCsv(`${HEADER}\nRM-RICE,raw_ingredient,kg,spicy,Rice,أرز,,\n`);
   const prepared = prepareImport(records, BRANDS, mint);
   assert.equal(prepared.ok, true);
   const row = prepared.ok ? prepared.rows[0]! : {};
@@ -81,11 +81,21 @@ test('CONTROL: every column the upload sends is one erp.import_items() reads', (
 });
 
 test('the ids are minted once per row, so a retry of the same file sends the same ids', () => {
-  const records = parseCsv(`${HEADER}\nA,raw_ingredient,g,SPICY,a,أ\nB,raw_ingredient,g,SPICY,b,ب`);
+  const records = parseCsv(`${HEADER}\nA,raw_ingredient,g,SPICY,a,أ,,\nB,raw_ingredient,g,SPICY,b,ب,,`);
   const prepared = prepareImport(records, BRANDS, mint);
   assert.ok(prepared.ok);
   const ids = prepared.rows.flatMap((r) => [r['decision_id'], r['item_id'], r['base_unit_decision_id'], r['base_item_unit_id']]);
   assert.equal(new Set(ids).size, 8);
+});
+
+test('CONTROL: a file without the description columns is refused, never read as clearing them', () => {
+  // The file wins: a blank cell clears a field. A column left out entirely read the same
+  // as a blank, so a file of codes and names wiped every listed item's descriptions
+  // (found in module 2 step 3's review). Every column must be in the header.
+  const p = prepareImport(parseCsv('code,item_kind,base_unit_key,brand,name_en,name_ar\nA,raw_ingredient,g,SPICY,a,أ'), BRANDS, mint);
+  assert.deepEqual(p.ok ? [] : p.problems, [
+    { kind: 'missing_column', column: 'description_en' }, { kind: 'missing_column', column: 'description_ar' },
+  ]);
 });
 
 test('a header with a missing, unknown or repeated column is refused before anything is sent', () => {
@@ -93,23 +103,23 @@ test('a header with a missing, unknown or repeated column is refused before anyt
     const p = prepareImport(parseCsv(csv), BRANDS, mint);
     return p.ok ? [] : p.problems;
   };
-  assert.deepEqual(problems('code,item_kind,base_unit_key,brand,name_en\nA,b,c,SPICY,e'), [{ kind: 'missing_column', column: 'name_ar' }]);
-  assert.deepEqual(problems(`${HEADER},serial\nA,b,c,SPICY,e,f,g`), [{ kind: 'unknown_column', column: 'serial' }]);
-  assert.deepEqual(problems(`${HEADER},code\nA,b,c,SPICY,e,f,A`), [{ kind: 'duplicate_column', column: 'code' }]);
+  assert.deepEqual(problems('code,item_kind,base_unit_key,brand,name_en,description_en,description_ar\nA,b,c,SPICY,e,,'), [{ kind: 'missing_column', column: 'name_ar' }]);
+  assert.deepEqual(problems(`${HEADER},serial\nA,b,c,SPICY,e,f,,,g`), [{ kind: 'unknown_column', column: 'serial' }]);
+  assert.deepEqual(problems(`${HEADER},code\nA,b,c,SPICY,e,f,,,A`), [{ kind: 'duplicate_column', column: 'code' }]);
   assert.deepEqual(problems(HEADER), [{ kind: 'empty' }]);
   assert.deepEqual(problems(''), [{ kind: 'empty' }]);
 });
 
 test('a short line and an unknown brand name their line', () => {
-  const p = prepareImport(parseCsv(`${HEADER}\nA,b,c,SPICY,e\nB,b,c,OTHER,e,f`), BRANDS, mint);
+  const p = prepareImport(parseCsv(`${HEADER}\nA,b,c,SPICY,e\nB,b,c,OTHER,e,f,,`), BRANDS, mint);
   assert.deepEqual(p.ok ? [] : p.problems, [
-    { kind: 'width', line: 2, expected: 6, found: 5 },
+    { kind: 'width', line: 2, expected: 8, found: 5 },
     { kind: 'unknown_brand', line: 3, brand: 'OTHER' },
   ]);
 });
 
 test('more rows than one import holds is refused, at the database\'s own limit', () => {
-  const body = Array.from({ length: MAX_ROWS + 1 }, (_, i) => `C${i},raw_ingredient,g,SPICY,n,ن`).join('\n');
+  const body = Array.from({ length: MAX_ROWS + 1 }, (_, i) => `C${i},raw_ingredient,g,SPICY,n,ن,,`).join('\n');
   const p = prepareImport(parseCsv(`${HEADER}\n${body}`), BRANDS, mint);
   assert.deepEqual(p.ok ? [] : p.problems, [{ kind: 'too_many', rows: MAX_ROWS + 1 }]);
   assert.match(ITEMS_MIGRATION, new RegExp(`jsonb_array_length\\(p_rows\\) not between 1 and ${MAX_ROWS}`));

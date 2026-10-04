@@ -35,7 +35,8 @@ screens before this pack is run.
 - The participant has a test account and a PIN. **Do not use their real
   employee number:** step 1.2 locks an account.
 - A spreadsheet of ten real items from the warehouse's current list, chosen by the
-  participant, ready to save as CSV.
+  participant, ready to save as CSV. Its header names all eight columns the upload screen
+  lists, the two descriptions included, even where every description is blank.
 - One unplugged network cable or a switched-off Wi-Fi, for Part 8.
 
 ---

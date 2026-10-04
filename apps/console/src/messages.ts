@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012 or 0016 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -50,6 +50,35 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   item_unit_factor_required: 'rule_factor_required',
   item_unit_factor_inexact: 'rule_factor_inexact',
   item_unit_agrees_with_its_dimension: 'rule_unit_disagrees',
+  // 0016's, for suppliers and what they sell. Stale and missing are named per record, so
+  // a supplier's refusal does not speak of "this item".
+  // Not supplier_decision_pkey: a route's retry answer is already_recorded, which every
+  // screen treats as saved; the same constraint reaching here is PostgreSQL's own
+  // collision, where nothing was recorded, and "already saved" would be false (review).
+  supplier_code_key: 'rule_supplier_code_taken',
+  supplier_code_is_canonical: 'rule_supplier_code_canonical',
+  supplier_active_name_en_key: 'rule_supplier_name_taken',
+  supplier_active_name_ar_key: 'rule_supplier_name_taken',
+  supplier_names_are_bilingual: 'rule_supplier_names',
+  supplier_names_are_canonical: 'rule_supplier_names',
+  supplier_vat_number_is_valid: 'rule_vat',
+  supplier_cr_number_is_valid: 'rule_cr',
+  supplier_payment_terms_are_days: 'rule_terms',
+  supplier_contacts_are_canonical: 'rule_contact',
+  supplier_decision_reason_is_stated: 'rule_reason_required',
+  supplier_stale: 'rule_supplier_stale',
+  supplier_exists: 'rule_no_supplier',
+  supplier_is_retired: 'rule_supplier_retired',
+  supplier_status_unchanged: 'rule_supplier_status_unchanged',
+  supplier_item_one_active: 'rule_supply_one_active',
+  supplier_item_one_preferred: 'rule_one_preferred',
+  supplier_item_conversion_is_active: 'rule_pack_retired',
+  item_admits_no_new_work: 'rule_item_retired',
+  supplier_item_retirement_final: 'rule_supply_final',
+  supplier_item_already_retired: 'rule_supply_already_retired',
+  supplier_item_code_is_canonical: 'rule_supply_code',
+  supplier_item_stale: 'rule_supply_stale',
+  supplier_item_exists: 'rule_no_supply',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

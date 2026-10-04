@@ -251,6 +251,73 @@ addendum). Nothing about the routes changed.
   - The history holds no contact value and the two fixed reasons.
   - The rollback is checked.
 
+## Addendum — 2026-10-04: the screens (module 2, step 3)
+
+The console's supplier screens (`apps/console`) are built as the items screens are
+(ADR-0024's step 3 addendum). They use the same in-doubt lock, ids minted once per form,
+reload on a stale answer and Arabic by default. Nothing about the routes changed.
+
+- **The screens:**
+  - **The list.** Search, a status filter, paging by code.
+  - **A supplier's page:**
+    - the business record, the contact and the history;
+    - what it sells, with the pack's and the item's status beside each supply;
+    - adding, changing and stopping a supply;
+    - retiring and reinstating the supplier.
+  - **The create and edit forms.**
+  - **The contact form.**
+  - **The CSV upload.**
+  - **On an item's page, who sells it** (`erp.item_suppliers()`). It is shown only to
+    someone who may read suppliers there.
+- **The contact form asks no reason, and erasing is its own action** (§2). Both work on a
+  retired supplier. The body always states all four fields and never carries a reason;
+  `apps/console/test/suppliers.test.ts` holds both rules.
+- **An amendment states every field it overwrites.** A cleared VAT number is sent as
+  null, never left out (the step 2 addendum). The edit form is therefore only a view of
+  the record.
+- **A supply's form offers only what `amend_supplier_item()` accepts.**
+  - **A retired supply:** nothing.
+  - **A retired supplier:** only giving up the preferred slot.
+  - **A supply on a retired pack or item:** no new preference.
+  - **Adding a supply** offers only the item's active packs that the supplier does not
+    sell already.
+- **Changes are offered only organisation-wide.** That is where 0016 checks every
+  write; the test reads all eight write gates from the migration. The warehouse manager
+  reads and is offered nothing; a branch worker has no Suppliers entry.
+- **The VAT, CR, phone and email checks before sending are a courtesy.** They exist so a
+  person is told which field is wrong. Each is 0016's own rule, read from the migration
+  by a test. Payment terms are any whole number of days in either script; whether 400 is
+  allowed is the database's to say. The constraints a person's input or a concurrent
+  change can meet each have their own sentence in both languages, so a stale supplier is
+  not "this item"; a test holds every worded constraint to one a migration names.
+- **Found in this step's review:**
+  - **Retry resends the request first sent.** Retry rebuilt it from the page, which other
+    forms' saves may have reloaded meanwhile. A retried "retire" could become a
+    "reinstate", and a retried supply change could carry the new stamp past the stale
+    check. Every form on the page now keeps the request it sent; the status form fixes
+    its target when it opens. The item page's status form had the same gap.
+  - **A supply's form opens from the supply as shown now.** It kept what an earlier
+    opening left, so Save could undo another person's change, or give up a preferred
+    slot the supply could never take back.
+  - **An upload must name every column.** A column left out read as a blank cell. A file
+    of codes and terms alone would have cleared every listed supplier's VAT and CR
+    numbers and erased its contacts, which the log can never give back. The items
+    upload had the same gap for descriptions.
+  - **A file cannot be chosen while an upload is unanswered.** New ids would meet the
+    first sending on its codes and read "nothing was saved".
+  - **"Already saved" is never shown for a collision PostgreSQL raised itself,** where
+    nothing was recorded.
+- **Found running the screens in a browser:**
+  - **Uploading the same file twice did nothing.** An unchanged file input fires no
+    change event. Items UAT 6.2 asks exactly this, so both uploads now clear the input
+    once the file is read and show its name instead.
+  - **Arabic layout.** Left-to-right values (VAT, phone, codes) were pushed to the wrong
+    edge of an Arabic page. An English reason showed its full stop at the wrong end, in
+    the item history too. Both are isolated with `<bdi>` now.
+  - **The supplier page routed to nothing.** The menu helper mapped the supplier page to
+    Items, so it rendered nothing; a test now holds every supplier route to the
+    Suppliers entry.
+
 ## Alternatives considered
 
 **Keep the warehouse's type.** It answers a coarser question than the supplies do, and

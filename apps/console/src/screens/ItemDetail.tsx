@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { Failure, Item, ItemDecision } from '../api.ts';
+import type { Failure, Item, ItemDecision, StatusInput } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { factorInput, formatDateTime, formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { addableUnits, factorIsDerived, isBaseUnit, isUnanswered, unitName, unitSymbol, writeOutcome } from '../items.ts';
+import { ItemSuppliers } from './ItemSuppliers.tsx';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
@@ -118,6 +119,8 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 
       {ctx.writable ? <StatusChange ctx={ctx} item={item} onDone={afterWrite} /> : null}
 
+      {ctx.seesSuppliers ? <ItemSuppliers ctx={ctx} itemId={item.item_id} /> : null}
+
       <h2>{t(lang, 'history')}</h2>
       {history === null ? <Loading lang={lang} /> : (
         <table className="table">
@@ -133,7 +136,8 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
                   {d.unit_key ? <> · {unitName(lang, data.units, d.unit_key)} ({formatFactor(d.factor)})</> : null}
                   {d.kind === 'item_status_changed' ? <> · {d.status === 'active' ? t(lang, 'status_active') : t(lang, 'status_retired')}</> : null}
                 </td>
-                <td>{d.reason}</td>
+                {/* bdi: an English reason in an Arabic page keeps its full stop at its end. */}
+                <td><bdi>{d.reason}</bdi></td>
                 <td dir="ltr" title={d.actor_id}>{d.actor_id === data.person.person_id ? (localName(lang, {
                   name_en: data.person.full_name_en, name_ar: data.person.full_name_ar,
                 }) || shortId(d.actor_id)) : shortId(d.actor_id)}</td>
@@ -299,13 +303,19 @@ function StatusChange({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Don
   const [failure, setFailure] = useState<Failure | null>(null);
   const [inDoubt, setInDoubt] = useState(false);
 
+  // Retry resends this exact request, never one rebuilt from the item as reloaded since:
+  // a reload could flip the target or carry a newer stamp past the stale check (found in
+  // module 2 step 3's review of the same pattern).
+  const pending = useRef<StatusInput | null>(null);
+
   async function submit(e?: FormEvent) {
     e?.preventDefault();
+    const body: StatusInput = e === undefined && pending.current !== null ? pending.current
+      : { ...ids, expected_decision_id: item.as_of_decision_id, status: target, reason: reason.trim() };
+    pending.current = body;
     setBusy(true);
     setFailure(null);
-    const answer = await api.changeStatus(item.item_id, {
-      ...ids, expected_decision_id: item.as_of_decision_id, status: target, reason: reason.trim(),
-    });
+    const answer = await api.changeStatus(item.item_id, body);
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'failed') {

@@ -128,8 +128,8 @@ npm run db:test       # pgTAP suites against the local stack
 | **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed. The three session routes are the named exceptions (ADR-0025) |
 | **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025), and every items and suppliers write is held to it |
 | **A database refusal is an answer; anything else is a 500 that says nothing** | Node tests (`supabase/functions/_shared/test/items.test.ts`, `suppliers.test.ts`) + the Deno items and suppliers tests, end to end. A route's own words reach the person; PostgreSQL's never do |
-| **The console never names an actor, and offers item changes only where the database checks them** | Node tests (`apps/console/test`) — no request body carries a person, and the write rule reads 0012's gate |
-| **The console's item kinds, import columns and limits are 0012's** | Node tests (`apps/console/test`) — read the migration, so a drift fails `npm test` |
+| **The console never names an actor, and offers item and supplier changes only where the database checks them** | Node tests (`apps/console/test`) — no request body carries a person, a contact change carries no reason, and the write rules read 0012's and 0016's gates |
+| **The console's item kinds, import columns and limits are 0012's; its supplier rules, import columns and decision kinds are 0016's** | Node tests (`apps/console/test`) — read the migrations, so a drift fails `npm test` |
 | A session's token is stored only as its hash; a session ends at 12 hours or 30 minutes idle, and is never deleted or reopened | pgTAP + `db:check` (`session-guard-triggers-exist`) |
 | **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
@@ -186,8 +186,8 @@ architecture gate (PRG-010, PRG-011) has not been passed.
   and the hosted one is created ~6–8 weeks before launch (ADR-0018).
 - `services/` — reserved boundaries, not implementations.
 - `apps/console` — a **real** Vite + React workspace since 2026-10-01, and the shell
-  the consolidation's modules land in (ADR-0021). Sign-in and module 1's items screens
-  since 2026-10-04. `apps/pos` is still a reserved
+  the consolidation's modules land in (ADR-0021). Sign-in, module 1's items screens and
+  module 2's supplier screens since 2026-10-04. `apps/pos` is still a reserved
   boundary. **`apps/*` is the one place a build step and third-party dependencies
   are permitted** (ADR-0021 §4); `dep:policy` enforces that everywhere else.
 

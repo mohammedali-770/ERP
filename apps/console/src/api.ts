@@ -1,6 +1,7 @@
 /**
- * The console's client for the edge functions: sign-in, the session, sign-out, and
- * module 1's items routes (supabase/functions/_shared/items.ts).
+ * The console's client for the edge functions: sign-in, the session, sign-out, module 1's
+ * items routes (supabase/functions/_shared/items.ts) and module 2's suppliers routes
+ * (supabase/functions/_shared/suppliers.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -19,7 +20,7 @@
  * sends the same ids, and the database answers `already_recorded` instead of recording
  * the decision twice.
  *
- * Requirements: IAM-003 · IAM-006 · INV-002 · INV-005 · CAP-P04
+ * Requirements: IAM-003 · IAM-006 · INV-002 · INV-005 · PRC-005 · SEC-008 · CAP-P04
  */
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -216,6 +217,167 @@ export interface ImportSummary {
   readonly unchanged: number;
 }
 
+/** One supplier, as erp.list_suppliers() returns it. Contacts live here, never in its log (SEC-008). */
+export interface Supplier {
+  readonly supplier_id: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly vat_number: string | null;
+  readonly cr_number: string | null;
+  readonly payment_terms_days: number;
+  readonly status: 'active' | 'retired';
+  readonly contact_person: string | null;
+  readonly phone: string | null;
+  readonly email: string | null;
+  readonly address: string | null;
+  /** The stamp an edit form sends back as `expected_decision_id`. */
+  readonly as_of_decision_id: string;
+}
+
+/**
+ * One thing a supplier sells: a conversion of an item, copied whole (0016). Its own
+ * status is the supply's; the pack's and the item's are shown beside it, because a supply
+ * on a pack or item retired since stays active itself.
+ */
+export interface Supply {
+  readonly supplier_item_id: string;
+  readonly item_unit_id: string;
+  readonly item_id: string;
+  readonly item_code: string;
+  readonly item_name_en: string;
+  readonly item_name_ar: string;
+  readonly unit_key: string;
+  readonly factor: number | string;
+  /** The supplier's own code for the pack. */
+  readonly supplier_code: string | null;
+  readonly preferred: boolean;
+  readonly status: 'active' | 'retired';
+  readonly as_of_decision_id: string;
+  readonly conversion_status: 'active' | 'retired';
+  readonly item_status: 'active' | 'retired';
+}
+
+/**
+ * erp.get_supplier(): the supplier with what it sells at the facility's brand. `supplies`
+ * is null — not shown — for someone who may not read items there (ADR-0026 §4).
+ */
+export interface SupplierDetail extends Supplier {
+  readonly supplies: readonly Supply[] | null;
+}
+
+/** One row of erp.supplier_decision. No contact value is ever in one. */
+export interface SupplierDecision {
+  readonly decision_id: string;
+  readonly kind: string;
+  readonly supplier_item_id: string | null;
+  readonly name_en: string | null;
+  readonly name_ar: string | null;
+  readonly payment_terms_days: number | null;
+  readonly item_id: string | null;
+  readonly unit_key: string | null;
+  readonly factor: number | string | null;
+  readonly supplier_code: string | null;
+  readonly preferred: boolean | null;
+  readonly status: string;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly [field: string]: unknown;
+}
+
+/** erp.item_suppliers(): who sells an item, live supplies of live suppliers on live packs first. */
+export interface ItemSupply {
+  readonly supplier_item_id: string;
+  readonly supplier_id: string;
+  readonly supplier_code: string;
+  readonly supplier_name_en: string;
+  readonly supplier_name_ar: string;
+  readonly supplier_status: 'active' | 'retired';
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: number | string;
+  readonly their_code: string | null;
+  readonly preferred: boolean;
+  readonly status: 'active' | 'retired';
+  readonly as_of_decision_id: string;
+  readonly conversion_status: 'active' | 'retired';
+  readonly item_status: 'active' | 'retired';
+}
+
+export interface SupplierList {
+  readonly suppliers: readonly Supplier[];
+  readonly next_after: string | null;
+}
+
+export interface SupplierQuery {
+  readonly facilityId: string | null;
+  readonly status?: 'active' | 'retired' | 'all';
+  readonly search?: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+export interface CreateSupplierInput {
+  readonly decision_id: string;
+  readonly supplier_id: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly vat_number: string | null;
+  readonly cr_number: string | null;
+  /** A JSON integer: the edge refuses text and fractions. */
+  readonly payment_terms_days: number;
+  readonly reason: string;
+}
+
+/**
+ * An amendment puts the whole business record in force, so the edge requires the VAT and
+ * CR numbers stated, as text or null: one left out would clear it.
+ */
+export interface AmendSupplierInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly vat_number: string | null;
+  readonly cr_number: string | null;
+  readonly payment_terms_days: number;
+  readonly reason: string;
+}
+
+/**
+ * The whole contact, every field stated; all four null erases it. NO REASON: the database
+ * records a fixed one, because the reason a person would type names the person, and the
+ * log keeps reasons for good (ADR-0026 §2). The edge refuses a body that carries one.
+ */
+export interface ContactInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly contact_person: string | null;
+  readonly phone: string | null;
+  readonly email: string | null;
+  readonly address: string | null;
+}
+
+export interface AddSupplyInput {
+  readonly decision_id: string;
+  readonly supplier_item_id: string;
+  readonly item_unit_id: string;
+  readonly supplier_code: string | null;
+  readonly preferred: boolean;
+  readonly reason: string;
+}
+
+/** The supplier's own code is stated, as text or null: the amendment overwrites it. */
+export interface AmendSupplyInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly supplier_code: string | null;
+  readonly preferred: boolean;
+  readonly reason: string;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -238,6 +400,18 @@ export interface Api {
   addUnit(itemId: string, input: AddUnitInput): Promise<Answer<{ decision_id: string }>>;
   retireUnit(itemUnitId: string, input: RetireUnitInput): Promise<Answer<{ decision_id: string }>>;
   importItems(reason: string, rows: readonly Record<string, unknown>[]): Promise<Answer<ImportSummary>>;
+  listSuppliers(query: SupplierQuery): Promise<Answer<SupplierList>>;
+  getSupplier(facilityId: string | null, supplierId: string): Promise<Answer<SupplierDetail>>;
+  supplierHistory(facilityId: string | null, supplierId: string): Promise<Answer<readonly SupplierDecision[]>>;
+  itemSuppliers(facilityId: string | null, itemId: string): Promise<Answer<readonly ItemSupply[]>>;
+  createSupplier(input: CreateSupplierInput): Promise<Answer<{ decision_id: string }>>;
+  amendSupplier(supplierId: string, input: AmendSupplierInput): Promise<Answer<{ decision_id: string }>>;
+  changeSupplierStatus(supplierId: string, input: StatusInput): Promise<Answer<{ decision_id: string }>>;
+  setSupplierContact(supplierId: string, input: ContactInput): Promise<Answer<{ decision_id: string }>>;
+  addSupply(supplierId: string, input: AddSupplyInput): Promise<Answer<{ decision_id: string }>>;
+  amendSupply(supplierItemId: string, input: AmendSupplyInput): Promise<Answer<{ decision_id: string }>>;
+  retireSupply(supplierItemId: string, input: RetireUnitInput): Promise<Answer<{ decision_id: string }>>;
+  importSuppliers(reason: string, rows: readonly Record<string, unknown>[]): Promise<Answer<ImportSummary>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -310,6 +484,9 @@ export function createApi(config: ApiConfig): Api {
   const SIGN_IN: Readonly<Record<string, number>> = { ok: 200, wrong: 401, disabled: 403, locked: 423, malformed: 400 };
   const asIs = <T>(b: Record<string, unknown>) => b as unknown as T;
   const decision = (b: Record<string, unknown>) => ({ decision_id: String(b['decision_id']) });
+  const summary = (b: Record<string, unknown>): ImportSummary => ({
+    created: Number(b['created']), amended: Number(b['amended']), unchanged: Number(b['unchanged']),
+  });
 
   return {
     signIn: (employeeNumber, pin) =>
@@ -335,9 +512,34 @@ export function createApi(config: ApiConfig): Api {
     addUnit: (itemId, input) => call('POST', `/items/${encodeURIComponent(itemId)}/units`, input, decision),
     retireUnit: (itemUnitId, input) =>
       call('POST', `/items/units/${encodeURIComponent(itemUnitId)}/retire`, input, decision),
-    importItems: (reason, rows) =>
-      call('POST', '/items/import', { reason, rows }, (b) => ({
-        created: Number(b['created']), amended: Number(b['amended']), unchanged: Number(b['unchanged']),
-      })),
+    importItems: (reason, rows) => call('POST', '/items/import', { reason, rows }, summary),
+
+    listSuppliers: (q) =>
+      call('GET', `/suppliers${query({
+        facility_id: q.facilityId, status: q.status, search: q.search, after: q.after, limit: q.limit,
+      })}`, undefined, (b) => ({ suppliers: b['suppliers'] as Supplier[], next_after: text(b['next_after']) })),
+    getSupplier: (facilityId, supplierId) =>
+      call('GET', `/suppliers/${encodeURIComponent(supplierId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['supplier'] as SupplierDetail),
+    supplierHistory: (facilityId, supplierId) =>
+      call('GET', `/suppliers/${encodeURIComponent(supplierId)}/history${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['decisions'] as SupplierDecision[]),
+    itemSuppliers: (facilityId, itemId) =>
+      call('GET', `/suppliers/items/${encodeURIComponent(itemId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['supplies'] as ItemSupply[]),
+    createSupplier: (input) => call('POST', '/suppliers', input, decision),
+    amendSupplier: (supplierId, input) =>
+      call('POST', `/suppliers/${encodeURIComponent(supplierId)}/amend`, input, decision),
+    changeSupplierStatus: (supplierId, input) =>
+      call('POST', `/suppliers/${encodeURIComponent(supplierId)}/status`, input, decision),
+    setSupplierContact: (supplierId, input) =>
+      call('POST', `/suppliers/${encodeURIComponent(supplierId)}/contact`, input, decision),
+    addSupply: (supplierId, input) =>
+      call('POST', `/suppliers/${encodeURIComponent(supplierId)}/supplies`, input, decision),
+    amendSupply: (supplierItemId, input) =>
+      call('POST', `/suppliers/supplies/${encodeURIComponent(supplierItemId)}/amend`, input, decision),
+    retireSupply: (supplierItemId, input) =>
+      call('POST', `/suppliers/supplies/${encodeURIComponent(supplierItemId)}/retire`, input, decision),
+    importSuppliers: (reason, rows) => call('POST', '/suppliers/import', { reason, rows }, summary),
   };
 }
