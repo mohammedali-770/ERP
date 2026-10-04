@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.9"
+  },
+  "nodeModulesDir": "none",
+  "lock": true
+}

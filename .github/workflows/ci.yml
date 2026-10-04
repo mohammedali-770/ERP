@@ -129,6 +129,29 @@ jobs:
       - name: pgTAP suites
         run: supabase test db
 
+      # The edge functions run on Deno (ADR-0023). Pinned like the CLI above, and not an
+      # npm dependency either. Steps rather than a job, for the reason dep:policy is one:
+      # a new job is neither required nor documented, so it would block nothing.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.7
+
+      # --frozen: a deno.lock that disagrees with deno.json fails here instead of being
+      # rewritten. dep:policy checks the same pair by reading them; this checks that Deno
+      # agrees.
+      - name: Edge functions typecheck against the locked driver
+        run: deno check --config supabase/functions/deno.json --frozen supabase/functions/*/index.ts
+
+      # The real handlers, through postgres.js, logged in as erp_edge — a login role that
+      # is not service_role — against this job's database. edge-runtime is excluded
+      # above, so `supabase functions serve` itself is not exercised here. The test sets
+      # erp_edge's password for the run, on this throwaway database only.
+      - name: Edge functions sign in through erp_edge
+        run: |
+          eval "$(supabase status -o env)"
+          ERP_TEST_ADMIN_URL="$DB_URL" deno test --config supabase/functions/deno.json --frozen \
+            --allow-net --allow-env --allow-read supabase/functions/_deno/test/
+
       - name: Stop
         if: always()
         run: supabase stop --no-backup

@@ -15,7 +15,9 @@ migrations/    plain SQL, one file per approved change, append-only history
 seeds/         synthetic development fixtures, listed in config.toml's
                [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
                psql meta-command like \ir is a syntax error there
-functions/     edge functions (none yet — nothing needs one)
+functions/     edge functions (ADR-0023, ADR-0025): sign-in, session, sign-out.
+               _shared/ is plain TypeScript, tested by `npm test`; _deno/ holds
+               the one file that imports the driver; deno.json and deno.lock pin it
 tests/         pgTAP suites
 ```
 `tests/` runs only under `supabase test db`, which needs Docker and the Supabase
@@ -40,6 +42,26 @@ The CLI is **not an npm dependency**. `CLAUDE.md` permits two, deliberately, and
 a postinstall that downloads a binary is the supply-chain surface that rule
 exists to avoid. Install it as a standalone binary; CI pins the same version in
 [`ci.yml`](../.github/workflows/ci.yml).
+
+### The edge functions, locally
+
+They connect as `erp_edge`, a login role migration `20261003000100_sessions.sql`
+creates **without a password**. Nothing in this repository sets one for a real
+project; that, and deploying, are owner-approved actions (`CLAUDE.md` §4).
+
+Against the local stack, the Deno test sets a throwaway password for its own run and
+clears it afterwards, and refuses any database that is not on this machine:
+
+```bash
+eval "$(supabase status -o env)"          # DB_URL for the local stack
+ERP_TEST_ADMIN_URL="$DB_URL" deno test --config supabase/functions/deno.json --frozen \
+  --allow-net --allow-env --allow-read supabase/functions/_deno/test/
+```
+
+To serve a function by hand, set `ERP_DATABASE_URL` to `erp_edge`'s connection string
+and `ERP_ALLOWED_ORIGINS` to the console's origin (for example
+`http://localhost:5173`), in an env file outside the repository — `secret:scan`
+refuses a committed connection string with a password in it.
 
 ### `db:check` versus `db:test`
 

@@ -15,6 +15,11 @@ import {
   TOOLING_CLOSURE,
   type Finding, type Manifest, type Lockfile,
 } from './rules.ts';
+import {
+  ruleEdgeDependencyMap, ruleEdgeLockfile, ruleEdgeImports, ruleEdgeHasOneConfig,
+  EDGE_CONFIG, EDGE_DIR, EDGE_LOCK, EDGE_DEPENDENCIES,
+  type DenoConfig, type DenoLock,
+} from './deno.ts';
 
 const WORKSPACE_ROOTS = ['packages', 'services', 'apps', 'tools', 'spikes'];
 
@@ -71,6 +76,14 @@ const tsconfig = readJsonWithComments<{
   include?: string[];
 }>('tsconfig.json');
 
+const readJsonIfPresent = <T>(file: string): T | null =>
+  existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : null;
+const denoConfig = readJsonIfPresent<DenoConfig>(EDGE_CONFIG);
+const denoLock = readJsonIfPresent<DenoLock>(EDGE_LOCK);
+const edgeSources = tracked
+  .filter((f) => f.startsWith(`${EDGE_DIR}/`) && f.endsWith('.ts') && existsSync(f))
+  .map((path) => ({ path, source: readFileSync(path, 'utf8') }));
+
 const findings: Finding[] = [
   ...ruleNoEmittedArtifactCommitted(tracked),
   ...ruleDeclaredDependencies(manifests),
@@ -80,6 +93,10 @@ const findings: Finding[] = [
   ...ruleEveryWorkspaceIsTypechecked(
     dirs, tsconfig.include ?? [], root.scripts?.typecheck ?? '', jsxWorkspaces(dirs, tracked),
   ),
+  ...ruleEdgeDependencyMap(denoConfig),
+  ...ruleEdgeLockfile(denoConfig, denoLock),
+  ...ruleEdgeImports(edgeSources),
+  ...ruleEdgeHasOneConfig(tracked),
 ];
 
 const registry = Object.keys(lock.packages ?? {}).filter(
@@ -88,7 +105,8 @@ const registry = Object.keys(lock.packages ?? {}).filter(
 
 console.log(
   `dep-policy: ${manifests.length} manifests, ${tracked.length} tracked files, ` +
-  `${registry} installed package(s), ${Object.keys(TOOLING_CLOSURE).length} pinned in the tooling closure`,
+  `${registry} installed package(s), ${Object.keys(TOOLING_CLOSURE).length} pinned in the tooling closure, ` +
+  `${Object.keys(EDGE_DEPENDENCIES).length} pinned for the edge functions across ${edgeSources.length} source(s)`,
 );
 
 if (findings.length === 0) {

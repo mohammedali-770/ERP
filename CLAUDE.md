@@ -121,15 +121,18 @@ npm run db:test       # pgTAP suites against the local stack
 | **No ERP object is created in `public`** | `db:check` + pgTAP |
 | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
 | The event log rejects `UPDATE`, `DELETE` and `TRUNCATE` at runtime, whichever partition a statement names | `db:check` + pgTAP — a statement trigger on the parent never fired for a statement naming a partition, so the owner could delete every event until 0013 |
-| Every decision log — event, capability, identity, item — refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name and through `pg_inherits`; `db:check` requires enabled, unconditional triggers and no write grant on every log and partition, then attempts all three writes on each, so a new `%_decision` table or partition cannot be added unprotected |
+| Every decision log — event, capability, identity, item, sign-in — refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name (`%_log`, `%_decision`) and through `pg_inherits`; `db:check` requires enabled, unconditional triggers and no write grant on every log and partition, then attempts all three writes on each, so a new log or partition cannot be added unprotected |
 | **No foreign key in `erp` cascades, nulls or defaults** | `db:check` — B-11: records are retired, never deleted |
 | **The scratch database is UTF8, as Supabase's is** | `db:check` and `db:fixtures` — the scratch cluster refuses to start otherwise: in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
 | An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
-| **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed |
+| **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed. The three session routes are the named exceptions (ADR-0025) |
+| **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025) |
+| A session's token is stored only as its hash; a session ends at 12 hours or 30 minutes idle, and is never deleted or reopened | pgTAP + `db:check` (`session-guard-triggers-exist`) |
+| **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
 | **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item write route; checked by SQLSTATE and constraint, which is what the edge matches |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
-| **No role but the owner can touch a credential table** | `db:check` — discovered by name, so `erp_read`'s default `SELECT` cannot reach a PIN hash |
+| **No role but the owner can touch a credential table** | `db:check` — discovered by name, or by a `%token%` column, so `erp_read`'s default `SELECT` cannot reach a PIN hash or a session's token hash |
 | A capability or identity decision needs a permitted actor | pgTAP |
 | No bcrypt hash is committed | `secret:scan` |
 | **Every projection row names the record that produced it** | `db:check` + pgTAP — the stamp column is **discovered**, not listed, so a new projection cannot be added uncovered |
@@ -137,6 +140,7 @@ npm run db:test       # pgTAP suites against the local stack
 | The seed is synthetic, and two builds are identical | `db:check` |
 | No credential-shaped string is committed | `secret:scan` |
 | **Dependencies outside `apps/*`, and no build step** | `dep:policy` |
+| **The edge functions' one dependency is pinned exactly, locked, and imported only by `_deno/`** | `dep:policy` (`tools/dep-policy/src/deno.ts`) + `deno check --frozen` in CI |
 | **No emitted artifact is committed** | `dep:policy` |
 | The ruleset, the workflow and the controls document name the same checks | `ci-contract` tests |
 | **A test directory that is run is also typechecked** | `ci-contract` tests |
@@ -172,7 +176,8 @@ architecture gate (PRG-010, PRG-011) has not been passed.
   deliberately breaks the mechanism under test; a run whose control also passes
   reports FAIL, because it has proved nothing.
 - `supabase/` — **the source of truth for the database.** Migrations, synthetic
-  seed and pgTAP suites. No hosted project exists; development is local (Docker),
+  seed, pgTAP suites, and the edge functions that hold its credential (ADR-0023). None
+  is deployed; deploying one is owner-approved. No hosted project exists; development is local (Docker),
   and the hosted one is created ~6–8 weeks before launch (ADR-0018).
 - `services/` — reserved boundaries, not implementations.
 - `apps/console` — a **real** Vite + React workspace since 2026-10-01, and the shell
@@ -190,6 +195,11 @@ architecture gate (PRG-010, PRG-011) has not been passed.
   baseline should carry no supply-chain risk. **`dep:policy` enforces both**, by
   provenance rather than by counting: a package no `apps/*` manifest can account for
   is a finding.
+- **The edge functions are the one other exception** (ADR-0023's addendum): Deno, and
+  `npm:postgres` pinned exactly in `supabase/functions/deno.json` and locked in
+  `deno.lock`. Only `supabase/functions/_deno/` may import it; `_shared/` stays plain
+  TypeScript, so Node typechecks and tests every handler. A second edge dependency
+  needs an ADR, and `dep:policy` refuses it until one names it.
 - **Node cannot load `.tsx` at all** — `Unknown file extension ".tsx"` under both
   `--experimental-strip-types` and `--experimental-transform-types`, verified on
   v22.22.2. So `npm test` can only exercise plain TypeScript. Keep logic that needs a

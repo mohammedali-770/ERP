@@ -271,8 +271,10 @@ select is(has_function_privilege('erp_read',
 select is(has_function_privilege('erp_read', 'erp.verify_pin(text,text)', 'EXECUTE'), false,
   'nor check PINs');
 -- The control for the facts above: the same function returns true where a grant exists.
-select ok(has_function_privilege('erp_app', 'erp.verify_pin(text,text)', 'EXECUTE'),
-  'the runtime can check a PIN');
+-- Since 0014 the runtime checks a PIN through erp.sign_in(), which records the attempt;
+-- 090 asserts that verify_pin() itself is no longer granted to it.
+select ok(has_function_privilege('erp_app', 'erp.sign_in(text,text)', 'EXECUTE'),
+  'the runtime can check a PIN, through sign-in');
 select ok(has_table_privilege('erp_read', 'erp.person', 'SELECT'),
   'the reporting role still reads people, so the revoke above is specific');
 

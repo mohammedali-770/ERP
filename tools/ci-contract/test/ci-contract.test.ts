@@ -142,3 +142,49 @@ test('every workspace root that can hold tests is covered', () => {
   const expected = ['apps', 'packages', 'services', 'spikes', 'tools'];
   assert.deepEqual(testRootsFromNpmScript(), expected);
 });
+
+/**
+ * The two functions above compare WORKSPACE roots, which is all the test glob held until
+ * the edge functions arrived. supabase/functions/_shared/test is not a workspace — an edge
+ * function is deployed on its own, so it cannot be one — and their pattern does not see
+ * it. So the same promise is also checked directory by directory, for every glob the test
+ * script runs: the directory it runs must lie inside something tsconfig includes.
+ */
+function testDirsFromNpmScript(): string[] {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> };
+  return [...pkg.scripts.test!.matchAll(/"([^"]+)\/[^"/]+"/g)].map((m) => m[1]!).sort();
+}
+
+function includeDirsFromTsconfig(): string[] {
+  const raw = readFileSync('tsconfig.json', 'utf8').replace(/^\s*\/\/.*$/gm, '');
+  const tsconfig = JSON.parse(raw) as { include: string[] };
+  return tsconfig.include.map((pattern) => pattern.replace(/\/\*\*\/\*\.ts$/, ''));
+}
+
+/** True when the include directory contains the test directory, `*` matching one segment. */
+function covers(include: string, dir: string): boolean {
+  const a = include.split('/');
+  const b = dir.split('/');
+  return a.length <= b.length && a.every((segment, i) => segment === b[i] || (segment === '*' && b[i] !== undefined));
+}
+
+test('every directory the test script runs is typechecked', () => {
+  const includes = includeDirsFromTsconfig();
+  const untyped = testDirsFromNpmScript().filter((dir) => !includes.some((include) => covers(include, dir)));
+  assert.deepEqual(untyped, [], 'run by npm test but in no tsconfig include, so a type error there passes');
+});
+
+test('the edge functions\' shared code is tested and typechecked', () => {
+  // ADR-0025: _shared/ holds every handler and withSession, kept free of Deno and the
+  // driver precisely so that Node can run its tests. Dropping the glob would leave the
+  // one place the actor is decided tested by nothing on every pull request.
+  assert.ok(testDirsFromNpmScript().includes('supabase/functions/_shared/test'));
+  assert.ok(includeDirsFromTsconfig().includes('supabase/functions/_shared'));
+});
+
+test('the coverage check reads a glob the way the shell does', () => {
+  assert.equal(covers('apps/*/test', 'apps/*/test'), true);
+  assert.equal(covers('supabase/functions/_shared', 'supabase/functions/_shared/test'), true);
+  assert.equal(covers('supabase/functions/_shared/test', 'supabase/functions/_shared'), false);
+  assert.equal(covers('supabase/functions/_deno', 'supabase/functions/_shared/test'), false);
+});

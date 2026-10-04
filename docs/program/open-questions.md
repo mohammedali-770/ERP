@@ -549,6 +549,39 @@ Phase 4.
 
 ---
 
+## Q-24 — How are sign-in attempts limited, and how long is their record kept?
+
+**Decides:** Product Owner, with IT · **Expensive after:** the first deployment of the
+sign-in function (ADR-0025)
+
+Found 2026-10-03 in the review of the edge-layer foundation. `erp.sign_in_log` records
+every attempt (IAM-008), is append-only, and refuses DELETE and TRUNCATE to every role,
+the owner included. **Nothing limits how fast anyone can add to it:**
+
+- The sign-in function needs no credential to call, as sign-in must. A script calling it
+  continuously adds one permanent row per call, including for malformed input, which
+  the database records rather than refuses. `verify_pin()` prunes its own
+  unknown-number counter after a day; nothing prunes this log, by design.
+- The five-miss lockout is per employee number, so trying many numbers is never slowed.
+  The log records each attempt but not who made it: it holds no source address or
+  device. So it cannot tie a burst of attempts to one caller, and it does not meet
+  SEC-006's "device and source" for audit records.
+
+Neither matters while nothing is deployed, which is why the foundation shipped without
+them. Both need an answer before the first deployment.
+
+Options, which combine:
+- Limit attempts per source address at the edge, before the database is called.
+- Record a source (for example, a keyed hash of the address the edge saw) and the
+  device, once device enrolment exists.
+- Partition the log by month and keep a stated number of months. Dropping a
+  partition is a reviewed, owner-approved migration, as history rewriting is.
+- Record malformed attempts as a counter rather than one row each.
+
+Related: IAM-008, SEC-006, IAM-P02, ADR-0025, ADR-0022 §2.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate
