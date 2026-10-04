@@ -2227,6 +2227,7 @@ requirements:
     adr_refs: []
     test_refs:
       - "UAT-items"
+      - "UAT-suppliers"
     estate_refs: []
   - id: "INV-006"
     module: "INV"
@@ -2596,9 +2597,10 @@ requirements:
     text_en: "Supplier records shall include commercial, tax, contact, banking, category, contract and performance information subject to access controls."
     text_ar: "يجب أن تتضمن سجلات المورد المعلومات التجارية والضريبية وبيانات التواصل والبنك والفئة والعقد والأداء وفقا لضوابط الوصول."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-suppliers"
     estate_refs: []
   - id: "PRC-006"
     module: "PRC"

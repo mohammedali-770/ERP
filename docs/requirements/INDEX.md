@@ -285,7 +285,7 @@ _5.11 Inventory and replenishment_
 | `INV-002` | F3 | P0 | Operations management | UAT-items | The system shall support raw ingredients, factory-made semi-finished items, ready-to-sell finished products, packaging, cleaning supplies, operating supplies, equipment and spare parts. |
 | `INV-003` | F3 | P0 | — | — | Inventory shall be tracked by company, brand where applicable, facility, storage location, item, unit and stock status. |
 | `INV-004` | F3 | P0 | — | — | Food and factory stock shall track batch, production date and expiry date. |
-| `INV-005` | F3 | P0 | Operations management | UAT-items | The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units. |
+| `INV-005` | F3 | P0 | Operations management | UAT-items, UAT-suppliers | The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units. |
 | `INV-006` | F3 | P0 | — | — | Stock movements shall include receipt, issue, sale consumption, production consumption, production output, transfer, return, adjustment, waste, damage and expiry. |
 | `INV-007` | F3 | P0 | — | — | Every stock movement shall record source document, user, date, quantity, unit, location, batch where applicable and approval state. |
 | `INV-008` | F3 | P0 | — | — | Negative stock shall be prevented or explicitly controlled through an exception approval policy. |
@@ -525,7 +525,7 @@ _5.13 Procurement and suppliers_
 | `PRC-002` | F3 | P0 | — | — | Purchase approvals shall use configurable rules based on amount, department, item type, facility, budget and requester role. |
 | `PRC-003` | F3 | P0 | — | — | Approval rules shall support multiple levels, delegation, substitute approvers and escalation for overdue decisions. |
 | `PRC-004` | F3 | P0 | — | — | The system shall prevent the requester from approving a transaction where segregation-of-duties rules prohibit it. |
-| `PRC-005` | F3 | P0 | — | — | Supplier records shall include commercial, tax, contact, banking, category, contract and performance information subject to access controls. |
+| `PRC-005` | F3 | P0 | Operations management | UAT-suppliers | Supplier records shall include commercial, tax, contact, banking, category, contract and performance information subject to access controls. |
 | `PRC-006` | F3 | P0 | — | — | Receiving shall support partial delivery, rejected quantities, batch and expiry capture, and evidence attachments. |
 | `PRC-007` | F4 | P0 | — | — | The system shall perform configurable two-way or three-way matching before supplier invoice approval. |
 | `PRC-008` | F4 | P1 | — | — | Supplier performance shall be measurable by price, quality, lead time, fulfilment and disputes. |

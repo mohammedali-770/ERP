@@ -27,7 +27,7 @@ cannot perform real workflows".
 
 ## The packs
 
-Arabic versions of all ten are in [`ar/`](./ar/) — see the note at the end of
+Arabic versions of all eleven are in [`ar/`](./ar/) — see the note at the end of
 this file before using them.
 
 | Pack | Who runs it | Covers |
@@ -36,6 +36,7 @@ this file before using them.
 | [`kitchen`](./kitchen.md) | Kitchen staff | Slips, barcode readiness, changes and cancellations |
 | [`menu`](./menu.md) | Head office, branch managers | Menu authoring, publication, availability snooze |
 | [`items`](./items.md) | The item master's owner, a branch worker | Items and units, sign-in, bulk upload — module 1's step 5 (ADR-0024) |
+| [`suppliers`](./suppliers.md) | The supplier list's owner, the warehouse manager | Suppliers, what they sell, contact erasure, bulk upload — module 2's step 5 (ADR-0026) |
 | [`customer-app`](./customer-app.md) | Customers, or staff acting as them | Ordering, tracking, history, notifications |
 | [`reporting`](./reporting.md) | Finance, operations | Standard reports reconciling to source |
 | [`support`](./support.md) | IT, branch managers | Runbooks, alerts, incident handling |
@@ -62,7 +63,7 @@ whether they could do it.
 
 ## Before these are used
 
-> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` added 2026-10-04.**
+> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` and `suppliers` added 2026-10-04.**
 >
 > `PRG-014` requires user-facing material in both languages. The English packs
 > here remain the source of truth — they are updated first and the Arabic
