@@ -64,13 +64,16 @@ export function asRefusal(error: unknown): Refusal | null {
 /**
  * The answer a refusal gets:
  *
- *   409 already_recorded  23505 on item_decision_pkey, RAISED by
- *                         erp.assert_item_decision_is_new(): a retry of a write that
- *                         already succeeded. The console reads the item's history to
- *                         confirm. The same constraint raised natively is a conflict, not a
- *                         retry: nothing was recorded (found in review).
+ *   409 already_recorded  23505 on a decision log's primary key — item_decision_pkey,
+ *                         supplier_decision_pkey — RAISED by that log's
+ *                         assert_*_decision_is_new(), or re-raised whole by its import:
+ *                         a retry of a write that already succeeded. The console reads the
+ *                         record's history to confirm. The same constraint raised natively
+ *                         is a conflict, not a retry: nothing was recorded (found in
+ *                         review).
  *   409 conflict          any other 23505: a code or a name already taken.
- *   409 stale             the form was loaded before someone else changed the item.
+ *   409 stale             the form was loaded before someone else changed the record
+ *                         (item_stale, supplier_stale, supplier_item_stale).
  *   403 forbidden         23001 with no constraint: erp.assert_permitted() refused — the
  *                         capability is hidden or closed, or the person may not act here.
  *                         Every other 23001 a route reachable here raises names a
@@ -93,6 +96,12 @@ const GENERIC: Readonly<Record<string, string>> = {
   already_recorded: 'this decision is already recorded',
 };
 
+/** The logs whose route-raised 23505 is a retry. A module adds its log here. */
+const DECISION_LOGS: ReadonlySet<string> = new Set(['item_decision_pkey', 'supplier_decision_pkey']);
+
+/** The stamps an edit form sends back, whose 23001 means someone changed the record since. */
+const STALE: ReadonlySet<string> = new Set(['item_stale', 'supplier_stale', 'supplier_item_stale']);
+
 export function refusalReply(r: Refusal): Reply {
   const body = (status: string) => ({
     status,
@@ -102,11 +111,12 @@ export function refusalReply(r: Refusal): Reply {
     ...(!r.raised || r.hint === null ? {} : { hint: r.hint }),
   });
   if (r.sqlstate === '23505') {
-    return { http: 409, body: body(r.raised && r.constraint === 'item_decision_pkey' ? 'already_recorded' : 'conflict') };
+    const retry = r.raised && r.constraint !== null && DECISION_LOGS.has(r.constraint);
+    return { http: 409, body: body(retry ? 'already_recorded' : 'conflict') };
   }
   if (r.sqlstate === '23001') {
     if (r.constraint === null) return { http: 403, body: body('forbidden') };
-    if (r.constraint === 'item_stale') return { http: 409, body: body('stale') };
+    if (STALE.has(r.constraint)) return { http: 409, body: body('stale') };
     return { http: 422, body: body('refused') };
   }
   if (r.sqlstate === 'P0002') return { http: 404, body: body('not_found') };

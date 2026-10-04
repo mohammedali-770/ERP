@@ -6,6 +6,7 @@ import {
 } from '../db.ts';
 import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.ts';
 import type { ItemsDb } from '../items-db.ts';
+import type { SuppliersDb } from '../suppliers-db.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 
 const TOKEN = 'ab'.repeat(32);
@@ -23,6 +24,11 @@ const itemsNotUsed: ItemsDb = new Proxy({} as ItemsDb, {
   get: (_target, name) => () => { throw new Error(`items route ${String(name)} called from a session test`); },
 });
 
+/** The suppliers routes, which these tests never reach either. */
+const suppliersNotUsed: SuppliersDb = new Proxy({} as SuppliersDb, {
+  get: (_target, name) => () => { throw new Error(`suppliers route ${String(name)} called from a session test`); },
+});
+
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
   signIn?: SignInAnswer;
@@ -32,6 +38,7 @@ function fakeDb(answers: {
   const calls: string[] = [];
   return {
     ...itemsNotUsed,
+    ...suppliersNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);

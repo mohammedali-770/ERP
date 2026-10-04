@@ -16,8 +16,9 @@ seeds/         synthetic development fixtures, listed in config.toml's
                [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
                psql meta-command like \ir is a syntax error there
 functions/     edge functions (ADR-0023, ADR-0025): sign-in, session (with the
-               console's viewer, erp.viewer() from 0015), sign-out, and items
-               (module 1's nine routes, ADR-0024's addenda).
+               console's viewer, erp.viewer() from 0015), sign-out, items
+               (module 1's nine routes, ADR-0024's addenda) and suppliers
+               (module 2's twelve, ADR-0026's addendum).
                _shared/ is plain TypeScript, tested by `npm test`; _deno/ holds
                the one file that imports the driver; deno.json and deno.lock pin it
 tests/         pgTAP suites
