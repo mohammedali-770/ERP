@@ -222,7 +222,8 @@ try {
   // edge reads back through the module's history read.
   // Checked by SQLSTATE, constraint and the server routine that raised it, which is what
   // the edge matches, not by wording.
-  // Two sessions, one decision id, for every item and supplier write route and both imports. The original commits only
+  // Two sessions, one decision id, for every item, supplier and transfer price write route
+  // and both imports. The original commits only
   // once the retry is seen waiting on a lock, so the overlap is arranged rather than
   // hoped for. Without erp.assert_item_decision_is_new()'s
   // lock, both passed its check before either committed, and the retry came back "has
@@ -274,6 +275,13 @@ try {
          'brand_id', ${id('000000000201')}, 'name_en', 'Retry probe import (synthetic)',
          'name_ar', 'استيراد فحص الإعادة (تجريبي)', 'decision_id', ${d}, 'item_id', ${id('0000000d0105')},
          'base_unit_decision_id', ${id('0000000d0106')}, 'base_item_unit_id', ${id('0000000d0107')})))`],
+    // 0018's two write routes, against its seed: the same lock, under its own log. A price
+    // for the meal box's unpriced pack of 50, from now; and the chicken carton's price set
+    // ahead from 2099, withdrawn.
+    ['set_transfer_price', (d) => `select erp.set_transfer_price(${d}, ${id('0000000d0301')}, ${id('000000004213')},
+       1200, 'SAR', null, 'db-check retry probe', ${admin}, now())`, 'transfer_price_decision_pkey'],
+    ['withdraw_transfer_price', (d) => `select erp.withdraw_transfer_price(${d}, ${id('000000005403')},
+       'db-check retry probe', ${admin}, now())`, 'transfer_price_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>

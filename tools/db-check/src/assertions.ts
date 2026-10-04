@@ -416,6 +416,28 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'transfer-price-guard-triggers-exist',
+    title: 'erp.transfer_price carries its enabled guard triggers, TRUNCATE included',
+    because:
+      'INV-017, I-7, B-11: a price\'s pack, amount and moment are fixed, a price in effect is ' +
+      'never withdrawn, a withdrawal is final, and no price is ever deleted, only because ' +
+      '0018\'s triggers say so — and they bind the owner too. A consistent seed passes with ' +
+      'the triggers gone, so their presence is checked directly, as supplier-guard-triggers-exist ' +
+      'does for 0016.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.transfer_price'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.transfer_price_is_fixed()'::regprocedure),
+                  ('erp.transfer_price'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.transfer_prices_are_never_truncated()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -681,6 +703,40 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           from pg_attribute a
           where a.attrelid = 'erp.supplier_decision'::regclass and a.attnum > 0 and not a.attisdropped
             and a.attname in ('contact_person', 'phone', 'email', 'address')`,
+  },
+  {
+    id: 'transfer-prices-match-their-decisions',
+    title: 'every transfer price equals the latest decision about it, and none was backdated',
+    because:
+      'I-8, as supplier-projections-match-their-decisions holds it for 0016: each price must ' +
+      'EQUAL its stamp, with no later decision about it, and every decision must name a real ' +
+      'price on the same pack. And the rule a branch order will rely on (I-7): no price was ' +
+      'ever set to take effect before the decision that set it, and none was withdrawn once ' +
+      'in effect — otherwise "what a carton cost on the 3rd" could change after the 3rd. The ' +
+      'routes refuse both; this holds every row, the seed\'s included, to them.',
+    sql: `select 'price ' || p.price_id as violation
+          from erp.transfer_price p
+          left join erp.transfer_price_decision d on d.decision_id = p.as_of_decision_id
+          where d.decision_id is null
+             or (d.price_id, d.item_unit_id, d.item_id, d.unit_key, d.factor, d.price_minor, d.currency,
+                 d.effective_from, d.status)
+                is distinct from
+                (p.price_id, p.item_unit_id, p.item_id, p.unit_key, p.factor, p.price_minor, p.currency,
+                 p.effective_from, p.status)
+             or exists (select 1 from erp.transfer_price_decision l where l.price_id = p.price_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names nothing'
+          from erp.transfer_price_decision d
+          where not exists (select 1 from erp.transfer_price p
+                             where p.price_id = d.price_id and p.item_unit_id = d.item_unit_id)
+          union all
+          select 'decision ' || d.decision_id || ' set a price before it was decided'
+          from erp.transfer_price_decision d
+          where d.kind = 'price_set' and d.effective_from < d.decided_at
+          union all
+          select 'decision ' || d.decision_id || ' withdrew a price already in effect'
+          from erp.transfer_price_decision d
+          where d.kind = 'price_withdrawn' and d.effective_from <= d.decided_at`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',
