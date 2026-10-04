@@ -164,8 +164,11 @@ The nine routes are reachable over HTTP through one edge function, `items`
   nothing a role there does not. Writes take none: they are gated organisation-wide. This
   settles what 0012's comment on `erp.item_facility_brand()` left to the foundation.
 - **The edge checks shape, the database checks rules.** Ids must be UUIDs, text has a
-  bounded length, a factor is a decimal of at most six places, sent as text so no binary
-  float reaches it. Every rule stays in 0012, so the two can never disagree.
+  bounded length, and a factor is a decimal of at most six places, written as text. A
+  JSON number is refused: it is already a binary float when read, so 12.3456789999999999
+  would arrive as 12.345679 and pass (found in review). Every rule stays in 0012, so the
+  two can never disagree. A form may be 8 KiB. An import may be 8 MiB, because 5,000
+  realistic rows are 2.2 MB. A body past its limit is `413 too_large`.
 - **A refusal is an answer.** Each refusal's SQLSTATE and constraint map to one answer
   (`supabase/functions/_shared/refusal.ts`):
   - `409 already_recorded` for a retry;
@@ -176,13 +179,23 @@ The nine routes are reachable over HTTP through one edge function, `items`
   - `422 invalid` for a malformed value. An import's `detail` names its failing lines;
   - `404 not_found`, including another brand's item.
 
-  The database's message reaches the person. Anything else is a 500 that says nothing.
+  A route's own message reaches the person, because the routes write them for people. A
+  refusal PostgreSQL raises itself, such as a unique index or a CHECK, keeps its status
+  and constraint name but gets a generic message and no detail. Its own words are
+  "duplicate key value violates unique constraint", with a detail that prints the whole
+  failing row (found in review). `already_recorded` is answered only when the retry
+  check raised it. Anything else is a 500 that says nothing.
+
+  A constraint-less 23001 is read as the gate's refusal, which holds for every route
+  reachable here. A future trigger that raises one without a constraint would be
+  answered 403, so it must name its constraint.
 - **The decision time is the database's** `now()`, never the console's clock.
-- **Proved end to end** by `supabase/functions/_deno/test/items.test.ts`, which CI runs
-  against the Database stack:
-  - as `erp_edge`, a cashier reads their branch's items and is refused organisation-wide;
-  - every route then runs through the router and the driver in one transaction that is
-    rolled back, which the test checks afterwards.
+- **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/items.test.ts`,
+  which CI runs against the Database stack:
+  - a cashier reads their branch's items and is refused organisation-wide;
+  - then, in one transaction on `erp_edge`'s own login that is rolled back, every route
+    runs through the router and the driver, every field is read back, and the rollback
+    is checked against what the transaction changed.
 
   It found a real defect: the driver sent an import's rows already JSON-encoded, so
   postgres.js encoded them again and every import was refused as not an array.

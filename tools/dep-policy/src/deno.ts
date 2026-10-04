@@ -173,15 +173,22 @@ export function ruleEdgeLockfile(config: DenoConfig | null, lock: DenoLock | nul
 /** Every module specifier a TypeScript source names: static imports, re-exports, dynamic imports. */
 export function specifiers(source: string): string[] {
   const found: string[] = [];
-  // Statements are anchored to the start of a line, so the word "import" inside a string
+  // Comments first, so a commented-out import is not read and a statement after a comment
+  // is. `//` preceded by `:` is a URL, not a comment.
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+  // A statement starts a line or follows `;` or `}`, so the word "import" inside a string
   // — the items function's '/import' route — is not read as one (found when that route
-  // was added). A dynamic import() can sit anywhere in an expression, so it is not.
+  // was added), and a second import on the same line still is (found in review: the first
+  // fix anchored to line start alone and missed it). A dynamic import() can sit anywhere
+  // in an expression, so it is not anchored.
   const patterns = [
-    /^[ \t]*(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]/gm,
-    /^[ \t]*import\s*['"]([^'"]+)['"]/gm,
+    /(?:^|[;}])[ \t]*(?:import|export)\b[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]/gm,
+    /(?:^|[;}])[ \t]*import\s*['"]([^'"]+)['"]/gm,
     /\bimport\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
   ];
-  for (const pattern of patterns) for (const m of source.matchAll(pattern)) found.push(m[1]!);
+  for (const pattern of patterns) for (const m of code.matchAll(pattern)) found.push(m[1]!);
   return found;
 }
 

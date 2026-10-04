@@ -8,10 +8,17 @@
  * it. Anything else — a broken connection, a missing function, a syntax error — stays an
  * error, is logged, and is answered 500 with nothing in it.
  *
- * What a refusal carries back: the database's message, written for the person reading it,
- * and its constraint name, which the console can match. The message can name ids and
- * codes the caller sent, and the capability a person may not use; it never carries a
- * credential, because no route that touches one raises with it.
+ * What a refusal carries back depends on who raised it:
+ *
+ *   RAISED BY A ROUTE (plpgsql RAISE): its message, detail and hint, written for the
+ *   person reading them, and its constraint name. They can name ids and codes the caller
+ *   sent, and the capability a person may not use; never a credential, since no route
+ *   that touches one raises with it.
+ *
+ *   RAISED BY POSTGRESQL ITSELF (a unique index, a CHECK, a NOT NULL): the constraint
+ *   name, which the console can match, and a generic message. PostgreSQL's own words are
+ *   not for people — "duplicate key value violates unique constraint", and a detail that
+ *   prints the whole failing row, stamps and sequence numbers included (found in review).
  */
 import type { Reply } from './http.ts';
 
@@ -23,14 +30,18 @@ export class Refusal extends Error {
   readonly constraint: string | null;
   readonly detail: string | null;
   readonly hint: string | null;
+  /** True when a route raised it with RAISE; false when PostgreSQL raised it itself. */
+  readonly raised: boolean;
 
-  constructor(sqlstate: string, message: string, constraint: string | null, detail: string | null, hint: string | null) {
+  constructor(sqlstate: string, message: string, constraint: string | null, detail: string | null, hint: string | null,
+              raised = true) {
     super(message);
     this.name = 'Refusal';
     this.sqlstate = sqlstate;
     this.constraint = constraint;
     this.detail = detail;
     this.hint = hint;
+    this.raised = raised;
   }
 }
 
@@ -40,21 +51,31 @@ export class Refusal extends Error {
  */
 export function asRefusal(error: unknown): Refusal | null {
   if (!(error instanceof Error)) return null;
-  const e = error as Error & { code?: unknown; constraint_name?: unknown; detail?: unknown; hint?: unknown };
+  const e = error as Error & {
+    code?: unknown; constraint_name?: unknown; detail?: unknown; hint?: unknown; routine?: unknown;
+  };
   if (typeof e.code !== 'string' || !REFUSAL.test(e.code)) return null;
   const text = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : null);
-  return new Refusal(e.code, e.message, text(e.constraint_name), text(e.detail), text(e.hint));
+  // exec_stmt_raise is the server routine behind plpgsql's RAISE: a route's own words.
+  return new Refusal(e.code, e.message, text(e.constraint_name), text(e.detail), text(e.hint),
+    e.routine === 'exec_stmt_raise');
 }
 
 /**
  * The answer a refusal gets:
  *
- *   409 already_recorded  23505 on item_decision_pkey: a retry of a write that already
- *                         succeeded. The console reads the item's history to confirm.
+ *   409 already_recorded  23505 on item_decision_pkey, RAISED by
+ *                         erp.assert_item_decision_is_new(): a retry of a write that
+ *                         already succeeded. The console reads the item's history to
+ *                         confirm. The same constraint raised natively is a conflict, not a
+ *                         retry: nothing was recorded (found in review).
  *   409 conflict          any other 23505: a code or a name already taken.
  *   409 stale             the form was loaded before someone else changed the item.
  *   403 forbidden         23001 with no constraint: erp.assert_permitted() refused — the
  *                         capability is hidden or closed, or the person may not act here.
+ *                         Every other 23001 a route reachable here raises names a
+ *                         constraint. A future trigger raising restrict_violation without
+ *                         one would be answered 403 too: name the constraint.
  *   422 refused           23001 naming a rule: the request breaks one (a retired item, a
  *                         fixed base unit, a final retirement).
  *   422 invalid           22xxx, 23502, 23503, 23514: the request is malformed or names
@@ -62,16 +83,26 @@ export function asRefusal(error: unknown): Refusal | null {
  *   404 not_found         P0002: no such item, conversion or facility — or one of another
  *                         brand, which the routes answer exactly as a missing one.
  */
+const GENERIC: Readonly<Record<string, string>> = {
+  conflict: 'a value that must be unique is already in use',
+  invalid: 'a value breaks a rule of the record',
+  refused: 'the request breaks a rule of the record',
+  not_found: 'no such record',
+  forbidden: 'not permitted',
+  stale: 'the record has changed since it was read',
+  already_recorded: 'this decision is already recorded',
+};
+
 export function refusalReply(r: Refusal): Reply {
   const body = (status: string) => ({
     status,
-    message: r.message,
+    message: r.raised ? r.message : GENERIC[status]!,
     ...(r.constraint === null ? {} : { constraint: r.constraint }),
-    ...(r.detail === null ? {} : { detail: r.detail }),
-    ...(r.hint === null ? {} : { hint: r.hint }),
+    ...(!r.raised || r.detail === null ? {} : { detail: r.detail }),
+    ...(!r.raised || r.hint === null ? {} : { hint: r.hint }),
   });
   if (r.sqlstate === '23505') {
-    return { http: 409, body: body(r.constraint === 'item_decision_pkey' ? 'already_recorded' : 'conflict') };
+    return { http: 409, body: body(r.raised && r.constraint === 'item_decision_pkey' ? 'already_recorded' : 'conflict') };
   }
   if (r.sqlstate === '23001') {
     if (r.constraint === null) return { http: 403, body: body('forbidden') };

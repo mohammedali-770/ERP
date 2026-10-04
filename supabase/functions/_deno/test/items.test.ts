@@ -15,12 +15,14 @@
  *      come through the role the functions use: a read that works, and a refusal from the
  *      gate rather than a permission error from a missing grant.
  *
- *   2. EVERY ROUTE, in one transaction that is ROLLED BACK. Writes need the
- *      administrator, who has no PIN in the seed, so the owner sets one and signs them in
- *      inside the transaction. Each request then goes through the router and the driver
- *      exactly as in production, each in its own savepoint, and the rollback leaves the
- *      local database as it found it, which the test then checks. The owner's connection
- *      is not erp_edge's; part 1 is what proves erp_edge's privileges.
+ *   2. EVERY ROUTE, AS ERP_EDGE, in one transaction on its own login that is ROLLED BACK.
+ *      Writes need the administrator, who has no PIN in the seed, so the transaction sets
+ *      one through erp.set_pin() — which erp_edge may call, as erp_app, because the
+ *      routes trust the actor they are given; that is exactly the gap withSession closes
+ *      for requests — and signs them in. Each request then goes through the router and
+ *      the driver as in production, each in its own savepoint, so erp_edge's privilege on
+ *      every route is exercised. The rollback leaves the local database as it found it,
+ *      which the test then checks against things the transaction did change.
  *
  * LOCAL ONLY, as sessions.test.ts: it refuses any database not on this machine.
  */
@@ -54,14 +56,24 @@ const call = (token: string, method: string, path: string, body?: unknown) =>
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
-Deno.test('as erp_edge, a cashier reads their branch\'s items and is refused organisation-wide', async () => {
-  const owner = postgres(adminUrl, { max: 1, onnotice: () => {} });
+/** erp_edge's connection string, with a password set for the run and cleared after it. */
+async function asErpEdge<T>(run: (url: string) => Promise<T>): Promise<T> {
+  const owner = postgres(adminUrl!, { max: 1, onnotice: () => {} });
   const password = crypto.randomUUID();
   await owner.unsafe(`alter role erp_edge password '${password}'`);
-  const edgeUrl = new URL(adminUrl);
+  const edgeUrl = new URL(adminUrl!);
   edgeUrl.username = 'erp_edge';
   edgeUrl.password = password;
-  const db = connect(edgeUrl.toString());
+  try {
+    return await run(edgeUrl.toString());
+  } finally {
+    await owner.unsafe('alter role erp_edge password null');
+    await owner.end();
+  }
+}
+
+Deno.test('as erp_edge, a cashier reads their branch\'s items and is refused organisation-wide', () => asErpEdge(async (url) => {
+  const db = connect(url);
   try {
     const signedIn = await db.signIn('1001', '100001');
     assert(signedIn.status === 'ok', 'the seeded cashier signs in');
@@ -79,20 +91,17 @@ Deno.test('as erp_edge, a cashier reads their branch\'s items and is refused org
     assert(/may not read on capability inventory\.items/.test(body.message), `the gate's own words: ${body.message}`);
   } finally {
     await db.end();
-    await owner.unsafe('alter role erp_edge password null');
-    await owner.end();
   }
-});
+}));
 
 class Rollback extends Error {}
 
-Deno.test('every items route, through the router and the driver, rolled back', async (t) => {
-  const owner = postgres(adminUrl, { max: 1, onnotice: () => {} });
+Deno.test('every items route, as erp_edge, through the router and the driver, rolled back', (t) => asErpEdge(async (url) => {
+  const edge = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
   const suffix = crypto.randomUUID().slice(0, 8).toUpperCase();
   const id = () => crypto.randomUUID();
-  const [before] = await owner`select erp.capability_state_for('inventory.items', null) as state`;
   try {
-    await owner.begin(async (tx) => {
+    await edge.begin(async (tx) => {
       await tx`select erp.set_pin(${id()}::uuid, ${ADMIN}::uuid, '100900', 'Integration test.', ${ADMIN}::uuid, now())`;
       const db = makeDb(tx);
       const deps = { db, allowedOrigins: new Set<string>() };
@@ -127,7 +136,9 @@ Deno.test('every items route, through the router and the driver, rolled back', a
         const r = await send('POST', '', {
           decision_id: created, item_id: item, base_unit_decision_id: id(), base_item_unit_id: id(),
           brand_id: BRAND, code, item_kind: 'packaging', base_unit_key: 'piece',
-          name_en: `Integration lid ${suffix}`, name_ar: `غطاء ${suffix}`, reason: 'Integration test.',
+          name_en: `Integration lid ${suffix}`, name_ar: `غطاء ${suffix}`,
+          description_en: `Fits the large box ${suffix}`, description_ar: `يناسب العلبة الكبيرة ${suffix}`,
+          reason: 'Integration test.',
         });
         equal(r, { http: 200, body: { status: 'ok', decision_id: created } }, 'create');
       });
@@ -139,8 +150,10 @@ Deno.test('every items route, through the router and the driver, rolled back', a
         equal(r.body.item.code, code.toUpperCase(), 'the code is canonical');
         // Every field read back where it was written: a driver that swapped two
         // parameters of the same type would otherwise pass.
-        equal([r.body.item.name_en, r.body.item.name_ar, r.body.item.item_kind, r.body.item.base_unit_key, r.body.item.brand_id],
-          [`Integration lid ${suffix}`, `غطاء ${suffix}`, 'packaging', 'piece', BRAND], 'the fields');
+        const it = r.body.item;
+        equal([it.name_en, it.name_ar, it.description_en, it.description_ar, it.item_kind, it.base_unit_key, it.brand_id],
+          [`Integration lid ${suffix}`, `غطاء ${suffix}`, `Fits the large box ${suffix}`, `يناسب العلبة الكبيرة ${suffix}`,
+           'packaging', 'piece', BRAND], 'the fields');
         equal(r.body.item.units.map((u: { unit_key: string }) => u.unit_key), ['piece'], 'the base conversion');
         stamp = r.body.item.as_of_decision_id;
         equal(stamp, created, 'the stamp is the decision that created it');
@@ -150,6 +163,17 @@ Deno.test('every items route, through the router and the driver, rolled back', a
         const r = await send('GET', `?search=${encodeURIComponent(code)}&status=all`);
         equal(r.http, 200, 'status');
         equal(r.body.items.map((i: { item_id: string }) => i.item_id), [item], 'found');
+      });
+
+      await t.step('a name already in use is a conflict, in the edge\'s words, not PostgreSQL\'s', async () => {
+        const r = await send('POST', '', {
+          decision_id: id(), item_id: id(), base_unit_decision_id: id(), base_item_unit_id: id(),
+          brand_id: BRAND, code: `${code}-dup`, item_kind: 'packaging', base_unit_key: 'piece',
+          name_en: `Integration lid ${suffix}`, name_ar: `غطاء آخر ${suffix}`, reason: 'Duplicate name.',
+        });
+        equal(r.http, 409, 'status');
+        equal(r.body, { status: 'conflict', message: 'a value that must be unique is already in use',
+                        constraint: 'ux_item_active_name_en' }, 'answer');
       });
 
       await t.step('a retry of the create is answered as a retry', async () => {
@@ -167,8 +191,12 @@ Deno.test('every items route, through the router and the driver, rolled back', a
         const r = await send('POST', `/${item}/amend`, {
           decision_id: amended, expected_decision_id: stamp,
           name_en: `Integration lid, large ${suffix}`, name_ar: `غطاء كبير ${suffix}`, reason: 'Renamed.',
+          description_en: null, description_ar: null,
         });
         equal(r, { http: 200, body: { status: 'ok', decision_id: amended } }, 'amend');
+        const after = (await send('GET', `/${item}`)).body.item;
+        equal([after.name_en, after.name_ar, after.description_en, after.description_ar],
+          [`Integration lid, large ${suffix}`, `غطاء كبير ${suffix}`, null, null], 'the amended fields');
         const stale = await send('POST', `/${item}/amend`, {
           decision_id: id(), expected_decision_id: stamp,
           name_en: `Lost update ${suffix}`, name_ar: `تحديث ضائع ${suffix}`, reason: 'Stale form.',
@@ -232,14 +260,18 @@ Deno.test('every items route, through the router and the driver, rolled back', a
     });
   } catch (error) {
     if (!(error instanceof Rollback)) throw error;
+  } finally {
+    await edge.end();
   }
+  // The rollback is checked, not assumed, against what the transaction did change: items
+  // it created, and the PIN it gave the administrator, who has none in the seed.
+  const owner = postgres(adminUrl!, { max: 1, onnotice: () => {} });
   try {
-    // The rollback is checked, not assumed: nothing the test made outlives it.
     const [left] = await owner`select
         (select count(*)::int from erp.item where code like ${'ZZ-%-' + suffix + '%'}) as items,
-        erp.capability_state_for('inventory.items', null) as state`;
-    equal([left?.['items'], left?.['state']], [0, before?.['state']], 'after the rollback');
+        (select count(*)::int from erp.person_credential where person_id = ${ADMIN}::uuid) as admin_pins`;
+    equal([left?.['items'], left?.['admin_pins']], [0, 0], 'after the rollback');
   } finally {
     await owner.end();
   }
-});
+}));

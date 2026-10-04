@@ -99,6 +99,15 @@ test('the word import inside a string is not an import', () => {
   assert.deepEqual(specifiers(source).sort(), ['./a.ts', './items.ts']);
 });
 
+test('an import is seen wherever a statement can start, and not in a comment', () => {
+  assert.deepEqual(specifiers("import { a } from './a.ts'; import postgres from 'postgres';").sort(), ['./a.ts', 'postgres']);
+  assert.deepEqual(specifiers("/* x */ import postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("import './a.ts'; import 'npm:postgres';").sort(), ['./a.ts', 'npm:postgres']);
+  assert.deepEqual(specifiers("if (x) { y(); } import z from 'zod';"), ['zod']);
+  assert.deepEqual(specifiers("// import postgres from 'postgres';\nconst u = 'https://x.test/a';"), []);
+  assert.deepEqual(specifiers("/* import postgres from 'postgres'; */"), []);
+});
+
 test('the committed layout passes', () => {
   assert.deepEqual(ruleEdgeImports([
     { path: 'supabase/functions/_deno/db.ts', source: "import postgres from 'postgres';\nimport { asSignInAnswer } from '../_shared/db.ts';" },

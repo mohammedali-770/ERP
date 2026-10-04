@@ -16,7 +16,7 @@
  * any body or query is read as an actor.
  *
  * What is checked here is SHAPE only: ids are UUIDs, text is text of a bounded length, a
- * factor is a decimal. Every rule — who may act, whether the capability is open, codes,
+ * factor is a decimal written as text. Every rule — who may act, whether the capability is open, codes,
  * names, conversions, staleness — is the database's, and its refusal comes back through
  * ./refusal.ts. Checking a rule twice would let the two copies disagree.
  *
@@ -28,7 +28,7 @@
  * THE DECISION IDS are minted by the console (I-1). A retried write is answered
  * 409 already_recorded, and the console confirms it through the item's history.
  */
-import { endpoint, readJsonObject, type Handler, type Reply } from './http.ts';
+import { endpoint, readJsonBody, type Handler, type Reply } from './http.ts';
 import { withSession, type Session } from './handlers.ts';
 import type { Deps } from './http.ts';
 
@@ -36,9 +36,21 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Up to six decimal places, as erp.item_unit.factor holds. */
 const DECIMAL = /^\d{1,12}(\.\d{1,6})?$/;
 
-/** A write's body is a form; an import's is a file of up to 5000 rows (0012). */
+/**
+ * A write's body is a form; an import's is a file of up to 5000 rows (0012). A realistic
+ * row is about 450 bytes, so 5000 of them are 2.2 MB, past the 2 MiB first chosen (found
+ * in review); 8 MiB leaves room for descriptions.
+ */
 const FORM_LIMIT = 8 * 1024;
-const IMPORT_LIMIT = 2 * 1024 * 1024;
+const IMPORT_LIMIT = 8 * 1024 * 1024;
+
+class TooLarge extends Error {
+  readonly limit: number;
+  constructor(limit: number) {
+    super('too large');
+    this.limit = limit;
+  }
+}
 
 class Malformed extends Error {
   readonly field: string;
@@ -74,12 +86,16 @@ function optionalText(source: Source, field: string, max: number): string | null
   return text(source, field, max);
 }
 
+/**
+ * Text only. A JSON number is already a binary float by the time it is read, so
+ * 12.3456789999999999 would arrive as 12.345679 and pass, the silent rounding
+ * item_unit_factor_is_exact exists to refuse (found in review).
+ */
 function factor(source: Source): string | null {
   const v = source['factor'];
   if (v === undefined || v === null) return null;
-  const s = typeof v === 'number' && Number.isFinite(v) ? String(v) : v;
-  if (typeof s !== 'string' || !DECIMAL.test(s)) throw new Malformed('factor');
-  return s;
+  if (typeof v !== 'string' || !DECIMAL.test(v)) throw new Malformed('factor');
+  return v;
 }
 
 function status(source: Source): 'active' | 'retired' {
@@ -89,9 +105,10 @@ function status(source: Source): 'active' | 'retired' {
 }
 
 async function form(request: Request, limit = FORM_LIMIT): Promise<Source> {
-  const body = await readJsonObject(request, limit);
-  if (body === null) throw new Malformed('body');
-  return body;
+  const body = await readJsonBody(request, limit);
+  if (body.kind === 'too_large') throw new TooLarge(limit);
+  if (body.kind === 'malformed') throw new Malformed('body');
+  return body.value;
 }
 
 const ok = (body: Record<string, unknown> = {}): Reply => ({ http: 200, body: { status: 'ok', ...body } });
@@ -142,10 +159,14 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
   if (path.length === 0) {
     const b = await form(request);
     const decisionId = uuid(b, 'decision_id');
+    // Two decisions are recorded, under two ids. The same id twice would fail on the
+    // second insert with a 23505 that reads like a retry, though nothing was recorded.
+    const baseUnitDecisionId = uuid(b, 'base_unit_decision_id');
+    if (baseUnitDecisionId.toLowerCase() === decisionId.toLowerCase()) throw new Malformed('base_unit_decision_id');
     await deps.db.createItem(actor, {
       decisionId,
       itemId: uuid(b, 'item_id'),
-      baseUnitDecisionId: uuid(b, 'base_unit_decision_id'),
+      baseUnitDecisionId,
       baseItemUnitId: uuid(b, 'base_item_unit_id'),
       brandId: uuid(b, 'brand_id'),
       code: text(b, 'code', 64),
@@ -231,6 +252,7 @@ const handler: Handler = withSession(async (request, s, deps) => {
     return await dispatch(request, s, deps);
   } catch (error) {
     if (error instanceof Malformed) return { http: 400, body: { status: 'malformed', field: error.field } };
+    if (error instanceof TooLarge) return { http: 413, body: { status: 'too_large', limit: error.limit } };
     throw error;
   }
 });

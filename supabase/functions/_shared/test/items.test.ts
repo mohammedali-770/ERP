@@ -134,7 +134,7 @@ test('each route calls its database route with the request\'s fields', async () 
   }]);
 
   const db2 = fakeDb(ADMIN);
-  await items(post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: 12, reason: 'r' }), deps(db2));
+  await items(post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: '12', reason: 'r' }), deps(db2));
   assert.deepEqual(db2.calls[0]!.args, [{ decisionId: D1, itemUnitId: UNIT, itemId: ITEM, unitKey: 'carton', factor: '12', reason: 'r' }]);
 
   const db3 = fakeDb(ADMIN);
@@ -201,12 +201,16 @@ test('a malformed field is a 400 naming it, and nothing reaches the database', a
     [post(`/${ITEM}/status`, { decision_id: D1, expected_decision_id: D2, status: 'deleted', reason: 'r' }), 'status'],
     [post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: '1e3', reason: 'r' }), 'factor'],
     [post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: '0.1234567', reason: 'r' }), 'factor'],
-    [post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: -2, reason: 'r' }), 'factor'],
+    [post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: '-2', reason: 'r' }), 'factor'],
+    // A number is a binary float before it is read: 12.3456789999999999 would arrive as
+    // 12.345679 and pass. Only text keeps every digit the person typed.
+    [post(`/${ITEM}/units`, '{"decision_id":"' + D1 + '","item_unit_id":"' + UNIT + '","unit_key":"carton","factor":12.3456789999999999,"reason":"r"}'), 'factor'],
+    [post(`/${ITEM}/units`, { decision_id: D1, item_unit_id: UNIT, unit_key: 'carton', factor: 12, reason: 'r' }), 'factor'],
+    [post('', { ...CREATE, base_unit_decision_id: D1 }), 'base_unit_decision_id'],
     [post('/import', { reason: 'r', rows: [] }), 'rows'],
     [post('/import', { reason: 'r', rows: 'a,b' }), 'rows'],
     [post('/import', { reason: 'r', rows: [1, 2] }), 'rows'],
     [post('', 'not json'), 'body'],
-    [post('', { ...CREATE, description_en: 'x'.repeat(9000) }), 'body'],
   ];
   for (const [request, field] of cases) {
     const db = fakeDb(ADMIN);
@@ -217,13 +221,31 @@ test('a malformed field is a 400 naming it, and nothing reaches the database', a
   }
 });
 
-test('an import may carry a file far larger than a form', async () => {
-  const rows = Array.from({ length: 2000 }, (_, n) => ({ code: `ITEM-${n}`, name_en: 'Item', name_ar: 'صنف' }));
+test('an import of the full 5000 rows, each as large as a real one, fits', async () => {
+  // Five ids, a code, a kind, a unit and bilingual names: about 450 bytes a row, 2.2 MB in
+  // all, which the first limit of 2 MiB refused (found in review).
+  const rows = Array.from({ length: 5000 }, (_, n) => ({
+    line: String(n + 1), decision_id: D1, item_id: ITEM, base_unit_decision_id: D2, base_item_unit_id: UNIT,
+    brand_id: BRAND, code: `B1-RAW-INGREDIENT-${String(n).padStart(5, '0')}`, item_kind: 'raw_ingredient',
+    base_unit_key: 'kg', name_en: `Imported raw ingredient number ${n}`, name_ar: `مادة خام مستوردة رقم ${n}`,
+  }));
+  assert.ok(JSON.stringify({ reason: 'r', rows }).length > 2 * 1024 * 1024, 'the file is past the old limit');
   const db = fakeDb(ADMIN);
   const response = await items(post('/import', { reason: 'Opening catalogue.', rows }), deps(db));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: 'ok', created: 1, amended: 0, unchanged: 0 });
-  assert.equal((db.calls[0]!.args[1] as unknown[]).length, 2000);
+  assert.equal((db.calls[0]!.args[1] as unknown[]).length, 5000);
+});
+
+test('a body past its limit is 413 too_large, not malformed', async () => {
+  const db = fakeDb(ADMIN);
+  const form = await items(post('', { ...CREATE, description_en: 'x'.repeat(9000) }), deps(db));
+  assert.equal(form.status, 413);
+  assert.deepEqual(await form.json(), { status: 'too_large', limit: 8 * 1024 });
+  const huge = 'x'.repeat(8 * 1024 * 1024);
+  const file = await items(post('/import', { reason: 'r', rows: [{ code: huge }] }), deps(db));
+  assert.equal(file.status, 413);
+  assert.deepEqual(db.calls, []);
 });
 
 // --- refusals ------------------------------------------------------------------
@@ -251,6 +273,35 @@ test('each kind of refusal is answered as the person can act on it', async () =>
   }
 });
 
+test('PostgreSQL\'s own words never reach the person; the constraint does', async () => {
+  // A unique index, not a route's RAISE: its message is PostgreSQL's and its detail
+  // prints the failing row.
+  const native = new Refusal('23505', 'duplicate key value violates unique constraint "ux_item_active_name_en"',
+    'ux_item_active_name_en', 'Key (brand_id, lower(name_en))=(…, rice) already exists.', null, false);
+  const db = fakeDb(ADMIN, { createItem: async () => { throw native; } });
+  const response = await items(post('', CREATE), deps(db));
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    status: 'conflict', message: 'a value that must be unique is already in use', constraint: 'ux_item_active_name_en',
+  });
+
+  const row = new Refusal('23514', 'new row for relation "item" violates check constraint "item_description_is_bilingual"',
+    'item_description_is_bilingual', 'Failing row contains (…, 2026-10-04 …).', null, false);
+  const r2 = await items(post('', CREATE), deps(fakeDb(ADMIN, { createItem: async () => { throw row; } })));
+  const b2 = await json(r2);
+  assert.equal(b2['detail'], undefined, 'a failing row is never printed');
+  assert.equal(b2['constraint'], 'item_description_is_bilingual');
+});
+
+test('CONTROL: only a route\'s own retry check is answered as a retry', async () => {
+  // The base unit's decision inserted under an id already used fails natively on the same
+  // constraint, and nothing was recorded: that is a conflict, not a retry.
+  const native = new Refusal('23505', 'duplicate key value violates unique constraint "item_decision_pkey"',
+    'item_decision_pkey', null, null, false);
+  const response = await items(post('', CREATE), deps(fakeDb(ADMIN, { createItem: async () => { throw native; } })));
+  assert.equal((await json(response))['status'], 'conflict');
+});
+
 test('a failure that is not a refusal is a 500 that says nothing', async () => {
   const db = fakeDb(ADMIN, { createItem: async () => { throw new Error('function erp.create_item(...) does not exist'); } });
   const original = console.error;
@@ -266,8 +317,10 @@ test('a failure that is not a refusal is a 500 that says nothing', async () => {
 
 test('only the refusal classes become refusals', () => {
   const pg = (code: string, extra: Record<string, unknown> = {}) => Object.assign(new Error(`pg ${code}`), { code, ...extra });
-  const r = asRefusal(pg('23505', { constraint_name: 'item_code_key', detail: 'd', hint: '' }));
+  const r = asRefusal(pg('23505', { constraint_name: 'item_code_key', detail: 'd', hint: '', routine: 'exec_stmt_raise' }));
   assert.ok(r instanceof Refusal);
+  assert.equal(r.raised, true, 'raised by a route');
+  assert.equal(asRefusal(pg('23505', { routine: '_bt_check_unique' }))?.raised, false, 'raised by PostgreSQL');
   assert.equal(r.constraint, 'item_code_key');
   assert.equal(r.detail, 'd');
   assert.equal(r.hint, null, 'an empty hint is no hint');
