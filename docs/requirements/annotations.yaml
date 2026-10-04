@@ -1113,3 +1113,17 @@ CC-010:
     - ADR-0016
   estate_refs:
     - docs/estate/inventory.md#the-pbx
+
+# Module 1, items and units (ADR-0024). The pack is the module's step 5: staff
+# acceptance before the capability is switched on.
+INV-002:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-items
+
+INV-005:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-items

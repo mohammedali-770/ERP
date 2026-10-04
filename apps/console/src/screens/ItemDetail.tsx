@@ -211,6 +211,7 @@ function AddUnit({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done }) 
   return (
     <form className="inline-form" onSubmit={submit}>
       <h3>{t(lang, 'add_unit')}</h3>
+      <p className="muted">{t(lang, 'add_unit_hint')}</p>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void submit()} onStartOver={() => void startOver()} /> : null}
       <fieldset className="plain" disabled={inDoubt}>
