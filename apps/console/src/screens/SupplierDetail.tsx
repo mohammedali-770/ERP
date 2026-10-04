@@ -188,15 +188,26 @@ async function seeWhatIsSaved(ctx: Ctx, supplierId: string): Promise<boolean> {
   return false;
 }
 
-/** One form's write lifecycle: send, an unanswered attempt locks the form, Start over looks first. */
+/**
+ * One form's write lifecycle. The request is built ONCE, when the person presses the
+ * button, and Retry resends exactly that request: same ids, same body, same stamp. A
+ * reload of the page meanwhile — another form on it saving — must not change what a
+ * retry sends: a retired-then-reloaded supplier turned a retried "retire" into a
+ * "reinstate", and a retried supply change carried the new stamp past the stale check
+ * (found in review). Start over looks at what is saved first.
+ */
+type Send = () => Promise<Parameters<typeof writeOutcome>[0]>;
+
 function useWrite(ctx: Ctx, supplierId: string, onDone: Done, after: () => void) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [inDoubt, setInDoubt] = useState(false);
-  async function run(write: () => Promise<Parameters<typeof writeOutcome>[0]>) {
+  const pending = useRef<Send | null>(null);
+  async function run(send: Send) {
+    pending.current = send;
     setBusy(true);
     setFailure(null);
-    const answer = await write();
+    const answer = await send();
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'failed') {
@@ -204,19 +215,25 @@ function useWrite(ctx: Ctx, supplierId: string, onDone: Done, after: () => void)
       else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
       return;
     }
+    pending.current = null;
     after();
     onDone(outcome);
+  }
+  /** The same request again: never rebuilt from what the page shows now. */
+  function retry() {
+    if (pending.current !== null) void run(pending.current);
   }
   async function startOver() {
     setBusy(true);
     const seen = await seeWhatIsSaved(ctx, supplierId);
     setBusy(false);
     if (!seen) return;
+    pending.current = null;
     setInDoubt(false);
     after();
     onDone('checked');
   }
-  return { busy, failure, inDoubt, run, startOver };
+  return { busy, failure, inDoubt, run, retry, startOver };
 }
 
 function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
@@ -235,28 +252,45 @@ function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
     setReason('');
   });
 
+  /**
+   * Every opening starts from the supply as the page shows it NOW. Keeping what an
+   * earlier opening left — an unticked box, a code from before someone else's change —
+   * sent changes the person never made on the next Save (found in review).
+   */
+  function openAs(mode: 'amend' | 'retire') {
+    setCode(supply.supplier_code ?? '');
+    setPreferred(supply.preferred);
+    setReason('');
+    setOpen(mode);
+  }
+
   function submit(e?: FormEvent) {
     e?.preventDefault();
-    void w.run(() => open === 'retire'
-      ? api.retireSupply(supply.supplier_item_id, { decision_id: ids.decision_id, reason: reason.trim() })
-      // A retired supplier may only give up the slot: its own code is sent unchanged.
-      : api.amendSupply(supply.supplier_item_id, amendSupplyBody(supply, ids.decision_id, {
-        supplierCode: change === 'unprefer' ? supply.supplier_code ?? '' : code, preferred, reason,
-      })));
+    const id = supply.supplier_item_id;
+    if (open === 'retire') {
+      const body = { decision_id: ids.decision_id, reason: reason.trim() };
+      void w.run(() => api.retireSupply(id, body));
+      return;
+    }
+    // A retired supplier may only give up the slot: its own code is sent unchanged.
+    const body = amendSupplyBody(supply, ids.decision_id, {
+      supplierCode: change === 'unprefer' ? supply.supplier_code ?? '' : code, preferred, reason,
+    });
+    void w.run(() => api.amendSupply(id, body));
   }
 
   if (open === null) {
     return (
       <span className="actions">
-        {change !== 'none' ? <button type="button" className="small" onClick={() => setOpen('amend')}>{t(lang, 'amend_supply')}</button> : null}
-        <button type="button" className="small danger" onClick={() => setOpen('retire')}>{t(lang, 'retire_supply')}</button>
+        {change !== 'none' ? <button type="button" className="small" onClick={() => openAs('amend')}>{t(lang, 'amend_supply')}</button> : null}
+        <button type="button" className="small danger" onClick={() => openAs('retire')}>{t(lang, 'retire_supply')}</button>
       </span>
     );
   }
   return (
     <form className="inline-form compact" onSubmit={submit}>
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
-      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={() => submit()} onStartOver={() => void w.startOver()} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
       <fieldset className="plain" disabled={w.inDoubt}>
       {open === 'amend' ? (
         <>
@@ -269,7 +303,7 @@ function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
           ) : null}
           <label className="check">
             <input type="checkbox" checked={preferred}
-              disabled={(change === 'unprefer' || change === 'no_prefer') && !preferred}
+              disabled={(change === 'unprefer' || change === 'no_prefer') && !supply.preferred}
               onChange={(e) => setPreferred(e.target.checked)} />
             {t(lang, 'preferred')}
           </label>
@@ -337,9 +371,9 @@ function AddSupply({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDo
 
   function submit(e?: FormEvent) {
     e?.preventDefault();
-    void w.run(() => api.addSupply(supplier.supplier_id, {
-      ...ids, item_unit_id: unitId, supplier_code: optional(code), preferred, reason: reason.trim(),
-    }));
+    const id = supplier.supplier_id;
+    const body = { ...ids, item_unit_id: unitId, supplier_code: optional(code), preferred, reason: reason.trim() };
+    void w.run(() => api.addSupply(id, body));
   }
 
   const packs = item === null ? [] : suppliablePacks(item.units, supplier.supplies);
@@ -356,7 +390,7 @@ function AddSupply({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDo
       {found !== null && found.length > 0 ? (
         <form onSubmit={submit}>
           {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
-          {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={() => submit()} onStartOver={() => void w.startOver()} /> : null}
+          {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
           <fieldset className="plain" disabled={w.inDoubt}>
           <Field label={t(lang, 'choose_item')}>
             <select required value={item?.item_id ?? ''} onChange={(e) => void choose(e.target.value)}>
@@ -400,8 +434,12 @@ function AddSupply({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDo
 
 function StatusChange({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDone: Done }) {
   const { api, lang } = ctx;
-  const target = supplier.status === 'active' ? 'retired' : 'active';
-  const [open, setOpen] = useState(false);
+  // Fixed when the form opens: a reload while it is open (another form saving) must not
+  // turn a "retire" into a "reinstate" under the person's hand.
+  const [opened, setOpened] = useState<'retired' | 'active' | null>(null);
+  const target = opened ?? (supplier.status === 'active' ? 'retired' : 'active');
+  const open = opened !== null;
+  const setOpen = (v: boolean) => setOpened(v ? (supplier.status === 'active' ? 'retired' : 'active') : null);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
   const w = useWrite(ctx, supplier.supplier_id, onDone, () => {
@@ -412,9 +450,9 @@ function StatusChange({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; o
 
   function submit(e?: FormEvent) {
     e?.preventDefault();
-    void w.run(() => api.changeSupplierStatus(supplier.supplier_id, {
-      ...ids, expected_decision_id: supplier.as_of_decision_id, status: target, reason: reason.trim(),
-    }));
+    const id = supplier.supplier_id;
+    const body = { ...ids, expected_decision_id: supplier.as_of_decision_id, status: target, reason: reason.trim() };
+    void w.run(() => api.changeSupplierStatus(id, body));
   }
 
   const verb = target === 'retired' ? t(lang, 'retire_supplier') : t(lang, 'reinstate_supplier');
@@ -430,7 +468,7 @@ function StatusChange({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; o
       <h3>{verb}</h3>
       {target === 'retired' ? <p className="muted">{t(lang, 'retire_supplier_hint')}</p> : null}
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
-      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={() => submit()} onStartOver={() => void w.startOver()} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
       <fieldset className="plain" disabled={w.inDoubt}>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
       <button type="submit" className={target === 'retired' ? 'danger' : 'primary'} disabled={w.busy}>

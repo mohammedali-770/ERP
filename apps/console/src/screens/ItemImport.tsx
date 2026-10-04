@@ -27,6 +27,8 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
   const [already, setAlready] = useState(false);
   /** An earlier attempt at these rows went unanswered, and may have saved them. */
   const [doubted, setDoubted] = useState(false);
+  /** The last attempt got no answer: until one comes, only Upload (the same rows) is offered. */
+  const [unanswered, setUnanswered] = useState(false);
   // Each file chosen takes a number, and only the newest may set the rows. Reading is
   // asynchronous: choosing A then B, with A finishing last, left A's rows under B's name,
   // and Upload imported the file not shown (found by Codex on PR #33).
@@ -70,6 +72,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setFailure(null);
     // The same rows, with the same ids, on every attempt: a lost answer is safe to retry.
     const answer = await api.importItems(reason.trim(), rows);
+    setUnanswered(isUnanswered(answer));
     setBusy(false);
     if (answer.ok) {
       setDone(answer.value);
@@ -106,7 +109,10 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       <form className="form" onSubmit={submit}>
         <Field label={t(lang, 'import_choose')}>
-          <input type="file" accept=".csv,text/csv" onChange={(e) => void choose(e)} />
+          {/* Not while an upload is unanswered: a new choice mints new ids, and the same
+              file chosen again would collide with the first sending on its codes and be
+              refused "nothing was saved" though the first saved it (found in review). */}
+          <input type="file" accept=".csv,text/csv" disabled={busy || unanswered} onChange={(e) => void choose(e)} />
         </Field>
         {fileName !== null ? <p dir="auto">{t(lang, 'import_file', { name: fileName })}</p> : null}
         {rows !== null ? <p>{t(lang, 'import_rows', { n: rows.length })}</p> : null}

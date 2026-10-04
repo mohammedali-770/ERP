@@ -287,8 +287,26 @@ reload on a stale answer and Arabic by default. Nothing about the routes changed
 - **The VAT, CR, phone and email checks before sending are a courtesy.** They exist so a
   person is told which field is wrong. Each is 0016's own rule, read from the migration
   by a test. Payment terms are any whole number of days in either script; whether 400 is
-  allowed is the database's to say. Every constraint 0016 names for a refusal a person
-  can meet has its own sentence in both languages, so a stale supplier is not "this item".
+  allowed is the database's to say. The constraints a person's input or a concurrent
+  change can meet each have their own sentence in both languages, so a stale supplier is
+  not "this item"; a test holds every worded constraint to one a migration names.
+- **Found in this step's review:**
+  - **Retry resends the request first sent.** Retry rebuilt it from the page, which other
+    forms' saves may have reloaded meanwhile. A retried "retire" could become a
+    "reinstate", and a retried supply change could carry the new stamp past the stale
+    check. Every form on the page now keeps the request it sent; the status form fixes
+    its target when it opens. The item page's status form had the same gap.
+  - **A supply's form opens from the supply as shown now.** It kept what an earlier
+    opening left, so Save could undo another person's change, or give up a preferred
+    slot the supply could never take back.
+  - **An upload must name every column.** A column left out read as a blank cell. A file
+    of codes and terms alone would have cleared every listed supplier's VAT and CR
+    numbers and erased its contacts, which the log can never give back. The items
+    upload had the same gap for descriptions.
+  - **A file cannot be chosen while an upload is unanswered.** New ids would meet the
+    first sending on its codes and read "nothing was saved".
+  - **"Already saved" is never shown for a collision PostgreSQL raised itself,** where
+    nothing was recorded.
 - **Found running the screens in a browser:**
   - **Uploading the same file twice did nothing.** An unchanged file input fires no
     change event. Items UAT 6.2 asks exactly this, so both uploads now clear the input

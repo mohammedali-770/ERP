@@ -1,5 +1,5 @@
 /**
- * The supplier screens' logic, kept out of .tsx so test/logic.test.ts can read it.
+ * The supplier screens' logic, kept out of .tsx so test/suppliers.test.ts can read it.
  *
  * WHAT IS CHECKED HERE IS A COURTESY. 0016 decides every rule: a VAT number's shape, a
  * phone's, payment terms of 0–365 days, one preferred supplier an item. The forms ask a

@@ -14,9 +14,11 @@
  *
  * IDS ARE MINTED WHEN THE FILE IS READ. Each row carries the decision and item ids it
  * would record. Pressing Upload again after a lost answer sends the same rows with the
- * same ids. Choosing the file again mints new ones, and that is safe too, because rows
- * match existing items by code: an item the lost attempt created is found and counted
- * unchanged, never created twice.
+ * same ids. Choosing a file is not offered until the lost attempt is answered — one
+ * still running would meet the new ids on its own codes and be reported "nothing was
+ * saved" though it saved everything (found in review). Once answered, choosing again
+ * mints new ids safely: rows match existing items by code, so an item the lost attempt
+ * created is found and counted unchanged, never created twice.
  *
  * Requirements: INV-002 · INV-005 · ADR-0005
  */
@@ -24,7 +26,13 @@
 export const IMPORT_COLUMNS = [
   'code', 'item_kind', 'base_unit_key', 'brand', 'name_en', 'name_ar', 'description_en', 'description_ar',
 ] as const;
-const REQUIRED: readonly string[] = ['code', 'item_kind', 'base_unit_key', 'brand', 'name_en', 'name_ar'];
+/**
+ * Every column, the optional ones included. The file wins — a blank cell clears that
+ * field — and a column left out read exactly as a blank, so a file of codes and names
+ * wiped every listed item's descriptions (found in module 2 step 3's review). Clearing
+ * a field takes a cell that says so.
+ */
+const REQUIRED: readonly string[] = IMPORT_COLUMNS;
 export const MAX_ROWS = 5000;
 
 /** A record of the file, with the physical line it starts on (the header is line 1). */
@@ -241,7 +249,12 @@ export const SUPPLIER_IMPORT_COLUMNS = [
   'code', 'name_en', 'name_ar', 'vat_number', 'cr_number', 'payment_terms_days',
   'contact_person', 'phone', 'email', 'address',
 ] as const;
-const SUPPLIER_REQUIRED: readonly string[] = ['code', 'name_en', 'name_ar', 'payment_terms_days'];
+/**
+ * Every column, as for items. Here it matters more: a file of codes and terms alone
+ * cleared every listed supplier's VAT and CR numbers and erased its contacts, which the
+ * log, holding no contact value by design (SEC-008), could never give back.
+ */
+const SUPPLIER_REQUIRED: readonly string[] = SUPPLIER_IMPORT_COLUMNS;
 
 export interface SupplierImportIds {
   readonly decision_id: string;

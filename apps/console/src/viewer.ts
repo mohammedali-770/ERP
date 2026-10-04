@@ -74,7 +74,7 @@ export function itemsWritable(viewer: Viewer, facilityId: string | null, writabl
 /**
  * Whether the supplier screens offer changes. As for items: every one of 0016's write
  * routes asks erp.assert_permitted(…, 'procurement.suppliers', 'write', NULL), so changes
- * are offered only organisation-wide (test/logic.test.ts reads 0016 to hold this).
+ * are offered only organisation-wide (test/suppliers.test.ts reads 0016 and 0017 to hold this).
  */
 export function suppliersWritable(viewer: Viewer, facilityId: string | null, writable: (v: Viewer) => boolean): boolean {
   return facilityId === null && writable(viewer);

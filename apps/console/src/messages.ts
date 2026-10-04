@@ -52,11 +52,15 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   item_unit_agrees_with_its_dimension: 'rule_unit_disagrees',
   // 0016's, for suppliers and what they sell. Stale and missing are named per record, so
   // a supplier's refusal does not speak of "this item".
-  supplier_decision_pkey: 'supplier_already_recorded',
+  // Not supplier_decision_pkey: a route's retry answer is already_recorded, which every
+  // screen treats as saved; the same constraint reaching here is PostgreSQL's own
+  // collision, where nothing was recorded, and "already saved" would be false (review).
   supplier_code_key: 'rule_supplier_code_taken',
   supplier_code_is_canonical: 'rule_supplier_code_canonical',
   supplier_active_name_en_key: 'rule_supplier_name_taken',
   supplier_active_name_ar_key: 'rule_supplier_name_taken',
+  supplier_names_are_bilingual: 'rule_supplier_names',
+  supplier_names_are_canonical: 'rule_supplier_names',
   supplier_vat_number_is_valid: 'rule_vat',
   supplier_cr_number_is_valid: 'rule_cr',
   supplier_payment_terms_are_days: 'rule_terms',

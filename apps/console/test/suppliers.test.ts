@@ -9,7 +9,7 @@ import { NAVIGATION, itemIsVisible, itemIsWritable } from '../src/navigation.ts'
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
 import {
   amendBody, amendSupplyBody, businessProblem, contactBody, contactProblem, crLooksValid, eraseBody, foldDigits,
-  phoneLooksValid, suppliablePacks, supplyChange, supplyWarning, termsInput, vatLooksValid,
+  emailLooksValid, phoneLooksValid, suppliablePacks, supplyChange, supplyWarning, termsInput, vatLooksValid,
 } from '../src/suppliers.ts';
 import { suppliersWritable, toViewer } from '../src/viewer.ts';
 
@@ -17,6 +17,7 @@ const root = new URL('../../../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 const SUPPLIERS_MIGRATION = read('supabase/migrations/20261004000200_suppliers.sql');
 const ITEMS_MIGRATION = read('supabase/migrations/20261002000200_items_and_units.sql');
+const IMPORTS_MIGRATION = read('supabase/migrations/20261004000300_imports_answer_retries.sql');
 
 const S = '01936f00-0000-7000-8000-000000005101';
 const X = '01936f00-0000-7000-8000-000000005201';
@@ -101,6 +102,11 @@ test('the field pre-checks are 0016\'s rules, read from the migration', () => {
   assert.match(SUPPLIERS_MIGRATION, /p_cr_number !~ '\^\[0-9\]\{10\}\$'/);
   assert.match(SUPPLIERS_MIGRATION, /v_phone !~ '\^\\\+\?\[0-9\]\{6,15\}\$'/);
   assert.match(SUPPLIERS_MIGRATION, /payment_terms_days between 0 and 365/);
+  assert.match(SUPPLIERS_MIGRATION, /v_email !~ '\^\[\^\[:space:\]@\]\+@\[\^\[:space:\]@\]\+\\\.\[\^\[:space:\]@\]\+\$'/,
+    'the email rule emailLooksValid mirrors');
+  assert.equal(emailLooksValid('a@b.test'), true);
+  assert.equal(emailLooksValid('a@b'), false);
+  assert.equal(emailLooksValid('a b@c.test'), false);
   assert.equal(vatLooksValid('310000000000003'), true);
   assert.equal(vatLooksValid('٣١٠٠٠٠٠٠٠٠٠٠٠٠٣'), true, 'Arabic-Indic digits, as the database folds them');
   assert.equal(vatLooksValid('310 000 000 000 003'), true, 'spaces are dropped');
@@ -193,6 +199,10 @@ test('CONTROL: supplier changes are offered only organisation-wide, where 0016 c
   const writes = [...SUPPLIERS_MIGRATION.matchAll(/assert_permitted\(p_actor_id, 'procurement\.suppliers', 'write', ([^)]+)\)/g)];
   assert.equal(writes.length, 8);
   for (const w of writes) assert.equal(w[1], 'null');
+  // 0017 replaced erp.import_suppliers(); the definition in force is gated the same way.
+  const imports = [...IMPORTS_MIGRATION.matchAll(/assert_permitted\(p_actor_id, 'procurement\.suppliers', 'write', ([^)]+)\)/g)];
+  assert.equal(imports.length, 1);
+  assert.equal(imports[0]![1], 'null');
 });
 
 test('every constraint the console words for suppliers is one 0016 or 0012 names', () => {
@@ -206,6 +216,11 @@ test('every constraint the console words for suppliers is one 0016 or 0012 names
   const f = { ok: false as const, http: 409, status: 'stale', message: 'supplier X has changed', constraint: 'supplier_stale', detail: null, field: null };
   assert.match(failureMessage('en', f).text, /supplier/, 'a stale supplier is not "this item"');
   assert.match(failureMessage('en', { ...f, status: 'conflict', constraint: 'supplier_item_one_preferred' }).text, /preferred supplier/);
+  // supplier_decision_pkey reaches failureMessage only as PostgreSQL's own collision —
+  // the retry answer is already_recorded, which screens treat as saved — so it must
+  // never read "already saved" (found in review).
+  assert.doesNotMatch(source, /^\s+supplier_decision_pkey:/m);
+  assert.doesNotMatch(failureMessage('en', { ...f, status: 'conflict', constraint: 'supplier_decision_pkey' }).text, /already saved/);
 });
 
 // --- the upload ------------------------------------------------------------------
@@ -225,15 +240,22 @@ test('CONTROL: every column the supplier upload sends is one erp.import_supplier
   assert.equal(prepared.rows[0]!['vat_number'], null, 'a blank cell is null');
 });
 
-test('a supplier file needs code, names and terms; ids are minted once per row and never shared', () => {
-  const missing = prepareSupplierImport(parseCsv('code,name_en,name_ar\nA,a,أ'), mint);
-  assert.deepEqual(missing, { ok: false, problems: [{ kind: 'missing_column', column: 'payment_terms_days' }] });
-  const prepared = prepareSupplierImport(parseCsv('code,name_en,name_ar,payment_terms_days\nA,a,أ,30\nB,b,ب,٤٥'), mint);
+test('CONTROL: a supplier file must name every column: one left out never reads as clearing it', () => {
+  // A file of codes and terms alone would have cleared every listed supplier's numbers
+  // and erased its contacts, which the log can never give back (SEC-008; found in review).
+  const missing = prepareSupplierImport(parseCsv('code,name_en,name_ar,payment_terms_days\nA,a,أ,30'), mint);
+  assert.deepEqual(missing.ok ? [] : missing.problems.map((p) => p.kind === 'missing_column' ? p.column : p.kind),
+    ['vat_number', 'cr_number', 'contact_person', 'phone', 'email', 'address']);
+});
+
+test('supplier rows: ids minted once per row and never shared; terms passed as typed', () => {
+  const header = SUPPLIER_IMPORT_COLUMNS.join(',');
+  const prepared = prepareSupplierImport(parseCsv(`${header}\nA,a,أ,,,30,,,,\nB,b,ب,,,٤٥,,,,`), mint);
   assert.ok(prepared.ok);
   const ids = prepared.rows.flatMap((r) => [r['decision_id'], r['contact_decision_id'], r['supplier_id']]);
   assert.equal(new Set(ids).size, 6, 'no id is used twice in a file, which 0017 refuses as a line error');
   assert.equal(prepared.rows[1]!['payment_terms_days'], '٤٥', 'Arabic digits are the database\'s to fold');
-  const unknown = prepareSupplierImport(parseCsv('code,name_en,name_ar,payment_terms_days,type\nA,a,أ,30,both'), mint);
+  const unknown = prepareSupplierImport(parseCsv(`${header},type\nA,a,أ,,,30,,,,,both`), mint);
   assert.deepEqual(unknown, { ok: false, problems: [{ kind: 'unknown_column', column: 'type' }] }, 'the warehouse\'s type is gone');
 });
 
@@ -245,5 +267,36 @@ test('both uploads read the same file twice: the input is cleared once the file 
     const src = readFileSync(new URL(`../src/screens/${screen}`, import.meta.url), 'utf8');
     assert.match(src, /const file = e\.target\.files\?\.\[0\];[\s\S]{0,400}?e\.target\.value = '';/, `${screen} clears the input`);
     assert.match(src, /import_file/, `${screen} shows the chosen file's name instead`);
+  }
+});
+
+// --- the screens' write discipline (.tsx, which Node cannot load, so read as source) -
+
+const screen = (name: string) => readFileSync(new URL(`../src/screens/${name}`, import.meta.url), 'utf8');
+
+test('CONTROL: Retry on the supplier page resends the request first sent, never one rebuilt from the page', () => {
+  // A reload while a form waits (another form saving) turned a retried "retire" into a
+  // "reinstate", and carried a newer stamp past the stale check (found in review).
+  const detail = screen('SupplierDetail.tsx');
+  assert.doesNotMatch(detail, /onRetry=\{\(\) => submit\(\)\}/, 'no Retry calls submit, which rebuilds the body');
+  assert.equal([...detail.matchAll(/onRetry=\{w\.retry\}/g)].length, 3, 'every write form retries the pending request');
+  assert.match(detail, /pending\.current = send;/);
+  assert.match(detail, /const target = opened \?\?/, 'the status form fixes its target when it opens');
+  assert.match(screen('SupplierContact.tsx'), /onRetry=\{\(\) => void send\(inDoubt\.body, inDoubt\.erase\)\}/);
+  assert.match(screen('ItemDetail.tsx'), /const body: StatusInput = e === undefined && pending\.current !== null \? pending\.current/,
+    'the item page\'s status form too');
+});
+
+test('CONTROL: a supply form opens from the supply as shown now, never from an earlier opening', () => {
+  const detail = screen('SupplierDetail.tsx');
+  assert.match(detail, /function openAs\(mode: 'amend' \| 'retire'\) \{\s+setCode\(supply\.supplier_code \?\? ''\);\s+setPreferred\(supply\.preferred\);/);
+  assert.doesNotMatch(detail, /onClick=\{\(\) => setOpen\('(amend|retire)'\)\}/, 'both buttons open through openAs');
+});
+
+test('a file cannot be chosen while an upload is unanswered', () => {
+  for (const name of ['ItemImport.tsx', 'SupplierImport.tsx']) {
+    const src = screen(name);
+    assert.match(src, /disabled=\{busy \|\| unanswered\} onChange=\{\(e\) => void choose\(e\)\}/, name);
+    assert.match(src, /setUnanswered\(isUnanswered\(answer\)\);/, `${name}: an answer re-enables it`);
   }
 });
