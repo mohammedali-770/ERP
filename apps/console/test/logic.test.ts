@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { Item, ViewerData, ViewerUnit } from '../src/api.ts';
-import { factorInput, formatFactor } from '../src/format.ts';
+import { factorInput, formatFactor, latinDigits } from '../src/format.ts';
 import { formIds, uuidv7 } from '../src/ids.ts';
 import { asKey, dir, STRINGS, t } from '../src/i18n.ts';
-import { addableUnits, descriptionsPaired, factorIsDerived, ITEM_KINDS, writeOutcome } from '../src/items.ts';
+import { addableUnits, descriptionsPaired, factorIsDerived, isUnanswered, ITEM_KINDS, writeOutcome } from '../src/items.ts';
 import { failureMessage, signInMessage } from '../src/messages.ts';
 import { NAVIGATION, itemIsWritable } from '../src/navigation.ts';
 import { formatRoute, parseRoute, type Route } from '../src/route.ts';
@@ -63,7 +63,7 @@ test('every menu label and every item kind has a translation', () => {
 
 test('placeholders are filled, an unknown one stays visible, and Arabic is right to left', () => {
   assert.equal(t('en', 'import_done', { created: 2, amended: 1, unchanged: 0 }), 'Done: 2 created, 1 updated, 0 unchanged.');
-  assert.equal(t('en', 'signin_attempts_left'), '{n} attempts left before the account locks.');
+  assert.equal(t('en', 'signin_attempts_left'), 'Attempts left before the account locks: {n}.');
   assert.equal(dir('ar'), 'rtl');
   assert.equal(dir('en'), 'ltr');
 });
@@ -119,6 +119,15 @@ test('a write is saved, already recorded, stale or failed', () => {
   assert.equal(writeOutcome({ ...f('network'), http: 0 }), 'failed');
 });
 
+test('an unanswered write is one with no answer to trust: none at all, or a server failure', () => {
+  const f = (http: number, status: string) => ({ ok: false as const, http, status, message: null, constraint: null, detail: null, field: null });
+  assert.equal(isUnanswered(f(0, 'network')), true);
+  assert.equal(isUnanswered(f(502, 'error')), true);
+  assert.equal(isUnanswered(f(409, 'conflict')), false, 'a refusal is an answer: nothing was recorded');
+  assert.equal(isUnanswered(f(401, 'idle')), false);
+  assert.equal(isUnanswered({ ok: true, value: {} }), false);
+});
+
 test('descriptions are both or neither, as item_description_is_bilingual says', () => {
   assert.equal(descriptionsPaired('', ''), true);
   assert.equal(descriptionsPaired('Bakery flour', 'دقيق للمخابز'), true);
@@ -143,7 +152,20 @@ test('a typed factor is checked exactly as the edge checks it', () => {
   assert.deepEqual(factorInput(' 25000 '), { ok: true, value: '25000' });
   assert.deepEqual(factorInput('0.000001'), { ok: true, value: '0.000001' });
   assert.deepEqual(factorInput(''), { ok: true, value: null });
-  for (const bad of ['1.0000001', '-1', '1e3', '1,5', '٢٥', '1.']) assert.deepEqual(factorInput(bad), { ok: false }, bad);
+  for (const bad of ['1.0000001', '-1', '1e3', '1,5', '1.']) assert.deepEqual(factorInput(bad), { ok: false }, bad);
+  assert.deepEqual(factorInput('٢٥٫٥'), { ok: true, value: '25.5' }, 'typed on an Arabic keyboard');
+});
+
+test('CONTROL: Arabic-Indic and Persian digits reach the database as the digits erp.verify_pin() reads', () => {
+  // Found in review: a correct PIN typed on an Arabic keyboard counted as a miss.
+  assert.equal(latinDigits('١٠٠٠٠١'), '100001');
+  assert.equal(latinDigits('۱۲۳۴۵۶'), '123456');
+  assert.equal(latinDigits('1001'), '1001');
+  assert.equal(latinDigits('٫'), '.');
+  const identity = read('supabase/migrations/20261002000100_identity.sql');
+  assert.match(identity, /\^\[0-9\]\{6\}\$/, 'verify_pin still reads ASCII digits only');
+  const signIn = readFileSync(new URL('../src/screens/SignIn.tsx', import.meta.url), 'utf8');
+  assert.match(signIn, /api\.signIn\(latinDigits\(number\)\.trim\(\), latinDigits\(pin\)\)/, 'sign-in sends them converted');
 });
 
 // --- routes ------------------------------------------------------------------
@@ -159,6 +181,7 @@ test('routes parse and format both ways, and an id must be a UUID', () => {
   assert.deepEqual(parseRoute('#items/ITM-001'), { screen: 'unknown', id: 'items/ITM-001' });
   assert.deepEqual(parseRoute('#current_stock'), { screen: 'unknown', id: 'current_stock' });
   assert.deepEqual(parseRoute(''), { screen: 'home' });
+  assert.deepEqual(parseRoute('#items/%E0'), { screen: 'unknown', id: 'items/%E0' }, 'a malformed escape blanks nothing');
 });
 
 // --- viewer (CAP-P02, CAP-P04) -----------------------------------------------
@@ -225,7 +248,9 @@ test('a refusal reads as a sentence, with the database\'s words and the rule und
   const native = failureMessage('ar', failure(422, 'invalid', { message: 'a value breaks a rule of the record', constraint: 'item_description_is_bilingual' }));
   assert.equal(native.text, t('ar', 'rule_descriptions_paired'));
   assert.equal(failureMessage('en', failure(403, 'forbidden')).text, t('en', 'refusal_forbidden'));
-  assert.equal(failureMessage('en', failure(400, 'malformed', { field: 'factor' })).text, 'A field is missing or not valid: factor.');
+  assert.equal(failureMessage('en', failure(400, 'malformed', { field: 'factor' })).text, 'A field is missing or not valid: “How many storage units”.');
+  assert.equal(failureMessage('ar', failure(400, 'malformed', { field: 'factor' })).text, 'حقل ناقص أو غير صحيح: «كم وحدة تخزين».',
+    'the field in the reader\'s language, not the wire name');
 });
 
 test('a lost connection, a server failure and an unknown word never show the server\'s text', () => {
@@ -239,7 +264,7 @@ test('a lost connection, a server failure and an unknown word never show the ser
 test('sign-in: a wrong PIN and an unknown number read the same (IAM-P02)', () => {
   const at = (iso: string) => `at ${iso}`;
   assert.equal(signInMessage('en', { status: 'wrong' }, at), t('en', 'signin_wrong_pin'));
-  assert.equal(signInMessage('en', { status: 'wrong', attempts_left: 2 }, at), 'Wrong employee number or PIN. 2 attempts left before the account locks.');
+  assert.equal(signInMessage('en', { status: 'wrong', attempts_left: 1 }, at), 'Wrong employee number or PIN. Attempts left before the account locks: 1.');
   assert.equal(signInMessage('en', { status: 'locked', locked_until: 'T' }, at), 'Too many wrong attempts. Try again after at T.');
   assert.equal(signInMessage('ar', { status: 'disabled' }, at), t('ar', 'signin_account_disabled'));
   assert.equal(signInMessage('en', { status: 'ok', person_id: 'p', token: 't', expires_at: 'x' }, at), null);

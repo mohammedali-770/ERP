@@ -19,7 +19,13 @@ export type Route =
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map((s) => decodeURIComponent(s));
+  let path: string[];
+  try {
+    path = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map((s) => decodeURIComponent(s));
+  } catch {
+    // A malformed escape (#%E0) threw out of the first render and blanked the console.
+    return { screen: 'unknown', id: hash.replace(/^#/, '') };
+  }
   if (path.length === 0) return { screen: 'home' };
   if (path[0] !== 'items') return { screen: 'unknown', id: path.join('/') };
   if (path.length === 1) return { screen: 'items' };

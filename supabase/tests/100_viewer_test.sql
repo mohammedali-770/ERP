@@ -9,7 +9,7 @@
 -- 0010_organisation.sql seed; the seed opens inventory.items as pilot.
 
 begin;
-select plan(18);
+select plan(19);
 
 select has_function('erp', 'viewer', array['uuid', 'uuid'], 'erp.viewer(person, facility) exists');
 select is((select prosecdef from pg_proc where oid = 'erp.viewer(uuid,uuid)'::regprocedure), false,
@@ -47,11 +47,27 @@ select is(jsonb_array_length(erp.viewer('01936f00-0000-7000-8000-000000000900', 
 select is(erp.viewer('01936f00-0000-7000-8000-000000000905', '01936f00-0000-7000-8000-000000000401') -> 'permissions',
   '[]'::jsonb, 'a suspended person holds nothing');
 
--- States are the database's own, for every registered capability (CAP-P02).
-select is((erp.viewer('01936f00-0000-7000-8000-000000000901', '01936f00-0000-7000-8000-000000000401') -> 'states'),
-  (select jsonb_object_agg(c.capability_key, erp.capability_state_for(c.capability_key, '01936f00-0000-7000-8000-000000000401'))
-     from erp.capability c),
-  'each capability is in the state erp.capability_state_for() gives it here');
+-- States are the database's own, for every registered capability (CAP-P02): the four the
+-- seed records, and one it does not, which is hidden. Stated, not recomputed: comparing
+-- against capability_state_for() again would only show the function equals itself
+-- (found in review).
+select ok((erp.viewer('01936f00-0000-7000-8000-000000000901', '01936f00-0000-7000-8000-000000000401') -> 'states')
+  @> '{"inventory.items": "pilot", "inventory.stock": "enabled", "factory.production": "pilot",
+       "finance.month_close": "read_only", "hr.payroll": "hidden"}'::jsonb
+  and (select count(*) from jsonb_object_keys(erp.viewer('01936f00-0000-7000-8000-000000000901', null) -> 'states'))
+      = (select count(*) from erp.capability),
+  'each capability is in its recorded state, an unrecorded one hidden, and none is missing');
+
+-- Security invoker means it runs with the CALLER's privileges, so the runtime must hold
+-- them: SELECT on every table it reads, EXECUTE on every function it calls. No role switch
+-- here — tools/db-fixtures replays bodies without one — so the run itself, as erp_edge, is
+-- the Deno session test's (supabase/functions/_deno/test/sessions.test.ts).
+select ok((select bool_and(has_table_privilege('erp_app', t, 'SELECT')) from unnest(array[
+            'erp.person', 'erp.person_role', 'erp.role_permission', 'erp.facility', 'erp.operating_unit',
+            'erp.capability', 'erp.capability_state', 'erp.brand', 'erp.unit']) as t)
+      and has_function_privilege('erp_app', 'erp.capability_state_for(text,uuid)', 'EXECUTE')
+      and has_function_privilege('erp_app', 'erp.org_scope()', 'EXECUTE'),
+  'the runtime holds every privilege it needs to run it');
 
 -- The reference data the forms need.
 select is(jsonb_array_length(erp.viewer('01936f00-0000-7000-8000-000000000900', null) -> 'units'),

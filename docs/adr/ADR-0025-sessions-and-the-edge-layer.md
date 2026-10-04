@@ -149,7 +149,7 @@ is none. The console builds its menu and buttons from it (ADR-0024's step 3 adde
 - **Not a control.** The answer decides what a menu shows. Every route still asks
   `erp.assert_permitted()` (CAP-P04).
 
-Proved by `supabase/tests/100_viewer_test.sql` (18 cases), the session handler's Node
+Proved by `supabase/tests/100_viewer_test.sql` (19 cases), the session handler's Node
 tests, and the Deno session test, which reads a cashier's viewer as `erp_edge`.
 
 ## Alternatives considered

@@ -223,6 +223,16 @@ click away. Nothing about the routes changed; one read was added (0015, below).
   the same ids on every attempt. A retry after a lost answer is answered
   `already_recorded` and shown as the success it is, so a double-click on a slow line
   records one decision, not two.
+- **A write that got no answer locks its form.** When the connection failed or the server
+  did (5xx), the change may have been recorded. So the fields lock, and the person may
+  only Retry, which sends exactly the same change, or Start over, which first reads what
+  is saved and then mints new ids. Leaving the fields editable under the same ids let a
+  changed second attempt be answered "already recorded" for the first (found in review).
+  Starting over is safe because the database refuses the duplicate on every route:
+  - a code is unique;
+  - a stale stamp is refused;
+  - only one conversion per unit may be active;
+  - a retirement is final.
 - **A refusal reads as a sentence in the reader's language,** with the database's own
   words and the rule's constraint name under it (`messages.ts`). The rules staff are likely
   to meet have their own sentence. That matters most where PostgreSQL raised the refusal
@@ -240,21 +250,37 @@ click away. Nothing about the routes changed; one read was added (0015, below).
   - The console checks only the file's shape: known columns, at most 5,000 rows, and
     brands that exist. The rows' rules stay the database's, which saves all of the file
     or none of it.
-  - Each row's ids are minted when the file is read, so uploading the same file again
-    after a lost answer records nothing twice.
+  - A quote opens a quoted field only at the start of a field. Reading every quote as an
+    opening one let `12" plate` merge two rows into one, silently and at the header's
+    width (found in review). A quote out of place refuses its line instead.
+  - Rows of bare commas, which Excel writes below the data, are skipped.
+  - A retry is safe for a different reason than the forms'. Each row's ids are minted
+    when the file is read, but choosing the file again mints new ones. What makes a
+    re-upload record nothing twice is that rows match existing items by code. A retry
+    after a lost answer therefore reports the saved rows as unchanged, and the screen
+    says so.
+- **Digits typed on an Arabic keyboard are read as digits.** ٠-٩ and ۰-۹ become 0-9 before
+  the employee number, the PIN or a factor is sent. `erp.verify_pin()` reads ASCII digits
+  only, so a correct PIN typed in Arabic digits counted as a miss and could lock the
+  account (found in review).
 - **The token lives in the tab's `sessionStorage`,** never `localStorage` and never a
   cookie. It dies with the tab and is shared with no other tab. A session the database
   ends — 30 minutes idle, 12 hours, signed out elsewhere, a suspended account — signs the
-  person out at their next action, with the reason.
+  person out at their next action, with the reason. Signing out forgets the token before
+  telling the server, so a hung connection cannot leave a shared machine signed in.
 
 **Proved:**
 
-- **59 Node tests** (`apps/console/test/`) for the client, the CSV reader, the ids, the
+- **65 Node tests** (`apps/console/test/`) for the client, the CSV reader, the ids, the
   translations, the viewer, the routes and the messages. Several read 0012 and fail if the
   console drifts from it: the item kinds, the import's columns, the 5,000-row limit, the
   derived-factor rule, the paired descriptions, and the central write gate. Controls
   include: no request ever names an actor, a stored value that is not a token is never
-  sent, and an unknown capability state is hidden.
+  sent, an unknown capability state is hidden, an inch mark never merges two rows, and
+  Arabic digits reach `verify_pin()` as ASCII.
+- **pgTAP 100** (19 cases) for `erp.viewer()`. It states each capability's state rather
+  than recomputing it, and checks that `erp_app` holds every privilege the function
+  needs.
 - **The Deno session test** now reads the viewer as `erp_edge`.
 - **A browser run (scratch only, not committed)** drove the screens in Chromium. It used
   the real edge handlers and driver against a database built from the migrations and
@@ -264,6 +290,20 @@ click away. Nothing about the routes changed; one read was added (0015, below).
     a stale amend and its reload, a duplicate code, and a CSV upload;
   - the cashier reading their branch's items, read-only, at desktop and phone width;
   - a session ended elsewhere signing the person out.
+
+An independent review found no way past a permission, no leak through the viewer, no
+token exposure and no injection. It confirmed ten defects, all fixed before the PR:
+
+1. the inch-mark merge;
+2. Arabic-Indic digits;
+3. editable fields after a lost answer;
+4. overlapping loads drawing an older answer last;
+5. a language switch discarding open forms;
+6. sign-out waiting on the network;
+7. a malformed URL blanking the console;
+8. rows of bare commas refusing a file;
+9. Arabic plurals and wording;
+10. tests and docs that claimed more than they showed.
 
 **Still open, and now a gate on staff testing (step 5).**
 

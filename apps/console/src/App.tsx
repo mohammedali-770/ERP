@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createApi, sessionEnded, type Api, type Failure, type SessionData } from './api.ts';
 import type { Ctx } from './context.ts';
 import { dir, label, localName, t, type Lang } from './i18n.ts';
@@ -48,6 +48,12 @@ export function App() {
   const [failure, setFailure] = useState<Failure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  /** A notice for the screen it was addressed to, shown there once. */
+  const [arrival, setArrival] = useState<{ hash: string; text: string } | null>(null);
+  // Read through a ref so onFailure stays one function: depending on the language made
+  // every toggle reload the item page and discard any open form (found in review).
+  const langRef = useRef(lang);
+  langRef.current = lang;
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -62,6 +68,11 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // A notice lives on the screen it was addressed to; leaving that screen ends it.
+  useEffect(() => {
+    setArrival((a) => (a !== null && a.hash !== formatRoute(route) ? null : a));
+  }, [route]);
+
   const signedOut = useCallback((why: string | null) => {
     tokens.clear();
     setToken(null);
@@ -73,9 +84,9 @@ export function App() {
   /** A session that has ended signs the person out, with the reason; nothing else is handled. */
   const onFailure = useCallback((f: Failure): boolean => {
     if (!sessionEnded(f)) return false;
-    signedOut(failureMessage(lang, f).text);
+    signedOut(failureMessage(langRef.current, f).text);
     return true;
-  }, [lang, signedOut]);
+  }, [signedOut]);
 
   // The viewer, for the session's person at the facility worked at. The first call, made
   // before the facility is known, answers where they may work; the default is then
@@ -107,10 +118,16 @@ export function App() {
 
   const toggleLang = () => setLang((l) => (l === 'ar' ? 'en' : 'ar'));
 
-  async function signOut() {
-    await api.signOut();
+  /**
+   * Forgets the token first, then tells the server. Waiting for the server first left a
+   * shared machine signed in for as long as a hung connection lasted (found in review).
+   * If the request is lost the session still ends on the server, at 30 minutes idle.
+   */
+  function signOut() {
+    const token = tokens.get();
     signedOut(null);
     window.location.hash = '';
+    if (token !== null) void api.signOut(token);
   }
 
   if (token === null) {
@@ -133,7 +150,7 @@ export function App() {
     return (
       <main className="centered">
         {failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />}
-        {failure ? <button type="button" onClick={() => void signOut()}>{t(lang, 'sign_out')}</button> : null}
+        {failure ? <button type="button" onClick={() => signOut()}>{t(lang, 'sign_out')}</button> : null}
       </main>
     );
   }
@@ -147,7 +164,8 @@ export function App() {
     viewer,
     facilityId,
     writable: itemsWritable(viewer, facilityId, (v) => itemIsWritable(ITEMS, v)),
-    navigate: (r) => {
+    navigate: (r, notice) => {
+      setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       window.location.hash = formatRoute(r);
     },
     onFailure,
@@ -178,7 +196,7 @@ export function App() {
         </label>
         <span className="person">{person}</span>
         <button type="button" className="link" onClick={toggleLang}>{t(lang, 'language')}</button>
-        <button type="button" onClick={() => void signOut()}>{t(lang, 'sign_out')}</button>
+        <button type="button" onClick={() => signOut()}>{t(lang, 'sign_out')}</button>
       </header>
       <div className="body">
         <nav className="menu" aria-label="menu">
@@ -197,6 +215,7 @@ export function App() {
         </nav>
         <main className="content">
           {viewer.preview ? <p role="status">{t(lang, 'preview_read_only')}</p> : null}
+          {arrival !== null && arrival.hash === formatRoute(route) ? <Notice tone="info" text={arrival.text} /> : null}
           <Screen ctx={ctx} route={route} itemsVisible={itemIsVisible(ITEMS, viewer)} anyVisible={groups.length > 0} />
         </main>
       </div>

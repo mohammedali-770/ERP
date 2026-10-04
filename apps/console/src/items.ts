@@ -1,5 +1,5 @@
 /**
- * The items screens' logic, kept out of .tsx so test/items.test.ts can read it.
+ * The items screens' logic, kept out of .tsx so test/logic.test.ts can read it.
  *
  * Requirements: INV-002 · INV-005
  */
@@ -7,7 +7,7 @@ import type { Answer, Item, ViewerUnit } from './api.ts';
 import type { Lang } from './i18n.ts';
 
 /**
- * The item kinds, in 0012's order (item_kind_is_known). test/items.test.ts reads the
+ * The item kinds, in 0012's order (item_kind_is_known). test/logic.test.ts reads the
  * migration and fails if this list drifts from it.
  */
 export const ITEM_KINDS = [
@@ -88,4 +88,15 @@ export function optional(v: string): string | null {
  */
 export function descriptionsPaired(en: string, ar: string): boolean {
   return (optional(en) === null) === (optional(ar) === null);
+}
+
+/**
+ * True when a write got no answer it can trust: the connection failed, or the server
+ * failed (5xx). It may have been recorded. The form then keeps its ids AND its fields:
+ * the only safe next steps are the same change again, or a fresh look at what is saved.
+ * Letting the person edit and resend under the same ids would turn a lost answer into
+ * "already recorded" for a change they never made (found in review).
+ */
+export function isUnanswered(answer: Answer<unknown>): boolean {
+  return !answer.ok && (answer.http === 0 || answer.http >= 500);
 }

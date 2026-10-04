@@ -4,6 +4,7 @@ import type { Ctx } from '../context.ts';
 import { brandLookup, decodeCsv, IMPORT_COLUMNS, parseCsv, prepareImport, type ImportProblem } from '../csv.ts';
 import { formIds } from '../ids.ts';
 import { t } from '../i18n.ts';
+import { isUnanswered } from '../items.ts';
 import { importProblem } from '../messages.ts';
 import { FailureNotice, Field, Notice, ReasonField } from './ui.tsx';
 
@@ -22,6 +23,8 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [done, setDone] = useState<ImportSummary | null>(null);
+  /** An earlier attempt at these rows went unanswered, and may have saved them. */
+  const [doubted, setDoubted] = useState(false);
 
   async function choose(e: ChangeEvent<HTMLInputElement>) {
     setRows(null);
@@ -29,6 +32,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setNotUtf8(false);
     setFailure(null);
     setDone(null);
+    setDoubted(false);
     const file = e.target.files?.[0];
     if (file === undefined) return;
     const decoded = decodeCsv(new Uint8Array(await file.arrayBuffer()));
@@ -55,6 +59,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       setRows(null);
       return;
     }
+    if (isUnanswered(answer)) setDoubted(true);
     if (!ctx.onFailure(answer)) setFailure(answer);
   }
 
@@ -65,6 +70,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
       <h1>{t(lang, 'bulk_upload')}</h1>
       <p>{t(lang, 'import_hint', { columns: IMPORT_COLUMNS.join(', ') })}</p>
       {done ? <Notice tone="ok" text={t(lang, 'import_done', { ...done })} /> : null}
+      {done && doubted ? <Notice tone="info" text={t(lang, 'import_after_doubt')} /> : null}
       {notUtf8 ? <Notice tone="error" text={t(lang, 'import_not_utf8')} /> : null}
       {problems.length > 0 ? (
         <div className="notice notice-error" role="alert">

@@ -79,7 +79,7 @@ test('the token travels in Authorization, never in a URL, and no cookie goes wit
   await a.listItems({ facilityId: FACILITY, search: 'rice' });
   await a.getItem(FACILITY, ITEM);
   await a.itemHistory(FACILITY, ITEM);
-  await a.signOut();
+  await a.signOut(TOKEN);
   for (const s of f.sent) {
     assert.equal(s.headers['authorization'], `Bearer ${TOKEN}`, s.url);
     assert.equal(s.url.includes(TOKEN), false, s.url);
@@ -112,6 +112,13 @@ test('CONTROL: no write the console sends names an actor', async () => {
   assert.deepEqual(f.sent.map((s) => s.url.replace('https://edge.test/functions/v1', '')), [
     '/items', `/items/${ITEM}/amend`, `/items/${ITEM}/status`, `/items/${ITEM}/units`, '/items/units/u/retire', '/items/import',
   ]);
+});
+
+test('sign-out sends the token it is given, after the console has already forgotten it', async () => {
+  const f = fake(() => ({ status: 200, body: { status: 'ok' } }));
+  await api(f, null).signOut(TOKEN);
+  assert.equal(f.sent[0]!.headers['authorization'], `Bearer ${TOKEN}`);
+  assert.equal(f.sent[0]!.url, 'https://edge.test/functions/v1/sign-out');
 });
 
 test('a factor is sent as text, never as a number', async () => {

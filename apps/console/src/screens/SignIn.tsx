@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Api, Failure } from '../api.ts';
-import { formatDateTime } from '../format.ts';
+import { formatDateTime, latinDigits } from '../format.ts';
 import { t, type Lang } from '../i18n.ts';
 import { signInMessage } from '../messages.ts';
 import { FailureNotice, Field, Notice } from './ui.tsx';
@@ -28,7 +28,7 @@ export function SignIn({ api, lang, notice, onSignedIn, onToggleLang }: {
     setBusy(true);
     setMessage(null);
     setFailure(null);
-    const answer = await api.signIn(number.trim(), pin);
+    const answer = await api.signIn(latinDigits(number).trim(), latinDigits(pin));
     setBusy(false);
     if (!answer.ok) {
       setFailure(answer);

@@ -1,6 +1,6 @@
 /**
  * What a person reads when the edge says no: sign-in's answers, a refusal, an import's
- * problems. Plain TypeScript so test/messages.test.ts reads every branch.
+ * problems. Plain TypeScript so test/logic.test.ts reads every branch.
  *
  * A refusal is shown in two parts: a sentence in the reader's language for its kind
  * (`refusal_conflict`…), and, under it, the database's own words when a route wrote them
@@ -12,7 +12,7 @@
  */
 import type { Failure, SignInResult } from './api.ts';
 import type { ImportProblem } from './csv.ts';
-import { t, type Key, type Lang } from './i18n.ts';
+import { label, t, type Key, type Lang } from './i18n.ts';
 
 export interface Message {
   readonly text: string;
@@ -54,7 +54,8 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
 
 export function failureMessage(lang: Lang, f: Failure): Message {
   if (f.http === 0) return { text: t(lang, 'network_error'), detail: null };
-  if (f.status === 'malformed') return { text: t(lang, 'refusal_malformed', { field: f.field ?? '?' }), detail: null };
+  // The field's label in the reader's language where the console has one, its name otherwise.
+  if (f.status === 'malformed') return { text: t(lang, 'refusal_malformed', { field: label(lang, f.field ?? '?') }), detail: null };
   // A 401 'invalid' is a session the token no longer names, not a form value.
   const key = f.http === 401 && f.status === 'invalid' ? 'session_ended' : REFUSAL_KEY[f.status];
   if (key === undefined || f.http >= 500) return { text: t(lang, 'unexpected_error'), detail: null };
@@ -91,5 +92,6 @@ export function importProblem(lang: Lang, p: ImportProblem): string {
     case 'duplicate_column': return t(lang, 'import_duplicate_column', { column: p.column });
     case 'width': return t(lang, 'import_width', { line: p.line, found: p.found, expected: p.expected });
     case 'unknown_brand': return t(lang, 'import_unknown_brand', { line: p.line, brand: p.brand });
+    case 'quote': return t(lang, 'import_quote', { line: p.line });
   }
 }

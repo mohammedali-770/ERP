@@ -41,3 +41,18 @@ export function ReasonField({ lang, value, onChange }: { lang: Lang; value: stri
 export function Loading({ lang }: { lang: Lang }) {
   return <p className="loading" role="status">{t(lang, 'loading')}</p>;
 }
+
+/** After an unanswered write: the same change again, or a fresh look at what is saved. */
+export function InDoubt({ lang, busy, onRetry, onStartOver }: {
+  lang: Lang; busy: boolean; onRetry: () => void; onStartOver: () => void;
+}) {
+  return (
+    <div className="notice notice-error" role="alert">
+      <p>{t(lang, 'in_doubt')}</p>
+      <div className="actions">
+        <button type="button" className="primary" disabled={busy} onClick={onRetry}>{t(lang, 'retry')}</button>
+        <button type="button" disabled={busy} onClick={onStartOver}>{t(lang, 'start_over')}</button>
+      </div>
+    </div>
+  );
+}

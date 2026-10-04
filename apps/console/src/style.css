@@ -161,6 +161,7 @@ input, select, textarea {
 .table td.code { white-space: nowrap; }
 
 .form { display: grid; gap: 1rem; max-width: 48rem; }
+fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
 .field { display: grid; gap: 0.25rem; }
 .field-label { font-weight: 600; font-size: 0.9rem; }

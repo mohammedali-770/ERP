@@ -3,9 +3,9 @@ import type { Failure, Item } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
-import { descriptionsPaired, ITEM_KINDS, optional, unitName, writeOutcome } from '../items.ts';
+import { descriptionsPaired, isUnanswered, ITEM_KINDS, optional, unitName, writeOutcome } from '../items.ts';
 import { brandsFor } from '../viewer.ts';
-import { FailureNotice, Field, Loading, Notice, ReasonField } from './ui.tsx';
+import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 
 const CREATE_IDS = ['decision_id', 'item_id', 'base_unit_decision_id', 'base_item_unit_id'] as const;
 
@@ -13,7 +13,8 @@ const CREATE_IDS = ['decision_id', 'item_id', 'base_unit_decision_id', 'base_ite
 export function ItemCreate({ ctx }: { ctx: Ctx }) {
   const { api, lang, data, facilityId } = ctx;
   const brands = brandsFor(data, facilityId);
-  const [ids] = useState(() => formIds(CREATE_IDS));
+  const [ids, setIds] = useState(() => formIds(CREATE_IDS));
+  const [inDoubt, setInDoubt] = useState(false);
   const [code, setCode] = useState('');
   const [kind, setKind] = useState('');
   const [baseUnit, setBaseUnit] = useState('');
@@ -28,10 +29,13 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
 
   const [unpaired, setUnpaired] = useState(false);
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     setUnpaired(!descriptionsPaired(descEn, descAr));
-    if (!descriptionsPaired(descEn, descAr)) return;
+    if (descriptionsPaired(descEn, descAr)) void send();
+  }
+
+  async function send() {
     setBusy(true);
     setFailure(null);
     const answer = await api.createItem({
@@ -48,12 +52,33 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
     });
     setBusy(false);
     const outcome = writeOutcome(answer);
-    // Created now, or by an earlier attempt whose answer was lost: either way it exists.
-    if (outcome === 'saved' || outcome === 'already') {
+    if (outcome === 'saved') {
       ctx.navigate({ screen: 'item', itemId: ids.item_id });
       return;
     }
-    if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
+    // Created by an earlier attempt whose answer was lost: the item page shows what is saved.
+    if (outcome === 'already') {
+      ctx.navigate({ screen: 'item', itemId: ids.item_id }, t(lang, 'already_recorded'));
+      return;
+    }
+    if (isUnanswered(answer)) setInDoubt(true);
+    else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
+  }
+
+  /** Is the item there? Then the lost attempt made it. If not, nothing was recorded. */
+  async function startOver() {
+    setBusy(true);
+    const found = await api.getItem(null, ids.item_id);
+    setBusy(false);
+    if (found.ok) {
+      ctx.navigate({ screen: 'item', itemId: ids.item_id }, t(lang, 'already_recorded'));
+    } else if (found.status === 'not_found') {
+      setIds(formIds(CREATE_IDS));
+      setInDoubt(false);
+      setFailure(null);
+    } else if (!ctx.onFailure(found)) {
+      setFailure(found);
+    }
   }
 
   if (!ctx.writable) return <Notice tone="info" text={t(lang, 'read_only_here')} />;
@@ -64,7 +89,9 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
       <p className="muted">{t(lang, 'fixed_fields')}</p>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {unpaired ? <Notice tone="error" text={t(lang, 'rule_descriptions_paired')} /> : null}
+      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void send()} onStartOver={() => void startOver()} /> : null}
       <form className="form" onSubmit={submit}>
+        <fieldset className="plain" disabled={inDoubt}>
         <div className="grid">
           <Field label={t(lang, 'item_code')}>
             <input required maxLength={24} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)}
@@ -96,6 +123,7 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
           <button type="submit" className="primary" disabled={busy}>{busy ? t(lang, 'saving') : t(lang, 'save')}</button>
           <a className="button" href="#items">{t(lang, 'cancel')}</a>
         </div>
+        </fieldset>
       </form>
     </section>
   );
@@ -130,6 +158,7 @@ export function ItemEdit({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: () => void }) {
   const { api, lang, data } = ctx;
   const [ids] = useState(() => formIds(['decision_id'] as const));
+  const [inDoubt, setInDoubt] = useState(false);
   const [nameEn, setNameEn] = useState(item.name_en);
   const [nameAr, setNameAr] = useState(item.name_ar);
   const [descEn, setDescEn] = useState(item.description_en ?? '');
@@ -140,10 +169,13 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
 
   const [unpaired, setUnpaired] = useState(false);
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     setUnpaired(!descriptionsPaired(descEn, descAr));
-    if (!descriptionsPaired(descEn, descAr)) return;
+    if (descriptionsPaired(descEn, descAr)) void send();
+  }
+
+  async function send() {
     setBusy(true);
     setFailure(null);
     const answer = await api.amendItem(item.item_id, {
@@ -161,10 +193,29 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved' || outcome === 'already') {
-      ctx.navigate({ screen: 'item', itemId: item.item_id });
+      ctx.navigate({ screen: 'item', itemId: item.item_id }, outcome === 'already' ? t(lang, 'already_recorded') : undefined);
       return;
     }
-    if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
+    if (isUnanswered(answer)) setInDoubt(true);
+    else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
+  }
+
+  /**
+   * Has the item moved on from the state this form was loaded from? Then something was
+   * recorded — this change or another — and the form restarts from what is saved, with
+   * new ids. If not, nothing was, and the same ids are still unused.
+   */
+  async function startOver() {
+    setBusy(true);
+    const now = await api.getItem(ctx.facilityId, item.item_id);
+    setBusy(false);
+    if (!now.ok) {
+      if (!ctx.onFailure(now)) setFailure(now);
+      return;
+    }
+    setInDoubt(false);
+    setFailure(null);
+    if (now.value.as_of_decision_id !== item.as_of_decision_id) onReload();
   }
 
   return (
@@ -177,7 +228,9 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {failure?.status === 'stale' ? <button type="button" onClick={onReload}>{t(lang, 'reload')}</button> : null}
       {unpaired ? <Notice tone="error" text={t(lang, 'rule_descriptions_paired')} /> : null}
+      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void send()} onStartOver={() => void startOver()} /> : null}
       <form className="form" onSubmit={submit}>
+        <fieldset className="plain" disabled={inDoubt}>
         <Names lang={lang} nameEn={nameEn} nameAr={nameAr} descEn={descEn} descAr={descAr}
           set={{ setNameEn, setNameAr, setDescEn, setDescAr }} />
         <ReasonField lang={lang} value={reason} onChange={setReason} />
@@ -185,6 +238,7 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
           <button type="submit" className="primary" disabled={busy}>{busy ? t(lang, 'saving') : t(lang, 'save')}</button>
           <a className="button" href={`#items/${item.item_id}`}>{t(lang, 'cancel')}</a>
         </div>
+        </fieldset>
       </form>
     </section>
   );

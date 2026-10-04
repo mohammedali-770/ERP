@@ -227,7 +227,8 @@ export interface ApiConfig {
 export interface Api {
   signIn(employeeNumber: string, pin: string): Promise<Answer<SignInResult>>;
   session(facilityId: string | null): Promise<Answer<SessionData>>;
-  signOut(): Promise<Answer<{ status: string }>>;
+  /** Ends the session `token` names: the caller clears it locally first, then sends this. */
+  signOut(token: string): Promise<Answer<{ status: string }>>;
   listItems(query: ListQuery): Promise<Answer<ItemList>>;
   getItem(facilityId: string | null, itemId: string): Promise<Answer<Item>>;
   itemHistory(facilityId: string | null, itemId: string): Promise<Answer<readonly ItemDecision[]>>;
@@ -275,9 +276,10 @@ export function createApi(config: ApiConfig): Api {
    */
   async function call<T>(method: 'GET' | 'POST', path: string, body: unknown, pick: (b: Record<string, unknown>) => T,
                          accept: (http: number, b: Record<string, unknown>) => boolean = (http) => http === 200,
+                         tokenOverride: string | null = null,
   ): Promise<Answer<T>> {
     const headers: Record<string, string> = {};
-    const token = config.token();
+    const token = tokenOverride ?? config.token();
     if (token !== null) headers['authorization'] = `Bearer ${token}`;
     if (body !== undefined) headers['content-type'] = 'application/json';
     let response: Response;
@@ -315,7 +317,7 @@ export function createApi(config: ApiConfig): Api {
         (http, b) => typeof b['status'] === 'string' && SIGN_IN[b['status']] === http),
     session: (facilityId) =>
       call('GET', `/session${query({ facility_id: facilityId })}`, undefined, asIs<SessionData>),
-    signOut: () => call('POST', '/sign-out', undefined, (b) => ({ status: String(b['status']) })),
+    signOut: (token) => call('POST', '/sign-out', undefined, (b) => ({ status: String(b['status']) }), undefined, token),
     listItems: (q) =>
       call('GET', `/items${query({
         facility_id: q.facilityId, brand_id: q.brandId, status: q.status, item_kind: q.itemKind,

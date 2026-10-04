@@ -17,7 +17,8 @@ export interface Ctx {
   readonly facilityId: string | null;
   /** Whether the items screens offer changes here (viewer.ts, itemsWritable). */
   readonly writable: boolean;
-  readonly navigate: (route: Route) => void;
+  /** Goes to `route`, with a notice shown once on arrival (an `already_recorded` success). */
+  readonly navigate: (route: Route, notice?: string) => void;
   /**
    * Every failed call passes through here first. A session that has ended signs the
    * person out; anything else is the screen's to show. Returns true when handled.

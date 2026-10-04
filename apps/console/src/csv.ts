@@ -11,9 +11,11 @@
  * already used, a kind that does not exist, a unit that does not fit) is the database's,
  * which reports every failing line and saves nothing if any fails.
  *
- * IDS ARE MINTED ONCE PER FILE. Each row carries the decision and item ids it would
- * record, minted when the file is read. Uploading the same parsed file again after a
- * lost answer sends the same ids, so nothing is recorded twice.
+ * IDS ARE MINTED WHEN THE FILE IS READ. Each row carries the decision and item ids it
+ * would record. Pressing Upload again after a lost answer sends the same rows with the
+ * same ids. Choosing the file again mints new ones, and that is safe too, because rows
+ * match existing items by code: an item the lost attempt created is found and counted
+ * unchanged, never created twice.
  *
  * Requirements: INV-002 · INV-005 · ADR-0005
  */
@@ -28,6 +30,8 @@ export const MAX_ROWS = 5000;
 export interface CsvRecord {
   readonly line: number;
   readonly fields: readonly string[];
+  /** A quote out of place: text after a closing quote, or a quote never closed. */
+  readonly malformed?: true;
 }
 
 export type Decoded = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly reason: 'not_utf8' };
@@ -50,6 +54,12 @@ export function decodeCsv(bytes: Uint8Array): Decoded {
  * RFC 4180, plus what spreadsheets actually write: CRLF or LF, a quoted field holding
  * the delimiter, a newline or `""`, and a semicolon delimiter where the header uses one
  * (Excel's list separator follows the locale). Blank lines are skipped.
+ *
+ * A quote opens a quoted field only at the START of a field. Anywhere else it is a
+ * character: `12" plate` is a name. Reading every quote as an opening one merged that
+ * row with the next, silently, at exactly the header's width (found in review). Text
+ * after a closing quote, or a quote never closed, marks the record malformed, and
+ * prepareImport() refuses its line rather than guess.
  */
 export function parseCsv(text: string): CsvRecord[] {
   const firstLine = text.slice(0, text.search(/\r?\n|$/));
@@ -58,15 +68,23 @@ export function parseCsv(text: string): CsvRecord[] {
   let fields: string[] = [];
   let field = '';
   let quoted = false;
+  let afterQuote = false;
+  let atFieldStart = true;
+  let malformed = false;
   let line = 1;
   let start = 1;
   let touched = false;
   const endRecord = () => {
     fields.push(field);
-    if (touched || fields.length > 1 || field !== '') records.push({ line: start, fields });
+    if (touched || fields.length > 1 || field !== '') {
+      records.push(malformed ? { line: start, fields, malformed: true } : { line: start, fields });
+    }
     fields = [];
     field = '';
     touched = false;
+    afterQuote = false;
+    atFieldStart = true;
+    malformed = false;
   };
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!;
@@ -77,6 +95,7 @@ export function parseCsv(text: string): CsvRecord[] {
           i++;
         } else {
           quoted = false;
+          afterQuote = true;
         }
       } else {
         if (c === '\n') line++;
@@ -84,22 +103,31 @@ export function parseCsv(text: string): CsvRecord[] {
       }
       continue;
     }
-    if (c === '"') {
-      quoted = true;
-      touched = true;
-    } else if (c === delimiter) {
+    if (c === delimiter) {
       fields.push(field);
       field = '';
       touched = true;
+      afterQuote = false;
+      atFieldStart = true;
     } else if (c === '\n' || c === '\r') {
       if (c === '\r' && text[i + 1] === '\n') i++;
       endRecord();
       line++;
       start = line;
+    } else if (afterQuote) {
+      // `"a"b`: text after a closing quote. Kept, so the line can be shown, but refused.
+      malformed = true;
+      field += c;
+    } else if (c === '"' && atFieldStart) {
+      quoted = true;
+      touched = true;
+      atFieldStart = false;
     } else {
       field += c;
+      atFieldStart = false;
     }
   }
+  if (quoted) malformed = true;
   if (field !== '' || fields.length > 0 || touched) endRecord();
   return records;
 }
@@ -118,6 +146,7 @@ export type ImportProblem =
   | { readonly kind: 'unknown_column'; readonly column: string }
   | { readonly kind: 'duplicate_column'; readonly column: string }
   | { readonly kind: 'width'; readonly line: number; readonly expected: number; readonly found: number }
+  | { readonly kind: 'quote'; readonly line: number }
   | { readonly kind: 'unknown_brand'; readonly line: number; readonly brand: string };
 
 export type Prepared =
@@ -131,7 +160,9 @@ export type Prepared =
  */
 export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap<string, string>,
                               mint: () => ImportIds): Prepared {
-  const [header, ...body] = records;
+  const [header, ...all] = records;
+  // Excel writes rows of bare delimiters below the data: nothing in them, nothing to do.
+  const body = all.filter((r) => !r.fields.every((f) => f.trim() === ''));
   if (header === undefined || body.length === 0) return { ok: false, problems: [{ kind: 'empty' }] };
   if (body.length > MAX_ROWS) return { ok: false, problems: [{ kind: 'too_many', rows: body.length }] };
 
@@ -149,6 +180,10 @@ export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap
 
   const rows: Record<string, string | null>[] = [];
   for (const record of body) {
+    if (record.malformed) {
+      problems.push({ kind: 'quote', line: record.line });
+      continue;
+    }
     if (record.fields.length !== columns.length) {
       problems.push({ kind: 'width', line: record.line, expected: columns.length, found: record.fields.length });
       continue;

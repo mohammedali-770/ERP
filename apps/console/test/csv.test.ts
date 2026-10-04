@@ -25,6 +25,30 @@ test('quotes, doubled quotes, delimiters and newlines inside a field; CRLF; blan
   ]);
 });
 
+test('CONTROL: a quote inside an unquoted field is a character, and never merges two rows', () => {
+  // Found in review: an inch mark opened a quoted field, so PK-2 vanished into PK-1's name
+  // at exactly the header's width, and the database accepted the result.
+  const records = parseCsv(`${HEADER}\nPK-1,packaging,piece,SPICY,12" plate,صحن\nPK-2,packaging,piece,SPICY,9" plate,صحن ٢\n`);
+  assert.deepEqual(records.slice(1).map((r) => r.fields[4]), ['12" plate', '9" plate']);
+  const p = prepareImport(records, BRANDS, mint);
+  assert.ok(p.ok);
+  assert.deepEqual(p.rows.map((r) => r['code']), ['PK-1', 'PK-2']);
+});
+
+test('text after a closing quote, or a quote never closed, refuses its line', () => {
+  assert.deepEqual(parseCsv('a,b\n"x"y,z'), [{ line: 1, fields: ['a', 'b'] }, { line: 2, fields: ['xy', 'z'], malformed: true }]);
+  assert.deepEqual(parseCsv('a,b\n"x,z').at(-1)!.malformed, true);
+  const p = prepareImport(parseCsv(`${HEADER}\n"A"B,raw_ingredient,g,SPICY,a,أ`), BRANDS, mint);
+  assert.deepEqual(p.ok ? [] : p.problems, [{ kind: 'quote', line: 2 }]);
+});
+
+test('rows of bare delimiters, as Excel writes below the data, are skipped', () => {
+  const p = prepareImport(parseCsv(`${HEADER}\nA,raw_ingredient,g,SPICY,a,أ\n,,,,,\n,,,,,\n`), BRANDS, mint);
+  assert.ok(p.ok);
+  assert.equal(p.rows.length, 1);
+  assert.deepEqual(prepareImport(parseCsv(`${HEADER}\n,,,,,`), BRANDS, mint), { ok: false, problems: [{ kind: 'empty' }] });
+});
+
 test('a semicolon header means semicolons, as a European or Arabic Excel writes', () => {
   assert.deepEqual(parseCsv('code;name_en\nRM-1;Rice, long'), [
     { line: 1, fields: ['code', 'name_en'] },

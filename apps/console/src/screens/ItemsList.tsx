@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Failure, Item } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { ITEM_KINDS, unitName } from '../items.ts';
@@ -23,6 +23,9 @@ export function ItemsList({ ctx }: { ctx: Ctx }) {
   const [next, setNext] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Each load takes a number, and only the newest may draw. A "Load more" answer that
+  // arrived after a filter change was appended to the new filter's list (found in review).
+  const seq = useRef(0);
 
   const query = (after: string | null) => ({
     facilityId,
@@ -34,11 +37,13 @@ export function ItemsList({ ctx }: { ctx: Ctx }) {
   });
 
   useEffect(() => {
-    let live = true;
+    const mine = ++seq.current;
     setItems(null);
+    setNext(null);
     setFailure(null);
+    setLoadingMore(false);
     void api.listItems(query(null)).then((answer) => {
-      if (!live) return;
+      if (mine !== seq.current) return;
       if (answer.ok) {
         setItems(answer.value.items);
         setNext(answer.value.next_after);
@@ -47,14 +52,16 @@ export function ItemsList({ ctx }: { ctx: Ctx }) {
       }
     });
     return () => {
-      live = false;
+      seq.current++;
     };
   }, [api, facilityId, applied, kind, status, brand]);
 
   async function more() {
     if (next === null) return;
+    const mine = ++seq.current;
     setLoadingMore(true);
     const answer = await api.listItems(query(next));
+    if (mine !== seq.current) return;
     setLoadingMore(false);
     if (answer.ok) {
       setItems((current) => [...(current ?? []), ...answer.value.items]);
