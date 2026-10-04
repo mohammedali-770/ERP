@@ -29,10 +29,27 @@ export type SessionRefusal = 'invalid' | 'ended' | 'expired' | 'idle' | 'disable
 /** `erp.sign_out()`. */
 export type SignOutAnswer = { readonly status: 'ok' | 'invalid' };
 
+/**
+ * `erp.viewer()` (0015): what the console shows one person at one facility. Checked for
+ * shape only — the console builds its menu from it, and the database refuses whatever a
+ * menu shows regardless (CAP-P04).
+ */
+export interface ViewerAnswer {
+  readonly person: Readonly<Record<string, unknown>>;
+  readonly facility_id: string | null;
+  readonly org_wide: boolean;
+  readonly facilities: readonly unknown[];
+  readonly permissions: readonly string[];
+  readonly states: Readonly<Record<string, string>>;
+  readonly brands: readonly unknown[];
+  readonly units: readonly unknown[];
+}
+
 export interface SessionDb {
   signIn(employeeNumber: string, pin: string): Promise<SignInAnswer>;
   resolveSession(token: string): Promise<SessionAnswer>;
   signOut(token: string): Promise<SignOutAnswer>;
+  viewer(personId: string, facilityId: string | null): Promise<ViewerAnswer>;
 }
 
 /** Every route the edge may call: the session routes, and each module's. */
@@ -87,4 +104,15 @@ export function asSignOutAnswer(value: unknown): SignOutAnswer {
     return { status: value['status'] };
   }
   throw new UnexpectedAnswer('erp.sign_out', value);
+}
+
+export function asViewerAnswer(value: unknown): ViewerAnswer {
+  if (isRecord(value) && isRecord(value['person']) && typeof value['org_wide'] === 'boolean'
+      && Array.isArray(value['facilities']) && Array.isArray(value['permissions'])
+      && value['permissions'].every((p) => typeof p === 'string') && isRecord(value['states'])
+      && Array.isArray(value['brands']) && Array.isArray(value['units'])
+      && (value['facility_id'] === null || typeof value['facility_id'] === 'string')) {
+    return value as unknown as ViewerAnswer;
+  }
+  throw new UnexpectedAnswer('erp.viewer', value);
 }

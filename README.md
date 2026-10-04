@@ -102,7 +102,9 @@ gate approved.
 
 `apps/console` is no longer a boundary — it is a Vite + React workspace as of
 2026-10-01, and the shell the consolidated system is built in
-([ADR-0021](docs/adr/ADR-0021-one-project.md)). `apps/pos` is still reserved.
+([ADR-0021](docs/adr/ADR-0021-one-project.md)). Since 2026-10-04 it signs people in and
+carries module 1's items screens ([its README](apps/console/README.md)). `apps/pos` is
+still reserved.
 
 ## Requirement baseline
 

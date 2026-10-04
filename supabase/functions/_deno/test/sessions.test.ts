@@ -27,6 +27,7 @@ import { session, signIn, signOut } from '../../_shared/handlers.ts';
 import type { Deps } from '../../_shared/http.ts';
 
 const CASHIER = '01936f00-0000-7000-8000-000000000901';
+const BRANCH = '01936f00-0000-7000-8000-000000000401';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -96,6 +97,26 @@ Deno.test('the edge signs in, resolves and signs out through erp_edge', async (t
       }), deps);
       equal(response.status, 200, 'status');
       equal((await response.json()).person_id, CASHIER, 'person');
+    });
+
+    await t.step('erp.viewer(), as erp_edge, is the cashier\'s at their branch, and nothing organisation-wide', async () => {
+      const at = async (facility: string | null) => {
+        const response = await session(new Request(`http://edge.test/session${facility === null ? '' : `?facility_id=${facility}`}`, {
+          headers: { authorization: `Bearer ${token}` },
+        }), deps);
+        equal(response.status, 200, 'status');
+        return (await response.json()).viewer;
+      };
+      const branch = await at(BRANCH);
+      equal(branch.person.person_id, CASHIER, 'the session\'s person');
+      equal(branch.facility_id, BRANCH, 'at the branch asked for');
+      equal(branch.org_wide, false, 'a branch role');
+      equal(branch.facilities.map((f: { code: string }) => f.code), ['BR-001'], 'where they can work');
+      assert(branch.permissions.includes('inventory.items:read'), 'reads items at the branch');
+      equal(branch.permissions.includes('inventory.items:write'), false, 'writes no item');
+      equal(branch.states['inventory.items'], 'pilot', 'the seed opens items as a pilot');
+      assert(branch.units.length > 0 && branch.brands.length > 0, 'the forms\' reference data');
+      equal((await at(null)).permissions, [], 'organisation-wide, a branch role grants nothing');
     });
 
     await t.step('a number nobody holds is refused, and both attempts were recorded', async () => {

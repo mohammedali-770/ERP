@@ -200,6 +200,83 @@ The nine routes are reachable over HTTP through one edge function, `items`
   It found a real defect: the driver sent an import's rows already JSON-encoded, so
   postgres.js encoded them again and every import was refused as not an array.
 
+## Addendum — 2026-10-04: the screens (module 1, step 3)
+
+The console (`apps/console`) has sign-in and the items screens: a list, an item page with
+its units and history, a create and an edit form, adding and retiring a unit, retiring and
+reinstating an item, and a CSV upload. Arabic is the default, right to left, with English a
+click away. Nothing about the routes changed; one read was added (0015, below).
+
+- **What a person may do comes from the database, and the menu is not a control.** On
+  sign-in the console asks `GET /session` for the person's viewer — `erp.viewer()`, 0015:
+  their permissions and every capability's state where they are working, the facilities
+  they can work at, and the brands and units the forms need. The menu and the buttons are
+  built from it (`navigation.ts`, `viewer.ts`). Every route still asks
+  `erp.assert_permitted()` itself (CAP-P04), so a wrong menu shows a door the database
+  keeps shut. A capability state the console does not know is treated as hidden.
+- **Changes are offered only organisation-wide.** Every write route asks for write with no
+  facility, so the console offers changes only while the person works organisation-wide,
+  from the viewer computed there. A branch role holding write is shown no button the
+  database would refuse. A test reads 0012 and fails if a write route ever takes a
+  facility.
+- **Each form mints its ids once, as UUIDv7** (ADR-0005, `ids.ts`), when it opens, and sends
+  the same ids on every attempt. A retry after a lost answer is answered
+  `already_recorded` and shown as the success it is, so a double-click on a slow line
+  records one decision, not two.
+- **A refusal reads as a sentence in the reader's language,** with the database's own
+  words and the rule's constraint name under it (`messages.ts`). The rules staff are likely
+  to meet have their own sentence. That matters most where PostgreSQL raised the refusal
+  and the edge withholds its words: running the screens found that a missing Arabic
+  description (`item_description_is_bilingual`) read only "a value is not valid". The form
+  now also says "both languages, or neither" and checks it before sending.
+- **A stale form says so and offers a reload.** An edit made while someone else changed
+  the item is refused (`item_stale`). The console says what happened and reloads the item
+  as it now is, rather than overwriting the other change.
+- **Bulk upload is CSV, not the warehouse's .xlsx.**
+  - A spreadsheet parser for untrusted files in the browser is a supply-chain risk this
+    upload does not need, and Excel saves "CSV UTF-8" from the same sheet.
+  - A file that is not UTF-8 is refused rather than guessed. Excel's plain CSV on an
+    Arabic Windows is Windows-1256, which would save every Arabic name as garbage.
+  - The console checks only the file's shape: known columns, at most 5,000 rows, and
+    brands that exist. The rows' rules stay the database's, which saves all of the file
+    or none of it.
+  - Each row's ids are minted when the file is read, so uploading the same file again
+    after a lost answer records nothing twice.
+- **The token lives in the tab's `sessionStorage`,** never `localStorage` and never a
+  cookie. It dies with the tab and is shared with no other tab. A session the database
+  ends — 30 minutes idle, 12 hours, signed out elsewhere, a suspended account — signs the
+  person out at their next action, with the reason.
+
+**Proved:**
+
+- **59 Node tests** (`apps/console/test/`) for the client, the CSV reader, the ids, the
+  translations, the viewer, the routes and the messages. Several read 0012 and fail if the
+  console drifts from it: the item kinds, the import's columns, the 5,000-row limit, the
+  derived-factor rule, the paired descriptions, and the central write gate. Controls
+  include: no request ever names an actor, a stored value that is not a token is never
+  sent, and an unknown capability state is hidden.
+- **The Deno session test** now reads the viewer as `erp_edge`.
+- **A browser run (scratch only, not committed)** drove the screens in Chromium. It used
+  the real edge handlers and driver against a database built from the migrations and
+  seed, on `erp_edge`'s own login. It covered:
+  - sign-in, including a wrong PIN;
+  - the administrator creating an item, adding a derived and a stated unit, amending it,
+    a stale amend and its reload, a duplicate code, and a CSV upload;
+  - the cashier reading their branch's items, read-only, at desktop and phone width;
+  - a session ended elsewhere signing the person out.
+
+**Still open, and now a gate on staff testing (step 5).**
+
+- Item 8 above — whether an import should be refused when an item changed after the
+  file was exported — was to be answered before the import screen ships. The screen is
+  built with today's behaviour, in which the file wins as it did in the warehouse. The
+  console has no export yet, so no file carries a stamp to compare. The question stays
+  the owner's, and must be answered before staff use the upload.
+- The database's refusal messages are English. The console puts a sentence in the
+  reader's language above them, but translating each route's message is not done.
+- The Arabic strings new in this step need a native speaker's review, as the unit names
+  do (item 7). So does showing dates in the Gregorian calendar.
+
 ## Alternatives considered
 
 **Keep the warehouse's three masters.** Rejected by the owner's decision.

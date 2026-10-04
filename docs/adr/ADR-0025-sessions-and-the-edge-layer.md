@@ -127,6 +127,31 @@ would report `verify_pin` if it were granted back.
 - Database enforcement of a read-only preview (CAP-P11) can now be built on a session
   that knows it is a preview. It is not built here.
 
+## Addendum — 2026-10-04: the session names what the console shows
+
+`GET /session` now also returns `viewer`: `erp.viewer()` (migration 0015) for the
+session's person at the facility named by `?facility_id=`, or organisation-wide when there
+is none. The console builds its menu and buttons from it (ADR-0024's step 3 addendum).
+
+- **Always the session's person.** The handler passes `session.personId`, never a person
+  named by the request; a Node control sends another person's id in the query and a
+  header and checks that the viewer asked for is still the caller's.
+- **Security invoker, so no new definer route.** `erp.viewer()` reads only what `erp_app`
+  already reads, by grant and policy: people, roles and permissions, capabilities, the
+  organisation and the unit register. It runs with the caller's privileges, so
+  `every-runtime-definer-route-is-gated` has nothing to account for. `erp_app` alone may
+  execute it. A facility id that is not a UUID is refused before the database is asked.
+- **Naming a facility grants nothing.** Permissions are those of roles held
+  organisation-wide or at that facility, exactly as `erp.permission_granted()` decides.
+  A facility where the person holds no role adds none. The capability states and the
+  reference data it returns are not personal, and every person with a session may read
+  them.
+- **Not a control.** The answer decides what a menu shows. Every route still asks
+  `erp.assert_permitted()` (CAP-P04).
+
+Proved by `supabase/tests/100_viewer_test.sql` (18 cases), the session handler's Node
+tests, and the Deno session test, which reads a cashier's viewer as `erp_edge`.
+
 ## Alternatives considered
 
 **Supabase Auth sessions.** Rejected by ADR-0022 §1: identity is `erp`-native, and
