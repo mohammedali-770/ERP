@@ -88,7 +88,10 @@ begin
       -- of one row, would otherwise reach item_decision's retry check from this very call and be
       -- answered as a retry, though nothing was saved (found in review).
       foreach v_id in array array[r.row ->> 'decision_id', r.row ->> 'base_unit_decision_id'] loop
-        v_id := lower(btrim(v_id));
+        -- Compared as ids, not as spellings: capitals, braces and missing hyphens all
+        -- cast to the same uuid (found by Codex on PR #35). One that does not cast is
+        -- a line error here, as it would be when the route casts it.
+        v_id := nullif(btrim(v_id), '')::uuid::text;
         if v_id is not null and v_ids ? v_id then
           raise exception 'decision id % is used twice in the file (lines % and %)', v_id, v_ids ->> v_id, v_line;
         end if;
@@ -210,7 +213,10 @@ begin
       -- of one row, would otherwise reach supplier_decision's retry check from this very call and be
       -- answered as a retry, though nothing was saved (found in review).
       foreach v_id in array array[r.row ->> 'decision_id', r.row ->> 'contact_decision_id'] loop
-        v_id := lower(btrim(v_id));
+        -- Compared as ids, not as spellings: capitals, braces and missing hyphens all
+        -- cast to the same uuid (found by Codex on PR #35). One that does not cast is
+        -- a line error here, as it would be when the route casts it.
+        v_id := nullif(btrim(v_id), '')::uuid::text;
         if v_id is not null and v_ids ? v_id then
           raise exception 'decision id % is used twice in the file (lines % and %)', v_id, v_ids ->> v_id, v_line;
         end if;

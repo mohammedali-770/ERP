@@ -11,7 +11,7 @@
 -- ids are …0e13NN and …0e14NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(12);
+select plan(13);
 
 -- An import's DETAIL carries its failing lines. A test-local function reads the
 -- SQLSTATE and the detail; it lives in pg_temp, so it changes nothing in erp.
@@ -54,10 +54,11 @@ select throws_ok(
 select matches(pg_temp.refusal('suppliers', '[{"line": "2", "code": "ZZ-T120-S3", "name_en": "Import check ZZ-T120-S3 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-S3 (تجريبي)", "payment_terms_days": "30", "contact_person": "Desk", "decision_id": "01936f00-0000-7000-8000-0000000e1404", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1404", "supplier_id": "01936f00-0000-7000-8000-0000000e1429"}]'::jsonb),
   '^22023 line 2: decision id 01936f00-0000-7000-8000-0000000e1404 is used twice in the file \(lines 2 and 2\)$',
   'naming its line');
--- Ids are compared as ids, not as spellings.
-select matches(pg_temp.refusal('suppliers', '[{"line": "2", "code": "ZZ-T120-S4", "name_en": "Import check ZZ-T120-S4 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-S4 (تجريبي)", "payment_terms_days": "30", "contact_person": "Desk", "decision_id": "01936f00-0000-7000-8000-0000000e1405", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1406", "supplier_id": "01936f00-0000-7000-8000-0000000e1429"}, {"line": "3", "code": "ZZ-T120-S5", "name_en": "Import check ZZ-T120-S5 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-S5 (تجريبي)", "payment_terms_days": "30", "contact_person": "Desk", "decision_id": "01936F00-0000-7000-8000-0000000E1405", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1407", "supplier_id": "01936f00-0000-7000-8000-0000000e1439"}]'::jsonb),
+-- Ids are compared as ids, not as spellings: braced, hyphenless and in capitals is
+-- the same uuid (found by Codex on PR #35).
+select matches(pg_temp.refusal('suppliers', '[{"line": "2", "code": "ZZ-T120-S4", "name_en": "Import check ZZ-T120-S4 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-S4 (تجريبي)", "payment_terms_days": "30", "contact_person": "Desk", "decision_id": "01936f00-0000-7000-8000-0000000e1405", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1406", "supplier_id": "01936f00-0000-7000-8000-0000000e1429"}, {"line": "3", "code": "ZZ-T120-S5", "name_en": "Import check ZZ-T120-S5 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-S5 (تجريبي)", "payment_terms_days": "30", "contact_person": "Desk", "decision_id": "{01936F000000700080000000000E1405}", "contact_decision_id": "01936f00-0000-7000-8000-0000000e1407", "supplier_id": "01936f00-0000-7000-8000-0000000e1439"}]'::jsonb),
   '^22023 line 3: decision id 01936f00-0000-7000-8000-0000000e1405 is used twice',
-  'an id spelled in capitals is the same id');
+  'an id spelled another way is the same id');
 -- CONTROL, the other way. A decision id recorded by ANOTHER call is still a retry, the
 -- answer the edge reads back through the supplier's history.
 select throws_ok(
@@ -81,6 +82,9 @@ select matches(pg_temp.refusal('items', '[{"line": "2", "code": "ZZ-T120-I1", "i
 select matches(pg_temp.refusal('items', '[{"line": "2", "code": "ZZ-T120-I3", "item_kind": "packaging", "base_unit_key": "piece", "brand_id": "01936f00-0000-7000-8000-000000000201", "name_en": "Import check ZZ-T120-I3 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-I3 (تجريبي)", "decision_id": "01936f00-0000-7000-8000-0000000e1304", "item_id": "01936f00-0000-7000-8000-0000000e1321", "base_unit_decision_id": "01936f00-0000-7000-8000-0000000e1304", "base_item_unit_id": "01936f00-0000-7000-8000-0000000e1323"}]'::jsonb),
   '^22023 line 2: decision id 01936f00-0000-7000-8000-0000000e1304 is used twice in the file \(lines 2 and 2\)$',
   'a row whose base unit decision reuses its own decision id is refused, naming its line');
+select matches(pg_temp.refusal('items', '[{"line": "2", "code": "ZZ-T120-I7", "item_kind": "packaging", "base_unit_key": "piece", "brand_id": "01936f00-0000-7000-8000-000000000201", "name_en": "Import check ZZ-T120-I7 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-I7 (تجريبي)", "decision_id": "01936f00-0000-7000-8000-0000000e1310", "item_id": "01936f00-0000-7000-8000-0000000e1327", "base_unit_decision_id": "01936f00-0000-7000-8000-0000000e1328", "base_item_unit_id": "01936f00-0000-7000-8000-0000000e1329"}, {"line": "3", "code": "ZZ-T120-I8", "item_kind": "packaging", "base_unit_key": "piece", "brand_id": "01936f00-0000-7000-8000-000000000201", "name_en": "Import check ZZ-T120-I8 (synthetic)", "name_ar": "فحص الاستيراد ZZ-T120-I8 (تجريبي)", "decision_id": "01936f000000700080000000000e1310", "item_id": "01936f00-0000-7000-8000-0000000e1337", "base_unit_decision_id": "01936f00-0000-7000-8000-0000000e1338", "base_item_unit_id": "01936f00-0000-7000-8000-0000000e1339"}]'::jsonb),
+  '^22023 line 3: decision id 01936f00-0000-7000-8000-0000000e1310 is used twice',
+  'an items file''s ids are compared as ids too, hyphenless or not');
 -- CONTROL. A base-unit decision id already in the log is a collision erp.create_item()
 -- does not check, so PostgreSQL raises it. It is a line error, as in 0012, and every
 -- other failing line is still named — not re-raised whole as an anonymous conflict.
