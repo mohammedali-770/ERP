@@ -15,7 +15,7 @@
 -- Fixture ids are …0e15NN and …0e16NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(63);
+select plan(69);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -296,7 +296,9 @@ select lives_ok(
        1200, 'SAR', null, 'testing: first price', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
   'the accountant prices the unpriced pack, from now'
 );
-select is((erp.transfer_price_at('01936f00-0000-7000-8000-000000004213'::uuid, now())).price_minor, 1200::bigint,
+-- "From now" is the clock once the decision holds its lock, not the transaction's
+-- start, so it is read here at the clock too.
+select is((erp.transfer_price_at('01936f00-0000-7000-8000-000000004213'::uuid, clock_timestamp())).price_minor, 1200::bigint,
   'and it is in force at once');
 select throws_ok(
   $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1601'::uuid, '01936f00-0000-7000-8000-0000000e1603'::uuid, '01936f00-0000-7000-8000-000000004213'::uuid,
@@ -319,12 +321,53 @@ select lives_ok(
   'its moment is free again for a new price'
 );
 
+-- CONTROL: the decision time is the caller's to pass, so it is never trusted to say what
+-- "now" is. A past decision time cannot set a price in the past (found in review).
+select throws_ok(
+  $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1609'::uuid, '01936f00-0000-7000-8000-0000000e1610'::uuid, '01936f00-0000-7000-8000-000000004206'::uuid,
+       800, 'SAR', timestamptz '2026-09-11 00:00:00+00', 'testing: a lie about the time', '01936f00-0000-7000-8000-000000000907'::uuid, timestamptz '2026-09-10 00:00:00+00') $$,
+  '23514', 'a transfer price takes effect now or later, never before it was set (MNU-015)',
+  'CONTROL: a past decision time does not make a past moment acceptable'
+);
+select lives_ok(
+  $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1611'::uuid, '01936f00-0000-7000-8000-0000000e1612'::uuid, '01936f00-0000-7000-8000-000000004206'::uuid,
+       800, 'SAR', null, 'testing: from now, with an old decision time', '01936f00-0000-7000-8000-000000000907'::uuid, timestamptz '2026-09-10 00:00:00+00') $$,
+  'a price "from now" with an old decision time is accepted…'
+);
+select ok((select effective_from >= now() from erp.item_transfer_prices('01936f00-0000-7000-8000-000000000900'::uuid, null, '01936f00-0000-7000-8000-000000004102'::uuid)
+            where price_id = '01936f00-0000-7000-8000-0000000e1612'),
+  '…but takes effect from the clock, never from the decision time it was handed');
+
+-- CONTROL: "in effect" is judged by the clock, not by the transaction's start. A price
+-- whose moment passes while a transaction is still open — waiting on a lock, say — is in
+-- effect by then, and a withdrawal must be refused, by the route and by the trigger
+-- (found in review: both read now(), so it went through).
+select lives_ok(
+  $$ select erp.set_transfer_price('01936f00-0000-7000-8000-0000000e1613'::uuid, '01936f00-0000-7000-8000-0000000e1614'::uuid, '01936f00-0000-7000-8000-000000004207'::uuid,
+       2500, 'SAR', clock_timestamp() + interval '1 second', 'testing: about to take effect', '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
+  'a price set to take effect a second from now'
+);
+select throws_ok(
+  $$ select pg_sleep(1.2);
+     select erp.withdraw_transfer_price('01936f00-0000-7000-8000-0000000e1615'::uuid, '01936f00-0000-7000-8000-0000000e1614'::uuid, 'testing: too late',
+       '01936f00-0000-7000-8000-000000000907'::uuid, now()) $$,
+  '23001', 'transfer price 01936f00-0000-7000-8000-0000000e1614 is in effect: set a new price instead of withdrawing it',
+  'CONTROL: once its moment has passed it is in effect, though the transaction began before it'
+);
+select throws_ok(
+  $$ select pg_sleep(1.2);
+     update erp.transfer_price set status = 'withdrawn' where price_id = '01936f00-0000-7000-8000-0000000e1614' $$,
+  '23001', 'transfer price 01936f00-0000-7000-8000-0000000e1614 is in effect: set a new price instead of withdrawing it',
+  'and the trigger judges it by the clock too'
+);
+
 -- I-8: every price equals the latest decision about it, after all of this.
 select is_empty(
   $$ select p.price_id from erp.transfer_price p
      left join erp.transfer_price_decision d on d.decision_id = p.as_of_decision_id
      where d.decision_id is null
-        or (d.price_minor, d.effective_from, d.status) is distinct from (p.price_minor, p.effective_from, p.status)
+        or (d.item_unit_id, d.item_id, d.unit_key, d.factor, d.price_minor, d.currency, d.effective_from, d.status)
+           is distinct from (p.item_unit_id, p.item_id, p.unit_key, p.factor, p.price_minor, p.currency, p.effective_from, p.status)
         or exists (select 1 from erp.transfer_price_decision l where l.price_id = p.price_id and l.seq > d.seq) $$,
   'every price equals the latest decision about it'
 );

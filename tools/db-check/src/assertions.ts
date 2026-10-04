@@ -730,6 +730,22 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           where not exists (select 1 from erp.transfer_price p
                              where p.price_id = d.price_id and p.item_unit_id = d.item_unit_id)
           union all
+          -- The pack, amount, currency and moment are fixed for a price's life, so every
+          -- decision about it agrees on them, and its first decision is its one price_set
+          -- (found in review: a history claiming another amount passed).
+          select 'price ' || d.price_id || ': its decisions disagree on what it is'
+          from erp.transfer_price_decision d
+          group by d.price_id
+          having count(distinct (d.item_unit_id, d.item_id, d.unit_key, d.factor, d.price_minor, d.currency,
+                                 d.effective_from)) > 1
+          union all
+          select 'price ' || f.price_id || ': its first decision is not its one price_set'
+          from (select d.price_id,
+                       (array_agg(d.kind order by d.seq))[1] as first_kind,
+                       count(*) filter (where d.kind = 'price_set') as sets
+                from erp.transfer_price_decision d group by d.price_id) f
+          where f.first_kind <> 'price_set' or f.sets <> 1
+          union all
           select 'decision ' || d.decision_id || ' set a price before it was decided'
           from erp.transfer_price_decision d
           where d.kind = 'price_set' and d.effective_from < d.decided_at

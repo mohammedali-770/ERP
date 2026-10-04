@@ -189,9 +189,10 @@ begin
     raise exception 'transfer price % is withdrawn for good; set it again (I-6)', old.price_id
       using errcode = 'restrict_violation', constraint = 'transfer_price_withdrawal_final';
   end if;
-  -- A price in effect is history: an order may already have been charged it. now() is
-  -- the transaction's start, the same moment the routes decide at.
-  if old.status = 'active' and new.status = 'withdrawn' and old.effective_from <= now() then
+  -- A price in effect is history: an order may already have been charged it. Judged by
+  -- the clock at the update, not now(), which is the transaction's START: a withdrawal
+  -- that waited on a lock past the price's moment was let through (found in review).
+  if old.status = 'active' and new.status = 'withdrawn' and old.effective_from <= clock_timestamp() then
     raise exception 'transfer price % is in effect: set a new price instead of withdrawing it', old.price_id
       using errcode = 'restrict_violation', constraint = 'transfer_price_in_effect';
   end if;
@@ -272,15 +273,23 @@ $$;
 -- What a branch order line (module 10) copies into its own record (I-7): the price of
 -- the conversion in force when the order was placed. No price is a refusal, never a
 -- silent 0 as in the warehouse, where an unpriced item went out at nothing.
+--
+-- It takes the conversion's price lock SHARED, the lock every price decision about the
+-- conversion takes exclusively: an order waits for a price decision in flight, and a
+-- decision waits for orders in flight, so no order is charged a price that history then
+-- says did not apply at its moment (found in review). It does not check the conversion
+-- is active — a price set ahead outlives a pack retired meanwhile — so the caller reaches
+-- the pack through erp.active_item_unit() first, as every quantity-bearing line must.
 create or replace function erp.transfer_price_at(p_item_unit_id uuid, p_at timestamptz)
 returns erp.transfer_price
 language plpgsql
-stable
+volatile
 set search_path = pg_catalog, pg_temp
 as $$
 declare
   v erp.transfer_price;
 begin
+  perform pg_advisory_xact_lock_shared(hashtextextended('erp.transfer_price:' || p_item_unit_id::text, 0));
   v := erp.transfer_price_in_force(p_item_unit_id, p_at);
   if v.price_id is null then
     raise exception 'conversion % has no transfer price at %', p_item_unit_id, p_at
@@ -316,9 +325,10 @@ security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  u      erp.item_unit;
-  v_from timestamptz := coalesce(p_effective_from, p_decided_at);
-  v_now  erp.transfer_price;
+  u       erp.item_unit;
+  v_from  timestamptz;
+  v_clock timestamptz;
+  v_now   erp.transfer_price;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.transfer_prices', 'write', null);
   perform erp.assert_transfer_price_decision_is_new(p_decision_id);
@@ -342,15 +352,23 @@ begin
     raise exception 'transfer prices are in SAR'
       using errcode = 'check_violation', constraint = 'transfer_price_currency_is_known';
   end if;
-  if v_from < p_decided_at then
+
+  -- Serialise decisions about this conversion, and orders that read its price (the seam
+  -- takes this lock shared), so two prices for one moment, a price checked against
+  -- another being withdrawn, or an order reading a price being set, cannot interleave.
+  perform pg_advisory_xact_lock(hashtextextended('erp.transfer_price:' || u.item_unit_id::text, 0));
+
+  -- "Now" is the clock once the lock is held — not now(), the transaction's start, and
+  -- not p_decided_at, which the caller supplies. A caller passing a past decision time,
+  -- or a decision that waited on a lock, would otherwise set a price in the past and
+  -- rewrite what an order already placed was charged (found in review).
+  v_clock := greatest(clock_timestamp(), p_decided_at);
+  v_from := coalesce(p_effective_from, v_clock);
+  if v_from < v_clock then
     raise exception 'a transfer price takes effect now or later, never before it was set (MNU-015)'
       using errcode = 'check_violation', constraint = 'transfer_price_not_backdated',
             hint = 'An order already placed keeps the price it was placed at.';
   end if;
-
-  -- Serialise decisions about this conversion, so two prices for one moment, or a price
-  -- checked against another being withdrawn, cannot interleave.
-  perform pg_advisory_xact_lock(hashtextextended('erp.transfer_price:' || u.item_unit_id::text, 0));
   if exists (select 1 from erp.transfer_price p
               where p.item_unit_id = u.item_unit_id and p.status = 'active' and p.effective_from = v_from) then
     raise exception 'conversion % already has a price from %; withdraw that one first', u.item_unit_id, v_from
@@ -408,7 +426,8 @@ begin
     raise exception 'transfer price % is already withdrawn', p.price_id
       using errcode = 'restrict_violation', constraint = 'transfer_price_already_withdrawn';
   end if;
-  if p.effective_from <= p_decided_at then
+  -- As above: the clock once the locks are held, or the decision's own time if later.
+  if p.effective_from <= greatest(clock_timestamp(), p_decided_at) then
     raise exception 'transfer price % is in effect: set a new price instead of withdrawing it', p.price_id
       using errcode = 'restrict_violation', constraint = 'transfer_price_in_effect';
   end if;
@@ -520,7 +539,7 @@ begin
          nxt.price_id, nxt.price_minor, nxt.effective_from
   from page i
   join erp.item_unit u on u.item_id = i.item_id and u.status = 'active'
-  left join lateral (select (erp.transfer_price_in_force(u.item_unit_id, now())).*) cur on true
+  left join lateral erp.transfer_price_in_force(u.item_unit_id, now()) cur on true
   left join lateral (
     select p.price_id, p.price_minor, p.effective_from from erp.transfer_price p
     where p.item_unit_id = u.item_unit_id and p.status = 'active' and p.effective_from > now()

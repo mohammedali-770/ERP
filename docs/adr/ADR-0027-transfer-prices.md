@@ -84,11 +84,33 @@ capability `inventory.transfer_prices` ships **hidden**.
 Branch orders carried none in the warehouse: a transfer within the company is not a
 sale. There is no VAT column. Question 1 asks whether that holds.
 
+### 8. "Now" is the clock, and orders queue behind price decisions (found in review)
+
+Whether a price is backdated, or already in effect, is judged by the clock once the
+decision holds its conversion's lock. It is never judged by the decision time the caller
+passes, nor by `now()`, which is the transaction's start:
+
+- **A caller's past decision time** no longer sets a price in the past, rewriting what an
+  order already placed was charged.
+- **A withdrawal that waited on a lock** past its price's moment is refused, by the
+  route and by the trigger alike.
+
+The seam takes the same per-conversion lock, shared, so a branch order and a price
+decision about its pack never interleave. The order is charged what history will say
+applied at its moment.
+
+`db:check` also holds every price's decision history to the price. All its decisions
+agree on the pack, the amount, the currency and the moment, and its first decision is
+its one `price_set`.
+
 ## Consequences
 
 - **Branch orders (module 10) get a seam.** An order line calls `erp.transfer_price_at()`
   for its pack at the moment the order is placed. It copies the answer into its own
-  immutable record, and is refused when the pack has no price.
+  immutable record, and is refused when the pack has no price. The seam does not check
+  the pack is still active: a price set ahead outlives a pack retired meanwhile. So the
+  order line reaches its pack through `erp.active_item_unit()` first, as every
+  quantity-bearing line must.
 - **Valuation and the journal (modules 16, 20) read the order lines,** not this table:
   the price a branch was charged is the line's, fixed when the order was placed.
 - **Changing a price is cheap and safe.** Set the new price from the moment it should
