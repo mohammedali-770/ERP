@@ -2186,9 +2186,10 @@ requirements:
     text_en: "The system shall support raw ingredients, factory-made semi-finished items, ready-to-sell finished products, packaging, cleaning supplies, operating supplies, equipment and spare parts."
     text_ar: "يجب أن يدعم النظام المواد الخام والمواد نصف المصنعة من المصنع والمنتجات الجاهزة للبيع ومواد التغليف والتنظيف والتشغيل والمعدات وقطع الغيار."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-items"
     estate_refs: []
   - id: "INV-003"
     module: "INV"
@@ -2222,9 +2223,10 @@ requirements:
     text_en: "The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units."
     text_ar: "يجب أن يدعم النظام تحويل الوحدات وأن يمنع التحويلات الملتبسة بين وحدات الشراء والإنتاج والتخزين والوصفة."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-items"
     estate_refs: []
   - id: "INV-006"
     module: "INV"

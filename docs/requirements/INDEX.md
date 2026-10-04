@@ -282,10 +282,10 @@ _5.11 Inventory and replenishment_
 | ID | Phase | Pri | Owner | Tests | Requirement |
 |---|---|---|---|---|---|
 | `INV-001` | F3 | P0 | — | — | Every completed sale shall deduct recipe ingredients and packaging from branch inventory in real time. |
-| `INV-002` | F3 | P0 | — | — | The system shall support raw ingredients, factory-made semi-finished items, ready-to-sell finished products, packaging, cleaning supplies, operating supplies, equipment and spare parts. |
+| `INV-002` | F3 | P0 | Operations management | UAT-items | The system shall support raw ingredients, factory-made semi-finished items, ready-to-sell finished products, packaging, cleaning supplies, operating supplies, equipment and spare parts. |
 | `INV-003` | F3 | P0 | — | — | Inventory shall be tracked by company, brand where applicable, facility, storage location, item, unit and stock status. |
 | `INV-004` | F3 | P0 | — | — | Food and factory stock shall track batch, production date and expiry date. |
-| `INV-005` | F3 | P0 | — | — | The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units. |
+| `INV-005` | F3 | P0 | Operations management | UAT-items | The system shall support unit conversion and prevent ambiguous conversions between purchase, production, storage and recipe units. |
 | `INV-006` | F3 | P0 | — | — | Stock movements shall include receipt, issue, sale consumption, production consumption, production output, transfer, return, adjustment, waste, damage and expiry. |
 | `INV-007` | F3 | P0 | — | — | Every stock movement shall record source document, user, date, quantity, unit, location, batch where applicable and approval state. |
 | `INV-008` | F3 | P0 | — | — | Negative stock shall be prevented or explicitly controlled through an exception approval policy. |

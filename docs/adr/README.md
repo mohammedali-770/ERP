@@ -55,3 +55,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0023](./ADR-0023-edge-functions-hold-the-erp-credential.md) | Edge functions hold the ERP's database credential |
 | [ADR-0024](./ADR-0024-item-master-and-units.md) | One item master, and conversions that cannot be read two ways |
 | [ADR-0025](./ADR-0025-sessions-and-the-edge-layer.md) | Sessions, and an edge layer in which a caller cannot name the actor |
+| [ADR-0026](./ADR-0026-suppliers.md) | Suppliers, and what each one sells, named down to the pack |

@@ -389,6 +389,33 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'supplier-guard-triggers-exist',
+    title: 'erp.supplier and erp.supplier_item carry their enabled guard triggers, TRUNCATE included',
+    because:
+      'PRC-005, I-7, B-11: a supplier\'s code and a supply\'s supplier and conversion are ' +
+      'fixed, a retired supply stays retired, and neither is ever deleted, only because ' +
+      '0016\'s triggers say so — and they bind the owner too. A consistent seed passes with ' +
+      'the triggers gone, so their presence is checked directly, as item-guard-triggers-exist ' +
+      'does for 0012: a BEFORE UPDATE OR DELETE row trigger and a BEFORE TRUNCATE statement ' +
+      'trigger on each, each firing the function 0016 wrote for it.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.supplier'::regclass,      27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.supplier_is_fixed()'::regprocedure),
+                  ('erp.supplier_item'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.supplier_item_is_fixed()'::regprocedure),
+                  ('erp.supplier'::regclass,      34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.supplier_tables_are_never_truncated()'::regprocedure),
+                  ('erp.supplier_item'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.supplier_tables_are_never_truncated()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -609,6 +636,51 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           where a.status = 'active' and b.status = 'active'
             and ua.dimension = ub.dimension and ua.dimension <> 'pack'
             and a.factor * ub.per_reference <> b.factor * ua.per_reference`,
+  },
+  {
+    id: 'supplier-projections-match-their-decisions',
+    title: 'every supplier and supply equals the latest decision about it, and no decision holds a contact',
+    because:
+      'I-8, as item-projections-match-their-decisions holds it for 0012: erp.supplier_decision ' +
+      'carries whole states, so each supplier\'s business record and each supply must EQUAL ' +
+      'its stamp, with no later decision about the same subject, and every decision must name ' +
+      'a real supplier and supply. A supply\'s copy of its conversion must match its decision ' +
+      'too, since the decision is what a purchase order line will be read against. Contacts ' +
+      'are not compared, because they are not decided: SEC-008 keeps them out of the log, and ' +
+      'that is checked here as the absence of any contact column on it.',
+    sql: `select 'supplier ' || s.code as violation
+          from erp.supplier s
+          left join erp.supplier_decision d on d.decision_id = s.as_of_decision_id
+          where d.decision_id is null
+             or d.kind not in ('supplier_created', 'supplier_amended', 'supplier_status_changed', 'supplier_contact_changed')
+             or (d.code, d.name_en, d.name_ar, d.vat_number, d.cr_number, d.payment_terms_days, d.status)
+                is distinct from
+                (s.code, s.name_en, s.name_ar, s.vat_number, s.cr_number, s.payment_terms_days, s.status)
+             or exists (select 1 from erp.supplier_decision l
+                         where l.supplier_id = s.supplier_id and l.supplier_item_id is null and l.seq > d.seq)
+          union all
+          select 'supply ' || x.supplier_item_id
+          from erp.supplier_item x
+          left join erp.supplier_decision d on d.decision_id = x.as_of_decision_id
+          where d.decision_id is null
+             or d.kind not in ('supply_added', 'supply_amended', 'supply_retired')
+             or (d.supplier_id, d.item_unit_id, d.item_id, d.unit_key, d.factor, d.supplier_code, d.preferred, d.status)
+                is distinct from
+                (x.supplier_id, x.item_unit_id, x.item_id, x.unit_key, x.factor, x.supplier_code, x.preferred, x.status)
+             or exists (select 1 from erp.supplier_decision l
+                         where l.supplier_item_id = x.supplier_item_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names nothing'
+          from erp.supplier_decision d
+          where not exists (select 1 from erp.supplier s where s.supplier_id = d.supplier_id)
+             or (d.supplier_item_id is not null
+                 and not exists (select 1 from erp.supplier_item x
+                                  where x.supplier_item_id = d.supplier_item_id and x.supplier_id = d.supplier_id))
+          union all
+          select 'erp.supplier_decision has a contact column: ' || a.attname
+          from pg_attribute a
+          where a.attrelid = 'erp.supplier_decision'::regclass and a.attnum > 0 and not a.attisdropped
+            and a.attname in ('contact_person', 'phone', 'email', 'address')`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',

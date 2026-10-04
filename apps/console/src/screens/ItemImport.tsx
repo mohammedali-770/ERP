@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import type { Failure, ImportSummary } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { brandLookup, decodeCsv, IMPORT_COLUMNS, parseCsv, prepareImport, type ImportProblem } from '../csv.ts';
@@ -25,6 +25,10 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
   const [done, setDone] = useState<ImportSummary | null>(null);
   /** An earlier attempt at these rows went unanswered, and may have saved them. */
   const [doubted, setDoubted] = useState(false);
+  // Each file chosen takes a number, and only the newest may set the rows. Reading is
+  // asynchronous: choosing A then B, with A finishing last, left A's rows under B's name,
+  // and Upload imported the file not shown (found by Codex on PR #33).
+  const choice = useRef(0);
 
   async function choose(e: ChangeEvent<HTMLInputElement>) {
     setRows(null);
@@ -33,9 +37,12 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setFailure(null);
     setDone(null);
     setDoubted(false);
+    const mine = ++choice.current;
     const file = e.target.files?.[0];
     if (file === undefined) return;
-    const decoded = decodeCsv(new Uint8Array(await file.arrayBuffer()));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (mine !== choice.current) return;
+    const decoded = decodeCsv(bytes);
     if (!decoded.ok) {
       setNotUtf8(true);
       return;

@@ -218,9 +218,10 @@ try {
   }
 
   // A retry that OVERLAPS its original must still be answered as a retry: 23505 naming
-  // item_decision_pkey, the one answer the edge reads back through erp.item_history().
+  // the log's primary key (item_decision_pkey, supplier_decision_pkey), the one answer the
+  // edge reads back through the module's history read.
   // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording.
-  // Two sessions, one decision id, for every item write route. The original commits only
+  // Two sessions, one decision id, for every item and supplier write route. The original commits only
   // once the retry is seen waiting on a lock, so the overlap is arranged rather than
   // hoped for. Without erp.assert_item_decision_is_new()'s
   // lock, both passed its check before either committed, and the retry came back "has
@@ -230,7 +231,8 @@ try {
   console.log('');
   const id = (tail: string) => `'01936f00-0000-7000-8000-${tail}'::uuid`;
   const admin = id('000000000900');
-  const routes: ReadonlyArray<readonly [string, (decision: string) => string]> = [
+  // [route, call, the decision log's primary key the retry must name]
+  const routes: ReadonlyArray<readonly [string, (decision: string) => string, string?]> = [
     ['amend_item', (d) => `select erp.amend_item(${d}, ${id('000000004111')}, ${id('000000004342')},
        'Basmati rice, aged (synthetic)', 'أرز بسمتي معتق (تجريبي)', null, null, null, 'db-check retry probe', ${admin}, now())`],
     ['change_item_status', (d) => `select erp.change_item_status(${d}, ${id('000000004108')}, ${id('000000004315')},
@@ -241,13 +243,37 @@ try {
     ['create_item', (d) => `select erp.create_item(${d}, ${id('0000000d0102')}, ${id('0000000d0103')}, ${id('0000000d0104')},
        ${id('000000000201')}, 'ZZ-RETRY-PROBE', 'packaging', 'piece', 'Retry probe lid (synthetic)', 'غطاء فحص الإعادة (تجريبي)',
        null, null, null, 'db-check retry probe', ${admin}, now())`],
+    // 0016's seven write routes, against its seed: the same lock, under its own log.
+    ['amend_supplier', (d) => `select erp.amend_supplier(${d}, ${id('000000005102')}, ${id('000000005303')},
+       'Gulf Packaging Co. (synthetic)', 'الخليج للتغليف (تجريبي)', '310000000000103', '1010000002', 60,
+       'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    ['change_supplier_status', (d) => `select erp.change_supplier_status(${d}, ${id('000000005105')}, ${id('000000005309')},
+       'retired', 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    ['set_supplier_contact', (d) => `select erp.set_supplier_contact(${d}, ${id('000000005103')}, ${id('000000005304')},
+       null, '+966550000002', null, null, ${admin}, now())`, 'supplier_decision_pkey'],
+    ['add_supplier_item', (d) => `select erp.add_supplier_item(${d}, ${id('0000000d0201')}, ${id('000000005102')},
+       ${id('000000004213')}, null, false, 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    ['amend_supplier_item', (d) => `select erp.amend_supplier_item(${d}, ${id('000000005202')}, ${id('000000005312')},
+       'WP-CB-KG', false, 'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    ['retire_supplier_item', (d) => `select erp.retire_supplier_item(${d}, ${id('000000005203')},
+       'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    ['create_supplier', (d) => `select erp.create_supplier(${d}, ${id('0000000d0202')}, 'ZZ-RETRY-PROBE',
+       'Retry probe supplier (synthetic)', 'مورد فحص الإعادة (تجريبي)', null, null, 30,
+       'db-check retry probe', ${admin}, now())`, 'supplier_decision_pkey'],
+    // An import sent twice while the first is still running: its rows' decision ids are
+    // the first sending's, so the second must be answered as a retry, not as "nothing was
+    // saved" when the first saved everything.
+    ['import_suppliers', (d) => `select erp.import_suppliers(${admin}, 'db-check retry probe', now(),
+       jsonb_build_array(jsonb_build_object('code', 'ZZ-RETRY-IMPORT', 'name_en', 'Retry probe import (synthetic)',
+         'name_ar', 'استيراد فحص الإعادة (تجريبي)', 'payment_terms_days', '30', 'decision_id', ${d},
+         'contact_decision_id', ${id('0000000d0203')}, 'supplier_id', ${id('0000000d0204')})))`, 'supplier_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
     r.status === 0 ? 'nothing (it succeeded)' : (r.stderr.split('\n').find((l) => l.includes('ERROR')) ?? r.stderr).replace(/^.*ERROR:\s*/, '');
-  const isRetrySignal = (stderr: string) =>
-    /ERROR:\s+23505:/.test(stderr) && /CONSTRAINT NAME:\s+item_decision_pkey/.test(stderr);
-  for (const [index, [route, call]] of routes.entries()) {
+  const isRetrySignal = (stderr: string, constraint: string) =>
+    /ERROR:\s+23505:/.test(stderr) && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr);
+  for (const [index, [route, call, constraint = 'item_decision_pkey']] of routes.entries()) {
     const decision = id(`0000000d${String(index + 1).padStart(4, '0')}`);
     const original = cluster.sqlConcurrently(`begin; ${call(decision)};
       do $wait$ begin
@@ -269,7 +295,7 @@ try {
     }
     const retry = cluster.sqlConcurrently(call(decision), 'erp_retry_duplicate');
     const [first, second] = await Promise.all([original, retry]);
-    if (first.status === 0 && isRetrySignal(second.stderr)) {
+    if (first.status === 0 && isRetrySignal(second.stderr, constraint)) {
       console.log(`  pass  ${route}: a retry that overlaps its original is answered as a retry`);
     } else {
       failures++;
