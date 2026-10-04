@@ -5,6 +5,7 @@ import { factorInput, formatDateTime, formatFactor, shortId } from '../format.ts
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { addableUnits, factorIsDerived, isBaseUnit, isUnanswered, unitName, unitSymbol, writeOutcome } from '../items.ts';
+import { ItemSuppliers } from './ItemSuppliers.tsx';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
@@ -118,6 +119,8 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 
       {ctx.writable ? <StatusChange ctx={ctx} item={item} onDone={afterWrite} /> : null}
 
+      {ctx.seesSuppliers ? <ItemSuppliers ctx={ctx} itemId={item.item_id} /> : null}
+
       <h2>{t(lang, 'history')}</h2>
       {history === null ? <Loading lang={lang} /> : (
         <table className="table">
@@ -133,7 +136,8 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
                   {d.unit_key ? <> · {unitName(lang, data.units, d.unit_key)} ({formatFactor(d.factor)})</> : null}
                   {d.kind === 'item_status_changed' ? <> · {d.status === 'active' ? t(lang, 'status_active') : t(lang, 'status_retired')}</> : null}
                 </td>
-                <td>{d.reason}</td>
+                {/* bdi: an English reason in an Arabic page keeps its full stop at its end. */}
+                <td><bdi>{d.reason}</bdi></td>
                 <td dir="ltr" title={d.actor_id}>{d.actor_id === data.person.person_id ? (localName(lang, {
                   name_en: data.person.full_name_en, name_ar: data.person.full_name_ar,
                 }) || shortId(d.actor_id)) : shortId(d.actor_id)}</td>

@@ -10,6 +10,10 @@ What it has today:
 - **Module 1, items and units** (ADR-0024 and its addenda): the list, an item's page with
   its units and history, create and edit, adding and retiring a unit, retiring and
   reinstating an item, and a CSV upload.
+- **Module 2, suppliers** (ADR-0026 and its addenda): the list, a supplier's page with
+  what it sells and its history, create and edit, the contact (no reason asked, and an
+  erase action), adding, changing and stopping a supply, retiring and reinstating, and a
+  CSV upload. An item's page shows who sells it, to someone who may read suppliers.
 
 ## Layout
 
@@ -39,7 +43,8 @@ npm run dev -w @firsttaste/app-console      # http://localhost:5173
 stack's `http://127.0.0.1:54321/functions/v1`.
 
 The seed's people are synthetic (`supabase/seeds/0015_identity.sql`). The cashier at
-BR-001 can sign in and read that branch's items. Changing items takes an
-organisation-wide role holding `inventory.items:write`, which the seed gives the
-administrator alone. The seed sets no administrator PIN; set one locally with
+BR-001 can sign in and read that branch's items, and nothing of suppliers. Changing items
+or suppliers takes an organisation-wide role holding `inventory.items:write` or
+`procurement.suppliers:write`, which the seed gives the administrator alone; the
+warehouse manager reads both. The seed sets no PIN for either; set one locally with
 `erp.set_pin()`.

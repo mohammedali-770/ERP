@@ -1,5 +1,6 @@
 /**
- * Bulk upload: a CSV file into the rows erp.import_items() takes (0012).
+ * Bulk upload: a CSV file into the rows erp.import_items() (0012) or erp.import_suppliers()
+ * (0016) takes.
  *
  * The warehouse system read .xlsx with a spreadsheet library. Here the file is CSV, read
  * by the forty lines below, because a dependency that parses untrusted spreadsheets in
@@ -153,13 +154,18 @@ export type Prepared =
   | { readonly ok: true; readonly rows: readonly Record<string, string | null>[] }
   | { readonly ok: false; readonly problems: readonly ImportProblem[] };
 
+/** What one record becomes: the row the import takes, or the problem that refuses its line. */
+type Built = { readonly row: Record<string, string | null> } | { readonly problem: ImportProblem };
+
 /**
- * The rows erp.import_items() takes, from parsed records. `brands` maps a brand code (or
- * id) to its id; only brands this person may see are in it. `mint` gives each row its
- * ids, once. Up to 20 problems are reported, as the database reports up to 20 lines.
+ * Rows from parsed records, for an upload whose header may name `known` columns and must
+ * name `required` ones. `build` turns one record into a row, given a cell reader (blank is
+ * null); everything else — empty files, too many rows, header problems, malformed and
+ * short lines, at most 20 problems reported as the database reports 20 lines — is the
+ * same for every upload.
  */
-export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap<string, string>,
-                              mint: () => ImportIds): Prepared {
+function prepareRows(records: readonly CsvRecord[], known: readonly string[], required: readonly string[],
+                     build: (value: (column: string) => string | null, line: number) => Built): Prepared {
   const [header, ...all] = records;
   // Excel writes rows of bare delimiters below the data: nothing in them, nothing to do.
   const body = all.filter((r) => !r.fields.every((f) => f.trim() === ''));
@@ -168,14 +174,14 @@ export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap
 
   const problems: ImportProblem[] = [];
   const columns = header.fields.map((f) => f.trim().toLowerCase());
-  const known: ReadonlySet<string> = new Set(IMPORT_COLUMNS);
+  const knownSet: ReadonlySet<string> = new Set(known);
   const seen = new Set<string>();
   for (const c of columns) {
-    if (!known.has(c)) problems.push({ kind: 'unknown_column', column: c });
+    if (!knownSet.has(c)) problems.push({ kind: 'unknown_column', column: c });
     else if (seen.has(c)) problems.push({ kind: 'duplicate_column', column: c });
     seen.add(c);
   }
-  for (const c of REQUIRED) if (!seen.has(c)) problems.push({ kind: 'missing_column', column: c });
+  for (const c of required) if (!seen.has(c)) problems.push({ kind: 'missing_column', column: c });
   if (problems.length > 0) return { ok: false, problems };
 
   const rows: Record<string, string | null>[] = [];
@@ -193,14 +199,26 @@ export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap
       const v = i === -1 ? '' : record.fields[i]!.trim();
       return v === '' ? null : v;
     };
+    const built = build(value, record.line);
+    if ('problem' in built) problems.push(built.problem);
+    else rows.push(built.row);
+  }
+  return problems.length > 0 ? { ok: false, problems: problems.slice(0, 20) } : { ok: true, rows };
+}
+
+/**
+ * The rows erp.import_items() takes, from parsed records. `brands` maps a brand code (or
+ * id) to its id; only brands this person may see are in it. `mint` gives each row its
+ * ids, once.
+ */
+export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap<string, string>,
+                              mint: () => ImportIds): Prepared {
+  return prepareRows(records, IMPORT_COLUMNS, REQUIRED, (value, line) => {
     const brandText = value('brand') ?? '';
     const brandId = brands.get(brandText) ?? brands.get(brandText.toUpperCase()) ?? brands.get(brandText.toLowerCase());
-    if (brandId === undefined) {
-      problems.push({ kind: 'unknown_brand', line: record.line, brand: brandText });
-      continue;
-    }
-    rows.push({
-      line: String(record.line),
+    if (brandId === undefined) return { problem: { kind: 'unknown_brand', line, brand: brandText } };
+    return { row: {
+      line: String(line),
       ...mint(),
       code: value('code'),
       item_kind: value('item_kind'),
@@ -210,9 +228,38 @@ export function prepareImport(records: readonly CsvRecord[], brands: ReadonlyMap
       name_ar: value('name_ar'),
       description_en: value('description_en'),
       description_ar: value('description_ar'),
-    });
-  }
-  return problems.length > 0 ? { ok: false, problems: problems.slice(0, 20) } : { ok: true, rows };
+    } };
+  });
+}
+
+/**
+ * The supplier upload's columns: erp.import_suppliers() (0016) reads each by this name.
+ * The file wins, as in the warehouse: a blank cell clears that field of an existing
+ * supplier, contacts included (ADR-0026 §7).
+ */
+export const SUPPLIER_IMPORT_COLUMNS = [
+  'code', 'name_en', 'name_ar', 'vat_number', 'cr_number', 'payment_terms_days',
+  'contact_person', 'phone', 'email', 'address',
+] as const;
+const SUPPLIER_REQUIRED: readonly string[] = ['code', 'name_en', 'name_ar', 'payment_terms_days'];
+
+export interface SupplierImportIds {
+  readonly decision_id: string;
+  readonly contact_decision_id: string;
+  readonly supplier_id: string;
+}
+
+/**
+ * The rows erp.import_suppliers() takes. Every cell is passed as text, payment terms
+ * included: the database reads a blank or non-numeric cell as an error on its line, not
+ * a silent 30, and folds digits typed on an Arabic keyboard.
+ */
+export function prepareSupplierImport(records: readonly CsvRecord[], mint: () => SupplierImportIds): Prepared {
+  return prepareRows(records, SUPPLIER_IMPORT_COLUMNS, SUPPLIER_REQUIRED, (value, line) => {
+    const row: Record<string, string | null> = { line: String(line), ...mint() };
+    for (const c of SUPPLIER_IMPORT_COLUMNS) row[c] = value(c);
+    return { row };
+  });
 }
 
 /** Brand code and id, each to the id: what prepareImport() looks a row's brand up in. */

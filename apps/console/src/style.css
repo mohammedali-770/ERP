@@ -187,3 +187,7 @@ fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; 
 .notice-info { background: var(--info-bg); border-color: var(--info-line); }
 .notice-detail { color: var(--muted); }
 .loading { color: var(--muted); }
+
+/* A checkbox with its label beside it: a supply's "preferred". */
+.check { display: flex; align-items: center; gap: 0.4rem; margin: 0.5rem 0; }
+.check input { width: auto; }

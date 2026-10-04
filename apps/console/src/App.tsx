@@ -6,12 +6,17 @@ import { failureMessage } from './messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, visibleNavigation, type NavItem } from './navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from './route.ts';
 import { storeLang, storedLang, tokenStore, type StorageLike } from './session.ts';
-import { defaultFacility, itemsWritable, toViewer } from './viewer.ts';
+import { defaultFacility, itemsWritable, suppliersWritable, toViewer } from './viewer.ts';
 import { ItemDetail } from './screens/ItemDetail.tsx';
 import { ItemCreate, ItemEdit } from './screens/ItemForm.tsx';
 import { ItemImport } from './screens/ItemImport.tsx';
 import { ItemsList } from './screens/ItemsList.tsx';
 import { SignIn } from './screens/SignIn.tsx';
+import { SupplierContact } from './screens/SupplierContact.tsx';
+import { SupplierDetail } from './screens/SupplierDetail.tsx';
+import { SupplierCreate, SupplierEdit } from './screens/SupplierForm.tsx';
+import { SupplierImport } from './screens/SupplierImport.tsx';
+import { SuppliersList } from './screens/SuppliersList.tsx';
 import { FailureNotice, Loading, Notice } from './screens/ui.tsx';
 
 /**
@@ -24,6 +29,7 @@ import { FailureNotice, Loading, Notice } from './screens/ui.tsx';
  */
 
 const ITEMS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'items')!;
+const SUPPLIERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'suppliers')!;
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -164,6 +170,8 @@ export function App() {
     viewer,
     facilityId,
     writable: itemsWritable(viewer, facilityId, (v) => itemIsWritable(ITEMS, v)),
+    suppliersWritable: suppliersWritable(viewer, facilityId, (v) => itemIsWritable(SUPPLIERS, v)),
+    seesSuppliers: itemIsVisible(SUPPLIERS, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       window.location.hash = formatRoute(r);
@@ -233,6 +241,17 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
     return anyVisible ? <h1>{t(lang, 'signin_welcome')}</h1> : <Notice tone="info" text={t(lang, 'nothing_enabled')} />;
   }
   // The menu hides what the database would refuse; a typed URL meets the same answer.
+  if (navIdOf(route) === 'suppliers') {
+    if (!ctx.seesSuppliers) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'suppliers': return <SuppliersList ctx={ctx} />;
+      case 'supplier_new': return <SupplierCreate ctx={ctx} />;
+      case 'supplier_import': return <SupplierImport ctx={ctx} />;
+      case 'supplier': return <SupplierDetail ctx={ctx} supplierId={route.supplierId} />;
+      case 'supplier_edit': return <SupplierEdit ctx={ctx} supplierId={route.supplierId} />;
+      case 'supplier_contact': return <SupplierContact ctx={ctx} supplierId={route.supplierId} />;
+    }
+  }
   if (!itemsVisible) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
   switch (route.screen) {
     case 'items': return <ItemsList ctx={ctx} />;
