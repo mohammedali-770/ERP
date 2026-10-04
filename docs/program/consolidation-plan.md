@@ -10,7 +10,7 @@
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  4 of 28 steps done.
+  4 of 28 steps done, and module 1 has 4 of its 6 sub-steps.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -201,8 +201,8 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 | | Steps | Done |
 |---|---|---|
 | Phases 1–3 — foundations | 3 | 3 |
-| Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 1 — the API layer and sign-in, 2026-10-03 |
-| Phase 4 — modules | 22 | 0 — module 1 has 3 of its 6 sub-steps |
+| Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 1 — the API layer and sign-in, 2026-10-03. The console's layout and Arabic/RTL came with module 1's screens on 2026-10-04; print and offline support remain |
+| Phase 4 — modules | 22 | 0 — module 1 has 4 of its 6 sub-steps |
 | Phase 5 — decommission | 1 | 0 |
 | **Total** | **28** | **4 — about 14%** |
 
@@ -226,7 +226,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 
 | # | Module | Warehouse size | In the old list? | Notes |
 |---|---|---|---|---|
-| 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies. **Database layer, tests and data layer built** — [ADR-0024](../adr/ADR-0024-item-master-and-units.md) and its 2026-10-04 addendum, [process mapping](../estate/process-mapping-items-and-units.md) |
+| 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies. **Database layer, tests, data layer and screens built** — [ADR-0024](../adr/ADR-0024-item-master-and-units.md) and its two 2026-10-04 addenda; staff testing and switch-on remain, [process mapping](../estate/process-mapping-items-and-units.md) |
 | 2 | Suppliers | 367 · 1 | Yes | Same place as before. The item–supplier link — the warehouse's `raw_materials.supplier_id`, now naming a conversion — lives here, not on the master, so items no longer depend on suppliers: the old order's second dependency error |
 | 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7) |
 | 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | Partly covered by `erp.facility` |

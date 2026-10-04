@@ -65,11 +65,21 @@ export const signIn = endpoint(['POST'], async (request, deps) => {
   return { http: SIGN_IN_HTTP[answer.status], body: answer };
 });
 
-/** GET: who the caller's token names, and when the session ends. */
-export const session = endpoint(['GET'], withSession(async (_request, s) => ({
-  http: 200,
-  body: { status: 'ok', person_id: s.personId, expires_at: s.expiresAt },
-})));
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * GET: who the caller's token names, when the session ends, and what the console should
+ * show them at `?facility_id=` (organisation-wide when absent): erp.viewer() for the
+ * session's person, never for one the request names.
+ */
+export const session = endpoint(['GET'], withSession(async (request, s, deps) => {
+  const facility = new URL(request.url).searchParams.get('facility_id');
+  if (facility !== null && facility !== '' && !UUID.test(facility)) {
+    return { http: 400, body: { status: 'malformed', field: 'facility_id' } };
+  }
+  const viewer = await deps.db.viewer(s.personId, facility === null || facility === '' ? null : facility);
+  return { http: 200, body: { status: 'ok', person_id: s.personId, expires_at: s.expiresAt, viewer } };
+}));
 
 /** POST: ends the session the caller's token names. */
 export const signOut = endpoint(['POST'], async (request, deps) => {

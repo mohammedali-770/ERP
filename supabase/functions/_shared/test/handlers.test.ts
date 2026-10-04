@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  asSessionAnswer, asSignInAnswer, asSignOutAnswer, UnexpectedAnswer,
-  type Db, type SessionAnswer, type SignInAnswer, type SignOutAnswer,
+  asSessionAnswer, asSignInAnswer, asSignOutAnswer, asViewerAnswer, UnexpectedAnswer,
+  type Db, type SessionAnswer, type SignInAnswer, type SignOutAnswer, type ViewerAnswer,
 } from '../db.ts';
 import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.ts';
 import type { ItemsDb } from '../items-db.ts';
@@ -12,6 +12,11 @@ const TOKEN = 'ab'.repeat(32);
 const ADMIN = '01936f00-0000-7000-8000-000000000900';
 const CASHIER = '01936f00-0000-7000-8000-000000000901';
 const ORIGIN = 'https://console.example.test';
+const FACILITY = '01936f00-0000-7000-8000-000000000401';
+const VIEWER: ViewerAnswer = {
+  person: { person_id: CASHIER }, facility_id: null, org_wide: false, facilities: [],
+  permissions: ['inventory.items:read'], states: { 'inventory.items': 'pilot' }, brands: [], units: [],
+};
 
 /** The items routes, which these tests never reach. */
 const itemsNotUsed: ItemsDb = new Proxy({} as ItemsDb, {
@@ -39,6 +44,10 @@ function fakeDb(answers: {
     async signOut(t) {
       calls.push(`signOut ${t}`);
       return answers.signOut ?? { status: 'invalid' };
+    },
+    async viewer(person, facility) {
+      calls.push(`viewer ${person} ${facility}`);
+      return VIEWER;
     },
   };
 }
@@ -209,11 +218,39 @@ test('CONTROL: the actor is the person the session names, whatever the body says
   assert.deepEqual(db.calls, [`resolveSession ${TOKEN}`]);
 });
 
-test('the session endpoint names the signed-in person', async () => {
+test('the session endpoint names the signed-in person, and what the console should show them', async () => {
   const db = fakeDb({ session: { status: 'ok', person_id: CASHIER, expires_at: '2026-10-03T20:00:00+00:00' } });
   const response = await session(get(bearer), deps(db));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: 'ok', person_id: CASHIER, expires_at: '2026-10-03T20:00:00+00:00' });
+  assert.deepEqual(await response.json(), {
+    status: 'ok', person_id: CASHIER, expires_at: '2026-10-03T20:00:00+00:00', viewer: VIEWER,
+  });
+  assert.deepEqual(db.calls, [`resolveSession ${TOKEN}`, `viewer ${CASHIER} null`], 'organisation-wide when no facility is named');
+});
+
+test('CONTROL: the viewer is always the session\'s person, at the facility the query names', async () => {
+  const db = fakeDb({ session: { status: 'ok', person_id: CASHIER, expires_at: '2026-10-03T20:00:00+00:00' } });
+  const request = new Request(`https://edge.example.test/session?facility_id=${FACILITY}&person_id=${ADMIN}`, {
+    headers: { ...bearer, 'x-person-id': ADMIN },
+  });
+  const response = await session(request, deps(db));
+  assert.equal(response.status, 200);
+  assert.deepEqual(db.calls.at(-1), `viewer ${CASHIER} ${FACILITY}`);
+});
+
+test('a malformed facility is refused before the database is asked for a viewer', async () => {
+  const db = fakeDb({ session: { status: 'ok', person_id: CASHIER, expires_at: '2026-10-03T20:00:00+00:00' } });
+  const response = await session(new Request('https://edge.example.test/session?facility_id=BR-001', { headers: bearer }), deps(db));
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { status: 'malformed', field: 'facility_id' });
+  assert.equal(db.calls.some((c) => c.startsWith('viewer')), false);
+});
+
+test('a viewer of the wrong shape is an error, not a menu', () => {
+  assert.deepEqual(asViewerAnswer(VIEWER), VIEWER);
+  assert.throws(() => asViewerAnswer({ ...VIEWER, permissions: [1] }), UnexpectedAnswer);
+  assert.throws(() => asViewerAnswer({ ...VIEWER, states: [] }), UnexpectedAnswer);
+  assert.throws(() => asViewerAnswer(null), UnexpectedAnswer);
 });
 
 // --- sign-out --------------------------------------------------------------

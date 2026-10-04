@@ -15,8 +15,9 @@ migrations/    plain SQL, one file per approved change, append-only history
 seeds/         synthetic development fixtures, listed in config.toml's
                [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
                psql meta-command like \ir is a syntax error there
-functions/     edge functions (ADR-0023, ADR-0025): sign-in, session, sign-out,
-               and items (module 1's nine routes, ADR-0024's addendum).
+functions/     edge functions (ADR-0023, ADR-0025): sign-in, session (with the
+               console's viewer, erp.viewer() from 0015), sign-out, and items
+               (module 1's nine routes, ADR-0024's addenda).
                _shared/ is plain TypeScript, tested by `npm test`; _deno/ holds
                the one file that imports the driver; deno.json and deno.lock pin it
 tests/         pgTAP suites
@@ -62,7 +63,8 @@ ERP_TEST_ADMIN_URL="$DB_URL" deno test --config supabase/functions/deno.json --f
 To serve a function by hand, set `ERP_DATABASE_URL` to `erp_edge`'s connection string
 and `ERP_ALLOWED_ORIGINS` to the console's origin (for example
 `http://localhost:5173`), in an env file outside the repository — `secret:scan`
-refuses a committed connection string with a password in it.
+refuses a committed connection string with a password in it. `apps/console/README.md`
+runs the console against them.
 
 ### `db:check` versus `db:test`
 

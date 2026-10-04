@@ -25,7 +25,7 @@
  */
 import postgres from 'postgres';
 import {
-  asSessionAnswer, asSignInAnswer, asSignOutAnswer,
+  asSessionAnswer, asSignInAnswer, asSignOutAnswer, asViewerAnswer,
   type Db,
 } from '../_shared/db.ts';
 import type { ImportSummary, Item } from '../_shared/items-db.ts';
@@ -61,6 +61,10 @@ export function makeDb(sql: Sql): Db {
     async signOut(token) {
       const [row] = await sql`select erp.sign_out(${token}::text) as answer`;
       return asSignOutAnswer(row?.['answer']);
+    },
+    async viewer(personId, facilityId) {
+      const [row] = await sql`select erp.viewer(${personId}::uuid, ${facilityId}::uuid) as viewer`;
+      return asViewerAnswer(row?.['viewer']);
     },
 
     listItems: (actor, q) => run(async () => (await sql`

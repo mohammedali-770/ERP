@@ -45,6 +45,7 @@ function fakeDb(person: string | null, override: Partial<ItemsDb> = {}): Db & { 
     signIn: async () => { throw new Error('not used'); },
     signOut: async () => { throw new Error('not used'); },
     resolveSession: async () => session,
+    viewer: async () => { throw new Error('not used'); },
     listItems: record('listItems'),
     getItem: record('getItem'),
     itemHistory: record('itemHistory'),
