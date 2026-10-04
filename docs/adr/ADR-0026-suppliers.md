@@ -133,8 +133,8 @@ Every write route locks and checks its decision id first, as 0012's do. A retry 
 overlaps its original waits, then answers 23505 on `supplier_decision_pkey`. The import
 re-raises that answer from inside its rows rather than reporting the line as failed,
 so an import sent again while the first is still running is a retry, not "nothing was
-saved" (found in review). `erp.import_items()` had the same gap until migration 0017
-gave it the same handler (see the addendum). `db:check` proves it with two sessions on
+saved" (found in review). `erp.import_items()` had the same gap until migration 0017,
+which also narrowed both handlers to another call's decision (see the addendum). `db:check` proves it with two sessions on
 all seven write routes and both imports.
 
 ### 7. Import, matched by code; the file wins
@@ -221,10 +221,27 @@ addendum). Nothing about the routes changed.
   - `stale` for `supplier_stale` and `supplier_item_stale`.
 
   The same constraint raised by PostgreSQL itself stays a conflict.
-- **Migration 0017 closes §6's gap for items.** `erp.import_items()` is replaced in place
-  with 0016's handler. A retry's 23505 on `item_decision_pkey` is re-raised whole, so the
-  edge answers it as a retry rather than as a refused file. `db:check`'s overlapping-retry
-  probe now covers both imports.
+- **Migration 0017 corrects both imports.**
+  - **It closes §6's gap for items.** `erp.import_items()` now re-raises a retry's 23505
+    on `item_decision_pkey` whole, as `erp.import_suppliers()` does. So the edge answers
+    it as a retry, not as a refused file.
+  - **Only another call's decision is a retry (found in this step's review).**
+    Re-raising every 23505 on a log's key answered three cases as "already recorded"
+    that saved nothing:
+    - one decision id on two rows of a file;
+    - one decision id for two decisions of one row;
+    - an item's base-unit decision id already in the log, which PostgreSQL itself
+      refused, so the error was re-raised whole and every other line's error was lost.
+
+    Both imports now refuse a decision id used twice in a file as a line error. They
+    re-raise only the retry check's own answer, read from the error's context. pgTAP 120
+    holds all three cases and both controls.
+  - **`db:check`'s overlapping-retry probe covers both imports,** and now also requires
+    the answer to have been raised by a route (`exec_stmt_raise`). That is the third
+    thing the edge matches. Without it, a lost lock went unnoticed on every create
+    route, where the retry collides natively on the same key.
+- **The console's items upload shows `already_recorded` as the file saved,** clearing
+  its rows, instead of as an error in an item form's wording.
 - **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/suppliers.test.ts`:
   - a cashier is refused at their branch and organisation-wide;
   - then, in one transaction that is rolled back, every route runs through the router and

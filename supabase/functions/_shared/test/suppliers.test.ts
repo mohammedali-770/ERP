@@ -6,6 +6,7 @@ import type { ItemsDb } from '../items-db.ts';
 import type { Supplier, SuppliersDb } from '../suppliers-db.ts';
 import { suppliers } from '../suppliers.ts';
 import { Refusal } from '../refusal.ts';
+import { notUsed } from './not-used.ts';
 
 const TOKEN = 'cd'.repeat(32);
 const ADMIN = '01936f00-0000-7000-8000-000000000900';
@@ -27,7 +28,10 @@ const SUPPLIER_ROW: Supplier = {
 type Call = { method: string; actor: string; args: unknown[] };
 
 /** The items routes, which no suppliers request may reach. */
-const itemsNotUsed = {} as ItemsDb;
+const itemsNotUsed = notUsed<ItemsDb>('items', {
+  listItems: true, getItem: true, itemHistory: true, createItem: true, amendItem: true,
+  changeItemStatus: true, addItemUnit: true, retireItemUnit: true, importItems: true,
+});
 
 /** A suppliers database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db & { calls: Call[] } {

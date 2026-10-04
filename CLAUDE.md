@@ -135,7 +135,7 @@ npm run db:test       # pgTAP suites against the local stack
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
 | A supplier's code, and a supply's supplier and conversion, never change; neither is deleted or truncated; a retired supply stays retired | `db:check` (`supplier-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
 | **Every supplier and supply equals the latest decision about it, and the log has nowhere to keep a contact** | `db:check` (`supplier-projections-match-their-decisions`) + pgTAP — SEC-008: no contact column, and a contact change records a fixed reason, not a typed one. A reason typed on any other decision is still free text kept for good (ADR-0026) |
-| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item and supplier write route and both imports; checked by SQLSTATE and constraint, which is what the edge matches |
+| **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item and supplier write route and both imports; checked by SQLSTATE, constraint and that a route raised it, which is what the edge matches |
 | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
 | **No role but the owner can touch a credential table** | `db:check` — discovered by name, or by a `%token%` column, so `erp_read`'s default `SELECT` cannot reach a PIN hash or a session's token hash |
 | A capability or identity decision needs a permitted actor | pgTAP |

@@ -220,7 +220,8 @@ try {
   // A retry that OVERLAPS its original must still be answered as a retry: 23505 naming
   // the log's primary key (item_decision_pkey, supplier_decision_pkey), the one answer the
   // edge reads back through the module's history read.
-  // Checked by SQLSTATE and constraint, which is what the edge matches, not by wording.
+  // Checked by SQLSTATE, constraint and the server routine that raised it, which is what
+  // the edge matches, not by wording.
   // Two sessions, one decision id, for every item and supplier write route and both imports. The original commits only
   // once the retry is seen waiting on a lock, so the overlap is arranged rather than
   // hoped for. Without erp.assert_item_decision_is_new()'s
@@ -277,8 +278,14 @@ try {
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
     r.status === 0 ? 'nothing (it succeeded)' : (r.stderr.split('\n').find((l) => l.includes('ERROR')) ?? r.stderr).replace(/^.*ERROR:\s*/, '');
+  // And raised by a route (exec_stmt_raise, plpgsql's RAISE), as the edge requires: the
+  // same constraint raised by PostgreSQL itself (_bt_check_unique) is a collision, which
+  // the edge answers as a conflict. Without the lock, a create's retry collides natively
+  // on the log's primary key, and SQLSTATE and constraint alone would pass it (found in
+  // module 2 step 2's review).
   const isRetrySignal = (stderr: string, constraint: string) =>
-    /ERROR:\s+23505:/.test(stderr) && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr);
+    /ERROR:\s+23505:/.test(stderr) && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr)
+    && /LOCATION:\s+exec_stmt_raise,/.test(stderr);
   for (const [index, [route, call, constraint = 'item_decision_pkey']] of routes.entries()) {
     const decision = id(`0000000d${String(index + 1).padStart(4, '0')}`);
     const original = cluster.sqlConcurrently(`begin; ${call(decision)};

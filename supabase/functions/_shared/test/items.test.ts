@@ -5,6 +5,7 @@ import type { Deps } from '../http.ts';
 import type { Item, ItemsDb } from '../items-db.ts';
 import { items } from '../items.ts';
 import type { SuppliersDb } from '../suppliers-db.ts';
+import { notUsed } from './not-used.ts';
 import { asRefusal, Refusal, refusalReply } from '../refusal.ts';
 
 const TOKEN = 'cd'.repeat(32);
@@ -27,7 +28,11 @@ const ITEM_ROW: Item = {
 type Call = { method: string; actor: string; args: unknown[] };
 
 /** The suppliers routes, which no items request may reach. */
-const suppliersNotUsed = {} as SuppliersDb;
+const suppliersNotUsed = notUsed<SuppliersDb>('suppliers', {
+  listSuppliers: true, getSupplier: true, supplierHistory: true, itemSuppliers: true, createSupplier: true,
+  amendSupplier: true, changeSupplierStatus: true, setSupplierContact: true, addSupplierItem: true,
+  amendSupplierItem: true, retireSupplierItem: true, importSuppliers: true,
+});
 
 /** An items database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<ItemsDb> = {}): Db & { calls: Call[] } {
