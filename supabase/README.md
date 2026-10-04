@@ -15,7 +15,8 @@ migrations/    plain SQL, one file per approved change, append-only history
 seeds/         synthetic development fixtures, listed in config.toml's
                [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
                psql meta-command like \ir is a syntax error there
-functions/     edge functions (ADR-0023, ADR-0025): sign-in, session, sign-out.
+functions/     edge functions (ADR-0023, ADR-0025): sign-in, session, sign-out,
+               and items (module 1's nine routes, ADR-0024's addendum).
                _shared/ is plain TypeScript, tested by `npm test`; _deno/ holds
                the one file that imports the driver; deno.json and deno.lock pin it
 tests/         pgTAP suites

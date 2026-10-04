@@ -89,6 +89,38 @@ test('specifiers are read from every import form', () => {
     ['../x.ts', './c.ts', './db.ts', './side-effect.ts', 'npm:left-pad@1.0.0', 'postgres'].sort());
 });
 
+test('the word import inside a string is not an import', () => {
+  const source = [
+    "import { items } from './items.ts';",
+    "const r = post('/import', { reason: 'r', rows });",
+    "if (path[0] === 'import') { const note = \"import 'x' later\"; }",
+    "  export { a } from './a.ts';",
+  ].join('\n');
+  assert.deepEqual(specifiers(source).sort(), ['./a.ts', './items.ts']);
+});
+
+test('an import is seen wherever a statement can start, and not in a comment', () => {
+  assert.deepEqual(specifiers("import { a } from './a.ts'; import postgres from 'postgres';").sort(), ['./a.ts', 'postgres']);
+  assert.deepEqual(specifiers("/* x */ import postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("import './a.ts'; import 'npm:postgres';").sort(), ['./a.ts', 'npm:postgres']);
+  assert.deepEqual(specifiers("if (x) { y(); } import z from 'zod';"), ['zod']);
+  assert.deepEqual(specifiers("// import postgres from 'postgres';\nconst u = 'https://x.test/a';"), []);
+  assert.deepEqual(specifiers("/* import postgres from 'postgres'; */"), []);
+});
+
+test('CONTROL: a comment delimiter inside a string or a regex hides no import', () => {
+  // Stripping comments by pattern let `"/*"` erase everything up to the next `*/`, an
+  // import from outside supabase/functions among it (Codex, PR #32).
+  assert.deepEqual(specifiers('const marker = "/*";\nimport x from \'../../../packages/a.ts\';\nconst end = "*/";'),
+    ['../../../packages/a.ts']);
+  assert.deepEqual(specifiers("const u = 'https://x.test//a';\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const t = `// not a comment`;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const re = /\\/\\*/;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const re = /['\"]/g;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const half = a / b; import postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const q = '\\'/*'; import postgres from 'postgres';"), ['postgres']);
+});
+
 test('the committed layout passes', () => {
   assert.deepEqual(ruleEdgeImports([
     { path: 'supabase/functions/_deno/db.ts', source: "import postgres from 'postgres';\nimport { asSignInAnswer } from '../_shared/db.ts';" },

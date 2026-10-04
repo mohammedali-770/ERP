@@ -10,6 +10,7 @@
  * not know is a migration and an edge out of step, and that is an error, not a
  * response to pass on.
  */
+import type { ItemsDb } from './items-db.ts';
 
 /** `erp.sign_in()`: `erp.verify_pin()`'s answer, plus a token on `ok` (0014). */
 export type SignInAnswer =
@@ -28,11 +29,14 @@ export type SessionRefusal = 'invalid' | 'ended' | 'expired' | 'idle' | 'disable
 /** `erp.sign_out()`. */
 export type SignOutAnswer = { readonly status: 'ok' | 'invalid' };
 
-export interface Db {
+export interface SessionDb {
   signIn(employeeNumber: string, pin: string): Promise<SignInAnswer>;
   resolveSession(token: string): Promise<SessionAnswer>;
   signOut(token: string): Promise<SignOutAnswer>;
 }
+
+/** Every route the edge may call: the session routes, and each module's. */
+export type Db = SessionDb & ItemsDb;
 
 /** Raised when the database answers something this edge does not understand. */
 export class UnexpectedAnswer extends Error {

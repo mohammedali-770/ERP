@@ -6,6 +6,7 @@
  * place and no handler can forget `no-store` on a response that carries a token.
  */
 import type { Db } from './db.ts';
+import { Refusal, refusalReply } from './refusal.ts';
 
 export interface Deps {
   readonly db: Db;
@@ -59,18 +60,25 @@ export function bearerToken(request: Request): string | null {
   return token !== undefined && TOKEN.test(token) ? token : null;
 }
 
+/** A JSON object body read with a byte limit: the object, or why there is none. */
+export type JsonBody =
+  | { readonly kind: 'object'; readonly value: Record<string, unknown> }
+  | { readonly kind: 'too_large' }
+  | { readonly kind: 'malformed' };
+
 /**
- * A JSON object body of at most `limit` bytes, or null.
+ * A JSON object body of at most `limit` bytes.
  *
  * Read chunk by chunk, and abandoned the moment it passes the limit: sign-in needs no
  * credential to call, so buffering the whole body first (as `request.text()` does) let
  * anyone make every call hold the platform's largest body in memory (found by Codex on
  * PR #31). A declared Content-Length over the limit is refused without reading at all.
+ * Too large and malformed are told apart, so a caller sending a big import learns which.
  */
-export async function readJsonObject(request: Request, limit = 1024): Promise<Record<string, unknown> | null> {
+export async function readJsonBody(request: Request, limit: number): Promise<JsonBody> {
   const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > limit) return null;
-  if (request.body === null) return null;
+  if (Number.isFinite(declared) && declared > limit) return { kind: 'too_large' };
+  if (request.body === null) return { kind: 'malformed' };
 
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -81,11 +89,11 @@ export async function readJsonObject(request: Request, limit = 1024): Promise<Re
     size += value.byteLength;
     if (size > limit) {
       await reader.cancel();
-      return null;
+      return { kind: 'too_large' };
     }
     chunks.push(value);
   }
-  if (size === 0) return null;
+  if (size === 0) return { kind: 'malformed' };
 
   const bytes = new Uint8Array(size);
   let offset = 0;
@@ -96,11 +104,17 @@ export async function readJsonObject(request: Request, limit = 1024): Promise<Re
   try {
     const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : null;
+      ? { kind: 'object', value: value as Record<string, unknown> }
+      : { kind: 'malformed' };
   } catch {
-    return null;
+    return { kind: 'malformed' };
   }
+}
+
+/** readJsonBody() for a caller that answers too large and malformed alike: the object, or null. */
+export async function readJsonObject(request: Request, limit = 1024): Promise<Record<string, unknown> | null> {
+  const body = await readJsonBody(request, limit);
+  return body.kind === 'object' ? body.value : null;
 }
 
 /**
@@ -109,8 +123,9 @@ export async function readJsonObject(request: Request, limit = 1024): Promise<Re
  *   1. an Origin that is sent and not allowed is refused, before anything else runs;
  *   2. a preflight is answered;
  *   3. a method the endpoint does not take is refused;
- *   4. the handler runs, and anything it throws becomes a 500 that says nothing about
- *      why. The cause is logged, never returned: it can name a table or a constraint.
+ *   4. the handler runs. A database refusal it throws is answered by refusalReply(),
+ *      with the message written for the person reading it (./refusal.ts). Anything else
+ *      becomes a 500 that says nothing about why: the cause is logged, never returned.
  *
  * Every response is `no-store`: some carry a token, and none should be cached.
  */
@@ -127,6 +142,8 @@ export function endpoint(methods: readonly string[], handler: Handler): Endpoint
     try {
       return respond(await handler(request, deps), origin, methods);
     } catch (error) {
+      // A refusal is an answer the person can act on; anything else is a failure.
+      if (error instanceof Refusal) return respond(refusalReply(error), origin, methods);
       console.error(`edge: ${request.method} ${new URL(request.url).pathname} failed:`, describe(error));
       return respond({ http: 500, body: { status: 'error' } }, origin, methods);
     }
