@@ -236,3 +236,14 @@ test('a supplier file needs code, names and terms; ids are minted once per row a
   const unknown = prepareSupplierImport(parseCsv('code,name_en,name_ar,payment_terms_days,type\nA,a,أ,30,both'), mint);
   assert.deepEqual(unknown, { ok: false, problems: [{ kind: 'unknown_column', column: 'type' }] }, 'the warehouse\'s type is gone');
 });
+
+test('both uploads read the same file twice: the input is cleared once the file is read', () => {
+  // An unchanged file input fires no change event, so "upload the same file again" (items
+  // UAT 6.2) did nothing until the input was cleared. The screens are .tsx, which Node
+  // cannot load, so their source is read.
+  for (const screen of ['ItemImport.tsx', 'SupplierImport.tsx']) {
+    const src = readFileSync(new URL(`../src/screens/${screen}`, import.meta.url), 'utf8');
+    assert.match(src, /const file = e\.target\.files\?\.\[0\];[\s\S]{0,400}?e\.target\.value = '';/, `${screen} clears the input`);
+    assert.match(src, /import_file/, `${screen} shows the chosen file's name instead`);
+  }
+});
