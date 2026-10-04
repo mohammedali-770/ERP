@@ -170,14 +170,80 @@ export function ruleEdgeLockfile(config: DenoConfig | null, lock: DenoLock | nul
   return findings;
 }
 
+/**
+ * The source with its comments blanked — newlines kept — and everything else untouched.
+ *
+ * A scanner, not a regex, because a comment delimiter can sit inside a string or a regex
+ * literal: stripping `/* … *\/` by pattern let `const marker = "/*";` erase every import
+ * after it, an import from outside supabase/functions among them (found by Codex on
+ * PR #32). Strings ('', "", ``) and regex literals are copied whole, escapes included. A
+ * `/` starts a regex literal where an expression may begin: at the start, or after one of
+ * ( , = : [ ! & | ? { } ; + - * % < > ~ ^ or the keyword return; anywhere else it divides.
+ */
+export function withoutComments(source: string): string {
+  let out = '';
+  let i = 0;
+  const n = source.length;
+  /** The last character that was not whitespace or a comment, for the regex rule. */
+  let previous = '';
+  const startsExpression = () =>
+    previous === '' || '(,=:[!&|?{};+-*%<>~^'.includes(previous) || /\breturn$/.test(out.trimEnd());
+  while (i < n) {
+    const c = source[i]!;
+    const next = source[i + 1];
+    if (c === '/' && next === '/') {
+      while (i < n && source[i] !== '\n') i++;
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      i += 2;
+      while (i < n && !(source[i] === '*' && source[i + 1] === '/')) {
+        out += source[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      i += 2;
+      out += ' ';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`' || (c === '/' && startsExpression())) {
+      const close = c;
+      let inClass = false;
+      out += c;
+      i++;
+      while (i < n) {
+        const d = source[i]!;
+        out += d;
+        i++;
+        if (d === '\\' && i < n) {
+          out += source[i];
+          i++;
+          continue;
+        }
+        if (close === '/') {
+          if (d === '[') inClass = true;
+          else if (d === ']') inClass = false;
+          else if (d === '/' && !inClass) break;
+          else if (d === '\n') break;
+          continue;
+        }
+        if (d === close) break;
+      }
+      previous = c === '/' ? 'regex' : 'string';
+      continue;
+    }
+    out += c;
+    if (!/\s/.test(c)) previous = c;
+    i++;
+  }
+  return out;
+}
+
 /** Every module specifier a TypeScript source names: static imports, re-exports, dynamic imports. */
 export function specifiers(source: string): string[] {
   const found: string[] = [];
   // Comments first, so a commented-out import is not read and a statement after a comment
-  // is. `//` preceded by `:` is a URL, not a comment.
-  const code = source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+  // is — by a scanner that knows strings, so a delimiter inside one hides nothing.
+  const code = withoutComments(source);
   // A statement starts a line or follows `;` or `}`, so the word "import" inside a string
   // — the items function's '/import' route — is not read as one (found when that route
   // was added), and a second import on the same line still is (found in review: the first

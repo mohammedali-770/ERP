@@ -108,6 +108,19 @@ test('an import is seen wherever a statement can start, and not in a comment', (
   assert.deepEqual(specifiers("/* import postgres from 'postgres'; */"), []);
 });
 
+test('CONTROL: a comment delimiter inside a string or a regex hides no import', () => {
+  // Stripping comments by pattern let `"/*"` erase everything up to the next `*/`, an
+  // import from outside supabase/functions among it (Codex, PR #32).
+  assert.deepEqual(specifiers('const marker = "/*";\nimport x from \'../../../packages/a.ts\';\nconst end = "*/";'),
+    ['../../../packages/a.ts']);
+  assert.deepEqual(specifiers("const u = 'https://x.test//a';\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const t = `// not a comment`;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const re = /\\/\\*/;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const re = /['\"]/g;\nimport postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const half = a / b; import postgres from 'postgres';"), ['postgres']);
+  assert.deepEqual(specifiers("const q = '\\'/*'; import postgres from 'postgres';"), ['postgres']);
+});
+
 test('the committed layout passes', () => {
   assert.deepEqual(ruleEdgeImports([
     { path: 'supabase/functions/_deno/db.ts', source: "import postgres from 'postgres';\nimport { asSignInAnswer } from '../_shared/db.ts';" },
