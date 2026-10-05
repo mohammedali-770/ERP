@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import type { Answer, Failure, Item, ItemPrice, PriceDecision } from '../api.ts';
+import type { Failure, Item, ItemPrice, PriceDecision } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
-import { isUnanswered, unitName, writeOutcome } from '../items.ts';
+import { unitName } from '../items.ts';
 import {
   byPack, formatMinor, formatRiyadh, momentInput, priceablePacks, priceInput, priceStates, setPriceBody, withdrawable,
 } from '../transfer-prices.ts';
+import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
+import { useWrite } from './useWrite.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
 
 /** What a form reports: a write's outcome, or 'checked' after a fresh look at what is saved. */
-type Done = (outcome: 'saved' | 'already' | 'stale' | 'checked') => void;
 
 /**
  * One item's transfer prices, pack by pack: every price ever set, newest moment first,
@@ -159,64 +160,6 @@ export function ItemPrices({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   );
 }
 
-/**
- * After an unanswered write: can the prices be read now? Then whatever the lost attempt
- * did is visible, and a new decision under new ids is safe — the database refuses a
- * second price for one moment, a price that changes nothing and a second withdrawal.
- */
-async function seeWhatIsSaved(ctx: Ctx, itemId: string): Promise<boolean> {
-  const now = await ctx.api.itemTransferPrices(ctx.facilityId, itemId);
-  if (now.ok) return true;
-  ctx.onFailure(now);
-  return false;
-}
-
-type Send = () => Promise<Answer<unknown>>;
-
-/**
- * One form's write lifecycle, as on the supplier page. The request is built ONCE, when the
- * person presses the button, and Retry resends exactly that request: same ids, same body.
- * Start over looks at what is saved first.
- */
-function useWrite(ctx: Ctx, itemId: string, onDone: Done, after: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
-  const pending = useRef<Send | null>(null);
-  async function run(send: Send) {
-    pending.current = send;
-    setBusy(true);
-    setFailure(null);
-    const answer = await send();
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
-    pending.current = null;
-    setInDoubt(false);
-    after();
-    onDone(outcome);
-  }
-  /** The same request again: never rebuilt from what the page shows now. */
-  function retry() {
-    if (pending.current !== null) void run(pending.current);
-  }
-  async function startOver() {
-    setBusy(true);
-    const seen = await seeWhatIsSaved(ctx, itemId);
-    setBusy(false);
-    if (!seen) return;
-    pending.current = null;
-    setInDoubt(false);
-    after();
-    onDone('checked');
-  }
-  return { busy, failure, inDoubt, run, retry, startOver };
-}
-
 const PRICE_IDS = ['decision_id', 'price_id'] as const;
 
 /**
@@ -241,7 +184,7 @@ function SetPrice({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done })
   }, [packs, unitId]);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<'amount' | 'moment' | null>(null);
-  const w = useWrite(ctx, item.item_id, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.itemTransferPrices(ctx.facilityId, item.item_id), onDone, () => {
     setIds(formIds(PRICE_IDS));
     setAmount('');
     setWhen('now');
@@ -272,7 +215,7 @@ function SetPrice({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done })
       {problem === 'moment' ? <Notice tone="error" text={t(lang, 'price_bad_moment')} /> : null}
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
         <Field label={t(lang, 'pack')}>
           <select required value={unitId} onChange={(e) => setUnitId(e.target.value)}>
             <option value="" disabled>—</option>
@@ -323,7 +266,7 @@ function Withdraw({ ctx, price, itemId, onDone }: { ctx: Ctx; price: ItemPrice; 
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
-  const w = useWrite(ctx, itemId, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.itemTransferPrices(ctx.facilityId, itemId), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
@@ -344,7 +287,7 @@ function Withdraw({ ctx, price, itemId, onDone }: { ctx: Ctx; price: ItemPrice; 
       <p className="muted">{t(lang, 'withdraw_price_hint')}</p>
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <button type="submit" className="danger small" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'withdraw_price')}</button>
         <button type="button" className="small" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>

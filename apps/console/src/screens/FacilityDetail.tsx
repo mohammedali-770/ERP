@@ -7,13 +7,12 @@ import {
 import { formatDateTime, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
-import { isUnanswered, writeOutcome } from '../items.ts';
+import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
+import { useWrite } from './useWrite.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
 
-/** What a sub-form reports: a write's outcome, or 'checked' after a fresh look at what is saved. */
-type Done = (outcome: 'saved' | 'already' | 'stale' | 'checked') => void;
 
 /** The rule sentence for an area field refused for its shape, before anything is sent. */
 const AREA_RULE = { latitude: 'rule_coordinate', longitude: 'rule_coordinate', radius_m: 'rule_radius_shape' } as const;
@@ -153,60 +152,6 @@ export function FacilityDetail({ ctx, targetId }: { ctx: Ctx; targetId: string }
 }
 
 /**
- * One form's write lifecycle, as on the supplier page. The request is built ONCE, when the
- * person presses the button, and Retry resends exactly that request: same ids, same body,
- * same stamp. A reload of the page meanwhile, another form on it saving, must not change
- * what a retry sends. Start over looks at what is saved first.
- */
-type Send = () => Promise<Parameters<typeof writeOutcome>[0]>;
-
-function useWrite(ctx: Ctx, targetId: string, onDone: Done, after: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
-  const pending = useRef<Send | null>(null);
-  async function run(send: Send) {
-    pending.current = send;
-    setBusy(true);
-    setFailure(null);
-    const answer = await send();
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
-    pending.current = null;
-    after();
-    onDone(outcome);
-  }
-  /** The same request again: never rebuilt from what the page shows now. */
-  function retry() {
-    if (pending.current !== null) void run(pending.current);
-  }
-  /**
-   * After an unanswered write: can the facility be read now? Then whatever the lost attempt
-   * did is visible, and a new decision is safe under new ids: the database refuses a stale
-   * change, and a status the facility already has.
-   */
-  async function startOver() {
-    setBusy(true);
-    const now = await ctx.api.getFacility(ctx.facilityId, targetId);
-    setBusy(false);
-    if (!now.ok) {
-      if (!ctx.onFailure(now)) setFailure(now);
-      return;
-    }
-    pending.current = null;
-    setInDoubt(false);
-    after();
-    onDone('checked');
-  }
-  return { busy, failure, inDoubt, run, retry, startOver };
-}
-
-/**
  * Set, move or remove the area. A point pasted whole into Latitude fills both fields, as a
  * map's "copy coordinates" gives it. Every value stays the text the person entered.
  */
@@ -220,7 +165,7 @@ function AreaForm({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility; onD
   const [radius, setRadius] = useState('');
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<keyof typeof AREA_RULE | null>(null);
-  const w = useWrite(ctx, facility.facility_id, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.getFacility(ctx.facilityId, facility.facility_id), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(null);
     setReason('');
@@ -281,7 +226,7 @@ function AreaForm({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility; onD
       {problem ? <Notice tone="error" text={t(lang, AREA_RULE[problem])} /> : null}
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
       {open === 'set' ? (
         <>
           <p className="field-hint">{t(lang, 'point_hint')}</p>
@@ -321,7 +266,7 @@ function StatusChange({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility;
   const setOpen = (v: boolean) => setOpened(v ? (facility.status === 'open' ? 'closed' : 'open') : null);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
-  const w = useWrite(ctx, facility.facility_id, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.getFacility(ctx.facilityId, facility.facility_id), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
@@ -348,7 +293,7 @@ function StatusChange({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility;
       {target === 'closed' ? <p className="muted">{t(lang, 'close_facility_hint')}</p> : null}
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
       <button type="submit" className={target === 'closed' ? 'danger' : 'primary'} disabled={w.busy}>
         {w.busy ? t(lang, 'saving') : verb}

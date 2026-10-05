@@ -6,6 +6,7 @@ import { formIds } from '../ids.ts';
 import { t } from '../i18n.ts';
 import { isUnanswered, writeOutcome } from '../items.ts';
 import { importProblem } from '../messages.ts';
+import { importRequest, type ImportRequest } from '../write.ts';
 import { FailureNotice, Field, Notice, ReasonField } from './ui.tsx';
 
 const ROW_IDS = ['decision_id', 'item_id', 'base_unit_decision_id', 'base_item_unit_id'] as const;
@@ -33,6 +34,8 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
   // asynchronous: choosing A then B, with A finishing last, left A's rows under B's name,
   // and Upload imported the file not shown (found by Codex on PR #33).
   const choice = useRef(0);
+  /** The request last sent: while it is unanswered, Upload sends exactly it again. */
+  const sent = useRef<ImportRequest | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
   async function choose(e: ChangeEvent<HTMLInputElement>) {
@@ -43,6 +46,7 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
     setDone(null);
     setAlready(false);
     setDoubted(false);
+    sent.current = null;
     const mine = ++choice.current;
     const file = e.target.files?.[0];
     // Cleared once read, so choosing the same file again reads it again: an unchanged
@@ -67,12 +71,17 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (rows === null) return;
+    const body = importRequest(sent.current, unanswered, reason, rows);
+    if (body === null) return;
+    sent.current = body;
     setBusy(true);
     setFailure(null);
-    // The same rows, with the same ids, on every attempt: a lost answer is safe to retry.
-    const answer = await api.importItems(reason.trim(), rows);
+    // The same rows, with the same ids, and the same reason on every attempt: a lost
+    // answer is safe to retry.
+    const answer = await api.importItems(body.reason, body.rows);
     setUnanswered(isUnanswered(answer));
+    // An answer, of any kind, ends the doubt: the next Upload is built afresh.
+    if (!isUnanswered(answer)) sent.current = null;
     setBusy(false);
     if (answer.ok) {
       setDone(answer.value);
@@ -116,7 +125,10 @@ export function ItemImport({ ctx }: { ctx: Ctx }) {
         </Field>
         {fileName !== null ? <p dir="auto">{t(lang, 'import_file', { name: fileName })}</p> : null}
         {rows !== null ? <p>{t(lang, 'import_rows', { n: rows.length })}</p> : null}
-        <ReasonField lang={lang} value={reason} onChange={setReason} />
+        {/* Locked while a sending is out or unanswered: Upload then resends what was sent. */}
+        <fieldset className="plain" disabled={busy || unanswered}>
+          <ReasonField lang={lang} value={reason} onChange={setReason} />
+        </fieldset>
         <button type="submit" className="primary" disabled={busy || rows === null}>
           {busy ? t(lang, 'saving') : t(lang, 'import_submit')}
         </button>

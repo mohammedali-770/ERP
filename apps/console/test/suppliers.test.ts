@@ -280,11 +280,21 @@ test('CONTROL: Retry on the supplier page resends the request first sent, never 
   const detail = screen('SupplierDetail.tsx');
   assert.doesNotMatch(detail, /onRetry=\{\(\) => submit\(\)\}/, 'no Retry calls submit, which rebuilds the body');
   assert.equal([...detail.matchAll(/onRetry=\{w\.retry\}/g)].length, 3, 'every write form retries the pending request');
-  assert.match(detail, /pending\.current = send;/);
+  assert.match(detail, /import \{ useWrite \} from '\.\/useWrite\.tsx';/, 'the shared write lifecycle (test/write.test.ts)');
   assert.match(detail, /const target = opened \?\?/, 'the status form fixes its target when it opens');
   assert.match(screen('SupplierContact.tsx'), /onRetry=\{\(\) => void send\(inDoubt\.body, inDoubt\.erase\)\}/);
-  assert.match(screen('ItemDetail.tsx'), /const body: StatusInput = e === undefined && pending\.current !== null \? pending\.current/,
-    'the item page\'s status form too');
+  assert.match(screen('ItemDetail.tsx'), /const target = opened \?\?/, 'the item page\'s status form fixes its target when it opens too');
+  assert.equal([...screen('ItemDetail.tsx').matchAll(/onRetry=\{w\.retry\}/g)].length, 3, 'and every item-page form retries the request it sent');
+});
+
+test('CONTROL: Retry and Start over for a new supply sit above the item finder, which is locked meanwhile', () => {
+  // Inside the search results, a search made while the add was out could remove the only
+  // place Retry and Start over appeared (found in review).
+  const detail = screen('SupplierDetail.tsx');
+  const add = detail.slice(detail.indexOf('function AddSupply('), detail.indexOf('function StatusChange('));
+  const banner = add.indexOf('{w.inDoubt ? <InDoubt');
+  assert.ok(banner > 0 && banner < add.indexOf('<form className="filters"'), 'the banner comes before the finder');
+  assert.equal([...add.matchAll(/disabled=\{w\.locked\}/g)].length, 3, 'the search box, Find and the form are locked');
 });
 
 test('CONTROL: a supply form opens from the supply as shown now, never from an earlier opening', () => {

@@ -85,7 +85,7 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
     });
   }
 
-  /** Is the facility there? Then the lost attempt made it. If not, nothing was recorded. */
+  /** Is the facility there? Then the lost attempt made it. If not, nothing was recorded yet: new ids. */
   async function startOver() {
     setBusy(true);
     const found = await ctx.api.getFacility(null, ids.facility_id);
@@ -172,8 +172,10 @@ export function FacilityEdit({ ctx, targetId }: { ctx: Ctx; targetId: string }) 
     const mine = ++seq.current;
     void api.getFacility(facilityId, targetId).then((answer) => {
       if (mine !== seq.current) return;
-      if (answer.ok) setFacility(answer.value);
-      else if (!onFailure(answer)) setFailure(answer);
+      if (answer.ok) {
+        setFailure(null);
+        setFacility(answer.value);
+      } else if (!onFailure(answer)) setFailure(answer);
     });
   }, [api, onFailure, facilityId, targetId]);
 
@@ -183,6 +185,13 @@ export function FacilityEdit({ ctx, targetId }: { ctx: Ctx; targetId: string }) 
       seq.current++;
     };
   }, [load]);
+
+  /** What Start over has already read replaces the form at once: no second read, no window. */
+  const replace = (next: Facility) => {
+    seq.current++;
+    setFailure(null);
+    setFacility(next);
+  };
 
   if (!ctx.facilitiesWritable) return <Notice tone="info" text={t(lang, 'read_only_facilities')} />;
   if (facility === null) return failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />;
@@ -195,12 +204,20 @@ export function FacilityEdit({ ctx, targetId }: { ctx: Ctx; targetId: string }) 
     );
   }
   // Keyed by the stamp: a reload after a stale refusal starts the form from the new state.
-  return <AmendForm key={facility.as_of_decision_id} ctx={ctx} facility={facility} onReload={() => void load()} />;
+  // A reload that fails while the form is shown says so, above it.
+  return (
+    <>
+      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
+      <AmendForm key={facility.as_of_decision_id} ctx={ctx} facility={facility} onReload={load} onReplace={replace} />
+    </>
+  );
 }
 
-function AmendForm({ ctx, facility, onReload }: { ctx: Ctx; facility: Facility; onReload: () => void }) {
+function AmendForm({ ctx, facility, onReload, onReplace }: {
+  ctx: Ctx; facility: Facility; onReload: () => void; onReplace: (next: Facility) => void;
+}) {
   const { api, lang } = ctx;
-  const [ids] = useState(() => formIds(['decision_id'] as const));
+  const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [inDoubt, setInDoubt] = useState(false);
   const [f, setF] = useState<NameFields>({
     nameEn: facility.name_en, nameAr: facility.name_ar, addressEn: facility.address_en ?? '', addressAr: facility.address_ar ?? '',
@@ -234,8 +251,8 @@ function AmendForm({ ctx, facility, onReload }: { ctx: Ctx; facility: Facility; 
 
   /**
    * Has the facility moved on from the state this form was loaded from? Then something was
-   * recorded, this change or another, and the form restarts from what is saved, with new
-   * ids. If not, nothing was, and the same ids are still unused.
+   * recorded, this change or another, and the form is replaced by what is saved, with new
+   * ids. If not, nothing was recorded yet, and the form unlocks under a new id.
    */
   async function startOver() {
     setBusy(true);
@@ -245,10 +262,19 @@ function AmendForm({ ctx, facility, onReload }: { ctx: Ctx; facility: Facility; 
       if (!ctx.onFailure(now)) setFailure(now);
       return;
     }
+    if (now.value.as_of_decision_id !== facility.as_of_decision_id) {
+      // Something was recorded, possibly under this form's ids: replaced by what was just
+      // read, and the remount mints new ids. Nothing is unlocked first (found in review).
+      onReplace(now.value);
+      return;
+    }
+    // Not recorded yet, but the lost request may still land: a new id, so that if it does,
+    // the next Save meets a moved stamp and is refused as stale, never answered "already
+    // recorded" for a change it did not make (found in review). What was typed stays.
+    setIds(formIds(['decision_id'] as const));
     setInDoubt(false);
     setFailure(null);
     setSent(null);
-    if (now.value.as_of_decision_id !== facility.as_of_decision_id) onReload();
   }
 
   return (

@@ -326,6 +326,77 @@ token exposure and no injection. It confirmed ten defects, all fixed before the 
 event, so items UAT 6.2, "upload the same file again", did nothing. The input is now
 cleared once read, and the file's name shown instead (ADR-0026's step 3 addendum).
 
+## Addendum — 2026-10-05: one write lifecycle for every console form
+
+The step 3 addendum says that after a lost answer, Retry "sends exactly the same change".
+An audit of every write path in the console found that **this was not true**, and
+neither were two related claims. Each defect was confirmed by a second, adversarial
+reader. Nothing about the routes changed.
+
+- **What was wrong:**
+  - **Retry rebuilt the request from the fields.** That was true of the item and supplier
+    create and edit forms, and of adding and retiring a unit. The fields locked only once
+    the answer was lost, not while the request was out. So an edit made while it was out
+    went under the first attempt's ids. If the first attempt had been recorded, the
+    database answered `already_recorded`, and the person was told a code or a name was
+    saved that never was. The two uploads did the same with their reason.
+  - **Start over unlocked the edit forms before it had re-read the record.** When the
+    stamp had moved, Start over unlocked the form and then read the record again. Until
+    that second read landed, Save and Erase still carried the used ids. If the read
+    failed, they stayed that way, silently. An erasure could be answered "already saved"
+    without the contact ever being erased.
+  - **The detail pages' sub-forms each had their own lifecycle, and they had drifted.**
+    - **No shared copy on the item page.** It kept its code inline in each form. The
+      supplier, facility and transfer-price pages each kept a copy.
+    - **The doubt never ended.** On the item, supplier and facility pages, a Retry that
+      succeeded left it in place, so the next decision on the form opened locked.
+    - **A failed Start over was never shown.** That was true on the item, supplier and
+      transfer-price pages.
+    - **The item status form's target was fixed only when sent,** not when the form was
+      opened.
+- **What holds now:**
+  - **A request is built once, when the person presses the button.** Retry resends that
+    same request: its ids, its body and its stamp. A reload of the page meanwhile cannot
+    change it.
+  - **Fields lock while a request is out, and stay locked while it is in doubt.**
+  - **Start over unlocks nothing it has not read, and never unlocks a used id.**
+    - **The stamp has moved.** The edit form is replaced by the record already read, and
+      the remount mints new ids.
+    - **The stamp has not moved.** Nothing was recorded *yet*, but the lost request may
+      still land, so the form keeps what was typed under a new id. If it does land, the
+      next Save meets a moved stamp and is refused as stale, never answered "already
+      recorded" for a change it did not make (found in a second review).
+  - **One lifecycle serves every sub-form on the item, supplier, facility and
+    transfer-price pages.** It lives in `src/write.ts`, plain TypeScript, wrapped by
+    `screens/useWrite.tsx`. The full-page create and edit forms keep their own code,
+    following the same rules. Status forms fix their target when they open.
+  - **The uploads resend the request they sent while it is unanswered, and lock the
+    reason meanwhile** (`importRequest`).
+- **How it is held:**
+  - **`apps/console/test/write.test.ts`** drives the shared lifecycle under Node:
+    - Retry after a lost answer;
+    - the doubt ending whether a Retry is answered saved, already recorded or stale;
+    - Start over's read;
+    - one request at a time;
+    - the upload's request.
+
+    The full-page forms are `.tsx`, which Node cannot run, so the same file reads every
+    screen's source for the rules above. A second review found seven of those source
+    checks proved less than they claimed, and they were tightened.
+- **How it was checked, once, for this change** (scratch only, not committed):
+  - **28 deliberate breakages,** each of which made a named test fail.
+  - **A browser run that cut the connection after the database had recorded each write:**
+    - an item created;
+    - an item amended;
+    - a unit added;
+    - an item retired;
+    - a file uploaded;
+    - a supplier's contact changed;
+    - a supplier retired.
+
+    It checked that each was recorded once and as sent, and that the next decision
+    opened free. Against the code before this change, it failed at its first check.
+
 ## Alternatives considered
 
 **Keep the warehouse's three masters.** Rejected by the owner's decision.

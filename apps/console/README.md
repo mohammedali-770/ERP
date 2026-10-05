@@ -27,7 +27,7 @@ What it has today:
 
 | | |
 |---|---|
-| `src/*.ts` | Plain TypeScript: the API client, CSV reader, ids, translations, viewer, routes, messages. Node cannot load `.tsx`, so everything worth a test lives here and `test/` exercises it under `npm test`. |
+| `src/*.ts` | Plain TypeScript: the API client, CSV reader, ids, translations, viewer, routes, messages, and the write lifecycle every detail-page sub-form shares (`write.ts`, wrapped for React by `screens/useWrite.tsx`), with the uploads' `importRequest`. Node cannot load `.tsx`, so everything worth a test lives here and `test/` exercises it under `npm test`. |
 | `src/screens/*.tsx`, `src/App.tsx` | The screens, kept as thin as they can be around the `.ts` logic. |
 | `src/style.css` | One stylesheet, logical properties throughout, so RTL needs no second one. |
 

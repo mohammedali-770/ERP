@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Failure, Item } from '../api.ts';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type { AmendItemInput, CreateItemInput, Failure, Item } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
@@ -28,17 +28,17 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
   const [failure, setFailure] = useState<Failure | null>(null);
 
   const [unpaired, setUnpaired] = useState(false);
+  // The request as first sent: Retry resends exactly this, never the fields as they are
+  // now. Rebuilt on Retry, an edit made while the first request was out went under its
+  // ids, and was answered "already recorded" for a code never recorded (found in review).
+  const sent = useRef<CreateItemInput | null>(null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    setUnpaired(!descriptionsPaired(descEn, descAr));
-    if (descriptionsPaired(descEn, descAr)) void send();
-  }
-
-  async function send() {
-    setBusy(true);
-    setFailure(null);
-    const answer = await api.createItem({
+    const paired = descriptionsPaired(descEn, descAr);
+    setUnpaired(!paired);
+    if (!paired) return;
+    void send({
       ...ids,
       brand_id: brand,
       code: code.trim(),
@@ -50,6 +50,13 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
       description_ar: optional(descAr),
       reason: reason.trim(),
     });
+  }
+
+  async function send(body: CreateItemInput) {
+    sent.current = body;
+    setBusy(true);
+    setFailure(null);
+    const answer = await api.createItem(body);
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved') {
@@ -65,7 +72,7 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
     else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
   }
 
-  /** Is the item there? Then the lost attempt made it. If not, nothing was recorded. */
+  /** Is the item there? Then the lost attempt made it. If not, nothing was recorded yet: new ids. */
   async function startOver() {
     setBusy(true);
     const found = await api.getItem(null, ids.item_id);
@@ -74,6 +81,7 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
       ctx.navigate({ screen: 'item', itemId: ids.item_id }, t(lang, 'already_recorded'));
     } else if (found.status === 'not_found') {
       setIds(formIds(CREATE_IDS));
+      sent.current = null;
       setInDoubt(false);
       setFailure(null);
     } else if (!ctx.onFailure(found)) {
@@ -89,9 +97,11 @@ export function ItemCreate({ ctx }: { ctx: Ctx }) {
       <p className="muted">{t(lang, 'fixed_fields')}</p>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {unpaired ? <Notice tone="error" text={t(lang, 'rule_descriptions_paired')} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void send()} onStartOver={() => void startOver()} /> : null}
+      {inDoubt && sent.current !== null
+        ? <InDoubt lang={lang} busy={busy} onRetry={() => void send(sent.current!)} onStartOver={() => void startOver()} /> : null}
       <form className="form" onSubmit={submit}>
-        <fieldset className="plain" disabled={inDoubt}>
+        {/* Locked while a request is out, not only once it is in doubt: what Retry resends is what was on screen. */}
+        <fieldset className="plain" disabled={inDoubt || busy}>
         <div className="grid">
           <Field label={t(lang, 'item_code')}>
             <input required maxLength={24} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)}
@@ -135,29 +145,50 @@ export function ItemEdit({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   const [item, setItem] = useState<Item | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
 
+  // Only the newest load may draw: Reload pressed twice must not end on the older answer.
+  const seq = useRef(0);
   const load = useCallback(() => {
-    let live = true;
+    const mine = ++seq.current;
     void api.getItem(facilityId, itemId).then((answer) => {
-      if (!live) return;
-      if (answer.ok) setItem(answer.value);
-      else if (!onFailure(answer)) setFailure(answer);
+      if (mine !== seq.current) return;
+      if (answer.ok) {
+        setFailure(null);
+        setItem(answer.value);
+      } else if (!onFailure(answer)) setFailure(answer);
     });
-    return () => {
-      live = false;
-    };
   }, [api, onFailure, facilityId, itemId]);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    load();
+    return () => {
+      seq.current++;
+    };
+  }, [load]);
+
+  /** What Start over has already read replaces the form at once: no second read, no window. */
+  const replace = (next: Item) => {
+    seq.current++;
+    setFailure(null);
+    setItem(next);
+  };
 
   if (!ctx.writable) return <Notice tone="info" text={t(lang, 'read_only_here')} />;
   if (item === null) return failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />;
   // Keyed by the stamp: a reload after a stale refusal starts the form from the new state.
-  return <AmendForm key={item.as_of_decision_id} ctx={ctx} item={item} onReload={() => void load()} />;
+  // A reload that fails while the form is shown says so, above it.
+  return (
+    <>
+      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
+      <AmendForm key={item.as_of_decision_id} ctx={ctx} item={item} onReload={load} onReplace={replace} />
+    </>
+  );
 }
 
-function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: () => void }) {
+function AmendForm({ ctx, item, onReload, onReplace }: {
+  ctx: Ctx; item: Item; onReload: () => void; onReplace: (next: Item) => void;
+}) {
   const { api, lang, data } = ctx;
-  const [ids] = useState(() => formIds(['decision_id'] as const));
+  const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [inDoubt, setInDoubt] = useState(false);
   const [nameEn, setNameEn] = useState(item.name_en);
   const [nameAr, setNameAr] = useState(item.name_ar);
@@ -168,17 +199,15 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
   const [failure, setFailure] = useState<Failure | null>(null);
 
   const [unpaired, setUnpaired] = useState(false);
+  // The request as first sent: Retry resends exactly this (as on the create form).
+  const sent = useRef<AmendItemInput | null>(null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    setUnpaired(!descriptionsPaired(descEn, descAr));
-    if (descriptionsPaired(descEn, descAr)) void send();
-  }
-
-  async function send() {
-    setBusy(true);
-    setFailure(null);
-    const answer = await api.amendItem(item.item_id, {
+    const paired = descriptionsPaired(descEn, descAr);
+    setUnpaired(!paired);
+    if (!paired) return;
+    void send({
       ...ids,
       // The stamp the form was loaded from: a change made since is refused as stale,
       // never silently overwritten.
@@ -190,6 +219,13 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
       picture_path: item.picture_path,
       reason: reason.trim(),
     });
+  }
+
+  async function send(body: AmendItemInput) {
+    sent.current = body;
+    setBusy(true);
+    setFailure(null);
+    const answer = await api.amendItem(item.item_id, body);
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved' || outcome === 'already') {
@@ -202,8 +238,12 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
 
   /**
    * Has the item moved on from the state this form was loaded from? Then something was
-   * recorded — this change or another — and the form restarts from what is saved, with
-   * new ids. If not, nothing was, and the same ids are still unused.
+   * recorded, this change or another, possibly under this form's ids: the form is
+   * replaced by what was just read, and the remount mints new ids. Nothing is unlocked
+   * first. Unlocking, then reading again, left a window (and, if that read failed, a form)
+   * where Save sent the used ids and was told "already recorded" for an edit never made
+   * (found in review). If the stamp has not moved, nothing was recorded yet, and the form
+   * unlocks with what was typed, under a new id.
    */
   async function startOver() {
     setBusy(true);
@@ -213,9 +253,17 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
       if (!ctx.onFailure(now)) setFailure(now);
       return;
     }
+    if (now.value.as_of_decision_id !== item.as_of_decision_id) {
+      onReplace(now.value);
+      return;
+    }
+    sent.current = null;
+    // Not recorded yet, but the lost request may still land: a new id, so that if it does,
+    // the next Save meets a moved stamp and is refused as stale, never answered "already
+    // recorded" for a change it did not make (found in review). What was typed stays.
+    setIds(formIds(['decision_id'] as const));
     setInDoubt(false);
     setFailure(null);
-    if (now.value.as_of_decision_id !== item.as_of_decision_id) onReload();
   }
 
   return (
@@ -228,9 +276,10 @@ function AmendForm({ ctx, item, onReload }: { ctx: Ctx; item: Item; onReload: ()
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {failure?.status === 'stale' ? <button type="button" onClick={onReload}>{t(lang, 'reload')}</button> : null}
       {unpaired ? <Notice tone="error" text={t(lang, 'rule_descriptions_paired')} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void send()} onStartOver={() => void startOver()} /> : null}
+      {inDoubt && sent.current !== null
+        ? <InDoubt lang={lang} busy={busy} onRetry={() => void send(sent.current!)} onStartOver={() => void startOver()} /> : null}
       <form className="form" onSubmit={submit}>
-        <fieldset className="plain" disabled={inDoubt}>
+        <fieldset className="plain" disabled={inDoubt || busy}>
         <Names lang={lang} nameEn={nameEn} nameAr={nameAr} descEn={descEn} descAr={descAr}
           set={{ setNameEn, setNameAr, setDescEn, setDescAr }} />
         <ReasonField lang={lang} value={reason} onChange={setReason} />
