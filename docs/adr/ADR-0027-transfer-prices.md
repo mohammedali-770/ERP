@@ -126,7 +126,9 @@ its one `price_set`.
   the price a branch was charged is the line's, fixed when the order was placed.
 - **Changing a price is cheap and safe.** Set the new price from the moment it should
   apply; nothing already ordered changes.
-- **The edge layer and the screens are built** (see the addenda); **staff testing is module 3's next step.**
+- **The edge layer and the screens are built** (see the addenda). **The staff-testing pack is
+  written** ([`transfer-prices`](../lab/uat/transfer-prices.md), English and Arabic); it waits on the
+  owner's answers to the questions below and a session with the person who will set prices.
 
 ## Addendum — 2026-10-05: the data layer (module 3, step 2)
 

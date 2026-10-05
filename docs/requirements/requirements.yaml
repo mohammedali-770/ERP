@@ -2228,6 +2228,7 @@ requirements:
     test_refs:
       - "UAT-items"
       - "UAT-suppliers"
+      - "UAT-transfer-prices"
     estate_refs: []
   - id: "INV-006"
     module: "INV"

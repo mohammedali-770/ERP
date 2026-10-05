@@ -1128,6 +1128,8 @@ INV-005:
   test_refs:
     - UAT-items
     - UAT-suppliers
+    # Module 3, transfer prices (ADR-0027): a price names a pack through the conversion seam.
+    - UAT-transfer-prices
 
 PRC-005:
   status: "baselined"

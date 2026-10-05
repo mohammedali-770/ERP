@@ -10,7 +10,7 @@
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4.
+  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and its staff-testing pack is written.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -228,7 +228,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 |---|---|---|---|---|
 | 1 | **Items and units** — every INV-002 kind, units, conversions | 1,109 lines · 3 tables | Yes | Raw materials fold in here. Sets the conventions every later table copies. **Database layer, tests, data layer and screens built** — [ADR-0024](../adr/ADR-0024-item-master-and-units.md) and its two 2026-10-04 addenda; staff testing (its [UAT pack](../lab/uat/items.md) is written) and switch-on remain, [process mapping](../estate/process-mapping-items-and-units.md) |
 | 2 | Suppliers | 367 · 1 | Yes | Same place as before. The item–supplier link — the warehouse's `raw_materials.supplier_id`, now naming a conversion — lives here, not on the master, so items no longer depend on suppliers: the old order's second dependency error. **Database layer, tests, data layer and screens built** — [ADR-0026](../adr/ADR-0026-suppliers.md) and its addenda, [process mapping](../estate/process-mapping-suppliers.md); staff testing (its [UAT pack](../lab/uat/suppliers.md) is written) and switch-on remain |
-| 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7). **Database layer, tests, data layer and screens built** — a price per pack, from a moment, never backdated, over HTTP as the `transfer-prices` edge function and set from the console; [ADR-0027](../adr/ADR-0027-transfer-prices.md), [process mapping](../estate/process-mapping-transfer-prices.md); staff testing and switch-on remain |
+| 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7). **Database layer, tests, data layer and screens built** — a price per pack, from a moment, never backdated, over HTTP as the `transfer-prices` edge function and set from the console; [ADR-0027](../adr/ADR-0027-transfer-prices.md), [process mapping](../estate/process-mapping-transfer-prices.md); the staff-testing pack is written ([`transfer-prices`](../lab/uat/transfer-prices.md), en + ar) and waits on the owner's five answers and a session; switch-on remains |
 | 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | Partly covered by `erp.facility` |
 | 5 | Stock and movements | 1,834 · 4 | Yes | **Moved before purchasing**: receiving a PO writes stock |
 | 6 | **Notifications** — the in-app bell | 302 · 3 | **No** | Web push needs owner approval (`CLAUDE.md` §4) and ships off |
