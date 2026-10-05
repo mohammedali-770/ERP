@@ -175,10 +175,12 @@ is (ADR-0026's step 2 addendum). Nothing about the routes changed.
     warehouse manager reads and is refused both writes, and a price set ahead is
     withdrawn, for good. The history holds every decision, amounts as numbers. The
     rollback is checked.
-- **Controls:** 12 deliberate breakages of the edge layer, each failing a named Node or
+- **Controls:** 15 deliberate breakages of the edge layer, each failing a named Node or
   Deno test. They include an actor or price taken from the request, a moment without its
   offset accepted, an amount sent or answered as text, the facility dropped from a read,
-  paging by row, and the offset dropped by the driver.
+  paging by row, and the offset dropped by the driver. The review added three: an
+  impossible day or an out-of-range offset left to PostgreSQL, which answered a 422
+  naming no field, and a missing amount column read as an unpriced pack.
 
 ## Open, for the owner and for UAT
 

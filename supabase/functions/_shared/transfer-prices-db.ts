@@ -98,9 +98,16 @@ export function asMinor(route: string, value: unknown): number | null {
   return n;
 }
 
-/** The same row, with each named amount field a number (or null). */
+/**
+ * The same row, with each named amount field a number (or null). A field the row does
+ * not have is an error, not null: a renamed column would otherwise list a priced pack as
+ * unpriced (found in review).
+ */
 export function withMinor<T>(route: string, row: Readonly<Record<string, unknown>>, fields: readonly string[]): T {
   const out: Record<string, unknown> = { ...row };
-  for (const field of fields) out[field] = asMinor(route, row[field] ?? null);
+  for (const field of fields) {
+    if (!Object.hasOwn(row, field)) throw new UnexpectedAnswer(route, { status: `missing ${field}` });
+    out[field] = asMinor(route, row[field]);
+  }
   return out as T;
 }

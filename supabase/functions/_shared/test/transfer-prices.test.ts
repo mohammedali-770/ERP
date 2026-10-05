@@ -229,6 +229,11 @@ test('a malformed transfer-price field is a 400 naming it, and nothing reaches t
     [post('', { ...SET, effective_from: '2026-11-01' }), 'effective_from'],
     [post('', { ...SET, effective_from: '1 November 2026' }), 'effective_from'],
     [post('', { ...SET, effective_from: '2026-13-01T00:00:00Z' }), 'effective_from'],
+    // CONTROL: a day that does not exist, and an offset PostgreSQL refuses, are the edge's to name.
+    [post('', { ...SET, effective_from: '2026-02-30T00:00:00Z' }), 'effective_from'],
+    [post('', { ...SET, effective_from: '2027-02-29T00:00:00+03:00' }), 'effective_from'],
+    [post('', { ...SET, effective_from: '2026-11-01T24:00:00Z' }), 'effective_from'],
+    [post('', { ...SET, effective_from: '2026-11-01T00:00:00+16:00' }), 'effective_from'],
     [post('', { ...SET, effective_from: 1793480400000 }), 'effective_from'],
     [post('', { ...SET, reason: undefined }), 'reason'],
     [post('', { ...SET, reason: 'x'.repeat(501) }), 'reason'],
@@ -339,4 +344,14 @@ test('an amount answered as int8 text leaves as a whole number, and nothing else
   assert.equal(row.price_minor, 19000);
   assert.equal(row.next_price_minor, null);
   assert.equal(row.factor, '10', 'only the amount fields are touched');
+  const { next_price_minor: _n, ...renamed } = ROW;
+  assert.throws(() => withMinor('erp.list_transfer_prices', renamed, ['price_minor', 'next_price_minor']), UnexpectedAnswer,
+    'CONTROL: a missing amount column is an error, never an unpriced pack');
+});
+
+test('a moment that exists is accepted, leap day and offsets included', async () => {
+  for (const moment of ['2028-02-29T00:00:00+03:00', '2026-11-01T23:59:59.5Z', '2026-11-01T00:00-05:30', '2026-12-31T00:00:00+15:59']) {
+    const db = fakeDb(ADMIN);
+    assert.equal((await transferPrices(post('', { ...SET, effective_from: moment }), deps(db))).status, 200, moment);
+  }
 });
