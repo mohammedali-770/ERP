@@ -1127,3 +1127,10 @@ INV-005:
   owner: "Operations management"
   test_refs:
     - UAT-items
+    - UAT-suppliers
+
+PRC-005:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-suppliers

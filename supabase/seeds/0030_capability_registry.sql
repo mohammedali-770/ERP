@@ -66,6 +66,11 @@ insert into erp.capability_decision (
   ('01936f00-0000-7000-8000-00000000c006', 'procurement.suppliers', null, 'pilot',
    'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
    '01936f00-0000-7000-8000-000000000900', 'administrator',
+   timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  -- inventory.transfer_prices (0018): the same, for module 3.
+  ('01936f00-0000-7000-8000-00000000c007', 'inventory.transfer_prices', null, 'pilot',
+   'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
+   '01936f00-0000-7000-8000-000000000900', 'administrator',
    timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00');
 
 -- The projection, stamped with the decision each row was computed through (I-8).
@@ -82,4 +87,6 @@ insert into erp.capability_state (capability_key, facility_id, state, as_of_deci
   ('inventory.items',           erp.capability_org_scope(), 'pilot',
    '01936f00-0000-7000-8000-00000000c005', timestamptz '2026-09-20 00:00:00+00'),
   ('procurement.suppliers',     erp.capability_org_scope(), 'pilot',
-   '01936f00-0000-7000-8000-00000000c006', timestamptz '2026-09-20 00:00:00+00');
+   '01936f00-0000-7000-8000-00000000c006', timestamptz '2026-09-20 00:00:00+00'),
+  ('inventory.transfer_prices', erp.capability_org_scope(), 'pilot',
+   '01936f00-0000-7000-8000-00000000c007', timestamptz '2026-09-20 00:00:00+00');

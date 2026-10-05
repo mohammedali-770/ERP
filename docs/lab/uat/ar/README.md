@@ -29,6 +29,7 @@
 | [المطبخ](./kitchen.md) | موظفو المطبخ | [`kitchen.md`](../kitchen.md) |
 | [القائمة](./menu.md) | الإدارة ومديرو الفروع | [`menu.md`](../menu.md) |
 | [الأصناف والوحدات](./items.md) | صاحب قائمة الأصناف وموظف فرع | [`items.md`](../items.md) |
+| [الموردون](./suppliers.md) | صاحب قائمة الموردين ومدير المستودع | [`suppliers.md`](../suppliers.md) |
 | [تطبيق العميل](./customer-app.md) | عملاء أو موظفون ينوبون عنهم | [`customer-app.md`](../customer-app.md) |
 | [التقارير](./reporting.md) | المالية والعمليات | [`reporting.md`](../reporting.md) |
 | [الدعم](./support.md) | تقنية المعلومات ومديرو الفروع | [`support.md`](../support.md) |

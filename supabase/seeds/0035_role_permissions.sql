@@ -52,4 +52,15 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('warehouse_manager', 'procurement.suppliers', 'read'),
   ('factory_manager',   'procurement.suppliers', 'read'),
   ('general_manager',   'procurement.suppliers', 'read'),
-  ('accountant',        'procurement.suppliers', 'read');
+  ('accountant',        'procurement.suppliers', 'read'),
+
+  -- inventory.transfer_prices (0018). In the warehouse the accountant set prices beside
+  -- the administrator (set_item_unit_price()), and a branch saw the price it was charged.
+  -- So the accountant writes, the managers and branch workers read; 0018 grants the
+  -- administrator. The warehouse manager — org-wide, read only — is the IAM-003 control.
+  ('accountant',        'inventory.transfer_prices', 'read'),
+  ('accountant',        'inventory.transfer_prices', 'write'),
+  ('branch_worker',     'inventory.transfer_prices', 'read'),
+  ('warehouse_manager', 'inventory.transfer_prices', 'read'),
+  ('factory_manager',   'inventory.transfer_prices', 'read'),
+  ('general_manager',   'inventory.transfer_prices', 'read');

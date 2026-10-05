@@ -416,6 +416,28 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'transfer-price-guard-triggers-exist',
+    title: 'erp.transfer_price carries its enabled guard triggers, TRUNCATE included',
+    because:
+      'INV-017, I-7, B-11: a price\'s pack, amount and moment are fixed, a price in effect is ' +
+      'never withdrawn, a withdrawal is final, and no price is ever deleted, only because ' +
+      '0018\'s triggers say so — and they bind the owner too. A consistent seed passes with ' +
+      'the triggers gone, so their presence is checked directly, as supplier-guard-triggers-exist ' +
+      'does for 0016.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.transfer_price'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.transfer_price_is_fixed()'::regprocedure),
+                  ('erp.transfer_price'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.transfer_prices_are_never_truncated()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -681,6 +703,67 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           from pg_attribute a
           where a.attrelid = 'erp.supplier_decision'::regclass and a.attnum > 0 and not a.attisdropped
             and a.attname in ('contact_person', 'phone', 'email', 'address')`,
+  },
+  {
+    id: 'transfer-prices-match-their-decisions',
+    title: 'every transfer price equals the latest decision about it, and none was backdated',
+    because:
+      'I-8, as supplier-projections-match-their-decisions holds it for 0016: each price must ' +
+      'EQUAL its stamp, with no later decision about it, and every decision must name a real ' +
+      'price on the same pack. And the rule a branch order will rely on (I-7): no price was ' +
+      'ever set to take effect before the decision that set it, and none was withdrawn once ' +
+      'in effect — otherwise "what a carton cost on the 3rd" could change after the 3rd. Nor ' +
+      'does any active price repeat the one before it. The routes refuse all three; this holds ' +
+      'every row, the seed\'s included, to them.',
+    sql: `select 'price ' || p.price_id as violation
+          from erp.transfer_price p
+          left join erp.transfer_price_decision d on d.decision_id = p.as_of_decision_id
+          where d.decision_id is null
+             or (d.price_id, d.item_unit_id, d.item_id, d.unit_key, d.factor, d.price_minor, d.currency,
+                 d.effective_from, d.status)
+                is distinct from
+                (p.price_id, p.item_unit_id, p.item_id, p.unit_key, p.factor, p.price_minor, p.currency,
+                 p.effective_from, p.status)
+             or exists (select 1 from erp.transfer_price_decision l where l.price_id = p.price_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names nothing'
+          from erp.transfer_price_decision d
+          where not exists (select 1 from erp.transfer_price p
+                             where p.price_id = d.price_id and p.item_unit_id = d.item_unit_id)
+          union all
+          -- The pack, amount, currency and moment are fixed for a price's life, so every
+          -- decision about it agrees on them, and its first decision is its one price_set
+          -- (found in review: a history claiming another amount passed).
+          select 'price ' || d.price_id || ': its decisions disagree on what it is'
+          from erp.transfer_price_decision d
+          group by d.price_id
+          having count(distinct (d.item_unit_id, d.item_id, d.unit_key, d.factor, d.price_minor, d.currency,
+                                 d.effective_from)) > 1
+          union all
+          select 'price ' || f.price_id || ': its first decision is not its one price_set'
+          from (select d.price_id,
+                       (array_agg(d.kind order by d.seq))[1] as first_kind,
+                       count(*) filter (where d.kind = 'price_set') as sets
+                from erp.transfer_price_decision d group by d.price_id) f
+          where f.first_kind <> 'price_set' or f.sets <> 1
+          union all
+          select 'decision ' || d.decision_id || ' set a price before it was decided'
+          from erp.transfer_price_decision d
+          where d.kind = 'price_set' and d.effective_from < d.decided_at
+          union all
+          select 'decision ' || d.decision_id || ' withdrew a price already in effect'
+          from erp.transfer_price_decision d
+          where d.kind = 'price_withdrawn' and d.effective_from <= d.decided_at
+          union all
+          -- A price that changes nothing: the same as the active price before it. Setting
+          -- one out of order, or withdrawing the price between two equal ones, made one
+          -- (found in review); both routes refuse it now.
+          select 'price ' || x.price_id || ' repeats the price before it'
+          from (select p.price_id, p.price_minor, p.currency,
+                       lag(p.price_minor) over w as prev_minor, lag(p.currency) over w as prev_currency
+                from erp.transfer_price p where p.status = 'active'
+                window w as (partition by p.item_unit_id order by p.effective_from)) x
+          where (x.prev_minor, x.prev_currency) = (x.price_minor, x.currency)`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',
