@@ -10,7 +10,7 @@
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and its staff-testing pack is written, module 4 has 2.
+  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and its staff-testing pack is written, module 4 has 3.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -202,7 +202,7 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 |---|---|---|
 | Phases 1–3 — foundations | 3 | 3 |
 | Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 1 — the API layer and sign-in, 2026-10-03. The console's layout and Arabic/RTL came with module 1's screens on 2026-10-04; print and offline support remain |
-| Phase 4 — modules | 22 | 0 — module 1 has 4 of its 6 sub-steps, module 2 has 4 (its database layer, tests, data layer and screens), module 3 has 4 (its database layer, tests, data layer and screens), module 4 has 2 (its database layer and tests) |
+| Phase 4 — modules | 22 | 0 — module 1 has 4 of its 6 sub-steps, module 2 has 4 (its database layer, tests, data layer and screens), module 3 has 4 (its database layer, tests, data layer and screens), module 4 has 3 (its database layer, tests and data layer) |
 | Phase 5 — decommission | 1 | 0 |
 | **Total** | **28** | **4 — about 14%** |
 
