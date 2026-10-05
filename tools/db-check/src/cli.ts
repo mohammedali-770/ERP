@@ -189,7 +189,9 @@ try {
   for (const table of guarded) {
     // The first column a plain UPDATE may set to itself. An identity column refuses that in
     // the rewriter, before any trigger fires — "can only be updated to DEFAULT" — so a log
-    // keyed by one would have read as unprotected (found in review, for stock_ledger).
+    // whose first column were one would read as unprotected. None is today: stock_ledger,
+    // the first log with an identity besides seq, was declared decision_id first for this
+    // reason; this keeps the next one from depending on column order (found in review).
     const column = cluster
       .sql(`select attname from pg_attribute where attrelid = 'erp.${table}'::regclass and attnum > 0
               and not attisdropped and attidentity = '' and attgenerated = '' order by attnum limit 1`).trim();
@@ -494,8 +496,10 @@ try {
   }
   {
     // The first movements of two items that have no balance yet, listed in opposite orders.
-    // A lock on a row that does not exist yet is no lock; placeholder rows inserted in line
-    // order deadlocked here (40P01). Both must be recorded.
+    // The draft's placeholder rows, inserted in line order, deadlocked here (40P01); both
+    // must be recorded. This guards against bringing placeholders back. It does not test the
+    // key lock: the balances are written per item in item order, so without any lock these
+    // two still cannot deadlock. The next probe but two does (found in review).
     const gloves = ['000000004217', '2', 'in'] as const;
     const basket = ['000000004220', '1', 'in'] as const;
     const [first, second] = await overlap(adjust('0000000d0603', 'adjustment', 'null', lines(gloves, basket)),
@@ -535,6 +539,24 @@ try {
       'record_stock_count: a count racing a waste dated before it waits, and the balance and its entries equal what was found',
       `record_stock_count: a count racing an earlier waste left a balance of ${onHand} l and entries summing to ${entries}` +
         ` against 35 found ("${errorOf(waste)}", "${errorOf(counted)}")`);
+  }
+  {
+    // A count racing an item's FIRST movement, dated before the count: what a row lock
+    // cannot cover, because there is no row yet to lock. 10 strips put in an hour ago, 10
+    // found now, so nothing to post. Under row locks, the count read no balance, posted +10
+    // and wrote 10 over the movement's 10, so the balance read right and its entries said 20
+    // (found in review).
+    const [movement, counted] = await overlap(
+      adjust('0000000d0611', 'adjustment', "now() - interval '1 hour'", lines(['000000004205', '10', 'in'])),
+      count('0000000d0612', lines(['000000004205', '10'])), 'stock_unborn');
+    const [onHand, entries] = cluster.sql(`select b.on_hand, (select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end)
+                                            from erp.stock_ledger e where e.facility_id = b.facility_id and e.item_id = b.item_id)
+                                         from erp.stock_balance b
+                                        where b.facility_id = ${warehouse} and b.item_id = ${id('000000004102')}`).trim().split('|');
+    report(movement.status === 0 && counted.status === 0 && Number(onHand) === 10 && Number(entries) === 10,
+      'record_stock_count: a count racing an item\'s first movement waits on the key lock, and posts nothing it did not find',
+      `record_stock_count: a count racing an item's first movement left a balance of ${onHand} and entries summing to ${entries}` +
+        ` against 10 found ("${errorOf(movement)}", "${errorOf(counted)}")`);
   }
   {
     // "Now" is the clock once the lock is held. The waste's transaction begins first, then

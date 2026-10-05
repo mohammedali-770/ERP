@@ -90,6 +90,7 @@ Rules no key can state are held by `db:check`:
 - no decision took an item below zero without an override, and none recorded an override
   it did not need;
 - business days follow D3;
+- what a count posted is what it found less the book at its moment;
 - a reversal mirrors its target whole;
 - nothing is dated at or before an earlier count of the same item, and a count never
   shares a moment with a movement;
@@ -116,7 +117,10 @@ The order of its work is the design:
    yet, which a row lock cannot. Every writer of a balance goes through the seam, so this
    lock serialises them all.
 5. **"Now" is the clock once the locks are held,** never the transaction's start, as 0018
-   found for prices. A movement that waited behind a count is dated after it.
+   found for prices. A movement that waited behind a count is dated after it. A stated
+   moment is a real one, and not before the facility's record began: D3 bounds a late
+   entry only by the item's last count, so for an item never counted there a year typed
+   2016 for 2026 was taken (`stock_moment_before_facility`).
 6. **Every rule that reads the balance,** under the lock: D3, the count tie, D1.
 7. **The writes:** the decision, with its override already known, then its entries or
    count lines, then the balances, stamped with it. Nothing is written before the
@@ -158,7 +162,9 @@ belongs to the ordering module (10), and available is on hand less committed.
   moments to the minute. A movement stated at the minute of a count it physically followed
   was otherwise taken as before it, and counted twice. Whichever is recorded second is
   refused and asked which side it was on (`stock_count_moment_taken`, or
-  `stock_backdated_before_count` with a hint that says so).
+  `stock_backdated_before_count` with a hint that says so). **A count stated late shares
+  its whole minute:** a movement recorded "now" at 13:04:51 is no clearer about a count
+  stated as 13:04, and was counted twice. A count made now is the clock's instant.
 
 ### 5. Reversals (I-6)
 
@@ -257,10 +263,13 @@ INV-007's attributes, one by one:
   organisation-wide.
 - **`db:check` proves the races with two real sessions:**
   - two withdrawals that together overdraw an item;
-  - two first movements of new items in opposite orders;
   - two reversals of one decision;
   - a count racing a waste dated before it;
-  - a "now" movement that waited behind a count.
+  - a count racing an item's first movement, before it has a balance a row lock could
+    hold;
+  - a "now" movement that waited behind a count;
+  - two first movements of new items in opposite orders, against the draft's placeholder
+    rows.
 
   It asks the ledger's rules again after them. A retry that overlaps its original is
   answered as a retry on all three routes.
@@ -305,6 +314,22 @@ built in:
   back. Each hidden control withdraws production first, and asserts the gate's own words
   (CAP-P04 for a write, CAP-P02 for a read).
 
+## Found in the review of what was built
+
+Three independent reviews of the built step — its SQL, whether its tests prove what they
+claim, and whether its documents say what the code does — found these, now fixed:
+
+- A count stated to the minute did not see a "now" movement in that minute (§4).
+- A stated moment had no lower bound for an item never counted, and could be infinite
+  (§3).
+- A count whose difference from the book was past any store's size met the table's own
+  check, not a named refusal.
+- No probe raced an item's FIRST movement, where a row lock holds nothing; the probe that
+  seemed to was not testing the lock. Nothing checked that a count posted what it found;
+  the override's per-facility scope and the balance guard's item half were untested.
+- Nine statements in these documents and the migration's header said more, or other,
+  than the code does.
+
 ## Open, for the owner and for UAT
 
 Recorded rather than guessed. Each is decided before the module that needs it.
@@ -344,6 +369,10 @@ Recorded rather than guessed. Each is decided before the module that needs it.
 12. **A recount is not linked to the count it corrects.** A mistyped count and its
     correction both stand as variances. Is a link needed, so variance reports can net the
     pair?
+13. **How late may an entry be?** Nothing is recorded before an item's last count or
+    before the facility's record began, but within that a year typed one too few is still
+    taken. Should a movement stated more than some days before it is recorded need a
+    manager, or be refused?
 
 ## Alternatives considered
 

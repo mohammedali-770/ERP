@@ -615,6 +615,15 @@ begin
       raise exception 'stock is recorded once it has moved, not before'
         using errcode = 'check_violation', constraint = 'stock_not_in_future';
     end if;
+    -- Nor before the facility's record began, nor at no moment at all. D3 bounds a late
+    -- entry by the item's last count, and an item never counted here has none: a year
+    -- typed 2016 for 2026 was taken, and a count then added the stock put in since on top
+    -- of what it found (found in review).
+    if not isfinite(v_at) or v_at < f.created_at then
+      raise exception 'the record of % begins at %: nothing is dated before it', f.code, erp.stock_moment(f.created_at, f.tz_name)
+        using errcode = 'check_violation', constraint = 'stock_moment_before_facility',
+              hint = 'Check the date, and the year especially.';
+    end if;
   end if;
   v_date := (v_at at time zone f.tz_name)::date;
 
@@ -650,16 +659,23 @@ begin
     -- A count and a movement of one item never share a moment. Recorded after a count, a
     -- movement at its moment is refused above; this is the other order. Otherwise a
     -- movement stated to the minute of a count it physically followed was taken as
-    -- before it, and counted twice (found in review).
-    select i.code, e.decision_id into v_bad
+    -- before it, and counted twice (found in review). A count STATED late is stated to the
+    -- minute, so it shares its whole minute: a movement recorded "now" at 13:04:51 is no
+    -- clearer about a count stated as 13:04, and was counted twice (found in review). A
+    -- count made now is the clock's instant, and shares nothing but that.
+    select i.code, e.decision_id, e.occurred_at into v_bad
       from erp.stock_ledger e
       join erp.item i on i.item_id = e.item_id
-     where e.facility_id = f.facility_id and e.item_id = any (l_item) and e.occurred_at = v_at and e.kind <> 'count'
+     where e.facility_id = f.facility_id and e.item_id = any (l_item) and e.kind <> 'count'
+       and (e.occurred_at = v_at
+            or (p_occurred_at is not null
+                and e.occurred_at >= date_trunc('minute', v_at)
+                and e.occurred_at < date_trunc('minute', v_at) + interval '1 minute'))
      order by i.code collate "C"
      limit 1;
     if found then
-      raise exception 'a movement of % is recorded at exactly % (decision %): say whether the count was before or after it',
-        v_bad.code, erp.stock_moment(v_at, f.tz_name), v_bad.decision_id
+      raise exception 'a movement of % is recorded at % (decision %), in the minute counted: say whether the count was before or after it',
+        v_bad.code, erp.stock_moment(v_bad.occurred_at, f.tz_name), v_bad.decision_id
         using errcode = 'restrict_violation', constraint = 'stock_count_moment_taken',
               hint = 'If you counted before it, state the count a minute earlier; if after, a minute later.';
     end if;
@@ -669,7 +685,7 @@ begin
     select array_agg(k.item_id order by k.item_id),
            array_agg(k.counted - (k.on_hand - k.later) order by k.item_id),
            array_agg(k.on_hand order by k.item_id),
-           max(k.counted)
+           max(greatest(k.counted, abs(k.counted - (k.on_hand - k.later))))
       into c_item, c_variance, c_on_hand, v_base
       from (select c.item_id, c.counted, coalesce(b.on_hand, 0) as on_hand,
                    coalesce((select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end)
@@ -679,7 +695,7 @@ begin
                       from unnest(l_item, l_base) as x(item_id, base) group by x.item_id) c
               left join erp.stock_balance b on b.facility_id = f.facility_id and b.item_id = c.item_id) k;
     if v_base >= 1e12 then
-      raise exception 'the lines of one item add up to more than any store holds'
+      raise exception 'what was found of one item, or its difference from the book, is more than any store holds'
         using errcode = 'check_violation', constraint = 'stock_quantity_is_valid';
     end if;
   else

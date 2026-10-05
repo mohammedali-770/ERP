@@ -22,7 +22,7 @@
 -- Fixture ids are …0e19NN and …0e20NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(138);
+select plan(145);
 
 -- ---------------------------------------------------------------------------
 -- Helpers — pgTAP only; db-fixtures never sees them
@@ -353,6 +353,15 @@ select throws_like(
   '%may not write on capability inventory.stock%',
   'and nowhere else: the override follows where the role is held'
 );
+-- The case above is refused by the WRITE check, before the override is reached. So the
+-- factory manager is made a warehouse manager too — writing stock everywhere — and is
+-- still refused the override at the warehouse: approve is held where the factory manager
+-- role is, and nowhere else (found in review: an override checked anywhere passed).
+select is(pg_temp.refusal_text(
+  $$select erp.grant_role(pg_temp.u('e19a3'), pg_temp.u('908'), 'warehouse_manager', null, 'testing', pg_temp.u('900'), now())$$,
+  $$select pg_temp.adjust('e19a4', 'waste', jsonb_build_array(pg_temp.l('4226', '21')), null, '908', '403', 'Count was wrong')$$),
+  'person 01936f00-0000-7000-8000-000000000908 may not approve on capability inventory.stock here (IAM-003)',
+  'CONTROL: writing at the warehouse is not overriding there; the override is held per facility');
 select is(pg_temp.after(
   $$select (override_reason is null)::text from erp.stock_decision where decision_id = pg_temp.u('e1961')$$,
   $$select pg_temp.adjust('e1961', 'waste', jsonb_build_array(pg_temp.l('4207', '1')), null, '908', '404', 'Just in case')$$),
@@ -375,8 +384,24 @@ select is(pg_temp.refusal_text($$select pg_temp.adjust('e1965', 'waste', jsonb_b
   'one dated AT the count is refused too, asking which side it was on, in Riyadh time');
 select is(pg_temp.refusal($$select pg_temp.adjust('e1966', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), timestamptz '2026-09-25 03:01:00+00')$$),
   'none', 'CONTROL: a minute after the count is recorded');
-select is(pg_temp.refusal($$select pg_temp.adjust('e1968', 'adjustment', jsonb_build_array(pg_temp.l('4220', '1', 'in')), timestamptz '2026-01-01 00:00:00+00')$$),
-  'none', 'an item never counted here takes a late entry of any past moment');
+select is(pg_temp.refusal($$select pg_temp.adjust('e1968', 'adjustment', jsonb_build_array(pg_temp.l('4220', '1', 'in')), timestamptz '2026-09-21 00:00:00+00')$$),
+  'none', 'an item never counted here takes a late entry of any moment since the facility''s record began');
+select is(pg_temp.refusal($$select pg_temp.adjust('e19a5', 'adjustment', jsonb_build_array(pg_temp.l('4220', '1', 'in')), timestamptz '2016-10-01 00:00:00+00')$$),
+  '23514 stock_moment_before_facility', 'CONTROL: but not before it — a year typed 2016 for 2026 is refused');
+select is(pg_temp.refusal($$select pg_temp.count('e19a6', jsonb_build_array(pg_temp.l('4220', '1')), '-infinity'::timestamptz)$$),
+  '23514 stock_moment_before_facility', 'nor at no moment at all');
+-- A count stated to the minute shares its minute: a waste recorded "now" in that minute is
+-- no clearer about which came first than one stated at it.
+select is(pg_temp.refusal(
+  $$select pg_temp.adjust('e19a7', 'waste', jsonb_build_array(pg_temp.l('4225', '10')))$$,
+  $$select pg_temp.count('e19a8', jsonb_build_array(pg_temp.l('4226', '18')),
+      (select date_trunc('minute', occurred_at) from erp.stock_decision where decision_id = pg_temp.u('e19a7')))$$),
+  '23001 stock_count_moment_taken', 'a count stated at the minute a "now" waste was recorded in must say which came first');
+select is(pg_temp.refusal(
+  $$select pg_temp.adjust('e19a9', 'waste', jsonb_build_array(pg_temp.l('4225', '10')))$$,
+  $$select pg_temp.count('e19aa', jsonb_build_array(pg_temp.l('4226', '20')),
+      (select date_trunc('minute', occurred_at) - interval '1 minute' from erp.stock_decision where decision_id = pg_temp.u('e19a9')))$$),
+  'none', 'CONTROL: stated a minute earlier, it is plainly before the waste');
 select is(pg_temp.refusal(
   $$select pg_temp.adjust('e1969', 'waste', jsonb_build_array(pg_temp.l('4223', '1')), now() - interval '2 hours')$$,
   $$select pg_temp.count('e1970', jsonb_build_array(pg_temp.l('4224', '6')), now() - interval '2 hours')$$),
@@ -444,6 +469,10 @@ select is(pg_temp.after(
   $$select (select (on_hand, last_counted_at is not null) from erp.stock_balance where facility_id = pg_temp.u('403') and item_id = pg_temp.u('4102'))::text$$,
   $$select pg_temp.count('e1987', jsonb_build_array(pg_temp.l('4207', '2')))$$),
   '(80,t)', 'a first count of an item never held here posts all it found');
+select is(pg_temp.refusal(
+  $$select pg_temp.adjust('e19ab', 'adjustment', jsonb_build_array(pg_temp.l('4225', '999999999999', 'in'), pg_temp.l('4226', '199999999999', 'in')))$$,
+  $$select pg_temp.count('e19ac', jsonb_build_array(pg_temp.l('4225', '0')))$$),
+  '23514 stock_quantity_is_valid', 'a variance past what any store holds is refused by name, not by the table''s own words');
 select is(pg_temp.after(
   $$select (select on_hand from erp.stock_balance where facility_id = pg_temp.u('404') and item_id = pg_temp.u('4101'))::text$$,
   $$select pg_temp.count('e1988', jsonb_build_array(pg_temp.l('4203', '3')), null, '908', '404')$$),
@@ -607,6 +636,12 @@ select throws_ok(
      where facility_id = '01936f00-0000-7000-8000-000000000403' and item_id = '01936f00-0000-7000-8000-000000004111' $$,
   '23001', 'a stock balance stays the balance of its facility and item',
   'nor moved to another facility'
+);
+select throws_ok(
+  $$ update erp.stock_balance set item_id = '01936f00-0000-7000-8000-000000004106'
+     where facility_id = '01936f00-0000-7000-8000-000000000403' and item_id = '01936f00-0000-7000-8000-000000004111' $$,
+  '23001', 'a stock balance stays the balance of its facility and item',
+  'nor moved to another item'
 );
 select throws_ok(
   $$ truncate erp.stock_balance $$,

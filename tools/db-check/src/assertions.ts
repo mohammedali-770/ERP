@@ -675,7 +675,8 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
       'moment in the facility\'s time zone, and no branch or office holds stock until a ' +
       'branch\'s business day is decided (Q-06) — a date stamped on an append-only ledger can ' +
       'never be corrected. Nothing is recorded at or before a count of the item made earlier, ' +
-      'and a count never shares a moment with a movement, or it is counted twice. A reversal ' +
+      'and a count never shares a moment with a movement, or it is counted twice. What a count ' +
+      'posts is what it found less the book at its moment. A reversal ' +
       'undoes an adjustment or a write-off whole: one mirrored entry per entry, the same ' +
       'conversion and quantity, the other way (I-6, I-7). Foreign keys bind each entry to its ' +
       'decision\'s kind, facility and moment and a reversal to its target\'s; these are the ' +
@@ -735,6 +736,26 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           join erp.stock_count_log p on p.facility_id = c.facility_id and p.item_id = c.item_id
           join erp.stock_decision pd on pd.decision_id = p.decision_id
           where pd.seq < cd.seq and c.occurred_at <= p.occurred_at
+          union all
+          -- What a count posted is what it found less the book as it stood at its moment,
+          -- as known when it was recorded: every earlier decision's entries dated at or
+          -- before it. A balance kept equal to its entries says nothing about this; a count
+          -- that read a stale book would pass every other check (found in review).
+          select 'count ' || k.decision_id || ' posted ' || coalesce(v.variance, 0) || ' for ' || k.item_id
+                 || ', not what it found less the book at its moment'
+          from (select c.decision_id, c.facility_id, c.item_id, c.occurred_at, sum(c.base_quantity) as found
+                  from erp.stock_count_log c
+                 group by c.decision_id, c.facility_id, c.item_id, c.occurred_at) k
+          join erp.stock_decision kd on kd.decision_id = k.decision_id
+          left join lateral (
+            select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end) as variance
+              from erp.stock_ledger e where e.decision_id = k.decision_id and e.item_id = k.item_id) v on true
+          where k.found - coalesce((
+                  select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end)
+                    from erp.stock_ledger e join erp.stock_decision d on d.decision_id = e.decision_id
+                   where e.facility_id = k.facility_id and e.item_id = k.item_id
+                     and d.seq < kd.seq and e.occurred_at <= k.occurred_at), 0)
+                <> coalesce(v.variance, 0)
           union all
           select 'count ' || c.decision_id || ' shares its moment with ' || e.decision_id
           from erp.stock_count_log c
