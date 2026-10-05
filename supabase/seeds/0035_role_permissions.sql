@@ -10,7 +10,7 @@
 --   * the accountant holds payroll read AND write, on a payroll capability nobody has
 --     opened (0030 records no decision for it). Granted but hidden, so the database
 --     must refuse it — the left half of the rule, tested in 070.
---   * a branch worker may read stock and not write it. Enabled but not granted —
+--   * a branch worker may read stock and not write it. Open (pilot) but not granted —
 --     the right half.
 --   * month close is read_only, so the accountant may read its history and may not
 --     start new work in it (CAP-P06).
@@ -26,6 +26,12 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('factory_manager',   'factory.production',  'write'),
   ('factory_manager',   'inventory.stock',     'read'),
   ('factory_manager',   'inventory.stock',     'write'),
+  -- inventory.stock 'approve' (0020) is the override of negative stock (D1, ADR-0029).
+  -- Who holds it is the owner's open question 2; until it is answered the seed gives it to
+  -- the factory manager alone, which holds it only where assigned. So 0070's factory
+  -- manager, scoped to FA-001, overrides there and nowhere else, and the warehouse
+  -- manager — organisation-wide, writing stock but not approving — is the control in 150.
+  ('factory_manager',   'inventory.stock',     'approve'),
 
   ('general_manager',   'inventory.stock',     'read'),
   ('general_manager',   'factory.production',  'read'),

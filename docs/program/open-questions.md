@@ -86,6 +86,11 @@ means reinterpreting stored history.
 
 The design assumes shift-open. Confirm it.
 
+**Branch stock waits on this** (2026-10-05). The stock ledger dates warehouse and
+factory movements by the calendar (Q-22, below), and refuses any branch until this is
+answered, so no branch movement is stamped with a day that could later be wrong
+([ADR-0029](../adr/ADR-0029-stock-ledger.md) §8, question 6).
+
 ---
 
 ## Q-07 — Is one person one customer across brands?
@@ -490,7 +495,24 @@ Related: ADR-0018, ADR-0022, [`consolidation-plan.md`](./consolidation-plan.md) 
 
 ---
 
-## Q-22 — What is the business day for warehouse and factory operations?
+## Q-22 — What is the business day for warehouse and factory operations? · **ANSWERED for stock movements**
+
+**Answered 2026-10-05 by the owner, for stock movements. Recorded in
+[ADR-0029](../adr/ADR-0029-stock-ledger.md) as D3 and proposed as INV-P01.**
+
+A warehouse's or a factory's stock movement belongs to **the calendar date, in the
+facility's time zone, of the moment it happened**. A movement entered late states that
+moment, and is never dated at or before the item's last count. This decides it for
+warehouse and factory stock only:
+
+- **Branches are not covered.** A branch's business day opens with its shift (Q-06), so
+  no branch holds a stock record until Q-06 is answered.
+- **Orders, purchase orders, batches and the daily sheet** are asked again when their
+  modules are built, with this answer as the default to confirm.
+
+The original question is kept below.
+
+---
 
 **Decides:** Operations, with Finance · **Expensive after:** the first branch-order or
 purchase-order schema in Phase 4 stamps a date

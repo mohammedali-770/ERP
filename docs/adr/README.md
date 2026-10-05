@@ -58,3 +58,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0026](./ADR-0026-suppliers.md) | Suppliers, and what each one sells, named down to the pack |
 | [ADR-0027](./ADR-0027-transfer-prices.md) | Transfer prices: what a branch is charged for a pack, from when |
 | [ADR-0028](./ADR-0028-facilities-and-branch-areas.md) | Facilities: branches made a master, and the area a branch worker orders from |
+| [ADR-0029](./ADR-0029-stock-ledger.md) | Stock: a ledger at each warehouse and factory, posted through one seam |

@@ -128,7 +128,7 @@ select throws_ok(
   'a granted permission does not open a hidden capability'
 );
 
--- CONTROL, the right half. Stock is enabled; a branch worker holds read and not write.
+-- CONTROL, the right half. Stock is open (pilot); a branch worker holds read and not write.
 select throws_ok(
   $$ select erp.assert_permitted('01936f00-0000-7000-8000-000000000901', 'inventory.stock', 'write',
                                  '01936f00-0000-7000-8000-000000000401') $$,

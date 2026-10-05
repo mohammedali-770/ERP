@@ -16,6 +16,15 @@ export interface Assertion {
   readonly sql: string;
 }
 
+/**
+ * Every append-only log, found by name: each %_log, %_decision and %_ledger table in erp
+ * (a predicate on pg_class c). One copy, read by every-decision-log-is-append-only below
+ * and by cli.ts's runtime probe, so the catalogue check and the attempted writes cannot
+ * cover different tables. 0020's stock_ledger is the first %_ledger.
+ */
+export const LOG_BY_NAME =
+  `(c.relname like '%\\_log' or c.relname like '%\\_decision' or c.relname like '%\\_ledger')`;
+
 export const ASSERTIONS: readonly Assertion[] = [
   {
     id: 'database-is-utf8',
@@ -290,8 +299,9 @@ export const ASSERTIONS: readonly Assertion[] = [
     id: 'every-decision-log-is-append-only',
     title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant',
     because:
-      'A log that can be edited answers nothing. Discovered by name — every %_log and ' +
-      '%_decision table, event_log and sign_in_log among them — and through pg_inherits, so a ' +
+      'A log that can be edited answers nothing. Discovered by name — every %_log, %_decision ' +
+      'and %_ledger table, event_log, sign_in_log and stock_ledger among them — and through ' +
+      'pg_inherits, so a ' +
       'new log or partition is covered ' +
       'without being listed. Each needs an enabled BEFORE UPDATE OR DELETE trigger with no ' +
       'WHEN clause, an enabled BEFORE TRUNCATE trigger (no UPDATE or DELETE trigger sees ' +
@@ -307,7 +317,7 @@ export const ASSERTIONS: readonly Assertion[] = [
             from pg_class c
             join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-              and (c.relname like '%\\_log' or c.relname like '%\\_decision')
+              and ${LOG_BY_NAME}
           ),
           partitions as (
             select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid
@@ -460,6 +470,27 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'stock-guard-triggers-exist',
+    title: 'erp.stock_balance carries its enabled guard triggers, TRUNCATE included',
+    because:
+      'I-8, B-11: a balance is the sum of its ledger, so it stays the balance of one facility ' +
+      'and item and is never deleted, only because 0020\'s triggers say so — and they bind the ' +
+      'owner too. The three stock logs are covered by every-decision-log-is-append-only. A ' +
+      'consistent seed passes with the triggers gone, so their presence is checked directly.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.stock_balance'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.stock_balance_is_fixed()'::regprocedure),
+                  ('erp.stock_balance'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.stock_balances_are_never_truncated()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -554,6 +585,161 @@ export const ASSERTIONS: readonly Assertion[] = [
              from pg_namespace n cross join lateral aclexplode(n.nspacl) a
              where a.grantee = e.oid
           ) p`,
+  },
+];
+
+/**
+ * The stock ledger's invariants (0020, ADR-0029). Seed assertions, because they hold rows
+ * to rules, and exported apart because cli.ts asks them again after its two-session
+ * probes have posted through the routes: a race the routes lost would show here.
+ */
+export const STOCK_ASSERTIONS: readonly Assertion[] = [
+  {
+    id: 'stock-balances-match-their-ledger',
+    title: 'every stock balance equals its ledger, and none went below zero unless overridden',
+    because:
+      'I-8 and ledger-primitives: the ledger is the master and a balance its sum, so each ' +
+      'balance must EQUAL the sum of its entries, be stamped with the latest decision that ' +
+      'touched it, and carry the moment of its latest count; every facility and item with an ' +
+      'entry or a count line has one. The warehouse kept the counter as the master and the ' +
+      'movements as its side effect, and they drifted. And D1: replayed in the order the ' +
+      'decisions were applied (seq, drawn under the balance lock), no decision took an item ' +
+      'below zero without an override, and none recorded an override it did not need.',
+    sql: `with sums as (
+            select e.facility_id, e.item_id,
+                   sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end) as total
+            from erp.stock_ledger e group by e.facility_id, e.item_id
+          ),
+          counted as (
+            select c.facility_id, c.item_id, max(c.occurred_at) as last
+            from erp.stock_count_log c group by c.facility_id, c.item_id
+          ),
+          touched as (
+            select e.facility_id, e.item_id, e.decision_id from erp.stock_ledger e
+            union
+            select c.facility_id, c.item_id, c.decision_id from erp.stock_count_log c
+          ),
+          latest as (
+            select distinct on (t.facility_id, t.item_id) t.facility_id, t.item_id, t.decision_id
+            from touched t join erp.stock_decision d on d.decision_id = t.decision_id
+            order by t.facility_id, t.item_id, d.seq desc
+          ),
+          deltas as (
+            select e.facility_id, e.item_id, d.decision_id, d.seq, d.kind, d.override_reason,
+                   sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end) as delta
+            from erp.stock_ledger e join erp.stock_decision d on d.decision_id = e.decision_id
+            group by e.facility_id, e.item_id, d.decision_id, d.seq, d.kind, d.override_reason
+          ),
+          running as (
+            select x.*, sum(x.delta) over (partition by x.facility_id, x.item_id order by x.seq) as after
+            from deltas x
+          )
+          select 'balance ' || b.facility_id || '/' || b.item_id || ' is ' || b.on_hand
+                 || ', its entries sum to ' || coalesce(s.total, 0) as violation
+          from erp.stock_balance b
+          left join sums s on s.facility_id = b.facility_id and s.item_id = b.item_id
+          where b.on_hand <> coalesce(s.total, 0)
+          union all
+          select 'balance ' || b.facility_id || '/' || b.item_id || ' is stamped ' || b.as_of_decision_id
+                 || ', not the latest decision about it, ' || coalesce(l.decision_id::text, 'none')
+          from erp.stock_balance b
+          left join latest l on l.facility_id = b.facility_id and l.item_id = b.item_id
+          where l.decision_id is distinct from b.as_of_decision_id
+          union all
+          select 'balance ' || b.facility_id || '/' || b.item_id || ' was last counted at '
+                 || coalesce(b.last_counted_at::text, 'never') || ', its counts say ' || coalesce(c.last::text, 'never')
+          from erp.stock_balance b
+          left join counted c on c.facility_id = b.facility_id and c.item_id = b.item_id
+          where b.last_counted_at is distinct from c.last
+          union all
+          select 'no balance for ' || t.facility_id || '/' || t.item_id
+          from (select distinct facility_id, item_id from touched) t
+          where not exists (select 1 from erp.stock_balance b
+                             where b.facility_id = t.facility_id and b.item_id = t.item_id)
+          union all
+          select 'decision ' || r.decision_id || ' took ' || r.facility_id || '/' || r.item_id || ' to ' || r.after
+                 || ' with no override'
+          from running r
+          where r.kind <> 'count' and r.override_reason is null and r.delta < 0 and r.after < 0
+          union all
+          select 'decision ' || d.decision_id || ' records an override it did not need'
+          from erp.stock_decision d
+          where d.override_reason is not null
+            and not exists (select 1 from running r where r.decision_id = d.decision_id and r.delta < 0 and r.after < 0)`,
+  },
+  {
+    id: 'stock-ledger-matches-its-decisions',
+    title: 'every stock decision is dated by D3, has its lines, and a reversal mirrors its target',
+    because:
+      'D3 (ADR-0029): a warehouse\'s or a factory\'s business day is the calendar date of the ' +
+      'moment in the facility\'s time zone, and no branch or office holds stock until a ' +
+      'branch\'s business day is decided (Q-06) — a date stamped on an append-only ledger can ' +
+      'never be corrected. Nothing is recorded at or before a count of the item made earlier, ' +
+      'and a count never shares a moment with a movement, or it is counted twice. A reversal ' +
+      'undoes an adjustment or a write-off whole: one mirrored entry per entry, the same ' +
+      'conversion and quantity, the other way (I-6, I-7). Foreign keys bind each entry to its ' +
+      'decision\'s kind, facility and moment and a reversal to its target\'s; these are the ' +
+      'rules no key can state.',
+    sql: `select 'decision ' || d.decision_id || ': business day ' || d.business_date
+                 || ' is not the date of ' || d.occurred_at || ' at ' || f.code as violation
+          from erp.stock_decision d join erp.facility f on f.facility_id = d.facility_id
+          where f.facility_type in ('warehouse', 'factory')
+            and d.business_date <> (d.occurred_at at time zone f.tz_name)::date
+          union all
+          select 'decision ' || d.decision_id || ' is at ' || f.code || ', a ' || f.facility_type
+          from erp.stock_decision d join erp.facility f on f.facility_id = d.facility_id
+          where f.facility_type not in ('warehouse', 'factory')
+          union all
+          select 'decision ' || d.decision_id || ' has no lines'
+          from erp.stock_decision d
+          where (d.kind <> 'count' and not exists (select 1 from erp.stock_ledger e where e.decision_id = d.decision_id))
+             or (d.kind = 'count' and not exists (select 1 from erp.stock_count_log c where c.decision_id = d.decision_id))
+          union all
+          select 'reversal ' || d.decision_id || ' reverses a ' || t.kind
+          from erp.stock_decision d join erp.stock_decision t on t.decision_id = d.reverses_decision_id
+          where t.kind not in ('adjustment', 'waste', 'damage', 'expiry')
+          union all
+          select 'reversal ' || d.decision_id || ' does not mirror ' || d.reverses_decision_id || ' whole'
+          from erp.stock_decision d
+          where d.kind = 'reversal'
+            and ((select count(*) from erp.stock_ledger t where t.decision_id = d.reverses_decision_id)
+                 <> (select count(*) from erp.stock_ledger r where r.decision_id = d.decision_id)
+                 or exists (
+                   select 1 from erp.stock_ledger r
+                   left join erp.stock_ledger t on t.entry_id = r.reverses_entry_id
+                   where r.decision_id = d.decision_id
+                     and (t.entry_id is null or t.decision_id <> d.reverses_decision_id or t.direction = r.direction
+                          or (t.item_id, t.item_unit_id, t.unit_key, t.factor, t.quantity, t.base_quantity)
+                             is distinct from (r.item_id, r.item_unit_id, r.unit_key, r.factor, r.quantity, r.base_quantity))))
+          union all
+          select 'count ' || e.decision_id || ' posts ' || i.code || '''s variance in ' || e.unit_key
+                 || ', not its base unit, or more than once'
+          from erp.stock_ledger e join erp.item i on i.item_id = e.item_id
+          where e.kind = 'count'
+            and (e.unit_key <> i.base_unit_key
+                 or exists (select 1 from erp.stock_ledger o
+                             where o.decision_id = e.decision_id and o.item_id = e.item_id and o.line_no <> e.line_no))
+          union all
+          select 'decision ' || e.decision_id || ' is dated at or before the count ' || c.decision_id
+                 || ' of the same item, recorded before it'
+          from erp.stock_ledger e
+          join erp.stock_decision d on d.decision_id = e.decision_id
+          join erp.stock_count_log c on c.facility_id = e.facility_id and c.item_id = e.item_id
+          join erp.stock_decision cd on cd.decision_id = c.decision_id
+          where cd.seq < d.seq and e.occurred_at <= c.occurred_at
+          union all
+          select 'decision ' || c.decision_id || ' is dated at or before the count ' || p.decision_id
+                 || ' of the same item, recorded before it'
+          from erp.stock_count_log c
+          join erp.stock_decision cd on cd.decision_id = c.decision_id
+          join erp.stock_count_log p on p.facility_id = c.facility_id and p.item_id = c.item_id
+          join erp.stock_decision pd on pd.decision_id = p.decision_id
+          where pd.seq < cd.seq and c.occurred_at <= p.occurred_at
+          union all
+          select 'count ' || c.decision_id || ' shares its moment with ' || e.decision_id
+          from erp.stock_count_log c
+          join erp.stock_ledger e on e.facility_id = c.facility_id and e.item_id = c.item_id
+                                  and e.occurred_at = c.occurred_at and e.kind <> 'count'`,
   },
 ];
 
@@ -822,6 +1008,7 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
                 from erp.facility_decision d group by d.facility_id) x
           where x.first_kind not in ('facility_created', 'facility_recorded') or x.births <> 1`,
   },
+  ...STOCK_ASSERTIONS,
   {
     id: 'projection-stamp-resolves-to-a-real-event',
     title: 'every as_of_event_id names an event that exists',

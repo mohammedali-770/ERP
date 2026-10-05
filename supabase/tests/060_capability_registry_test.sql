@@ -40,8 +40,10 @@ select throws_ok(
   'a capability with no recorded state refuses new work'
 );
 
+-- platform.capability_admin, which 0011 enables: the seed's own capabilities are all
+-- pilot, read_only or unrecorded since inventory.stock became a module (0020).
 select lives_ok(
-  $$ select erp.assert_capability_admits('inventory.stock',
+  $$ select erp.assert_capability_admits('platform.capability_admin',
        '00000000-0000-0000-0000-000000000000') $$,
   'an enabled capability admits new work'
 );

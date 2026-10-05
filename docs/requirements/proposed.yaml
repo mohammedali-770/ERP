@@ -586,3 +586,37 @@ requirements:
     relates_to:
       - IAM-006
       - SEC-001
+
+  # ---------------------------------------------------------------------------
+  # Stock: the business day of a movement, and negative stock
+  #
+  # Owner decisions, 2026-10-05 (ADR-0029 D3 and D1). The PRD asks that every movement
+  # record its date (INV-007) and that negative stock be "prevented or explicitly
+  # controlled through an exception approval policy" (INV-008); it says neither which
+  # day a warehouse movement belongs to, nor what the control is. Both are new behaviour,
+  # so both are proposed. pgTAP 150 and db-check exercise them; neither is an artifact
+  # type req-lint resolves.
+  # ---------------------------------------------------------------------------
+
+  - id: "INV-P01"
+    module: "INV"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-05"
+    status: "proposed"
+    text_en: "A stock movement at a warehouse or a factory shall belong to the calendar date, in the facility's time zone, of the moment it happened; a movement entered late shall state that moment, and no movement shall be dated at or before the last count of the item at that facility."
+    text_ar: "يجب أن تُنسب حركة المخزون في المستودع أو المصنع إلى التاريخ التقويمي، بتوقيت المنشأة، للحظة التي حدثت فيها؛ ويجب أن تذكر الحركة المُدخلة متأخرةً تلك اللحظة، وألا تؤرَّخ أي حركة في وقت آخر جرد للصنف في تلك المنشأة أو قبله."
+    relates_to:
+      - INV-007
+      - INV-009
+
+  - id: "INV-P02"
+    module: "INV"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-05"
+    status: "proposed"
+    text_en: "A stock movement that would leave an item's stock at a facility below zero shall be refused unless a person permitted to override it records it with a stated reason; the balance below zero shall then be shown until a count corrects it."
+    text_ar: "يجب رفض حركة المخزون التي تجعل رصيد صنف في منشأة أقل من الصفر، ما لم يسجلها شخص مخوَّل بالتجاوز مع ذكر السبب؛ ويُعرض الرصيد السالب عندئذٍ حتى يصححه الجرد."
+    relates_to:
+      - INV-008

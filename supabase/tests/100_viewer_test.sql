@@ -47,13 +47,13 @@ select is(jsonb_array_length(erp.viewer('01936f00-0000-7000-8000-000000000900', 
 select is(erp.viewer('01936f00-0000-7000-8000-000000000905', '01936f00-0000-7000-8000-000000000401') -> 'permissions',
   '[]'::jsonb, 'a suspended person holds nothing');
 
--- States are the database's own, for every registered capability (CAP-P02): the four the
--- seed records, and one it does not, which is hidden. Stated, not recomputed: comparing
+-- States are the database's own, for every registered capability (CAP-P02): those the
+-- seed records, 0011's enabled one, and one nobody records, which is hidden. Stated, not recomputed: comparing
 -- against capability_state_for() again would only show the function equals itself
 -- (found in review).
 select ok((erp.viewer('01936f00-0000-7000-8000-000000000901', '01936f00-0000-7000-8000-000000000401') -> 'states')
-  @> '{"inventory.items": "pilot", "inventory.stock": "enabled", "factory.production": "pilot",
-       "finance.month_close": "read_only", "hr.payroll": "hidden"}'::jsonb
+  @> '{"inventory.items": "pilot", "inventory.stock": "pilot", "factory.production": "pilot",
+       "finance.month_close": "read_only", "hr.payroll": "hidden", "platform.capability_admin": "enabled"}'::jsonb
   and (select count(*) from jsonb_object_keys(erp.viewer('01936f00-0000-7000-8000-000000000901', null) -> 'states'))
       = (select count(*) from erp.capability),
   'each capability is in its recorded state, an unrecorded one hidden, and none is missing');
