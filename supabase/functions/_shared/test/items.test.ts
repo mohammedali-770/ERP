@@ -5,6 +5,7 @@ import type { Deps } from '../http.ts';
 import type { Item, ItemsDb } from '../items-db.ts';
 import { items } from '../items.ts';
 import type { SuppliersDb } from '../suppliers-db.ts';
+import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { notUsed } from './not-used.ts';
 import { asRefusal, Refusal, refusalReply } from '../refusal.ts';
 
@@ -34,6 +35,12 @@ const suppliersNotUsed = notUsed<SuppliersDb>('suppliers', {
   amendSupplierItem: true, retireSupplierItem: true, importSuppliers: true,
 });
 
+/** The transfer-price routes, which no items request may reach. */
+const transferPricesNotUsed = notUsed<TransferPricesDb>('transfer prices', {
+  listTransferPrices: true, itemTransferPrices: true, transferPriceHistory: true, setTransferPrice: true,
+  withdrawTransferPrice: true,
+});
+
 /** An items database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<ItemsDb> = {}): Db & { calls: Call[] } {
   const calls: Call[] = [];
@@ -56,6 +63,7 @@ function fakeDb(person: string | null, override: Partial<ItemsDb> = {}): Db & { 
     resolveSession: async () => session,
     viewer: async () => { throw new Error('not used'); },
     ...suppliersNotUsed,
+    ...transferPricesNotUsed,
     listItems: record('listItems'),
     getItem: record('getItem'),
     itemHistory: record('itemHistory'),

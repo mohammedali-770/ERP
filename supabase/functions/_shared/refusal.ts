@@ -65,7 +65,7 @@ export function asRefusal(error: unknown): Refusal | null {
  * The answer a refusal gets:
  *
  *   409 already_recorded  23505 on a decision log's primary key — item_decision_pkey,
- *                         supplier_decision_pkey — RAISED by that log's
+ *                         supplier_decision_pkey, transfer_price_decision_pkey — RAISED by that log's
  *                         assert_*_decision_is_new(), or re-raised whole by its import:
  *                         a retry of a write that already succeeded. The console reads the
  *                         record's history to confirm. The same constraint raised natively
@@ -80,7 +80,7 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         constraint. A future trigger raising restrict_violation without
  *                         one would be answered 403 too: name the constraint.
  *   422 refused           23001 naming a rule: the request breaks one (a retired item, a
- *                         fixed base unit, a final retirement).
+ *                         fixed base unit, a final retirement, a price already in effect).
  *   422 invalid           22xxx, 23502, 23503, 23514: the request is malformed or names
  *                         something that does not exist in a way a form can correct.
  *   404 not_found         P0002: no such item, conversion or facility — or one of another
@@ -97,7 +97,9 @@ const GENERIC: Readonly<Record<string, string>> = {
 };
 
 /** The logs whose route-raised 23505 is a retry. A module adds its log here. */
-const DECISION_LOGS: ReadonlySet<string> = new Set(['item_decision_pkey', 'supplier_decision_pkey']);
+const DECISION_LOGS: ReadonlySet<string> = new Set([
+  'item_decision_pkey', 'supplier_decision_pkey', 'transfer_price_decision_pkey',
+]);
 
 /** The stamps an edit form sends back, whose 23001 means someone changed the record since. */
 const STALE: ReadonlySet<string> = new Set(['item_stale', 'supplier_stale', 'supplier_item_stale']);

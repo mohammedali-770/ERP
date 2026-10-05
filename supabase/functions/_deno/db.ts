@@ -30,6 +30,7 @@ import {
 } from '../_shared/db.ts';
 import type { ImportSummary, Item } from '../_shared/items-db.ts';
 import type { Supplier, SupplierDetail, SupplierImportSummary } from '../_shared/suppliers-db.ts';
+import { withMinor, type ItemPrice, type PriceListRow } from '../_shared/transfer-prices-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -163,6 +164,27 @@ export function makeDb(sql: Sql): Db {
       const [row] = await sql`select erp.import_suppliers(
         ${actor}::uuid, ${reason}::text, now(), ${sql.json(rows as postgres.JSONValue)}::jsonb) as summary`;
       return row?.['summary'] as SupplierImportSummary;
+    }),
+
+    // An amount comes back from postgres.js as a string (int8), and leaves as a number.
+    listTransferPrices: (actor, q) => run(async () => (await sql`
+      select * from erp.list_transfer_prices(${actor}::uuid, ${q.facilityId}::uuid, ${q.search}::text,
+                                             ${q.afterCode}::text, ${q.limit}::integer)`
+    ).map((r) => withMinor<PriceListRow>('erp.list_transfer_prices', r, ['price_minor', 'next_price_minor']))),
+    itemTransferPrices: (actor, facilityId, itemId) => run(async () => (await sql`
+      select * from erp.item_transfer_prices(${actor}::uuid, ${facilityId}::uuid, ${itemId}::uuid)`
+    ).map((r) => withMinor<ItemPrice>('erp.item_transfer_prices', r, ['price_minor']))),
+    transferPriceHistory: (actor, facilityId, itemId) => run(async () => (await sql`
+      select * from erp.transfer_price_history(${actor}::uuid, ${facilityId}::uuid, ${itemId}::uuid)`
+    ).map((r) => withMinor<Record<string, unknown>>('erp.transfer_price_history', r, ['price_minor']))),
+    setTransferPrice: (actor, i) => run(async () => {
+      await sql`select erp.set_transfer_price(
+        ${i.decisionId}::uuid, ${i.priceId}::uuid, ${i.itemUnitId}::uuid, ${i.priceMinor}::bigint, ${i.currency}::text,
+        ${i.effectiveFrom}::timestamptz, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    withdrawTransferPrice: (actor, i) => run(async () => {
+      await sql`select erp.withdraw_transfer_price(
+        ${i.decisionId}::uuid, ${i.priceId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
     }),
   };
 }

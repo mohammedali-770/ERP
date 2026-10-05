@@ -126,8 +126,59 @@ its one `price_set`.
   the price a branch was charged is the line's, fixed when the order was placed.
 - **Changing a price is cheap and safe.** Set the new price from the moment it should
   apply; nothing already ordered changes.
-- **The edge layer and screens are module 3's next steps.** The edge's refusal mapping
-  must then answer `already_recorded` for `transfer_price_decision_pkey`.
+- **The edge layer is built** (see the addendum); **the screens are module 3's next step.**
+
+## Addendum — 2026-10-05: the data layer (module 3, step 2)
+
+The five runtime routes are reachable over HTTP through one edge function,
+`transfer-prices` (`supabase/functions/_shared/transfer-prices.ts`), built as `suppliers`
+is (ADR-0026's step 2 addendum). Nothing about the routes changed.
+
+- **The routes:**
+  - `GET /` for the price list, paged by item code: a page holds up to `limit` items,
+    each with every active pack, so `next_after` is set when the page holds `limit`
+    distinct items, not `limit` rows;
+  - `GET /items/{item_id}` for every price ever set for an item's packs, and
+    `/items/{item_id}/history` for every decision about them;
+  - `POST /` to set a price, and `POST /{price_id}/withdraw`.
+
+  The seam `erp.transfer_price_at()` is not among them. It is owner-only, for module 10's
+  own routes.
+- **The actor is the session's,** through `withSession` (ADR-0025). A Node control test
+  holds it for both writes and all three reads. The price a withdrawal acts on is the
+  one the path names, whatever the body says.
+- **The edge checks shape, the database checks rules.** Two shape rules are new, both
+  about money and time:
+  - **An amount is a JSON number of whole minor units:** 18500, never `"185.00"` or
+    185.5. That it runs 0 to 10^11 and is in SAR is 0018's rule, and so is a moment in
+    the past. The answers carry amounts the same way. postgres.js returns an int8 as
+    text, so the driver turns each amount into a number, and refuses as an error any
+    value that is not a whole number it can hold exactly. Every amount fits: the cap
+    is far below 2^53.
+  - **A moment names its offset:** `2026-11-01T00:00:00+03:00`, never
+    `2026-11-01T00:00:00`. PostgreSQL reads a moment without one in the session's time
+    zone, which is UTC on Supabase, so midnight in Riyadh would have become three in
+    the morning (question 5). Left out, or null, the price takes effect now.
+- **Refusals** map through `_shared/refusal.ts`, which now lists
+  `transfer_price_decision_pkey` among its decision logs. A route-raised 23505 on it is
+  `already_recorded`; the same constraint raised by PostgreSQL itself stays a conflict.
+  Prices have no stale check, so the stale list is unchanged. A second price for one
+  moment is a conflict (409). A price that changes nothing, one in effect withdrawn, or
+  a retired pack is `refused` (422). A past moment, another currency or an amount out of
+  range is `invalid` (422).
+- **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/transfer-prices.test.ts`:
+  - a cashier reads the price list at their branch, within their brand, sees no row of
+    another brand's item and an unpriced pack listed unpriced, and is refused a write;
+  - then, in one transaction that is rolled back, the accountant prices the unpriced
+    pack. A retry is answered as a retry. A price set for midnight Riyadh time is read
+    back as 21:00 UTC the day before. Each rule comes back in the route's own words. The
+    warehouse manager reads and is refused both writes, and a price set ahead is
+    withdrawn, for good. The history holds every decision, amounts as numbers. The
+    rollback is checked.
+- **Controls:** 12 deliberate breakages of the edge layer, each failing a named Node or
+  Deno test. They include an actor or price taken from the request, a moment without its
+  offset accepted, an amount sent or answered as text, the facility dropped from a read,
+  paging by row, and the offset dropped by the driver.
 
 ## Open, for the owner and for UAT
 
