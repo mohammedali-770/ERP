@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ContactInput, Failure, Supplier } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { formIds } from '../ids.ts';
@@ -21,28 +21,48 @@ export function SupplierContact({ ctx, supplierId }: { ctx: Ctx; supplierId: str
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
 
+  // Only the newest load may draw: Reload pressed twice must not end on the older answer.
+  const seq = useRef(0);
   const load = useCallback(() => {
-    let live = true;
+    const mine = ++seq.current;
     void api.getSupplier(facilityId, supplierId).then((answer) => {
-      if (!live) return;
-      if (answer.ok) setSupplier(answer.value);
-      else if (!onFailure(answer)) setFailure(answer);
+      if (mine !== seq.current) return;
+      if (answer.ok) {
+        setFailure(null);
+        setSupplier(answer.value);
+      } else if (!onFailure(answer)) setFailure(answer);
     });
-    return () => {
-      live = false;
-    };
   }, [api, onFailure, facilityId, supplierId]);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    load();
+    return () => {
+      seq.current++;
+    };
+  }, [load]);
+
+  /** What Start over has already read replaces the form at once: no second read, no window. */
+  const replace = (next: Supplier) => {
+    seq.current++;
+    setFailure(null);
+    setSupplier(next);
+  };
 
   if (!ctx.suppliersWritable) return <Notice tone="info" text={t(lang, 'read_only_suppliers')} />;
   if (supplier === null) return failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />;
-  return <ContactForm key={supplier.as_of_decision_id} ctx={ctx} supplier={supplier} onReload={() => void load()} />;
+  return (
+    <>
+      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
+      <ContactForm key={supplier.as_of_decision_id} ctx={ctx} supplier={supplier} onReload={load} onReplace={replace} />
+    </>
+  );
 }
 
-function ContactForm({ ctx, supplier, onReload }: { ctx: Ctx; supplier: Supplier; onReload: () => void }) {
+function ContactForm({ ctx, supplier, onReload, onReplace }: {
+  ctx: Ctx; supplier: Supplier; onReload: () => void; onReplace: (next: Supplier) => void;
+}) {
   const { api, lang } = ctx;
-  const [ids] = useState(() => formIds(['decision_id'] as const));
+  const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [person, setPerson] = useState(supplier.contact_person ?? '');
   const [phone, setPhone] = useState(supplier.phone ?? '');
   const [email, setEmail] = useState(supplier.email ?? '');
@@ -76,7 +96,14 @@ function ContactForm({ ctx, supplier, onReload }: { ctx: Ctx; supplier: Supplier
     else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
   }
 
-  /** As the supplier form: has the stamp moved on? Then reload; if not, nothing was recorded. */
+  /**
+   * As the supplier form: has the stamp moved on? Then something was recorded, possibly
+   * under this form's ids, and the form is replaced by what was just read, with new ids.
+   * Nothing is unlocked first: unlocking, then reading again, left a window in which Erase
+   * sent the used ids and was told "already saved", the contact never erased (found in
+   * review). If the stamp has not moved, nothing was recorded yet, and the form unlocks
+   * under a new id.
+   */
   async function startOver() {
     setBusy(true);
     const now = await api.getSupplier(ctx.facilityId, supplier.supplier_id);
@@ -85,9 +112,16 @@ function ContactForm({ ctx, supplier, onReload }: { ctx: Ctx; supplier: Supplier
       if (!ctx.onFailure(now)) setFailure(now);
       return;
     }
+    if (now.value.as_of_decision_id !== supplier.as_of_decision_id) {
+      onReplace(now.value);
+      return;
+    }
+    // Not recorded yet, but the lost request may still land: a new id, so that if it does,
+    // the next Save meets a moved stamp and is refused as stale, never answered "already
+    // recorded" for a change it did not make (found in review). What was typed stays.
+    setIds(formIds(['decision_id'] as const));
     setInDoubt(null);
     setFailure(null);
-    if (now.value.as_of_decision_id !== supplier.as_of_decision_id) onReload();
   }
 
   return (
@@ -102,7 +136,8 @@ function ContactForm({ ctx, supplier, onReload }: { ctx: Ctx; supplier: Supplier
         <InDoubt lang={lang} busy={busy} onRetry={() => void send(inDoubt.body, inDoubt.erase)} onStartOver={() => void startOver()} />
       ) : null}
       <form className="form" onSubmit={submit}>
-        <fieldset className="plain" disabled={inDoubt !== null}>
+        {/* Locked while a request is out, not only once it is in doubt: what Retry resends is what was on screen. */}
+        <fieldset className="plain" disabled={inDoubt !== null || busy}>
         <div className="grid">
           <Field label={t(lang, 'contact_person')}>
             <input maxLength={120} value={person} onChange={(e) => setPerson(e.target.value)} />

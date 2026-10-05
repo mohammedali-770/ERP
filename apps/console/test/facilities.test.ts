@@ -276,7 +276,7 @@ test('CONTROL: Retry on the facility pages resends the request first sent; ids a
   const page = screen('FacilityDetail.tsx');
   assert.doesNotMatch(page, /onRetry=\{\(\) => submit/, 'no Retry rebuilds the body');
   assert.equal([...page.matchAll(/onRetry=\{w\.retry\}/g)].length, 2, 'both write forms on the page retry the pending request');
-  assert.match(page, /pending\.current = send;/);
+  assert.match(page, /import \{ useWrite \} from '\.\/useWrite\.tsx';/, 'the shared write lifecycle (test/write.test.ts)');
   for (const form of ['AreaForm', 'StatusChange']) {
     const body = page.slice(page.indexOf(`function ${form}`));
     assert.match(body.slice(0, 800), /useState\(\(\) => formIds\(\['decision_id'\] as const\)\)/, `${form} mints its ids once, kept until a success`);

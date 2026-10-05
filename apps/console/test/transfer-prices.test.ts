@@ -237,7 +237,7 @@ test('CONTROL: Retry on the prices page resends the request first sent; ids are 
   const page = screen('ItemPrices.tsx');
   assert.doesNotMatch(page, /onRetry=\{\(\) => submit/, 'no Retry rebuilds the body');
   assert.equal([...page.matchAll(/onRetry=\{w\.retry\}/g)].length, 2, 'both write forms retry the pending request');
-  assert.match(page, /pending\.current = send;/);
+  assert.match(page, /import \{ useWrite \} from '\.\/useWrite\.tsx';/, 'the shared write lifecycle (test/write.test.ts)');
   assert.match(page, /useState\(\(\) => formIds\(PRICE_IDS\)\)/, 'a price form mints its ids when it opens');
   assert.doesNotMatch(page, /formIds\([^)]*\)[^;]*\n[^\n]*api\.setTransferPrice/, 'never minted at send time');
 });

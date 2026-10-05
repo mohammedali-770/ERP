@@ -4,14 +4,14 @@ import type { Ctx } from '../context.ts';
 import { formatDateTime, formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
-import { isUnanswered, optional, unitName, writeOutcome } from '../items.ts';
+import { optional, unitName } from '../items.ts';
 import { amendSupplyBody, hasContact, suppliablePacks, supplyChange, supplyWarning } from '../suppliers.ts';
+import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
+import { useWrite } from './useWrite.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
 
-/** What a sub-form reports: a write's outcome, or 'checked' after a fresh look at what is saved. */
-type Done = (outcome: 'saved' | 'already' | 'stale' | 'checked') => void;
 
 /**
  * One supplier: its business record, its contact, what it sells, and every decision ever
@@ -176,66 +176,6 @@ export function SupplierDetail({ ctx, supplierId }: { ctx: Ctx; supplierId: stri
   );
 }
 
-/**
- * After an unanswered write on this page: can the supplier be read now? Then whatever the
- * lost attempt did is visible, and a new decision is safe under new ids — the database
- * refuses a second active supply of one pack, a second retirement and a stale change.
- */
-async function seeWhatIsSaved(ctx: Ctx, supplierId: string): Promise<boolean> {
-  const now = await ctx.api.getSupplier(ctx.facilityId, supplierId);
-  if (now.ok) return true;
-  ctx.onFailure(now);
-  return false;
-}
-
-/**
- * One form's write lifecycle. The request is built ONCE, when the person presses the
- * button, and Retry resends exactly that request: same ids, same body, same stamp. A
- * reload of the page meanwhile — another form on it saving — must not change what a
- * retry sends: a retired-then-reloaded supplier turned a retried "retire" into a
- * "reinstate", and a retried supply change carried the new stamp past the stale check
- * (found in review). Start over looks at what is saved first.
- */
-type Send = () => Promise<Parameters<typeof writeOutcome>[0]>;
-
-function useWrite(ctx: Ctx, supplierId: string, onDone: Done, after: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
-  const pending = useRef<Send | null>(null);
-  async function run(send: Send) {
-    pending.current = send;
-    setBusy(true);
-    setFailure(null);
-    const answer = await send();
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
-    pending.current = null;
-    after();
-    onDone(outcome);
-  }
-  /** The same request again: never rebuilt from what the page shows now. */
-  function retry() {
-    if (pending.current !== null) void run(pending.current);
-  }
-  async function startOver() {
-    setBusy(true);
-    const seen = await seeWhatIsSaved(ctx, supplierId);
-    setBusy(false);
-    if (!seen) return;
-    pending.current = null;
-    setInDoubt(false);
-    after();
-    onDone('checked');
-  }
-  return { busy, failure, inDoubt, run, retry, startOver };
-}
-
 function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
   ctx: Ctx; supply: Supply; supplierActive: boolean; supplierId: string; onDone: Done;
 }) {
@@ -246,7 +186,7 @@ function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
   const [code, setCode] = useState(supply.supplier_code ?? '');
   const [preferred, setPreferred] = useState(supply.preferred);
   const [reason, setReason] = useState('');
-  const w = useWrite(ctx, supplierId, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.getSupplier(ctx.facilityId, supplierId), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(null);
     setReason('');
@@ -291,7 +231,7 @@ function SupplyActions({ ctx, supply, supplierActive, supplierId, onDone }: {
     <form className="inline-form compact" onSubmit={submit}>
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
       {open === 'amend' ? (
         <>
           {change === 'unprefer' ? <p className="muted">{t(lang, 'unprefer_only')}</p> : null}
@@ -336,7 +276,7 @@ function AddSupply({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDo
   const [preferred, setPreferred] = useState(false);
   const [reason, setReason] = useState('');
   const [lookFailure, setLookFailure] = useState<Failure | null>(null);
-  const w = useWrite(ctx, supplier.supplier_id, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.getSupplier(ctx.facilityId, supplier.supplier_id), onDone, () => {
     setIds(formIds(SUPPLY_IDS));
     setItem(null);
     setFound(null);
@@ -381,17 +321,19 @@ function AddSupply({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; onDo
     <div className="inline-form">
       <h3>{t(lang, 'add_supply')}</h3>
       {lookFailure ? <FailureNotice lang={lang} failure={lookFailure} /> : null}
+      {/* Above the finder, not inside the results: a search could otherwise remove the only
+          place Retry and Start over appear (found in review). The finder is locked too. */}
+      {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
       <form className="filters" onSubmit={(e) => void find(e)}>
         <input type="search" aria-label={t(lang, 'find_item')} placeholder={t(lang, 'find_item')} maxLength={100}
-          value={search} onChange={(e) => setSearch(e.target.value)} disabled={w.inDoubt} />
-        <button type="submit" disabled={w.inDoubt}>{t(lang, 'find')}</button>
+          value={search} onChange={(e) => setSearch(e.target.value)} disabled={w.locked} />
+        <button type="submit" disabled={w.locked}>{t(lang, 'find')}</button>
       </form>
       {found !== null && found.length === 0 ? <p className="muted">{t(lang, 'no_items')}</p> : null}
       {found !== null && found.length > 0 ? (
         <form onSubmit={submit}>
-          {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
-          {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-          <fieldset className="plain" disabled={w.inDoubt}>
+          <fieldset className="plain" disabled={w.locked}>
           <Field label={t(lang, 'choose_item')}>
             <select required value={item?.item_id ?? ''} onChange={(e) => void choose(e.target.value)}>
               <option value="" disabled>—</option>
@@ -442,7 +384,7 @@ function StatusChange({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; o
   const setOpen = (v: boolean) => setOpened(v ? (supplier.status === 'active' ? 'retired' : 'active') : null);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
-  const w = useWrite(ctx, supplier.supplier_id, onDone, () => {
+  const w = useWrite(ctx, () => ctx.api.getSupplier(ctx.facilityId, supplier.supplier_id), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
@@ -469,7 +411,7 @@ function StatusChange({ ctx, supplier, onDone }: { ctx: Ctx; supplier: Detail; o
       {target === 'retired' ? <p className="muted">{t(lang, 'retire_supplier_hint')}</p> : null}
       {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
-      <fieldset className="plain" disabled={w.inDoubt}>
+      <fieldset className="plain" disabled={w.locked}>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
       <button type="submit" className={target === 'retired' ? 'danger' : 'primary'} disabled={w.busy}>
         {w.busy ? t(lang, 'saving') : verb}

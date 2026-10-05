@@ -4,9 +4,11 @@ import type { Ctx } from '../context.ts';
 import { factorInput, formatDateTime, formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
-import { addableUnits, factorIsDerived, isBaseUnit, isUnanswered, unitName, unitSymbol, writeOutcome } from '../items.ts';
+import { addableUnits, factorIsDerived, isBaseUnit, unitName, unitSymbol } from '../items.ts';
 import { ItemSuppliers } from './ItemSuppliers.tsx';
+import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
+import { useWrite } from './useWrite.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
 
@@ -151,65 +153,41 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   );
 }
 
-/** What a sub-form reports: a write's outcome, or 'checked' after a fresh look at what is saved. */
-type Done = (outcome: 'saved' | 'already' | 'stale' | 'checked') => void;
-
 /**
- * After an unanswered write on this page: can the item be read now? Then whatever the
- * lost attempt did is visible, and a new decision is safe under new ids — the database
- * refuses a second active unit, a second retirement and a stale status change.
+ * The item a sub-form's Start over reads. Once it can be read, whatever a lost attempt
+ * did is visible, and a new decision is safe under new ids: the database refuses a second
+ * active unit, a second retirement and a stale status change.
  */
-async function seeWhatIsSaved(ctx: Ctx, itemId: string): Promise<boolean> {
-  const now = await ctx.api.getItem(ctx.facilityId, itemId);
-  if (now.ok) return true;
-  ctx.onFailure(now);
-  return false;
-}
+const seeItem = (ctx: Ctx, itemId: string) => () => ctx.api.getItem(ctx.facilityId, itemId);
+
+const UNIT_IDS = ['decision_id', 'item_unit_id'] as const;
 
 function AddUnit({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done }) {
   const { api, lang, data } = ctx;
   const choices = addableUnits(item, data.units);
-  const [ids, setIds] = useState(() => formIds(['decision_id', 'item_unit_id'] as const));
+  const [ids, setIds] = useState(() => formIds(UNIT_IDS));
   const [unitKey, setUnitKey] = useState('');
   const [factor, setFactor] = useState('');
   const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
-  const derived = unitKey !== '' && factorIsDerived(item, data.units, unitKey);
-
-  async function submit(e?: FormEvent) {
-    e?.preventDefault();
-    const f = factorInput(factor);
-    if (!f.ok) {
-      setFailure({ ok: false, http: 400, status: 'malformed', field: 'factor', message: null, constraint: null, detail: null });
-      return;
-    }
-    setBusy(true);
-    setFailure(null);
-    const answer = await api.addUnit(item.item_id, { ...ids, unit_key: unitKey, factor: f.value, reason: reason.trim() });
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
-    setIds(formIds(['decision_id', 'item_unit_id'] as const));
+  const w = useWrite(ctx, seeItem(ctx, item.item_id), onDone, () => {
+    setIds(formIds(UNIT_IDS));
     setUnitKey('');
     setFactor('');
     setReason('');
-    onDone(outcome);
-  }
+  });
+  const derived = unitKey !== '' && factorIsDerived(item, data.units, unitKey);
 
-  async function startOver() {
-    setBusy(true);
-    const seen = await seeWhatIsSaved(ctx, item.item_id);
-    setBusy(false);
-    if (!seen) return;
-    setIds(formIds(['decision_id', 'item_unit_id'] as const));
-    setInDoubt(false);
-    onDone('checked');
+  /** Built once, here: Retry resends this request, never one rebuilt from the fields (found in review). */
+  function submit(e?: FormEvent) {
+    e?.preventDefault();
+    const f = factorInput(factor);
+    if (!f.ok) {
+      w.show({ ok: false, http: 400, status: 'malformed', field: 'factor', message: null, constraint: null, detail: null });
+      return;
+    }
+    const id = item.item_id;
+    const body = { ...ids, unit_key: unitKey, factor: f.value, reason: reason.trim() };
+    void w.run(() => api.addUnit(id, body));
   }
 
   if (choices.length === 0) return null;
@@ -217,9 +195,9 @@ function AddUnit({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done }) 
     <form className="inline-form" onSubmit={submit}>
       <h3>{t(lang, 'add_unit')}</h3>
       <p className="muted">{t(lang, 'add_unit_hint')}</p>
-      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void submit()} onStartOver={() => void startOver()} /> : null}
-      <fieldset className="plain" disabled={inDoubt}>
+      {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
+      <fieldset className="plain" disabled={w.locked}>
       <Field label={t(lang, 'unit')}>
         <select required value={unitKey} onChange={(e) => setUnitKey(e.target.value)}>
           <option value="" disabled>—</option>
@@ -237,7 +215,7 @@ function AddUnit({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done }) 
         />
       </Field>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
-      <button type="submit" disabled={busy}>{busy ? t(lang, 'saving') : t(lang, 'add_unit')}</button>
+      <button type="submit" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'add_unit')}</button>
       </fieldset>
     </form>
   );
@@ -248,46 +226,26 @@ function RetireUnit({ ctx, itemId, itemUnitId, onDone }: { ctx: Ctx; itemId: str
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
+  const w = useWrite(ctx, seeItem(ctx, itemId), onDone, () => {
+    setIds(formIds(['decision_id'] as const));
+    setOpen(false);
+    setReason('');
+  });
 
-  async function submit(e?: FormEvent) {
+  function submit(e?: FormEvent) {
     e?.preventDefault();
-    setBusy(true);
-    setFailure(null);
-    const answer = await api.retireUnit(itemUnitId, { ...ids, reason: reason.trim() });
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
-    setIds(formIds(['decision_id'] as const));
-    setOpen(false);
-    onDone(outcome);
-  }
-
-  async function startOver() {
-    setBusy(true);
-    const seen = await seeWhatIsSaved(ctx, itemId);
-    setBusy(false);
-    if (!seen) return;
-    setIds(formIds(['decision_id'] as const));
-    setInDoubt(false);
-    setOpen(false);
-    onDone('checked');
+    const body = { ...ids, reason: reason.trim() };
+    void w.run(() => api.retireUnit(itemUnitId, body));
   }
 
   if (!open) return <button type="button" className="small" onClick={() => setOpen(true)}>{t(lang, 'retire_unit')}</button>;
   return (
     <form className="inline-form compact" onSubmit={submit}>
-      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void submit()} onStartOver={() => void startOver()} /> : null}
-      <fieldset className="plain" disabled={inDoubt}>
+      {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
+      <fieldset className="plain" disabled={w.locked}>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
-      <button type="submit" className="danger small" disabled={busy}>{busy ? t(lang, 'saving') : t(lang, 'retire_unit')}</button>
+      <button type="submit" className="danger small" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'retire_unit')}</button>
       <button type="button" className="small" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>
       </fieldset>
     </form>
@@ -296,49 +254,26 @@ function RetireUnit({ ctx, itemId, itemUnitId, onDone }: { ctx: Ctx; itemId: str
 
 function StatusChange({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done }) {
   const { api, lang } = ctx;
-  const target = item.status === 'active' ? 'retired' : 'active';
-  const [open, setOpen] = useState(false);
+  // Fixed when the form opens: a reload while it is open (another form on the page saving
+  // or starting over) must not turn a "retire" into a "reinstate" under the person's hand,
+  // with the newer stamp to carry it past the stale check (found in review).
+  const [opened, setOpened] = useState<'retired' | 'active' | null>(null);
+  const target = opened ?? (item.status === 'active' ? 'retired' : 'active');
+  const open = opened !== null;
+  const setOpen = (v: boolean) => setOpened(v ? (item.status === 'active' ? 'retired' : 'active') : null);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [inDoubt, setInDoubt] = useState(false);
-
-  // Retry resends this exact request, never one rebuilt from the item as reloaded since:
-  // a reload could flip the target or carry a newer stamp past the stale check (found in
-  // module 2 step 3's review of the same pattern).
-  const pending = useRef<StatusInput | null>(null);
-
-  async function submit(e?: FormEvent) {
-    e?.preventDefault();
-    const body: StatusInput = e === undefined && pending.current !== null ? pending.current
-      : { ...ids, expected_decision_id: item.as_of_decision_id, status: target, reason: reason.trim() };
-    pending.current = body;
-    setBusy(true);
-    setFailure(null);
-    const answer = await api.changeStatus(item.item_id, body);
-    setBusy(false);
-    const outcome = writeOutcome(answer);
-    if (outcome === 'failed') {
-      if (isUnanswered(answer)) setInDoubt(true);
-      else if (!answer.ok && !ctx.onFailure(answer)) setFailure(answer);
-      return;
-    }
+  const w = useWrite(ctx, seeItem(ctx, item.item_id), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-    onDone(outcome);
-  }
+  });
 
-  async function startOver() {
-    setBusy(true);
-    const seen = await seeWhatIsSaved(ctx, item.item_id);
-    setBusy(false);
-    if (!seen) return;
-    setIds(formIds(['decision_id'] as const));
-    setInDoubt(false);
-    setOpen(false);
-    onDone('checked');
+  function submit(e?: FormEvent) {
+    e?.preventDefault();
+    const id = item.item_id;
+    const body: StatusInput = { ...ids, expected_decision_id: item.as_of_decision_id, status: target, reason: reason.trim() };
+    void w.run(() => api.changeStatus(id, body));
   }
 
   const verb = target === 'retired' ? t(lang, 'retire_item') : t(lang, 'reinstate_item');
@@ -352,12 +287,12 @@ function StatusChange({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Don
   return (
     <form className="inline-form" onSubmit={submit}>
       <h3>{verb}</h3>
-      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void submit()} onStartOver={() => void startOver()} /> : null}
-      <fieldset className="plain" disabled={inDoubt}>
+      {w.failure ? <FailureNotice lang={lang} failure={w.failure} /> : null}
+      {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
+      <fieldset className="plain" disabled={w.locked}>
       <ReasonField lang={lang} value={reason} onChange={setReason} />
-      <button type="submit" className={target === 'retired' ? 'danger' : 'primary'} disabled={busy}>
-        {busy ? t(lang, 'saving') : verb}
+      <button type="submit" className={target === 'retired' ? 'danger' : 'primary'} disabled={w.busy}>
+        {w.busy ? t(lang, 'saving') : verb}
       </button>
       <button type="button" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>
       </fieldset>

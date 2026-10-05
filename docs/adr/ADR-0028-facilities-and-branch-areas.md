@@ -207,9 +207,8 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
 Three screens in the console, built as the supplier screens are (ADR-0026's step 3
 addendum): the same in-doubt lock, ids minted once per form, and Retry resending the
 exact request first sent. The create and edit forms keep the request they sent and lock
-their fields while it is out. The supplier and item create forms rebuild the request on
-Retry from fields that stay editable while it is out, so an edit made then could be sent
-under the first attempt's ids (found in review). That is a follow-up for those screens.
+their fields while it is out. The review found that the item and supplier forms did not,
+and that is now fixed for every console form (ADR-0024's addendum of 2026-10-05).
 
 - **Branches and facilities** (`#facilities`), under Setup. Every facility read at the
   facility being worked at, so that facility's brand's only; organisation-wide, every
