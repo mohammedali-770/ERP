@@ -79,3 +79,14 @@ export function itemsWritable(viewer: Viewer, facilityId: string | null, writabl
 export function suppliersWritable(viewer: Viewer, facilityId: string | null, writable: (v: Viewer) => boolean): boolean {
   return facilityId === null && writable(viewer);
 }
+
+/**
+ * Whether the transfer-price screens offer changes. As for items and suppliers: both of
+ * 0018's write routes ask erp.assert_permitted(…, 'inventory.transfer_prices', 'write',
+ * NULL), so prices are set only organisation-wide (test/transfer-prices.test.ts reads 0018
+ * to hold this).
+ */
+export function transferPricesWritable(viewer: Viewer, facilityId: string | null, writable: (v: Viewer) => boolean): boolean {
+  return facilityId === null && writable(viewer);
+}
+

@@ -1,7 +1,8 @@
 /**
  * The console's client for the edge functions: sign-in, the session, sign-out, module 1's
- * items routes (supabase/functions/_shared/items.ts) and module 2's suppliers routes
- * (supabase/functions/_shared/suppliers.ts).
+ * items routes (supabase/functions/_shared/items.ts), module 2's suppliers routes
+ * (supabase/functions/_shared/suppliers.ts) and module 3's transfer-prices routes
+ * (supabase/functions/_shared/transfer-prices.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -378,6 +379,89 @@ export interface AmendSupplyInput {
   readonly reason: string;
 }
 
+/**
+ * One pack of one item on the price list, as erp.list_transfer_prices() returns it. An
+ * amount is a whole number of halalas, never riyals (ADR-0027's step 2 addendum).
+ */
+export interface PriceListRow {
+  readonly item_id: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly base_unit_key: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: number | string;
+  /** The price in force now, or null: an unpriced pack, which no order can be charged. */
+  readonly price_id: string | null;
+  readonly price_minor: number | null;
+  readonly currency: string | null;
+  readonly effective_from: string | null;
+  /** The next price set ahead, if any. */
+  readonly next_price_id: string | null;
+  readonly next_price_minor: number | null;
+  readonly next_effective_from: string | null;
+}
+
+export interface PriceList {
+  readonly prices: readonly PriceListRow[];
+  readonly next_after: string | null;
+}
+
+export interface PriceQuery {
+  readonly facilityId: string | null;
+  readonly search?: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+/** One price ever set for an item's packs, as erp.item_transfer_prices() returns it. */
+export interface ItemPrice {
+  readonly price_id: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: number | string;
+  readonly price_minor: number;
+  readonly currency: string;
+  readonly effective_from: string;
+  readonly status: 'active' | 'withdrawn';
+  readonly in_force: boolean;
+  readonly conversion_status: 'active' | 'retired';
+  readonly as_of_decision_id: string;
+}
+
+/** One row of erp.transfer_price_decision. */
+export interface PriceDecision {
+  readonly decision_id: string;
+  readonly kind: 'price_set' | 'price_withdrawn' | string;
+  readonly price_id: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: number | string;
+  readonly price_minor: number;
+  readonly currency: string;
+  readonly effective_from: string;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly [field: string]: unknown;
+}
+
+/**
+ * A price for one pack. The amount is whole halalas as a JSON integer; the moment is
+ * ISO 8601 with its offset written out, or null for now. The edge refuses text for the
+ * one and a moment without an offset for the other.
+ */
+export interface SetPriceInput {
+  readonly decision_id: string;
+  readonly price_id: string;
+  readonly item_unit_id: string;
+  readonly price_minor: number;
+  readonly currency: string;
+  readonly effective_from: string | null;
+  readonly reason: string;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -412,6 +496,12 @@ export interface Api {
   amendSupply(supplierItemId: string, input: AmendSupplyInput): Promise<Answer<{ decision_id: string }>>;
   retireSupply(supplierItemId: string, input: RetireUnitInput): Promise<Answer<{ decision_id: string }>>;
   importSuppliers(reason: string, rows: readonly Record<string, unknown>[]): Promise<Answer<ImportSummary>>;
+  listTransferPrices(query: PriceQuery): Promise<Answer<PriceList>>;
+  itemTransferPrices(facilityId: string | null, itemId: string): Promise<Answer<readonly ItemPrice[]>>;
+  transferPriceHistory(facilityId: string | null, itemId: string): Promise<Answer<readonly PriceDecision[]>>;
+  setTransferPrice(input: SetPriceInput): Promise<Answer<{ decision_id: string }>>;
+  /** The price withdrawn is the one the path names; the body carries the decision and its reason only. */
+  withdrawTransferPrice(priceId: string, input: RetireUnitInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -541,5 +631,18 @@ export function createApi(config: ApiConfig): Api {
     retireSupply: (supplierItemId, input) =>
       call('POST', `/suppliers/supplies/${encodeURIComponent(supplierItemId)}/retire`, input, decision),
     importSuppliers: (reason, rows) => call('POST', '/suppliers/import', { reason, rows }, summary),
+
+    listTransferPrices: (q) =>
+      call('GET', `/transfer-prices${query({ facility_id: q.facilityId, search: q.search, after: q.after, limit: q.limit })}`,
+        undefined, (b) => ({ prices: b['prices'] as PriceListRow[], next_after: text(b['next_after']) })),
+    itemTransferPrices: (facilityId, itemId) =>
+      call('GET', `/transfer-prices/items/${encodeURIComponent(itemId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['prices'] as ItemPrice[]),
+    transferPriceHistory: (facilityId, itemId) =>
+      call('GET', `/transfer-prices/items/${encodeURIComponent(itemId)}/history${query({ facility_id: facilityId })}`,
+        undefined, (b) => b['decisions'] as PriceDecision[]),
+    setTransferPrice: (input) => call('POST', '/transfer-prices', input, decision),
+    withdrawTransferPrice: (priceId, input) =>
+      call('POST', `/transfer-prices/${encodeURIComponent(priceId)}/withdraw`, input, decision),
   };
 }

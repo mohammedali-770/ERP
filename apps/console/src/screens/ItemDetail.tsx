@@ -116,6 +116,7 @@ export function ItemDetail({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         </tbody>
       </table>
       {canChange ? <AddUnit ctx={ctx} item={item} onDone={afterWrite} /> : null}
+      {ctx.seesTransferPrices ? <p><a className="button" href={`#transfer_prices/${item.item_id}`}>{t(lang, 'prices_link')}</a></p> : null}
 
       {ctx.writable ? <StatusChange ctx={ctx} item={item} onDone={afterWrite} /> : null}
 

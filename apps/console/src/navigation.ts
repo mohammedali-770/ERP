@@ -43,6 +43,12 @@ export interface NavItem<P = unknown> {
   readonly capability: string;
   /** The action needed to see the screen at all. Usually 'read'. */
   readonly action: Action;
+  /**
+   * Other capabilities the screen reads, each needing read too. A route that asks for
+   * read on two capabilities is a door only someone holding both can open, so the entry
+   * is shown only to them: shown on one alone, it led to "forbidden" (found in review).
+   */
+  readonly alsoReads?: readonly string[];
   /** Whatever the rendering side needs — an icon, a screen. Never inspected here. */
   readonly payload?: P;
 }
@@ -82,7 +88,8 @@ export function holds(viewer: Viewer, capability: string, action: Action): boole
  * second job it must not do.
  */
 export function itemIsVisible(item: NavItem, viewer: Viewer): boolean {
-  return stateOf(viewer, item.capability) !== 'hidden' && holds(viewer, item.capability, item.action);
+  return stateOf(viewer, item.capability) !== 'hidden' && holds(viewer, item.capability, item.action)
+    && (item.alsoReads ?? []).every((c) => stateOf(viewer, c) !== 'hidden' && holds(viewer, c, 'read'));
 }
 
 /**
@@ -104,9 +111,9 @@ export function visibleNavigation<P>(groups: readonly NavGroup<P>[], viewer: Vie
 }
 
 /**
- * The capabilities the console knows about, as registered by 0010, 0011, 0012 and 0016.
- * The screens arrive in Phase 4, module by module, each behind its capability: items
- * (module 1) and suppliers (module 2) have screens; the rest are entries with nothing
+ * The capabilities the console knows about, as registered by 0010, 0011, 0012, 0016 and
+ * 0018. The screens arrive in Phase 4, module by module, each behind its capability:
+ * items (module 1), suppliers (module 2) and transfer prices (module 3) have screens; the rest are entries with nothing
  * behind them yet, and stay hidden until their capability is recorded open.
  */
 export const NAVIGATION: readonly NavGroup[] = [
@@ -121,6 +128,8 @@ export const NAVIGATION: readonly NavGroup[] = [
     labelKey: 'nav_inventory',
     items: [
       { id: 'items', labelKey: 'items', capability: 'inventory.items', action: 'read' },
+      // Every 0018 read asks for read on items too: a price names an item.
+      { id: 'transfer_prices', labelKey: 'transfer_prices', capability: 'inventory.transfer_prices', action: 'read', alsoReads: ['inventory.items'] },
       { id: 'current_stock', labelKey: 'current_stock', capability: 'inventory.stock', action: 'read' },
     ],
   },

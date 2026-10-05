@@ -129,8 +129,9 @@ npm run db:test       # pgTAP suites against the local stack
 | **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025), and every items, suppliers and transfer-prices write is held to it |
 | **A database refusal is an answer; anything else is a 500 that says nothing** | Node tests (`supabase/functions/_shared/test/items.test.ts`, `suppliers.test.ts`, `transfer-prices.test.ts`) + the Deno items, suppliers and transfer-prices tests, end to end. A route's own words reach the person; PostgreSQL's never do |
 | **An amount crosses the edge as a whole number of minor units, and a moment with its offset** | Node tests (`supabase/functions/_shared/test/transfer-prices.test.ts`) + the Deno transfer-prices test — an amount sent or answered as text is refused, never guessed at; a moment without an offset would be read as UTC (ADR-0027's step 2 addendum) |
-| **The console never names an actor, and offers item and supplier changes only where the database checks them** | Node tests (`apps/console/test`) — no request body carries a person, a contact change carries no reason, and the write rules read 0012's and 0016's gates |
-| **The console's item kinds, import columns and limits are 0012's; its supplier rules, import columns and decision kinds are 0016's** | Node tests (`apps/console/test`) — read the migrations, so a drift fails `npm test` |
+| **The console never names an actor, and offers item, supplier and transfer-price changes only where the database checks them** | Node tests (`apps/console/test`) — no request body carries a person, a contact change carries no reason, a withdrawal names its price only in the path, and the write rules read 0012's, 0016's and 0018's gates |
+| **The console's item kinds, import columns and limits are 0012's; its supplier rules, import columns and decision kinds are 0016's; its price cap, currency and decision kinds are 0018's** | Node tests (`apps/console/test`) — read the migrations, so a drift fails `npm test` |
+| **The console turns riyals into halalas without a float, and sends every moment with Riyadh's offset** | Node tests (`apps/console/test/transfer-prices.test.ts`) — 0.29 riyals is 29 halalas, not 28; a moment the console builds matches the edge's own pattern, read from its source |
 | A session's token is stored only as its hash; a session ends at 12 hours or 30 minutes idle, and is never deleted or reopened | pgTAP + `db:check` (`session-guard-triggers-exist`) |
 | **`erp_edge` is `erp_app` and nothing more, and no migration gives it a password** | `db:check` (`erp-edge-is-erp-app-and-nothing-more`) |
 | Every item and conversion equals the latest decision about it | `db:check` + pgTAP |
@@ -191,7 +192,7 @@ architecture gate (PRG-010, PRG-011) has not been passed.
 - `services/` — reserved boundaries, not implementations.
 - `apps/console` — a **real** Vite + React workspace since 2026-10-01, and the shell
   the consolidation's modules land in (ADR-0021). Sign-in, module 1's items screens and
-  module 2's supplier screens since 2026-10-04. `apps/pos` is still a reserved
+  module 2's supplier screens since 2026-10-04, module 3's transfer-price screens since 2026-10-05. `apps/pos` is still a reserved
   boundary. **`apps/*` is the one place a build step and third-party dependencies
   are permitted** (ADR-0021 §4); `dep:policy` enforces that everywhere else.
 

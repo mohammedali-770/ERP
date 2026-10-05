@@ -126,7 +126,9 @@ its one `price_set`.
   the price a branch was charged is the line's, fixed when the order was placed.
 - **Changing a price is cheap and safe.** Set the new price from the moment it should
   apply; nothing already ordered changes.
-- **The edge layer is built** (see the addendum); **the screens are module 3's next step.**
+- **The edge layer and the screens are built** (see the addenda). **The staff-testing pack is
+  written** ([`transfer-prices`](../lab/uat/transfer-prices.md), English and Arabic); it waits on the
+  owner's answers to the questions below and a session with the person who will set prices.
 
 ## Addendum — 2026-10-05: the data layer (module 3, step 2)
 
@@ -181,6 +183,56 @@ is (ADR-0026's step 2 addendum). Nothing about the routes changed.
   paging by row, and the offset dropped by the driver. The review added three: an
   impossible day or an out-of-range offset left to PostgreSQL, which answered a 422
   naming no field, and a missing amount column read as an unpriced pack.
+
+## Addendum — 2026-10-05: the screens (module 3, step 3)
+
+Two screens in the console, built as the supplier screens are (ADR-0026's step 3
+addendum): the same in-doubt lock, ids minted once per form, and Retry resending the
+exact request first sent.
+
+- **Transfer prices** (`#transfer_prices`), under Inventory. Every active pack of every
+  active item, with the price in force now and the next one set ahead. An unpriced pack
+  is marked "no price — cannot be ordered", not hidden. A price of zero is shown as a
+  price. Paged by item, as the route pages.
+- **An item's prices** (`#transfer_prices/{item_id}`), linked from the list and from the
+  item's page. Every price ever set, pack by pack, newest moment first, with the one in
+  force marked; the set-price form; a Withdraw button on each price whose moment has not
+  come; and the history.
+- **Money is never a float.** A price is typed in riyals, with Arabic digits and the
+  Arabic decimal separator read, and turned into whole halalas by string arithmetic:
+  0.29 riyals is 29 halalas, where `0.29 * 100` is 28.999…. It is shown from the integer.
+- **Time names Riyadh.** "Now" or "from a date and time" is an explicit choice. A price
+  set ahead is typed as a date and a time of day, read in Riyadh's time and sent with
+  `+03:00` written out (Saudi Arabia keeps no daylight saving). A blank or half-typed date
+  is refused, never read as "now", and a cleared time is refused, never read as midnight:
+  a date input reports nothing for a date half typed, and reading that as "now" put a price
+  meant for later into effect at once, where it can never be withdrawn (found in review). Every moment on the page, the history's included, is shown on
+  Riyadh's clock, so a browser set to another zone never mixes two. A test checks that a
+  moment the console builds matches the edge's own pattern, read from its source.
+  Question 5 stays open; midnight is the value the form shows first, not a rule.
+- **What a price is, and whether it may be withdrawn, is the database's clock.** In force
+  is the route's own mark, read at its `now()`. The others are placed around it: before it
+  is superseded, after it (or with none in force) is set ahead, and only a price set ahead
+  offers Withdraw. The browser's clock is never asked. A page left open, or a clock a few
+  minutes out, showed a price just in effect as superseded and offered or hid Withdraw
+  against the database's answer (found in review).
+- **Who sees what.** The screens and the menu entry appear only where the person may read
+  both transfer prices and items, as every 0018 read asks for both. A menu entry can now
+  name a second capability it reads (`alsoReads`); shown on one alone, it led to
+  "forbidden" (found in review). Changes are offered only
+  organisation-wide to someone holding write, mirroring both write routes'
+  `assert_permitted(…, 'write', NULL)`; a test reads 0018 to hold that. The seed lets a
+  branch worker read their own brand's prices, and the end-to-end run checks a cashier
+  sees no second-brand item.
+- **Refusals read as sentences** for every rule a set or withdrawal can raise in 0018's
+  own words, in English and Arabic. A native speaker reviews the Arabic in the UAT pack,
+  as for every module.
+- **Proved in a browser** against a scratch database and the edge, in English and Arabic,
+  from a browser set to New York time. The run prices an unpriced pack from Arabic digits,
+  sets a price for midnight Riyadh time, and has the same-as-next and backdated cases
+  refused as sentences. It withdraws the price set ahead and finds both prices and the
+  withdrawal in the history. It then checks the warehouse manager is offered nothing to
+  change, and a cashier sees their brand only. 19 controls each fail a named test.
 
 ## Open, for the owner and for UAT
 
