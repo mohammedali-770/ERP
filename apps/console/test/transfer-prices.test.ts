@@ -7,10 +7,10 @@ import { failureMessage } from '../src/messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable } from '../src/navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
 import {
-  byPack, CURRENCY, formatMinor, formatRiyadh, MAX_MINOR, momentInput, priceablePacks, priceInput, priceState,
+  byPack, CURRENCY, formatMinor, formatRiyadh, MAX_MINOR, momentInput, priceablePacks, priceInput, priceStates,
   setPriceBody, withdrawable,
 } from '../src/transfer-prices.ts';
-import { seesTransferPrices, toViewer, transferPricesWritable } from '../src/viewer.ts';
+import { toViewer, transferPricesWritable } from '../src/viewer.ts';
 
 const root = new URL('../../../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
@@ -90,18 +90,32 @@ test('an amount is shown from the integer, in either language', () => {
 // --- time ----------------------------------------------------------------------
 
 test('CONTROL: a moment is sent with Riyadh\'s offset written out, never left to the browser\'s zone', () => {
-  assert.deepEqual(momentInput('2026-11-01', ''), { ok: true, value: '2026-11-01T00:00:00+03:00' }, 'midnight by default');
-  assert.deepEqual(momentInput('2026-11-01', '06:30'), { ok: true, value: '2026-11-01T06:30:00+03:00' });
-  assert.deepEqual(momentInput('٢٠٢٦-١١-٠١', '٠٦:٣٠'), { ok: true, value: '2026-11-01T06:30:00+03:00' });
-  assert.deepEqual(momentInput('', '06:30'), { ok: true, value: null }, 'no date is now');
-  for (const [d, tm] of [['2026-02-30', ''], ['2027-02-29', ''], ['2026-11-01', '24:00'], ['2026-11-1', ''], ['01/11/2026', '']]) {
-    assert.equal(momentInput(d!, tm!).ok, false, `${d} ${tm}`);
+  assert.deepEqual(momentInput('later', '2026-11-01', '00:00'), { ok: true, value: '2026-11-01T00:00:00+03:00' });
+  assert.deepEqual(momentInput('later', '2026-11-01', '06:30'), { ok: true, value: '2026-11-01T06:30:00+03:00' });
+  assert.deepEqual(momentInput('later', '٢٠٢٦-١١-٠١', '٠٦:٣٠'), { ok: true, value: '2026-11-01T06:30:00+03:00' });
+  assert.deepEqual(momentInput('now', '', ''), { ok: true, value: null }, '"now" is chosen, and sent as null');
+  assert.deepEqual(momentInput('now', '2026-11-01', '06:30'), { ok: true, value: null }, 'a date left in a hidden field is not sent');
+  for (const [d, tm] of [['2026-02-30', '00:00'], ['2027-02-29', '00:00'], ['2026-11-01', '24:00'], ['2026-11-1', '00:00'], ['01/11/2026', '00:00']]) {
+    assert.equal(momentInput('later', d!, tm!).ok, false, `${d} ${tm}`);
   }
-  assert.equal(momentInput('2028-02-29', '').ok, true, 'a leap day exists');
+  assert.equal(momentInput('later', '2028-02-29', '00:00').ok, true, 'a leap day exists');
   // What the console sends, the edge accepts: its own pattern, read from its source.
   const edgePattern = /const MOMENT = (\/.*\/);/.exec(EDGE)![1]!;
   const re = new RegExp(edgePattern.slice(1, -1));
-  assert.match((momentInput('2026-11-01', '06:30') as { value: string }).value, re);
+  assert.match((momentInput('later', '2026-11-01', '06:30') as { value: string }).value, re);
+});
+
+test('CONTROL: a date or time half typed is refused, never read as "now" or as midnight', () => {
+  // A date input reports '' for "05/11/20" with the year unfinished; read as now, a price
+  // meant for November went into effect at once, for good (found in review).
+  assert.equal(momentInput('later', '', '00:00').ok, false, 'no date, though "from a date" is chosen');
+  assert.equal(momentInput('later', '', '00:00', true).ok, false, 'a date half typed');
+  assert.equal(momentInput('later', '2026-11-05', '').ok, false, 'a time cleared is not midnight');
+  assert.equal(momentInput('later', '2026-11-05', '', true).ok, false, 'a time half typed');
+  assert.equal(momentInput('later', '2026-11-05', '00:00', true).ok, false, 'an input that says it is unfinished is believed, whatever value it last held');
+  const page = readFileSync(new URL('../src/screens/ItemPrices.tsx', import.meta.url), 'utf8');
+  assert.match(page, /validity\.badInput/, 'the form reads the inputs\' own word that they are unfinished');
+  assert.match(page, /type="radio" name="when"/, 'now or later is an explicit choice');
 });
 
 test('a moment is shown on Riyadh\'s clock, whatever the browser\'s zone', () => {
@@ -116,15 +130,27 @@ const P = (over: Partial<ItemPrice>): ItemPrice => ({
   as_of_decision_id: D, ...over,
 });
 
-test('only a price whose moment has not come is offered for withdrawal, as 0018 allows', () => {
-  const now = Date.parse('2026-10-05T00:00:00Z');
-  assert.equal(withdrawable(P({ effective_from: '2099-01-01T00:00:00+00:00' }), now), true);
-  assert.equal(withdrawable(P({ effective_from: '2026-09-15T00:00:00+00:00', in_force: true }), now), false, 'in effect');
-  assert.equal(withdrawable(P({ effective_from: '2099-01-01T00:00:00+00:00', status: 'withdrawn' }), now), false, 'already withdrawn');
-  assert.deepEqual(
-    [P({ in_force: true }), P({ effective_from: '2099-01-01T00:00:00Z' }), P({}), P({ status: 'withdrawn' })].map((p) => priceState(p, now)),
-    ['in_force', 'ahead', 'past', 'withdrawn']);
+test('CONTROL: what a price is, and whether it may be withdrawn, is judged by the database\'s clock, never the browser\'s', () => {
+  // The route marks the one in force at its now(); the rest are placed around it.
+  const pack = [
+    P({ price_id: 'w', status: 'withdrawn', effective_from: '2099-02-01T00:00:00Z' }),
+    P({ price_id: 'a', effective_from: '2099-01-01T00:00:00Z' }),
+    P({ price_id: 'n', effective_from: '2026-09-15T00:00:00Z', in_force: true }),
+    P({ price_id: 'p', effective_from: '2026-09-01T00:00:00Z' }),
+  ];
+  const states = priceStates(pack);
+  assert.deepEqual([...states.entries()], [['w', 'withdrawn'], ['a', 'ahead'], ['n', 'in_force'], ['p', 'past']]);
+  // A price whose moment has just passed, on a page loaded before it: still "ahead" as of
+  // that load, and the database refuses the withdrawal by its own clock. Its predecessor
+  // stays "in force" until the next load, which every write brings.
+  const justPassed = priceStates([P({ price_id: 'x', effective_from: new Date(Date.now() - 60_000).toISOString() }),
+    P({ price_id: 'y', effective_from: '2026-09-01T00:00:00Z', in_force: true })]);
+  assert.equal(justPassed.get('x'), 'ahead');
+  assert.equal(priceStates([P({ price_id: 'z', effective_from: '2099-01-01T00:00:00Z' })]).get('z'), 'ahead', 'none in force: set ahead');
+  assert.deepEqual(['ahead', 'in_force', 'past', 'withdrawn', undefined].map((s) => withdrawable(s as never)), [true, false, false, false, false]);
   for (const s of ['in_force', 'ahead', 'past', 'withdrawn']) assert.notEqual(asKey(`price_${s}`), null, s);
+  const logic = readFileSync(new URL('../src/transfer-prices.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(logic.slice(logic.indexOf('export function priceStates')), /Date\.now\(\)/, 'no browser clock');
 });
 
 test('prices group by pack in the route\'s order, and only active packs are offered a price', () => {
@@ -175,13 +201,14 @@ test('CONTROL: price changes are offered only organisation-wide, where 0018 chec
   for (const w of writes) assert.equal(w[1], 'null');
 });
 
-test('CONTROL: prices are read only where items are too, as every 0018 read asks for both', () => {
-  const items = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'items')!;
+test('CONTROL: prices are shown, in the menu and on screen, only where items may be read too, as every 0018 read asks', () => {
   const prices = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'transfer_prices')!;
   const both = viewerWith(['inventory.transfer_prices:read', 'inventory.items:read']);
   const pricesOnly = viewerWith(['inventory.transfer_prices:read']);
-  assert.equal(seesTransferPrices(itemIsVisible(prices, both), itemIsVisible(items, both)), true);
-  assert.equal(seesTransferPrices(itemIsVisible(prices, pricesOnly), itemIsVisible(items, pricesOnly)), false);
+  assert.equal(itemIsVisible(prices, both), true);
+  assert.equal(itemIsVisible(prices, pricesOnly), false, 'an entry that would lead to "forbidden" is not shown');
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  assert.match(app, /seesTransferPrices: itemIsVisible\(TRANSFER_PRICES, viewer\)/, 'the screens use the same rule as the menu');
   const reads = [...PRICES_MIGRATION.matchAll(/assert_permitted\(p_actor_id, '([\w.]+)', 'read', p_facility_id\)/g)].map((m) => m[1]);
   assert.deepEqual(reads, Array(3).fill(['inventory.transfer_prices', 'inventory.items']).flat());
 });

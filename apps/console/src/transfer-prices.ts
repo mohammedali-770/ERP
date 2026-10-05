@@ -62,14 +62,22 @@ export function formatMinor(lang: Lang, minor: number, currency: string = CURREN
 }
 
 /**
- * The moment a price takes effect, from a date (YYYY-MM-DD, as <input type=date> gives
- * it) and a time of day (HH:MM, default midnight), read in Riyadh. A blank date is now:
- * null, which the edge reads as "from now".
+ * When a price takes effect: "now", or a date (YYYY-MM-DD, as <input type=date> gives it)
+ * and a time of day (HH:MM), read in Riyadh. The choice is explicit, never inferred from
+ * a blank date: a date input reports '' for a date half typed, and reading that as "now"
+ * put a price meant for November into effect at once, where it can never be withdrawn
+ * (found in review). A blank or half-typed time is refused for the same reason, never
+ * taken as midnight; the form offers 00:00 as a value the person can see.
+ *
+ * `badInput` is the inputs' own word that what is typed is not a date or time
+ * (ValidityState.badInput): '' then means "unfinished", not "empty".
  */
-export function momentInput(date: string, time: string): { ok: true; value: string | null } | { ok: false } {
+export function momentInput(when: 'now' | 'later', date: string, time: string, badInput = false):
+  { ok: true; value: string | null } | { ok: false } {
+  if (when === 'now') return { ok: true, value: null };
+  if (badInput) return { ok: false };
   const d = latinDigits(date).trim();
-  const tm = latinDigits(time).trim() || '00:00';
-  if (d === '') return { ok: true, value: null };
+  const tm = latinDigits(time).trim();
   const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
   const tmm = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(tm);
   if (dm === null || tmm === null) return { ok: false };
@@ -103,23 +111,36 @@ export function setPriceBody(ids: { decision_id: string; price_id: string }, f: 
   };
 }
 
-/**
- * Whether a price may still be withdrawn, as 0018 allows: active, and its moment not yet
- * come. A price in effect is history; an order may already have been charged it. `now`
- * is the browser's clock, which may be wrong: the database judges by its own, and
- * refuses a late withdrawal whatever this said (transfer_price_in_effect).
- */
-export function withdrawable(p: Pick<ItemPrice, 'status' | 'effective_from'>, now: number): boolean {
-  return p.status === 'active' && Date.parse(p.effective_from) > now;
-}
-
 export type PriceState = 'in_force' | 'ahead' | 'past' | 'withdrawn';
 
-/** What a price is now: in force, set ahead, superseded, or withdrawn. */
-export function priceState(p: Pick<ItemPrice, 'status' | 'in_force' | 'effective_from'>, now: number): PriceState {
-  if (p.status === 'withdrawn') return 'withdrawn';
-  if (p.in_force) return 'in_force';
-  return Date.parse(p.effective_from) > now ? 'ahead' : 'past';
+/**
+ * What each of one pack's prices is, judged by the database's clock alone: `in_force` is
+ * the route's, read at its now(). An active price that is not in force is superseded if
+ * it starts before the one in force, and set ahead otherwise — or set ahead when none is
+ * in force, since a price whose moment had come would be. The browser's clock is never
+ * asked: a page left open, or a clock a few minutes out, showed a price just in effect as
+ * "superseded" and offered or hid Withdraw against the database's own answer (found in
+ * review). What the page shows is as of its last load, which every write refreshes.
+ */
+export function priceStates(pack: readonly Pick<ItemPrice, 'price_id' | 'status' | 'in_force' | 'effective_from'>[]):
+  Map<string, PriceState> {
+  const current = pack.find((p) => p.status === 'active' && p.in_force);
+  const from = current === undefined ? null : Date.parse(current.effective_from);
+  const states = new Map<string, PriceState>();
+  for (const p of pack) {
+    states.set(p.price_id, p.status === 'withdrawn' ? 'withdrawn'
+      : p.in_force ? 'in_force'
+      : from !== null && Date.parse(p.effective_from) < from ? 'past' : 'ahead');
+  }
+  return states;
+}
+
+/**
+ * Whether a price is offered for withdrawal: set ahead, as of the last load. 0018 refuses
+ * one in effect by its own clock (transfer_price_in_effect) whatever this said.
+ */
+export function withdrawable(state: PriceState | undefined): boolean {
+  return state === 'ahead';
 }
 
 /** An item's prices, pack by pack, in the order the route gives them (newest moment first). */

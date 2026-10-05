@@ -199,14 +199,25 @@ exact request first sent.
 - **Money is never a float.** A price is typed in riyals, with Arabic digits and the
   Arabic decimal separator read, and turned into whole halalas by string arithmetic:
   0.29 riyals is 29 halalas, where `0.29 * 100` is 28.999…. It is shown from the integer.
-- **Time names Riyadh.** A price set ahead is typed as a date and a time of day, midnight
-  by default, read in Riyadh's time and sent with `+03:00` written out (Saudi Arabia keeps
-  no daylight saving). Every moment on the page, the history's included, is shown on
+- **Time names Riyadh.** "Now" or "from a date and time" is an explicit choice. A price
+  set ahead is typed as a date and a time of day, read in Riyadh's time and sent with
+  `+03:00` written out (Saudi Arabia keeps no daylight saving). A blank or half-typed date
+  is refused, never read as "now", and a cleared time is refused, never read as midnight:
+  a date input reports nothing for a date half typed, and reading that as "now" put a price
+  meant for later into effect at once, where it can never be withdrawn (found in review). Every moment on the page, the history's included, is shown on
   Riyadh's clock, so a browser set to another zone never mixes two. A test checks that a
   moment the console builds matches the edge's own pattern, read from its source.
-  Question 5 stays open; midnight is the default the form offers, not a rule.
-- **Who sees what.** The screens appear only where the person may read both transfer
-  prices and items, as every 0018 read asks for both. Changes are offered only
+  Question 5 stays open; midnight is the value the form shows first, not a rule.
+- **What a price is, and whether it may be withdrawn, is the database's clock.** In force
+  is the route's own mark, read at its `now()`. The others are placed around it: before it
+  is superseded, after it (or with none in force) is set ahead, and only a price set ahead
+  offers Withdraw. The browser's clock is never asked. A page left open, or a clock a few
+  minutes out, showed a price just in effect as superseded and offered or hid Withdraw
+  against the database's answer (found in review).
+- **Who sees what.** The screens and the menu entry appear only where the person may read
+  both transfer prices and items, as every 0018 read asks for both. A menu entry can now
+  name a second capability it reads (`alsoReads`); shown on one alone, it led to
+  "forbidden" (found in review). Changes are offered only
   organisation-wide to someone holding write, mirroring both write routes'
   `assert_permitted(…, 'write', NULL)`; a test reads 0018 to hold that. The seed lets a
   branch worker read their own brand's prices, and the end-to-end run checks a cashier
@@ -219,7 +230,7 @@ exact request first sent.
   sets a price for midnight Riyadh time, and has the same-as-next and backdated cases
   refused as sentences. It withdraws the price set ahead and finds both prices and the
   withdrawal in the history. It then checks the warehouse manager is offered nothing to
-  change, and a cashier sees their brand only. 15 controls each fail a named test.
+  change, and a cashier sees their brand only. 19 controls each fail a named test.
 
 ## Open, for the owner and for UAT
 

@@ -6,7 +6,7 @@ import { failureMessage } from './messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, visibleNavigation, type NavItem } from './navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from './route.ts';
 import { storeLang, storedLang, tokenStore, type StorageLike } from './session.ts';
-import { defaultFacility, itemsWritable, seesTransferPrices, suppliersWritable, toViewer, transferPricesWritable } from './viewer.ts';
+import { defaultFacility, itemsWritable, suppliersWritable, toViewer, transferPricesWritable } from './viewer.ts';
 import { ItemDetail } from './screens/ItemDetail.tsx';
 import { ItemCreate, ItemEdit } from './screens/ItemForm.tsx';
 import { ItemImport } from './screens/ItemImport.tsx';
@@ -176,7 +176,8 @@ export function App() {
     suppliersWritable: suppliersWritable(viewer, facilityId, (v) => itemIsWritable(SUPPLIERS, v)),
     seesSuppliers: itemIsVisible(SUPPLIERS, viewer),
     transferPricesWritable: transferPricesWritable(viewer, facilityId, (v) => itemIsWritable(TRANSFER_PRICES, v)),
-    seesTransferPrices: seesTransferPrices(itemIsVisible(TRANSFER_PRICES, viewer), itemIsVisible(ITEMS, viewer)),
+    // The entry asks for read on items as well (navigation.ts, alsoReads), as 0018's reads do.
+    seesTransferPrices: itemIsVisible(TRANSFER_PRICES, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       window.location.hash = formatRoute(r);

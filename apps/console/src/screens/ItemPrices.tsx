@@ -6,7 +6,7 @@ import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { isUnanswered, unitName, writeOutcome } from '../items.ts';
 import {
-  byPack, formatMinor, formatRiyadh, momentInput, priceablePacks, priceInput, priceState, setPriceBody, withdrawable,
+  byPack, formatMinor, formatRiyadh, momentInput, priceablePacks, priceInput, priceStates, setPriceBody, withdrawable,
 } from '../transfer-prices.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 
@@ -78,7 +78,6 @@ export function ItemPrices({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   }
 
   const writable = ctx.transferPricesWritable;
-  const now = Date.now();
   const packs = byPack(prices);
   // Every pack with a price on record, active or not, then the active ones without one.
   const shown = [
@@ -105,7 +104,7 @@ export function ItemPrices({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         <div key={u.item_unit_id} className={u.status === 'retired' ? 'retired' : undefined}>
           <h2>
             {packLabel(u.unit_key, u.factor)}
-            {u.status === 'retired' ? <> · <em>{t(lang, 'price_hidden_for_retired_pack')}</em></> : null}
+            {u.status === 'retired' ? <> · <em>{t(lang, 'pack_retired_short')}</em></> : null}
           </h2>
           {(packs.get(u.item_unit_id) ?? []).length === 0 ? <p><em>{t(lang, 'unpriced')}</em></p> : (
             <table className="table">
@@ -113,14 +112,14 @@ export function ItemPrices({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
                 <tr><th>{t(lang, 'price')}</th><th>{t(lang, 'effective_from')}</th><th>{t(lang, 'status')}</th><th /></tr>
               </thead>
               <tbody>
-                {(packs.get(u.item_unit_id) ?? []).map((p) => {
-                  const state = priceState(p, now);
+                {(packs.get(u.item_unit_id) ?? []).map((p, _i, pack) => {
+                  const state = priceStates(pack).get(p.price_id)!;
                   return (
                     <tr key={p.price_id} className={state === 'withdrawn' || state === 'past' ? 'retired' : undefined}>
                       <td><bdi dir="ltr">{formatMinor(lang, p.price_minor, p.currency)}</bdi></td>
                       <td>{formatRiyadh(lang, p.effective_from)}</td>
                       <td>{t(lang, `price_${state}`)}</td>
-                      <td>{writable && withdrawable(p, now) ? <Withdraw ctx={ctx} price={p} itemId={item.item_id} onDone={afterWrite} /> : null}</td>
+                      <td>{writable && withdrawable(state) ? <Withdraw ctx={ctx} price={p} itemId={item.item_id} onDone={afterWrite} /> : null}</td>
                     </tr>
                   );
                 })}
@@ -231,13 +230,21 @@ function SetPrice({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done })
   const packs = priceablePacks(item.units);
   const [unitId, setUnitId] = useState(packs.length === 1 ? packs[0]!.item_unit_id : '');
   const [amount, setAmount] = useState('');
+  const [when, setWhen] = useState<'now' | 'later'>('now');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('00:00');
+  const dateRef = useRef<HTMLInputElement>(null);
+  const timeRef = useRef<HTMLInputElement>(null);
+  // A pack retired since the form opened is no longer offered: never left chosen.
+  useEffect(() => {
+    if (unitId !== '' && !packs.some((u) => u.item_unit_id === unitId)) setUnitId('');
+  }, [packs, unitId]);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<'amount' | 'moment' | null>(null);
   const w = useWrite(ctx, item.item_id, onDone, () => {
     setIds(formIds(PRICE_IDS));
     setAmount('');
+    setWhen('now');
     setDate('');
     setTime('00:00');
     setReason('');
@@ -246,7 +253,9 @@ function SetPrice({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done })
   function submit(e: FormEvent) {
     e.preventDefault();
     const price = priceInput(amount);
-    const moment = momentInput(date, time);
+    // A date or time half typed reads '' with badInput set: refused, never "now" or midnight.
+    const bad = (dateRef.current?.validity.badInput ?? false) || (timeRef.current?.validity.badInput ?? false);
+    const moment = momentInput(when, date, time, bad);
     if (!price.ok) return setProblem('amount');
     if (!moment.ok) return setProblem('moment');
     setProblem(null);
@@ -277,13 +286,27 @@ function SetPrice({ ctx, item, onDone }: { ctx: Ctx; item: Item; onDone: Done })
         <Field label={t(lang, 'price')} hint={t(lang, 'price_hint')}>
           <input dir="ltr" inputMode="decimal" required maxLength={13} value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
-        <Field label={t(lang, 'effective_date')} hint={t(lang, 'effective_date_hint')}>
-          <input type="date" dir="ltr" value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        {date !== '' ? (
-          <Field label={t(lang, 'effective_time')}>
-            <input type="time" dir="ltr" value={time} onChange={(e) => setTime(e.target.value)} />
-          </Field>
+        {/* An explicit choice: a blank date is never read as "now" (transfer-prices.ts, momentInput). */}
+        <div className="field" role="radiogroup" aria-label={t(lang, 'effective_from')}>
+          <span className="field-label">{t(lang, 'effective_from')}</span>
+          <label className="check">
+            <input type="radio" name="when" checked={when === 'now'} onChange={() => setWhen('now')} />
+            {t(lang, 'effective_now')}
+          </label>
+          <label className="check">
+            <input type="radio" name="when" checked={when === 'later'} onChange={() => setWhen('later')} />
+            {t(lang, 'effective_later')}
+          </label>
+        </div>
+        {when === 'later' ? (
+          <>
+            <Field label={t(lang, 'effective_date')} hint={t(lang, 'effective_date_hint')}>
+              <input ref={dateRef} type="date" dir="ltr" required value={date} onChange={(e) => setDate(e.target.value)} />
+            </Field>
+            <Field label={t(lang, 'effective_time')}>
+              <input ref={timeRef} type="time" dir="ltr" required value={time} onChange={(e) => setTime(e.target.value)} />
+            </Field>
+          </>
         ) : null}
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <button type="submit" className="primary" disabled={w.busy || unitId === ''}>

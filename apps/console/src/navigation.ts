@@ -43,6 +43,12 @@ export interface NavItem<P = unknown> {
   readonly capability: string;
   /** The action needed to see the screen at all. Usually 'read'. */
   readonly action: Action;
+  /**
+   * Other capabilities the screen reads, each needing read too. A route that asks for
+   * read on two capabilities is a door only someone holding both can open, so the entry
+   * is shown only to them: shown on one alone, it led to "forbidden" (found in review).
+   */
+  readonly alsoReads?: readonly string[];
   /** Whatever the rendering side needs — an icon, a screen. Never inspected here. */
   readonly payload?: P;
 }
@@ -82,7 +88,8 @@ export function holds(viewer: Viewer, capability: string, action: Action): boole
  * second job it must not do.
  */
 export function itemIsVisible(item: NavItem, viewer: Viewer): boolean {
-  return stateOf(viewer, item.capability) !== 'hidden' && holds(viewer, item.capability, item.action);
+  return stateOf(viewer, item.capability) !== 'hidden' && holds(viewer, item.capability, item.action)
+    && (item.alsoReads ?? []).every((c) => stateOf(viewer, c) !== 'hidden' && holds(viewer, c, 'read'));
 }
 
 /**
@@ -121,7 +128,8 @@ export const NAVIGATION: readonly NavGroup[] = [
     labelKey: 'nav_inventory',
     items: [
       { id: 'items', labelKey: 'items', capability: 'inventory.items', action: 'read' },
-      { id: 'transfer_prices', labelKey: 'transfer_prices', capability: 'inventory.transfer_prices', action: 'read' },
+      // Every 0018 read asks for read on items too: a price names an item.
+      { id: 'transfer_prices', labelKey: 'transfer_prices', capability: 'inventory.transfer_prices', action: 'read', alsoReads: ['inventory.items'] },
       { id: 'current_stock', labelKey: 'current_stock', capability: 'inventory.stock', action: 'read' },
     ],
   },

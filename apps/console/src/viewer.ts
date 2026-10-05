@@ -90,11 +90,3 @@ export function transferPricesWritable(viewer: Viewer, facilityId: string | null
   return facilityId === null && writable(viewer);
 }
 
-/**
- * Whether transfer prices may be read here. Every one of 0018's reads asks for read on
- * BOTH capabilities, since a price names an item, so the screens appear only when both
- * menu entries would.
- */
-export function seesTransferPrices(pricesVisible: boolean, itemsVisible: boolean): boolean {
-  return pricesVisible && itemsVisible;
-}
