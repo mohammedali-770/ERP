@@ -90,3 +90,11 @@ export function transferPricesWritable(viewer: Viewer, facilityId: string | null
   return facilityId === null && writable(viewer);
 }
 
+/**
+ * Whether the facility screens offer changes. As for the masters before it: all four of
+ * 0019's write routes ask erp.assert_permitted(…, 'org.facilities', 'write', NULL), so
+ * facilities change only organisation-wide (test/facilities.test.ts reads 0019 to hold this).
+ */
+export function facilitiesWritable(viewer: Viewer, facilityId: string | null, writable: (v: Viewer) => boolean): boolean {
+  return facilityId === null && writable(viewer);
+}

@@ -25,6 +25,10 @@ export interface Ctx {
   readonly transferPricesWritable: boolean;
   /** Whether the person may read transfer prices here: the item page then links to its prices. */
   readonly seesTransferPrices: boolean;
+  /** Whether the facility screens offer changes here (viewer.ts, facilitiesWritable). */
+  readonly facilitiesWritable: boolean;
+  /** Whether the person may read facilities here. */
+  readonly seesFacilities: boolean;
   /** Goes to `route`, with a notice shown once on arrival (an `already_recorded` success). */
   readonly navigate: (route: Route, notice?: string) => void;
   /**

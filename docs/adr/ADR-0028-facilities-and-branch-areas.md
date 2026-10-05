@@ -124,9 +124,9 @@ This is new behaviour that no PRD requirement covers, so it is proposed as **IAM
   branch, then `erp.assert_at_facility()`. `db:check` proves the check waits for a closure
   in flight and then refuses it, with two real sessions.
 - **Every later module reaches the open check** through `erp.assert_facility_open()`.
-- **The screens are module 4's next step.** The data layer is built (step 2 addendum,
-  below): the edge's refusal mapping answers `already_recorded` for
-  `facility_decision_pkey`, and `stale` for `facility_stale`.
+- **The data layer and the screens are built** (the step 2 and step 3 addenda, below):
+  the edge's refusal mapping answers `already_recorded` for `facility_decision_pkey`,
+  and `stale` for `facility_stale`.
 
 ## Addendum — 2026-10-05: the data layer (module 4, step 2)
 
@@ -201,6 +201,67 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
   - the retry and stale mappings removed;
   - closed facilities listed by default;
   - latitude and longitude swapped, or an address dropped, by the driver.
+
+## Addendum — 2026-10-05: the screens (module 4, step 3)
+
+Three screens in the console, built as the supplier screens are (ADR-0026's step 3
+addendum): the same in-doubt lock, ids minted once per form, and Retry resending the
+exact request first sent.
+
+- **Branches and facilities** (`#facilities`), under Setup. Every facility read at the
+  facility being worked at, so that facility's brand's only; organisation-wide, every
+  brand's. Open ones unless the filter asks for closed or all. An open branch with no
+  area is flagged "no area: workers cannot order", because none can (§2). Other kinds take
+  no orders by area and are not flagged.
+- **A facility's page** (`#facilities/{id}`):
+  - what it is, its brand and time zone, its names and addresses;
+  - its area, with a link to view the point on a map;
+  - forms to set, move or remove the area, and to close or reopen;
+  - its history, where a facility older than the log reads "before the record began"
+    rather than naming a person who never decided it.
+- **Create and edit** (`#facilities/new`, `#facilities/{id}/edit`). The fixed fields
+  (code, type, operating unit, time zone) are chosen once, and the form says so. An edit
+  changes names and addresses. Both addresses are always sent, a blank one as null.
+- **A coordinate stays text,** from the keyboard to the database:
+  - Arabic-Indic digits and the Arabic decimal separator are read as ASCII.
+  - Otherwise the value is sent as typed, never through a JavaScript number; 0019 rounds
+    to six places.
+  - The console checks a coordinate's shape with the edge's own pattern, which a test reads
+    from the edge's source.
+  - A point pasted whole into Latitude ("24.7136, 46.6753", as a map's "copy coordinates"
+    gives it) fills both fields. Each half must have a decimal point, so "46,67", a
+    decimal comma, is never split into a point across the world.
+  - A blank radius is sent as null, for 0019's default.
+- **The operating unit is chosen by the facilities in it.** No route lists or creates
+  operating units: they are 0003's reference data. So the create form reads every
+  facility organisation-wide, closed ones included, and offers each operating unit they
+  belong to, named by its brand and its facilities' codes ("Spicy Meal", then the
+  codes of its branches). When there is one unit, it is chosen. An operating unit with no facility
+  cannot be offered. A route that lists operating units belongs with whichever module
+  makes them a master.
+- **Who sees what.** The entry and the screens appear to whoever may read
+  `org.facilities`, as all three reads ask. Changes are offered only organisation-wide
+  to someone holding write, mirroring all four write routes'
+  `assert_permitted(…, 'write', NULL)`; a test reads 0019 to hold that. On a closed
+  facility, only reopening is offered: 0019 refuses the rest.
+- **Refusals read as sentences** for every rule 0019 raises in its own words, in English
+  and Arabic, including a radius out of range, a point off the earth, a closed facility
+  and a stale form. A native speaker reviews the Arabic, as for every module.
+- **Proved in a browser** against a scratch database and the edge, in English and
+  Arabic. The run checked these, in order:
+  - The list flags the branch with no area.
+  - A warehouse is created, with its one operating unit chosen.
+  - A point with more than six places is pasted whole, saved, and reads back rounded at
+    150 m.
+  - A decimal comma is caught before sending, and a 10 m radius is refused in the
+    database's words.
+  - An edit form left open while another tab moved the area is refused as stale, then
+    saved after Reload.
+  - The warehouse closes, leaves the default list, and reopens.
+  - At a branch, the administrator is offered no change.
+  - The warehouse manager reads and is offered nothing to change.
+  - A cashier sees no entry, and a typed URL is answered "not permitted".
+  - 16 controls each fail a named test.
 
 ## Open, for the owner and for UAT
 

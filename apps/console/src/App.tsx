@@ -6,7 +6,10 @@ import { failureMessage } from './messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, visibleNavigation, type NavItem } from './navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from './route.ts';
 import { storeLang, storedLang, tokenStore, type StorageLike } from './session.ts';
-import { defaultFacility, itemsWritable, suppliersWritable, toViewer, transferPricesWritable } from './viewer.ts';
+import { defaultFacility, facilitiesWritable, itemsWritable, suppliersWritable, toViewer, transferPricesWritable } from './viewer.ts';
+import { FacilitiesList } from './screens/FacilitiesList.tsx';
+import { FacilityDetail } from './screens/FacilityDetail.tsx';
+import { FacilityCreate, FacilityEdit } from './screens/FacilityForm.tsx';
 import { ItemDetail } from './screens/ItemDetail.tsx';
 import { ItemCreate, ItemEdit } from './screens/ItemForm.tsx';
 import { ItemImport } from './screens/ItemImport.tsx';
@@ -33,6 +36,7 @@ import { FailureNotice, Loading, Notice } from './screens/ui.tsx';
 const ITEMS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'items')!;
 const SUPPLIERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'suppliers')!;
 const TRANSFER_PRICES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'transfer_prices')!;
+const FACILITIES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'facilities')!;
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -178,6 +182,8 @@ export function App() {
     transferPricesWritable: transferPricesWritable(viewer, facilityId, (v) => itemIsWritable(TRANSFER_PRICES, v)),
     // The entry asks for read on items as well (navigation.ts, alsoReads), as 0018's reads do.
     seesTransferPrices: itemIsVisible(TRANSFER_PRICES, viewer),
+    facilitiesWritable: facilitiesWritable(viewer, facilityId, (v) => itemIsWritable(FACILITIES, v)),
+    seesFacilities: itemIsVisible(FACILITIES, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       window.location.hash = formatRoute(r);
@@ -263,6 +269,15 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
     switch (route.screen) {
       case 'transfer_prices': return <TransferPricesList ctx={ctx} />;
       case 'item_prices': return <ItemPrices ctx={ctx} itemId={route.itemId} />;
+    }
+  }
+  if (navIdOf(route) === 'facilities') {
+    if (!ctx.seesFacilities) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'facilities': return <FacilitiesList ctx={ctx} />;
+      case 'facility_new': return <FacilityCreate ctx={ctx} />;
+      case 'facility': return <FacilityDetail ctx={ctx} targetId={route.targetId} />;
+      case 'facility_edit': return <FacilityEdit ctx={ctx} targetId={route.targetId} />;
     }
   }
   if (!itemsVisible) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
