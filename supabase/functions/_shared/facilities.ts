@@ -31,7 +31,8 @@
  *
  *   A COORDINATE IS DECIMAL TEXT, as a factor is (./items.ts): "24.713600", never the
  *   number 24.7136. It goes to a numeric(9,6) column, and a float has no business on the
- *   way. The answer carries coordinates the same way.
+ *   way. The route rounds it to six places, so a reading with more is accepted, not
+ *   refused (found in review). The answer carries coordinates the same way.
  *
  *   AN AREA IS STATED WHOLE. latitude, longitude and radius_m must all be present, as a
  *   value or null: the route puts the whole area in force, and an absent field read as
@@ -49,8 +50,11 @@ function stated(source: Source, field: string, max: number): string | null {
   return optionalText(source, field, max);
 }
 
-/** A latitude or longitude: decimal text with up to six places, or null; always present. */
-const COORDINATE = /^-?\d{1,3}(\.\d{1,6})?$/;
+/**
+ * A latitude or longitude: decimal text, or null; always present. Up to 15 places, as a
+ * phone's reading has: 0019 rounds to six, and the edge does not make every client do it.
+ */
+const COORDINATE = /^-?\d{1,3}(\.\d{1,15})?$/;
 
 function coordinate(source: Source, field: string): string | null {
   if (!Object.hasOwn(source, field)) throw new Malformed(field);

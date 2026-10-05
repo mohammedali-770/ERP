@@ -151,9 +151,11 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
 - **The edge checks shape, the database checks rules.** Three shape rules are this
   module's own:
   - **A coordinate is decimal text,** as a factor is: `"24.713600"`, never the number
-    24.7136. It may have up to three integer digits and six places. It goes to the route
-    through a `numeric` cast, and comes back as postgres.js answers a numeric, as text,
-    so no float touches it either way. That a point is on the earth is 0019's rule; so
+    24.7136. It may have up to three integer digits and 15 places, as a phone's reading
+    has; the route rounds it to six (found in review: a six-place cap at the edge made
+    that rounding unreachable, and every client cut the text itself). It goes to the
+    route through a `numeric` cast, and comes back as postgres.js answers a numeric, as
+    text, so no float touches it either way. That a point is on the earth is 0019's rule; so
     is anything past `numeric(9,6)`, which the route refuses in its own words before
     converting.
   - **An area is stated whole.** `latitude`, `longitude` and `radius_m` must each be
@@ -178,7 +180,8 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
     - The administrator creates a branch; a retry is answered as a retry, and a code in
       use as a conflict.
     - An amendment from a stale form is refused.
-    - An area is set without a radius and reads back at 150 m. The area rules, a value
+    - An area is set from a reading with more than six places and without a radius, and
+      reads back rounded, at 150 m. The area rules, a value
       past `numeric(9,6)` included, come back in the route's own words.
     - The area is removed on purpose.
     - The branch is closed, refuses an amendment, drops out of the default list, and is
@@ -189,10 +192,11 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
 
   Another brand's facility is not tested there: the seed's second brand owns none, and
   `erp_edge` cannot make one. pgTAP 140 covers brand-private reads.
-- **Controls:** 16 deliberate breakages of the edge layer, each failing a named Node or
+- **Controls:** 17 deliberate breakages of the edge layer, each failing a named Node or
   Deno test. Among them:
   - an actor or a facility taken from the request;
-  - a coordinate accepted as a number, with seven places, or passed through a float;
+  - a coordinate accepted as a number or with sixteen places, rounded by the edge, or
+    passed through a float;
   - an absent coordinate, radius or address read as null;
   - the retry and stale mappings removed;
   - closed facilities listed by default;

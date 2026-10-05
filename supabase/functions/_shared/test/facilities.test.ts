@@ -203,7 +203,9 @@ test('an area is removed only on purpose: all three null, never by leaving a fie
 });
 
 test('a coordinate travels as the decimal text it was sent, never as a float', async () => {
-  for (const [lat, lng] of [['24.7136', '46.6753'], ['-33.868820', '151.209296'], ['0', '-0.5'], ['90', '-180']]) {
+  // A phone's reading, with more places than 0019 keeps, is the route's to round.
+  for (const [lat, lng] of [['24.7136', '46.6753'], ['-33.868820', '151.209296'], ['0', '-0.5'], ['90', '-180'],
+    ['24.774265491827364', '46.73858551']]) {
     const db = fakeDb(ADMIN);
     const response = await facilities(post(`/${FACILITY}/area`, { ...AREA, latitude: lat, longitude: lng }), deps(db));
     assert.equal(response.status, 200, `${lat},${lng}`);
@@ -290,10 +292,10 @@ test('a malformed facility field is a 400 naming it, and nothing reaches the dat
     // An amendment overwrites an address, so it states one: absent would clear it by omission.
     [post(`/${FACILITY}/amend`, without(AMEND, 'address_en')), 'address_en'],
     [post(`/${FACILITY}/amend`, without(AMEND, 'address_ar')), 'address_ar'],
-    // A coordinate is decimal text: not a number, not seven places, not an exponent, not absent.
+    // A coordinate is decimal text: not a number, not sixteen places, not an exponent, not absent.
     [post(`/${FACILITY}/area`, { ...AREA, latitude: 24.774265 }), 'latitude'],
     [post(`/${FACILITY}/area`, { ...AREA, longitude: 46.7 }), 'longitude'],
-    [post(`/${FACILITY}/area`, { ...AREA, latitude: '24.7742651' }), 'latitude'],
+    [post(`/${FACILITY}/area`, { ...AREA, latitude: '24.7742651234567891' }), 'latitude'],
     [post(`/${FACILITY}/area`, { ...AREA, latitude: '2.4e1' }), 'latitude'],
     [post(`/${FACILITY}/area`, { ...AREA, longitude: '1046.5' }), 'longitude'],
     [post(`/${FACILITY}/area`, { ...AREA, latitude: ' 24.7' }), 'latitude'],

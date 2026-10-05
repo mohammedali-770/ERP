@@ -178,13 +178,13 @@ Deno.test('every facilities route, as erp_edge, through the router and the drive
       await t.step('an area is set as decimal text, rounded to six places by nobody but the database', async () => {
         const next = id();
         const r = await send('POST', `/${created}/area`, {
-          decision_id: next, expected_decision_id: stamp, latitude: '24.774265', longitude: '46.738586', radius_m: null, reason,
+          decision_id: next, expected_decision_id: stamp, latitude: '24.774264951', longitude: '46.73858551', radius_m: null, reason,
         });
         equal(r.http, 200, 'set');
         stamp = next;
         const mine = await read(created);
         equal([mine.latitude, mine.longitude, mine.geofence_radius_m], ['24.774265', '46.738586', 150],
-          'a point without a radius is 150 m');
+          'a phone\'s reading rounded to six places, and a point without a radius is 150 m');
       });
 
       await t.step('the area rules come back in the route\'s own words', async () => {
