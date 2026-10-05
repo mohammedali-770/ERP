@@ -18,6 +18,10 @@ What it has today:
   active pack's price now and the next one set ahead, and unpriced packs marked; an item's
   prices pack by pack, with setting a price from now or from a Riyadh date and time, and
   withdrawing one not yet in effect; and its history. An item's page links to its prices.
+- **Module 4, branches and facilities** (ADR-0028 and its addenda): the list, with open
+  branches that have no ordering area flagged; a facility's page with its area, a map
+  link and its history; create, edit names and addresses, set, move or remove the area
+  (a point pasted whole fills both fields), and close or reopen.
 
 ## Layout
 
@@ -52,5 +56,6 @@ suppliers. Transfer prices are set organisation-wide by the administrator or the
 accountant. Changing items
 or suppliers takes an organisation-wide role holding `inventory.items:write` or
 `procurement.suppliers:write`, which the seed gives the administrator alone; the
-warehouse manager reads both. The seed sets no PIN for either; set one locally with
-`erp.set_pin()`.
+warehouse manager reads both. Facilities are changed by the administrator alone,
+organisation-wide, and read by the managers; a cashier sees no entry. The seed sets no
+PIN for either; set one locally with `erp.set_pin()`.

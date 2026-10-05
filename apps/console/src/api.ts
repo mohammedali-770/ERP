@@ -1,8 +1,9 @@
 /**
  * The console's client for the edge functions: sign-in, the session, sign-out, module 1's
  * items routes (supabase/functions/_shared/items.ts), module 2's suppliers routes
- * (supabase/functions/_shared/suppliers.ts) and module 3's transfer-prices routes
- * (supabase/functions/_shared/transfer-prices.ts).
+ * (supabase/functions/_shared/suppliers.ts), module 3's transfer-prices routes
+ * (supabase/functions/_shared/transfer-prices.ts) and module 4's facilities routes
+ * (supabase/functions/_shared/facilities.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -21,7 +22,7 @@
  * sends the same ids, and the database answers `already_recorded` instead of recording
  * the decision twice.
  *
- * Requirements: IAM-003 · IAM-006 · INV-002 · INV-005 · PRC-005 · SEC-008 · CAP-P04
+ * Requirements: IAM-003 · IAM-006 · IAM-P11 · INV-002 · INV-005 · PRC-005 · SEC-008 · CAP-P04
  */
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -462,6 +463,106 @@ export interface SetPriceInput {
   readonly reason: string;
 }
 
+/**
+ * One facility, as erp.list_facilities() and erp.get_facility() return it (0019). A
+ * coordinate is decimal TEXT, six places as stored, never a number: the edge answers it as
+ * postgres.js reads a numeric.
+ */
+export interface Facility {
+  readonly facility_id: string;
+  readonly operating_unit_id: string;
+  readonly brand_id: string;
+  readonly facility_type: 'branch' | 'warehouse' | 'factory' | 'office';
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly address_en: string | null;
+  readonly address_ar: string | null;
+  readonly tz_name: string;
+  readonly latitude: string | null;
+  readonly longitude: string | null;
+  readonly geofence_radius_m: number | null;
+  readonly status: 'open' | 'closed';
+  /** The stamp an edit form sends back as `expected_decision_id`. */
+  readonly as_of_decision_id: string;
+}
+
+/** One row of erp.facility_decision: the whole facility the decision left. */
+export interface FacilityDecision {
+  readonly decision_id: string;
+  readonly kind: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly address_en: string | null;
+  readonly address_ar: string | null;
+  readonly latitude: string | null;
+  readonly longitude: string | null;
+  readonly geofence_radius_m: number | null;
+  readonly status: 'open' | 'closed';
+  readonly reason: string;
+  /** Null only for `facility_recorded`: a facility older than the log, recorded by nobody. */
+  readonly actor_id: string | null;
+  readonly decided_at: string;
+  readonly [field: string]: unknown;
+}
+
+export interface FacilityList {
+  readonly facilities: readonly Facility[];
+  readonly next_after: string | null;
+}
+
+export interface FacilityQuery {
+  readonly facilityId: string | null;
+  readonly status?: 'open' | 'closed' | 'all';
+  readonly search?: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+export interface CreateFacilityInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly operating_unit_id: string;
+  readonly facility_type: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly address_en: string | null;
+  readonly address_ar: string | null;
+  readonly reason: string;
+}
+
+/** Both addresses are stated, as text or null: the edge refuses one left out, which would clear it. */
+export interface AmendFacilityInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly address_en: string | null;
+  readonly address_ar: string | null;
+  readonly reason: string;
+}
+
+/**
+ * An area, stated whole: a point as decimal text and a radius in whole metres, or all
+ * three null to remove it. A null radius with a point is 0019's default of 150 m.
+ */
+export interface AreaInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly latitude: string | null;
+  readonly longitude: string | null;
+  readonly radius_m: number | null;
+  readonly reason: string;
+}
+
+export interface FacilityStatusInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly status: 'open' | 'closed';
+  readonly reason: string;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -502,6 +603,14 @@ export interface Api {
   setTransferPrice(input: SetPriceInput): Promise<Answer<{ decision_id: string }>>;
   /** The price withdrawn is the one the path names; the body carries the decision and its reason only. */
   withdrawTransferPrice(priceId: string, input: RetireUnitInput): Promise<Answer<{ decision_id: string }>>;
+  listFacilities(query: FacilityQuery): Promise<Answer<FacilityList>>;
+  getFacility(facilityId: string | null, targetId: string): Promise<Answer<Facility>>;
+  facilityHistory(facilityId: string | null, targetId: string): Promise<Answer<readonly FacilityDecision[]>>;
+  createFacility(input: CreateFacilityInput): Promise<Answer<{ decision_id: string }>>;
+  /** The facility changed is the one the path names; `facilityId` in these is the target, never where one works. */
+  amendFacility(targetId: string, input: AmendFacilityInput): Promise<Answer<{ decision_id: string }>>;
+  setFacilityArea(targetId: string, input: AreaInput): Promise<Answer<{ decision_id: string }>>;
+  changeFacilityStatus(targetId: string, input: FacilityStatusInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -644,5 +753,23 @@ export function createApi(config: ApiConfig): Api {
     setTransferPrice: (input) => call('POST', '/transfer-prices', input, decision),
     withdrawTransferPrice: (priceId, input) =>
       call('POST', `/transfer-prices/${encodeURIComponent(priceId)}/withdraw`, input, decision),
+
+    listFacilities: (q) =>
+      call('GET', `/facilities${query({
+        facility_id: q.facilityId, status: q.status, search: q.search, after: q.after, limit: q.limit,
+      })}`, undefined, (b) => ({ facilities: b['facilities'] as Facility[], next_after: text(b['next_after']) })),
+    getFacility: (facilityId, targetId) =>
+      call('GET', `/facilities/${encodeURIComponent(targetId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['facility'] as Facility),
+    facilityHistory: (facilityId, targetId) =>
+      call('GET', `/facilities/${encodeURIComponent(targetId)}/history${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['decisions'] as FacilityDecision[]),
+    createFacility: (input) => call('POST', '/facilities', input, decision),
+    amendFacility: (targetId, input) =>
+      call('POST', `/facilities/${encodeURIComponent(targetId)}/amend`, input, decision),
+    setFacilityArea: (targetId, input) =>
+      call('POST', `/facilities/${encodeURIComponent(targetId)}/area`, input, decision),
+    changeFacilityStatus: (targetId, input) =>
+      call('POST', `/facilities/${encodeURIComponent(targetId)}/status`, input, decision),
   };
 }

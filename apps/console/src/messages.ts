@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012, 0016 or 0018 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018 or 0019 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -93,6 +93,24 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   transfer_price_withdrawal_repeats: 'rule_price_withdrawal_repeats',
   transfer_price_decision_reason_is_stated: 'rule_reason_required',
   transfer_price_exists: 'rule_no_price',
+  // 0019's, for facilities. Not facility_decision_pkey, for the reason given above for
+  // supplier_decision_pkey.
+  facility_code_key: 'rule_facility_code_taken',
+  facility_code_is_canonical: 'rule_facility_code_canonical',
+  facility_type_is_known: 'rule_facility_type',
+  facility_names_are_bilingual: 'rule_facility_names',
+  facility_names_are_canonical: 'rule_facility_names',
+  facility_addresses_are_canonical: 'rule_facility_addresses',
+  facility_area_is_whole: 'rule_area_whole',
+  facility_area_is_on_earth: 'rule_area_on_earth',
+  facility_radius_is_metres: 'rule_radius',
+  facility_is_not_the_organisation: 'rule_facility_is_org',
+  facility_decision_reason_is_stated: 'rule_reason_required',
+  facility_stale: 'rule_facility_stale',
+  facility_is_closed: 'rule_facility_closed',
+  facility_status_unchanged: 'rule_facility_status_unchanged',
+  facility_exists: 'rule_no_facility',
+  operating_unit_exists: 'rule_no_operating_unit',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

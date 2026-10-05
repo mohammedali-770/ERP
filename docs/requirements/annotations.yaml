@@ -44,6 +44,9 @@ IAM-006:
   owner: "IT and system administration"
   test_refs:
     - T-10
+    # Module 4, facilities (ADR-0028): a branch worker is assigned to their branch, and
+    # the branch's area is kept by the facility screens this pack runs.
+    - UAT-facilities
 
 IAM-008:
   status: "baselined"
