@@ -7,6 +7,7 @@ import {
 import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.ts';
 import type { ItemsDb } from '../items-db.ts';
 import type { SuppliersDb } from '../suppliers-db.ts';
+import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { notUsed } from './not-used.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 
@@ -33,6 +34,12 @@ const suppliersNotUsed = notUsed<SuppliersDb>('suppliers', {
   amendSupplierItem: true, retireSupplierItem: true, importSuppliers: true,
 });
 
+/** The transfer-price routes, which these tests never reach either. */
+const transferPricesNotUsed = notUsed<TransferPricesDb>('transfer prices', {
+  listTransferPrices: true, itemTransferPrices: true, transferPriceHistory: true, setTransferPrice: true,
+  withdrawTransferPrice: true,
+});
+
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
   signIn?: SignInAnswer;
@@ -43,6 +50,7 @@ function fakeDb(answers: {
   return {
     ...itemsNotUsed,
     ...suppliersNotUsed,
+    ...transferPricesNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);
