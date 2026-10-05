@@ -20,6 +20,8 @@ export type Route =
   | { readonly screen: 'supplier'; readonly supplierId: string }
   | { readonly screen: 'supplier_edit'; readonly supplierId: string }
   | { readonly screen: 'supplier_contact'; readonly supplierId: string }
+  | { readonly screen: 'transfer_prices' }
+  | { readonly screen: 'item_prices'; readonly itemId: string }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,6 +57,12 @@ export function parseRoute(hash: string): Route {
     if (path.length === 3 && path[2] === 'contact') return { screen: 'supplier_contact', supplierId: id.toLowerCase() };
     return unknown;
   }
+  if (path[0] === 'transfer_prices') {
+    if (path.length === 1) return { screen: 'transfer_prices' };
+    const id = path[1]!;
+    if (path.length === 2 && UUID.test(id)) return { screen: 'item_prices', itemId: id.toLowerCase() };
+    return unknown;
+  }
   return unknown;
 }
 
@@ -72,6 +80,8 @@ export function formatRoute(route: Route): string {
     case 'supplier': return `#suppliers/${route.supplierId}`;
     case 'supplier_edit': return `#suppliers/${route.supplierId}/edit`;
     case 'supplier_contact': return `#suppliers/${route.supplierId}/contact`;
+    case 'transfer_prices': return '#transfer_prices';
+    case 'item_prices': return `#transfer_prices/${route.itemId}`;
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -79,6 +89,7 @@ export function formatRoute(route: Route): string {
 /** The menu entry a route belongs to, for marking it current. */
 export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
+  if (route.screen === 'transfer_prices' || route.screen === 'item_prices') return 'transfer_prices';
   return route.screen === 'suppliers' || route.screen === 'supplier' || route.screen.startsWith('supplier_')
     ? 'suppliers' : 'items';
 }

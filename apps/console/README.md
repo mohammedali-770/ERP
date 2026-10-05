@@ -14,6 +14,10 @@ What it has today:
   what it sells and its history, create and edit, the contact (no reason asked, and an
   erase action), adding, changing and stopping a supply, retiring and reinstating, and a
   CSV upload. An item's page shows who sells it, to someone who may read suppliers.
+- **Module 3, transfer prices** (ADR-0027 and its addenda): the price list, with every
+  active pack's price now and the next one set ahead, and unpriced packs marked; an item's
+  prices pack by pack, with setting a price from now or from a Riyadh date and time, and
+  withdrawing one not yet in effect; and its history. An item's page links to its prices.
 
 ## Layout
 
@@ -43,7 +47,9 @@ npm run dev -w @firsttaste/app-console      # http://localhost:5173
 stack's `http://127.0.0.1:54321/functions/v1`.
 
 The seed's people are synthetic (`supabase/seeds/0015_identity.sql`). The cashier at
-BR-001 can sign in and read that branch's items, and nothing of suppliers. Changing items
+BR-001 can sign in and read that branch's items and transfer prices, and nothing of
+suppliers. Transfer prices are set organisation-wide by the administrator or the
+accountant. Changing items
 or suppliers takes an organisation-wide role holding `inventory.items:write` or
 `procurement.suppliers:write`, which the seed gives the administrator alone; the
 warehouse manager reads both. The seed sets no PIN for either; set one locally with

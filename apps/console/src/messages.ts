@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012 or 0016 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016 or 0018 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -79,6 +79,20 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   supplier_item_code_is_canonical: 'rule_supply_code',
   supplier_item_stale: 'rule_supply_stale',
   supplier_item_exists: 'rule_no_supply',
+  // 0018's, for transfer prices. Not transfer_price_decision_pkey, for the reason given
+  // above for supplier_decision_pkey.
+  transfer_price_is_minor_units: 'rule_price_amount',
+  transfer_price_currency_is_known: 'rule_price_currency',
+  transfer_price_not_backdated: 'rule_price_backdated',
+  transfer_price_one_per_moment: 'rule_price_one_per_moment',
+  transfer_price_unchanged: 'rule_price_unchanged',
+  transfer_price_same_as_next: 'rule_price_same_as_next',
+  transfer_price_conversion_is_active: 'rule_price_pack_retired',
+  transfer_price_in_effect: 'rule_price_in_effect',
+  transfer_price_already_withdrawn: 'rule_price_already_withdrawn',
+  transfer_price_withdrawal_repeats: 'rule_price_withdrawal_repeats',
+  transfer_price_decision_reason_is_stated: 'rule_reason_required',
+  transfer_price_exists: 'rule_no_price',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {
