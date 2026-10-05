@@ -162,9 +162,11 @@ belongs to the ordering module (10), and available is on hand less committed.
   moments to the minute. A movement stated at the minute of a count it physically followed
   was otherwise taken as before it, and counted twice. Whichever is recorded second is
   refused and asked which side it was on (`stock_count_moment_taken`, or
-  `stock_backdated_before_count` with a hint that says so). **A count stated late shares
-  its whole minute:** a movement recorded "now" at 13:04:51 is no clearer about a count
-  stated as 13:04, and was counted twice. A count made now is the clock's instant.
+  `stock_backdated_before_count` with a hint that says so). **A count stated late holds
+  its whole minute, in either order:** a movement recorded "now" at 13:04:51 is no clearer
+  about a count stated as 13:04, whichever was recorded first, and was counted twice. Each
+  decision records whether its moment was stated (`moment_stated`), so a count made now
+  holds only its instant and the work after it goes on.
 
 ### 5. Reversals (I-6)
 

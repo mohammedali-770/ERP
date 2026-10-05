@@ -68,6 +68,11 @@ create table erp.stock_decision (
   -- When it happened — for a count, the moment counted. Stated by the person when late (D3),
   -- the clock when not; a reversal takes the moment of the decision it undoes.
   occurred_at          timestamptz not null,
+  -- Whether a person stated that moment (a late entry) or it is the clock's. A moment is
+  -- stated to the minute, so a stated count holds its whole minute against movements of
+  -- its items, in either order; a count made now holds only its instant. A reversal's
+  -- moment is its target's, never stated.
+  moment_stated        boolean     not null,
   -- D3, for a warehouse or a factory: the calendar date of occurred_at in the facility's
   -- time zone, which 0019 fixes for good. Held by db-check's stock-ledger-matches-its-decisions.
   business_date        date        not null,
@@ -90,6 +95,7 @@ create table erp.stock_decision (
   constraint stock_decision_moment unique (decision_id, facility_id, occurred_at, business_date),
   constraint stock_decision_facts unique (decision_id, kind, facility_id, occurred_at, business_date),
   constraint stock_decision_reverses_iff_reversal check ((kind = 'reversal') = (reverses_decision_id is not null)),
+  constraint stock_reversal_states_no_moment check (kind <> 'reversal' or not moment_stated),
   -- A reversal is at its target's facility and moment: it says the target never happened,
   -- so it belongs where the target was, and D3's count rule then refuses one a count has
   -- already covered (found in review: dated "now", it corrected the stock a second time).
@@ -628,12 +634,21 @@ begin
   v_date := (v_at at time zone f.tz_name)::date;
 
   -- 6. The rules that read the balance.
-  -- D3: nothing at or before an item's last count. For a reversal, that is a count since
+  -- D3: nothing at or before an item's last count — and, when that count's moment was
+  -- stated, nothing in its minute either: a movement recorded "now" at 13:04:51 after a
+  -- count stated as 13:04 is no clearer about which came first than the other order is,
+  -- which the count refuses below (found in review). For a reversal, that is a count since
   -- the decision it undoes: the count already corrected it.
   select i.code, b.last_counted_at into v_bad
     from erp.stock_balance b
     join erp.item i on i.item_id = b.item_id
-   where b.facility_id = f.facility_id and b.item_id = any (l_item) and b.last_counted_at >= v_at
+   where b.facility_id = f.facility_id and b.item_id = any (l_item)
+     and (b.last_counted_at >= v_at
+          or (v_at < date_trunc('minute', b.last_counted_at) + interval '1 minute'
+              and exists (select 1 from erp.stock_count_log c
+                            join erp.stock_decision kd on kd.decision_id = c.decision_id
+                           where c.facility_id = b.facility_id and c.item_id = b.item_id
+                             and c.occurred_at = b.last_counted_at and kd.moment_stated)))
    order by i.code collate "C"
    limit 1;
   if found then
@@ -642,9 +657,9 @@ begin
         v_bad.code, erp.stock_moment(v_bad.last_counted_at, f.tz_name)
         using errcode = 'restrict_violation', constraint = 'stock_reversal_counted_since',
               hint = 'Count it again, or record an adjustment, to change it now.';
-    elsif v_bad.last_counted_at = v_at then
-      raise exception '% was counted at exactly %: say whether this was before or after the count',
-        v_bad.code, erp.stock_moment(v_at, f.tz_name)
+    elsif v_bad.last_counted_at <= v_at then
+      raise exception '% was counted at %, to the minute: say whether this was before or after the count',
+        v_bad.code, erp.stock_moment(v_bad.last_counted_at, f.tz_name)
         using errcode = 'restrict_violation', constraint = 'stock_backdated_before_count',
               hint = 'If it happened before the count, the count already includes it. If after, state a later moment.';
     else
@@ -723,10 +738,11 @@ begin
 
   -- 7. The writes.
   insert into erp.stock_decision (
-    decision_id, kind, facility_id, occurred_at, business_date, reverses_decision_id, override_reason,
+    decision_id, kind, facility_id, occurred_at, moment_stated, business_date, reverses_decision_id, override_reason,
     reason, actor_id, decided_at
   ) values (
-    p_decision_id, p_kind, f.facility_id, v_at, v_date, p_reverses, v_override, p_reason, p_actor_id, p_decided_at
+    p_decision_id, p_kind, f.facility_id, v_at, p_kind <> 'reversal' and p_occurred_at is not null, v_date, p_reverses,
+    v_override, p_reason, p_actor_id, p_decided_at
   );
 
   if p_kind = 'count' then

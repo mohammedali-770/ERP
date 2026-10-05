@@ -31,7 +31,9 @@
 -- Fixed identifiers: facilities …0403 and …0404 and their decisions …5603 and …5604; the
 -- person …0908 and decisions …d008 and …d028; stock decisions …57NN. None contains
 -- '0000000e', the db-fixtures pattern. EVERY TIMESTAMP IS LITERAL, recorded_at included.
--- Moments are stated in UTC; Riyadh is three hours ahead, so 03:00Z is 06:00 there.
+-- Moments are stated in UTC; Riyadh is three hours ahead, so 03:00Z is 06:00 there. Every
+-- decision below was entered after it happened, so its moment is stated; the reversal's is
+-- its target's.
 
 -- ---------------------------------------------------------------------------
 -- The sites
@@ -98,44 +100,44 @@ insert into erp.person_role (person_id, role_key, scope_facility_id, as_of_decis
 
 insert into erp.stock_decision (
   decision_id, kind, facility_id, occurred_at, business_date, reverses_decision_id, override_reason,
-  reason, actor_id, decided_at, recorded_at
+  reason, actor_id, decided_at, recorded_at, moment_stated
 ) values
   -- The opening counts. A first count finds the book at nothing, so all it found is posted in.
   ('01936f00-0000-7000-8000-000000005701', 'count', '01936f00-0000-7000-8000-000000000403',
    timestamptz '2026-09-25 03:00:00+00', date '2026-09-25', null, null,
    'Opening count (synthetic).', '01936f00-0000-7000-8000-000000000904',
-   timestamptz '2026-09-25 03:30:00+00', timestamptz '2026-09-25 03:30:00+00'),
+   timestamptz '2026-09-25 03:30:00+00', timestamptz '2026-09-25 03:30:00+00', true),
   ('01936f00-0000-7000-8000-000000005702', 'count', '01936f00-0000-7000-8000-000000000404',
    timestamptz '2026-09-25 04:00:00+00', date '2026-09-25', null, null,
    'Opening count (synthetic).', '01936f00-0000-7000-8000-000000000908',
-   timestamptz '2026-09-25 04:30:00+00', timestamptz '2026-09-25 04:30:00+00'),
+   timestamptz '2026-09-25 04:30:00+00', timestamptz '2026-09-25 04:30:00+00', true),
   ('01936f00-0000-7000-8000-000000005703', 'waste', '01936f00-0000-7000-8000-000000000403',
    timestamptz '2026-09-26 07:00:00+00', date '2026-09-26', null, null,
    'Spoiled in chiller 2 (synthetic).', '01936f00-0000-7000-8000-000000000904',
-   timestamptz '2026-09-26 07:05:00+00', timestamptz '2026-09-26 07:05:00+00'),
+   timestamptz '2026-09-26 07:05:00+00', timestamptz '2026-09-26 07:05:00+00', true),
   ('01936f00-0000-7000-8000-000000005704', 'adjustment', '01936f00-0000-7000-8000-000000000403',
    timestamptz '2026-09-27 06:00:00+00', date '2026-09-27', null, null,
    'Found behind the pallet rack (synthetic).', '01936f00-0000-7000-8000-000000000904',
-   timestamptz '2026-09-27 06:10:00+00', timestamptz '2026-09-27 06:10:00+00'),
+   timestamptz '2026-09-27 06:10:00+00', timestamptz '2026-09-27 06:10:00+00', true),
   ('01936f00-0000-7000-8000-000000005705', 'damage', '01936f00-0000-7000-8000-000000000403',
    timestamptz '2026-09-28 08:00:00+00', date '2026-09-28', null, null,
    'Bottle split on the shelf (synthetic).', '01936f00-0000-7000-8000-000000000904',
-   timestamptz '2026-09-28 08:05:00+00', timestamptz '2026-09-28 08:05:00+00'),
+   timestamptz '2026-09-28 08:05:00+00', timestamptz '2026-09-28 08:05:00+00', true),
   -- Dated at the moment it undoes, decided an hour later.
   ('01936f00-0000-7000-8000-000000005706', 'reversal', '01936f00-0000-7000-8000-000000000403',
    timestamptz '2026-09-28 08:00:00+00', date '2026-09-28', '01936f00-0000-7000-8000-000000005705', null,
    'Recorded against the wrong item: that bottle was intact (synthetic).', '01936f00-0000-7000-8000-000000000904',
-   timestamptz '2026-09-28 09:00:00+00', timestamptz '2026-09-28 09:00:00+00'),
+   timestamptz '2026-09-28 09:00:00+00', timestamptz '2026-09-28 09:00:00+00', false),
   ('01936f00-0000-7000-8000-000000005707', 'expiry', '01936f00-0000-7000-8000-000000000404',
    timestamptz '2026-09-29 05:00:00+00', date '2026-09-29', null, null,
    'Past its use-by date (synthetic).', '01936f00-0000-7000-8000-000000000908',
-   timestamptz '2026-09-29 05:10:00+00', timestamptz '2026-09-29 05:10:00+00'),
+   timestamptz '2026-09-29 05:10:00+00', timestamptz '2026-09-29 05:10:00+00', true),
   -- D1: 50 kg out of 40, let through by a person who may override, with the reason.
   ('01936f00-0000-7000-8000-000000005708', 'waste', '01936f00-0000-7000-8000-000000000404',
    timestamptz '2026-09-30 11:00:00+00', date '2026-09-30', null,
    'The morning delivery is not entered yet (synthetic).',
    'Dropped while unloading (synthetic).', '01936f00-0000-7000-8000-000000000908',
-   timestamptz '2026-09-30 11:05:00+00', timestamptz '2026-09-30 11:05:00+00');
+   timestamptz '2026-09-30 11:05:00+00', timestamptz '2026-09-30 11:05:00+00', true);
 
 -- What the counts found, in the packs they were found in.
 insert into erp.stock_count_log (

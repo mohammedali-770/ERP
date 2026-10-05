@@ -22,7 +22,7 @@
 -- Fixture ids are …0e19NN and …0e20NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(145);
+select plan(149);
 
 -- ---------------------------------------------------------------------------
 -- Helpers — pgTAP only; db-fixtures never sees them
@@ -380,8 +380,29 @@ select is(pg_temp.after(
 select is(pg_temp.refusal($$select pg_temp.adjust('e1964', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), timestamptz '2026-09-24 10:00:00+03')$$),
   '23001 stock_backdated_before_count', 'a late entry dated before the item''s last count is refused: the count includes it');
 select is(pg_temp.refusal_text($$select pg_temp.adjust('e1965', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), timestamptz '2026-09-25 03:00:00+00')$$),
-  'RM-RICE was counted at exactly 2026-09-25 06:00:00: say whether this was before or after the count',
+  'RM-RICE was counted at 2026-09-25 06:00:00, to the minute: say whether this was before or after the count',
   'one dated AT the count is refused too, asking which side it was on, in Riyadh time');
+-- A count stated late holds its whole minute in this order too: a movement recorded after
+-- it, inside that minute, cannot say which came first either (found in review).
+select is(pg_temp.refusal(
+  $$select pg_temp.count('e19ad', jsonb_build_array(pg_temp.l('4224', '6')), date_trunc('minute', now()) - interval '10 minutes')$$,
+  $$select pg_temp.adjust('e19ae', 'waste', jsonb_build_array(pg_temp.l('4223', '1')), date_trunc('minute', now()) - interval '9 minutes 30 seconds')$$),
+  '23001 stock_backdated_before_count', 'a movement half a minute after a count stated to that minute must say which side it was on');
+select is(pg_temp.refusal(
+  $$select pg_temp.count('e19af', jsonb_build_array(pg_temp.l('4224', '6')), date_trunc('minute', now()) - interval '10 minutes')$$,
+  $$select pg_temp.adjust('e19b0', 'waste', jsonb_build_array(pg_temp.l('4223', '1')), date_trunc('minute', now()) - interval '9 minutes')$$),
+  'none', 'CONTROL: the next minute is plainly after it');
+select is(pg_temp.refusal(
+  $$select pg_temp.count('e19b1', jsonb_build_array(pg_temp.l('4224', '6')))$$,
+  $$select pg_temp.adjust('e19b2', 'waste', jsonb_build_array(pg_temp.l('4223', '1')))$$),
+  'none', 'CONTROL: a count made now holds only its instant, so the work after it goes on');
+select is(pg_temp.after(
+  $$select string_agg(decision_id::text || '=' || moment_stated, ',' order by decision_id) from erp.stock_decision where decision_id in (pg_temp.u('e19b3'), pg_temp.u('e19b4'), pg_temp.u('e19b5'))$$,
+  $$select pg_temp.adjust('e19b3', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), now() - interval '1 hour')$$,
+  $$select pg_temp.adjust('e19b4', 'waste', jsonb_build_array(pg_temp.l('4225', '1')))$$,
+  $$select pg_temp.reverse('e19b5', 'e19b3')$$),
+  '01936f00-0000-7000-8000-0000000e19b3=true,01936f00-0000-7000-8000-0000000e19b4=false,01936f00-0000-7000-8000-0000000e19b5=false',
+  'a decision records whether its moment was stated; a reversal''s is its target''s, never stated');
 select is(pg_temp.refusal($$select pg_temp.adjust('e1966', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), timestamptz '2026-09-25 03:01:00+00')$$),
   'none', 'CONTROL: a minute after the count is recorded');
 select is(pg_temp.refusal($$select pg_temp.adjust('e1968', 'adjustment', jsonb_build_array(pg_temp.l('4220', '1', 'in')), timestamptz '2026-09-21 00:00:00+00')$$),
@@ -671,8 +692,8 @@ select throws_ok(
   'as is a base quantity that is not the quantity times the factor'
 );
 select throws_ok(
-  $$ insert into erp.stock_decision (decision_id, kind, facility_id, occurred_at, business_date, reverses_decision_id, reason, actor_id, decided_at)
-     values ('01936f00-0000-7000-8000-0000000e2026', 'reversal', '01936f00-0000-7000-8000-000000000403', now(),
+  $$ insert into erp.stock_decision (decision_id, kind, facility_id, occurred_at, moment_stated, business_date, reverses_decision_id, reason, actor_id, decided_at)
+     values ('01936f00-0000-7000-8000-0000000e2026', 'reversal', '01936f00-0000-7000-8000-000000000403', now(), false,
        (now() at time zone 'Asia/Riyadh')::date, '01936f00-0000-7000-8000-000000005703', 'testing', '01936f00-0000-7000-8000-000000000900', now()) $$,
   '23503', null,
   'a reversal dated "now" rather than at its target''s moment is refused by the key that binds them'

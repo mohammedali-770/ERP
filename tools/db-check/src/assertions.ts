@@ -727,7 +727,10 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           join erp.stock_decision d on d.decision_id = e.decision_id
           join erp.stock_count_log c on c.facility_id = e.facility_id and c.item_id = e.item_id
           join erp.stock_decision cd on cd.decision_id = c.decision_id
-          where cd.seq < d.seq and e.occurred_at <= c.occurred_at
+          where cd.seq < d.seq
+            and (e.occurred_at <= c.occurred_at
+                 or (cd.moment_stated and e.kind <> 'count'
+                     and e.occurred_at < date_trunc('minute', c.occurred_at) + interval '1 minute'))
           union all
           select 'decision ' || c.decision_id || ' is dated at or before the count ' || p.decision_id
                  || ' of the same item, recorded before it'
@@ -757,10 +760,15 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
                      and d.seq < kd.seq and e.occurred_at <= k.occurred_at), 0)
                 <> coalesce(v.variance, 0)
           union all
+          -- A stated count holds its whole minute; a count made now, its instant.
           select 'count ' || c.decision_id || ' shares its moment with ' || e.decision_id
           from erp.stock_count_log c
-          join erp.stock_ledger e on e.facility_id = c.facility_id and e.item_id = c.item_id
-                                  and e.occurred_at = c.occurred_at and e.kind <> 'count'`,
+          join erp.stock_decision cd on cd.decision_id = c.decision_id
+          join erp.stock_ledger e on e.facility_id = c.facility_id and e.item_id = c.item_id and e.kind <> 'count'
+                                  and (e.occurred_at = c.occurred_at
+                                       or (cd.moment_stated
+                                           and e.occurred_at >= date_trunc('minute', c.occurred_at)
+                                           and e.occurred_at < date_trunc('minute', c.occurred_at) + interval '1 minute'))`,
   },
 ];
 
