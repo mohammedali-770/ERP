@@ -14,7 +14,7 @@
 -- Fixture ids are …0e17NN and …0e18NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(67);
+select plan(72);
 
 -- ---------------------------------------------------------------------------
 -- Structure
@@ -130,6 +130,24 @@ select throws_ok(
   'a facility belongs to an operating unit that exists'
 );
 select throws_ok(
+  $$ select erp.create_facility('01936f00-0000-7000-8000-0000000e1727'::uuid, '00000000-0000-0000-0000-000000000000'::uuid,
+       '01936f00-0000-7000-8000-000000000301'::uuid, 'office', 'OF-ORG', 'Everywhere', 'كل مكان', null, null, 'testing',
+       '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23514', 'that id means the whole organisation, and is never a facility''s',
+  'CONTROL: the id that means "organisation-wide" to every role and capability decision is never a facility''s'
+);
+select throws_ok(
+  $$ insert into erp.facility_decision (decision_id, kind, facility_id, operating_unit_id, facility_type, code, name_en, name_ar,
+       tz_name, status, reason, actor_id, decided_at)
+     values ('01936f00-0000-7000-8000-0000000e1728', 'facility_recorded', '00000000-0000-0000-0000-000000000000',
+       '01936f00-0000-7000-8000-000000000301', 'office', 'OF-ORG2', 'x', 'س', 'Asia/Riyadh', 'open', 'testing', null, now());
+     insert into erp.facility (facility_id, operating_unit_id, facility_type, code, name_en, name_ar, as_of_decision_id)
+     values ('00000000-0000-0000-0000-000000000000', '01936f00-0000-7000-8000-000000000301', 'office', 'OF-ORG2', 'x', 'س',
+       '01936f00-0000-7000-8000-0000000e1728') $$,
+  '23514', null,
+  'nor can the owner give it to one behind the routes'' backs'
+);
+select throws_ok(
   $$ select erp.create_facility('01936f00-0000-7000-8000-000000005601'::uuid, '01936f00-0000-7000-8000-0000000e1717'::uuid,
        '01936f00-0000-7000-8000-000000000301'::uuid, 'branch', 'BR-T06', 'Test', 'تجريبي', null, null, 'testing',
        '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
@@ -186,6 +204,18 @@ select throws_ok(
   '23514', 'a latitude is from -90 to 90 and a longitude from -180 to 180',
   'a point is on the earth'
 );
+select throws_like(
+  $$ select erp.set_facility_area('01936f00-0000-7000-8000-0000000e1729'::uuid, '01936f00-0000-7000-8000-000000000402'::uuid,
+       '01936f00-0000-7000-8000-000000005602'::uuid, 1000, 1000, 150, 'testing', '01936f00-0000-7000-8000-000000000901'::uuid, now()) $$,
+  '%may not write on capability org.facilities%',
+  'CONTROL: a point past any range, from someone with no permission, meets the gate, never a numeric overflow'
+);
+select throws_ok(
+  $$ select erp.set_facility_area('01936f00-0000-7000-8000-0000000e1730'::uuid, '01936f00-0000-7000-8000-000000000402'::uuid,
+       '01936f00-0000-7000-8000-000000005602'::uuid, 'Infinity', 46.7, 150, 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
+  '23514', 'a latitude is from -90 to 90 and a longitude from -180 to 180',
+  'and from the administrator, the route''s own refusal'
+);
 select throws_ok(
   $$ select erp.change_facility_status('01936f00-0000-7000-8000-0000000e1725'::uuid, '01936f00-0000-7000-8000-000000000401'::uuid,
        '01936f00-0000-7000-8000-000000005601'::uuid, 'open', 'testing', '01936f00-0000-7000-8000-000000000900'::uuid, now()) $$,
@@ -217,6 +247,13 @@ select throws_ok(
   $$ update erp.facility set operating_unit_id = operating_unit_id, facility_type = 'warehouse' where code = 'BR-002' $$,
   '23001', 'facility BR-002: its code, type, brand and time zone are fixed once created',
   'nor its type'
+);
+select throws_ok(
+  $$ insert into erp.operating_unit (operating_unit_id, brand_id, code, name_en, name_ar) values
+       ('01936f00-0000-7000-8000-0000000e1731', '01936f00-0000-7000-8000-000000000202', 'OU-T3', 'Moved to (test)', 'منقول إليها');
+     update erp.facility set operating_unit_id = '01936f00-0000-7000-8000-0000000e1731' where code = 'BR-002' $$,
+  '23001', 'facility BR-002: its code, type, brand and time zone are fixed once created',
+  'CONTROL: nor moves it to another brand''s operating unit'
 );
 select throws_ok(
   $$ update erp.facility set tz_name = 'Asia/Dubai' where code = 'BR-002' $$,

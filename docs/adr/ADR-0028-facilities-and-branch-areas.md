@@ -51,8 +51,14 @@ was reference data with no write path, and it carried no place or area.
   - A different time zone would move every business date already recorded (Q-22).
 - **Names are bilingual and required (PRG-014).** An address is optional in each language.
 - **New work needs an open facility.** `erp.assert_facility_open()` is the seam later
-  modules call. It reads under the facility's share lock, which every route takes for
-  update, so a facility closed while work is in flight is seen.
+  modules call. It reads under the facility's share lock, which every route takes for no
+  key update, so a facility closed while work is in flight is seen. The routes do not take
+  a full update lock, so an edit to a facility does not hold up an order, a shift or a
+  device added there meanwhile (found in review).
+- **The all-zero id is never a facility's.** It is `erp.org_scope()`, "organisation-wide",
+  to every role and capability decision. A facility holding it would let a grant recorded
+  at one facility act organisation-wide (found in review). The route and a constraint
+  refuse it.
 
 ### 2. A branch worker is assigned to their branch, and the area is a second check (owner, 2026-10-05)
 

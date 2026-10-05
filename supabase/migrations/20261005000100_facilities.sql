@@ -160,7 +160,11 @@ alter table erp.facility
     (latitude is null) = (longitude is null) and (latitude is null) = (geofence_radius_m is null)),
   add constraint facility_area_is_on_earth check (
     latitude between -90 and 90 and longitude between -180 and 180),
-  add constraint facility_radius_is_metres check (geofence_radius_m between 25 and 2000);
+  add constraint facility_radius_is_metres check (geofence_radius_m between 25 and 2000),
+  -- The all-zero id is erp.org_scope(): "organisation-wide" to every role and capability
+  -- decision. A facility holding it would let a grant recorded at one facility act
+  -- organisation-wide, the log saying one thing and the projection another (found in review).
+  add constraint facility_is_not_the_organisation check (facility_id <> '00000000-0000-0000-0000-000000000000'::uuid);
 
 comment on table erp.facility is
   'Every branch, warehouse, factory and office (PRG-002). A projection of erp.facility_decision since 0019: code, type, brand and time zone fixed once created; closed, never deleted.';
@@ -285,7 +289,11 @@ as $$
 declare
   f erp.facility;
 begin
-  select * into f from erp.facility x where x.facility_id = p_facility_id for update;
+  -- NO KEY UPDATE, not UPDATE: it still waits for, and holds off, the seams' FOR SHARE, so a
+  -- closure and an order serialise; but it does not block the key-share lock every foreign
+  -- key insert takes, so an order, a shift or a device added at the facility meanwhile is
+  -- not held up by an edit to its name (found in review).
+  select * into f from erp.facility x where x.facility_id = p_facility_id for no key update;
   if not found then
     raise exception 'no facility %', p_facility_id using errcode = 'no_data_found', constraint = 'facility_exists';
   end if;
@@ -307,7 +315,7 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- New work at a facility — an order, a receipt, a count — needs it open. Taken under the
--- facility's share lock, which every route below takes for update, so a facility closed
+-- facility's share lock, which every route below takes for no key update, so a facility closed
 -- while the work is in flight is seen, and the closure waits for the work to finish.
 create or replace function erp.assert_facility_open(p_facility_id uuid)
 returns erp.facility
@@ -369,7 +377,8 @@ begin
   end if;
   v_distance := erp.distance_m(f.latitude, f.longitude, p_latitude, p_longitude);
   if v_distance > f.geofence_radius_m then
-    raise exception 'this device is % m from facility %, outside its % m area', round(v_distance::numeric), f.code, f.geofence_radius_m
+    -- Rounded up: 150.4 m rounded down read "150 m … outside its 150 m area" (found in review).
+    raise exception 'this device is % m from facility %, outside its % m area', ceil(v_distance::numeric), f.code, f.geofence_radius_m
       using errcode = 'restrict_violation', constraint = 'position_outside_facility';
   end if;
   return v_distance;
@@ -409,6 +418,10 @@ begin
   if not exists (select 1 from erp.operating_unit o where o.operating_unit_id = p_operating_unit_id) then
     raise exception 'no operating unit %', p_operating_unit_id
       using errcode = 'no_data_found', constraint = 'operating_unit_exists';
+  end if;
+  if p_facility_id is null or p_facility_id = erp.org_scope() then
+    raise exception 'that id means the whole organisation, and is never a facility''s'
+      using errcode = 'check_violation', constraint = 'facility_is_not_the_organisation';
   end if;
   if p_facility_type is null or p_facility_type not in ('branch', 'warehouse', 'factory', 'office') then
     raise exception 'a facility is a branch, a warehouse, a factory or an office'
@@ -520,10 +533,12 @@ set search_path = pg_catalog, pg_temp
 as $$
 declare
   f erp.facility;
-  v_lat numeric(9,6) := p_latitude;
-  v_lng numeric(9,6) := p_longitude;
+  v_lat numeric;
+  v_lng numeric;
   v_radius integer := case when p_latitude is null then null else coalesce(p_radius_m, 150) end;
 begin
+  -- Nothing is converted before the gate: a value past numeric(9,6)'s range raised
+  -- PostgreSQL's own overflow, to someone with no permission at all (found in review).
   perform erp.assert_permitted(p_actor_id, 'org.facilities', 'write', null);
   perform erp.assert_facility_decision_is_new(p_decision_id);
   f := erp.facility_for_change(p_facility_id, p_expected_decision_id, true);
@@ -535,6 +550,8 @@ begin
     raise exception 'a latitude is from -90 to 90 and a longitude from -180 to 180'
       using errcode = 'check_violation', constraint = 'facility_area_is_on_earth';
   end if;
+  v_lat := round(p_latitude, 6);
+  v_lng := round(p_longitude, 6);
   if v_radius is not null and v_radius not between 25 and 2000 then
     raise exception 'an area''s radius is from 25 to 2000 metres'
       using errcode = 'check_violation', constraint = 'facility_radius_is_metres';
