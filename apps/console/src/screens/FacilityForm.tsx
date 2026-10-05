@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { Facility, Failure } from '../api.ts';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type { CreateFacilityInput, Facility, Failure } from '../api.ts';
 import type { Ctx } from '../context.ts';
-import { amendFacilityBody, FACILITY_TYPES, operatingUnits, type OperatingUnitChoice } from '../facilities.ts';
+import { amendFacilityBody, FACILITY_TYPES, operatingUnits, readAllFacilities, type OperatingUnitChoice } from '../facilities.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { isUnanswered, optional, writeOutcome } from '../items.ts';
@@ -9,19 +9,9 @@ import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './u
 
 const CREATE_IDS = ['decision_id', 'facility_id'] as const;
 
-/** Every facility, page by page, to learn which operating units exist (facilities.ts, operatingUnits). */
-async function allFacilities(ctx: Ctx): Promise<{ ok: true; value: Facility[] } | Failure> {
-  const out: Facility[] = [];
-  let after: string | null = null;
-  for (let page = 0; page < 50; page++) {
-    const answer = await ctx.api.listFacilities({ facilityId: null, status: 'all', after, limit: 500 });
-    if (!answer.ok) return answer;
-    out.push(...answer.value.facilities);
-    after = answer.value.next_after;
-    if (after === null) break;
-  }
-  return { ok: true, value: out };
-}
+/** Every facility, organisation-wide, closed ones included: the units they belong to are the choices. */
+const allFacilities = (ctx: Ctx) =>
+  readAllFacilities((after) => ctx.api.listFacilities({ facilityId: null, status: 'all', after, limit: 500 }));
 
 /**
  * A new facility. Its code, type, operating unit (and so its brand) and time zone are
@@ -40,13 +30,18 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const [loadFailure, setLoadFailure] = useState<Failure | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  // The request as first sent: Retry resends exactly this, never the fields as they are now.
+  const sent = useRef<CreateFacilityInput | null>(null);
 
   useEffect(() => {
     let live = true;
+    setLoadFailure(null);
     void allFacilities(ctx).then((answer) => {
       if (!live) return;
       if (!answer.ok) {
-        if (!ctx.onFailure(answer)) setFailure(answer);
+        if (!ctx.onFailure(answer)) setLoadFailure(answer);
         return;
       }
       const choices = operatingUnits(answer.value, data.brands);
@@ -57,22 +52,13 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
     return () => {
       live = false;
     };
-  }, [ctx.api]);
+  }, [ctx.api, attempt]);
 
-  async function send() {
+  async function send(body: CreateFacilityInput) {
+    sent.current = body;
     setBusy(true);
     setFailure(null);
-    const answer = await ctx.api.createFacility({
-      ...ids,
-      operating_unit_id: unit,
-      facility_type: type,
-      code: code.trim(),
-      name_en: f.nameEn,
-      name_ar: f.nameAr,
-      address_en: optional(f.addressEn),
-      address_ar: optional(f.addressAr),
-      reason: reason.trim(),
-    });
+    const answer = await ctx.api.createFacility(body);
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved' || outcome === 'already') {
@@ -86,7 +72,17 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    void send();
+    void send({
+      ...ids,
+      operating_unit_id: unit,
+      facility_type: type,
+      code: code.trim(),
+      name_en: f.nameEn,
+      name_ar: f.nameAr,
+      address_en: optional(f.addressEn),
+      address_ar: optional(f.addressAr),
+      reason: reason.trim(),
+    });
   }
 
   /** Is the facility there? Then the lost attempt made it. If not, nothing was recorded. */
@@ -98,6 +94,7 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
       ctx.navigate({ screen: 'facility', targetId: ids.facility_id }, t(lang, 'facility_already_recorded'));
     } else if (found.status === 'not_found') {
       setIds(formIds(CREATE_IDS));
+      sent.current = null;
       setInDoubt(false);
       setFailure(null);
     } else if (!ctx.onFailure(found)) {
@@ -116,12 +113,20 @@ export function FacilityCreate({ ctx }: { ctx: Ctx }) {
       <h1>{t(lang, 'create_facility')}</h1>
       <p className="muted">{t(lang, 'facility_fixed_fields')}</p>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {inDoubt ? <InDoubt lang={lang} busy={busy} onRetry={() => void send()} onStartOver={() => void startOver()} /> : null}
-      {units === null && failure === null ? <Loading lang={lang} /> : null}
+      {inDoubt && sent.current !== null
+        ? <InDoubt lang={lang} busy={busy} onRetry={() => void send(sent.current!)} onStartOver={() => void startOver()} /> : null}
+      {loadFailure ? (
+        <>
+          <FailureNotice lang={lang} failure={loadFailure} />
+          <button type="button" onClick={() => setAttempt((n) => n + 1)}>{t(lang, 'retry')}</button>
+        </>
+      ) : null}
+      {units === null && loadFailure === null ? <Loading lang={lang} /> : null}
       {units !== null && units.length === 0 ? <Notice tone="info" text={t(lang, 'no_operating_units')} /> : null}
       {units !== null && units.length > 0 ? (
         <form className="form" onSubmit={submit}>
-          <fieldset className="plain" disabled={inDoubt}>
+          {/* Locked while a request is out, not only once it is in doubt: what Retry resends is what was on screen. */}
+          <fieldset className="plain" disabled={inDoubt || busy}>
           <div className="grid">
             <Field label={t(lang, 'facility_code')} hint={t(lang, 'facility_code_hint')}>
               <input required maxLength={32} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} placeholder="BR-003" />
@@ -161,19 +166,23 @@ export function FacilityEdit({ ctx, targetId }: { ctx: Ctx; targetId: string }) 
   const [facility, setFacility] = useState<Facility | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
 
+  // Only the newest load may draw: Reload pressed twice must not end on the older answer.
+  const seq = useRef(0);
   const load = useCallback(() => {
-    let live = true;
+    const mine = ++seq.current;
     void api.getFacility(facilityId, targetId).then((answer) => {
-      if (!live) return;
+      if (mine !== seq.current) return;
       if (answer.ok) setFacility(answer.value);
       else if (!onFailure(answer)) setFailure(answer);
     });
-    return () => {
-      live = false;
-    };
   }, [api, onFailure, facilityId, targetId]);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    load();
+    return () => {
+      seq.current++;
+    };
+  }, [load]);
 
   if (!ctx.facilitiesWritable) return <Notice tone="info" text={t(lang, 'read_only_facilities')} />;
   if (facility === null) return failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />;
@@ -252,7 +261,7 @@ function AmendForm({ ctx, facility, onReload }: { ctx: Ctx; facility: Facility; 
       {inDoubt && sent !== null
         ? <InDoubt lang={lang} busy={busy} onRetry={() => void send(sent)} onStartOver={() => void startOver()} /> : null}
       <form className="form" onSubmit={submit}>
-        <fieldset className="plain" disabled={inDoubt}>
+        <fieldset className="plain" disabled={inDoubt || busy}>
         <Names lang={lang} f={f} onChange={setF} />
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <div className="actions">

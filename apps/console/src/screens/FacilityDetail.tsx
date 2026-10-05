@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react';
 import type { Facility, FacilityDecision, Failure } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import {
@@ -115,7 +115,8 @@ export function FacilityDetail({ ctx, targetId }: { ctx: Ctx; targetId: string }
             <a href={mapLink(facility.latitude!, facility.longitude!)} target="_blank" rel="noopener noreferrer">{t(lang, 'view_on_map')}</a>
           </dd>
         </dl>
-      ) : warning === 'no_area' ? <Notice tone="error" text={t(lang, 'area_missing_explained')} />
+      ) : warning === 'no_area'
+        ? <Notice tone="error" text={writable ? `${t(lang, 'area_missing_explained')} ${t(lang, 'area_set_below')}` : t(lang, 'area_missing_explained')} />
         : <p className="muted">{t(lang, 'area_none')}</p>}
       {writable && open ? <AreaForm ctx={ctx} facility={facility} onDone={afterWrite} /> : null}
 
@@ -235,12 +236,15 @@ function AreaForm({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility; onD
     setOpen(mode);
   }
 
-  function onLatitude(value: string) {
-    const point = splitPoint(value);
-    if (point === null) {
-      setLatitude(value);
-      return;
-    }
+  /**
+   * A point pasted whole fills both fields. Only a paste: split as it is typed, "24.7136,
+   * 46.6" already reads as a point, and the rest of the longitude then landed in Latitude,
+   * saving an area kilometres away (found in review).
+   */
+  function onLatitudePaste(e: ClipboardEvent<HTMLInputElement>) {
+    const point = splitPoint(e.clipboardData.getData('text'));
+    if (point === null) return;
+    e.preventDefault();
     setLatitude(point.latitude);
     setLongitude(point.longitude);
   }
@@ -284,7 +288,7 @@ function AreaForm({ ctx, facility, onDone }: { ctx: Ctx; facility: Facility; onD
           <div className="grid">
             <Field label={t(lang, 'latitude')}>
               <input required inputMode="decimal" dir="ltr" maxLength={64} value={latitude}
-                onChange={(e) => onLatitude(e.target.value)} placeholder="24.713600" />
+                onChange={(e) => setLatitude(e.target.value)} onPaste={onLatitudePaste} placeholder="24.713600" />
             </Field>
             <Field label={t(lang, 'longitude')}>
               <input required inputMode="decimal" dir="ltr" maxLength={24} value={longitude}

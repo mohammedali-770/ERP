@@ -12,7 +12,7 @@
  *
  * Requirements: IAM-006 · IAM-P11 · PRG-002 · PRG-014
  */
-import type { AmendFacilityInput, AreaInput, Facility, ViewerBrand } from './api.ts';
+import type { AmendFacilityInput, Answer, AreaInput, Facility, FacilityList, Failure, ViewerBrand } from './api.ts';
 import { latinDigits } from './format.ts';
 import { optional } from './items.ts';
 
@@ -184,4 +184,27 @@ export function operatingUnits(facilities: readonly Facility[], brands: readonly
   return [...byUnit.entries()]
     .map(([operating_unit_id, u]) => ({ operating_unit_id, brand_id: u.brand_id, codes: [...u.codes].sort() }))
     .sort((a, b) => brandOrder(a.brand_id) - brandOrder(b.brand_id) || a.codes[0]!.localeCompare(b.codes[0]!));
+}
+
+/** The most pages read before the list is called unreadable: 25,000 facilities at 500 a page. */
+export const MAX_FACILITY_PAGES = 50;
+
+/**
+ * Every page of a facility list, following `next_after`. A failure on any page is the
+ * answer. So is a list longer than MAX_FACILITY_PAGES, never a partial one: an operating
+ * unit on a page not read would silently go unoffered (found in review).
+ */
+export async function readAllFacilities(
+  page: (after: string | null) => Promise<Answer<FacilityList>>,
+): Promise<{ ok: true; value: Facility[] } | Failure> {
+  const out: Facility[] = [];
+  let after: string | null = null;
+  for (let n = 0; n < MAX_FACILITY_PAGES; n++) {
+    const answer = await page(after);
+    if (!answer.ok) return answer;
+    out.push(...answer.value.facilities);
+    after = answer.value.next_after;
+    if (after === null) return { ok: true, value: out };
+  }
+  return { ok: false, http: 500, status: 'error', message: null, constraint: null, detail: null, field: null };
 }

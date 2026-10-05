@@ -206,7 +206,10 @@ are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed
 
 Three screens in the console, built as the supplier screens are (ADR-0026's step 3
 addendum): the same in-doubt lock, ids minted once per form, and Retry resending the
-exact request first sent.
+exact request first sent. The create and edit forms keep the request they sent and lock
+their fields while it is out. The supplier and item create forms rebuild the request on
+Retry from fields that stay editable while it is out, so an edit made then could be sent
+under the first attempt's ids (found in review). That is a follow-up for those screens.
 
 - **Branches and facilities** (`#facilities`), under Setup. Every facility read at the
   facility being worked at, so that facility's brand's only; organisation-wide, every
@@ -231,13 +234,18 @@ exact request first sent.
   - A point pasted whole into Latitude ("24.7136, 46.6753", as a map's "copy coordinates"
     gives it) fills both fields. Each half must have a decimal point, so "46,67", a
     decimal comma, is never split into a point across the world.
+  - Only a paste is split, never what is typed. Typed key by key, "24.7136, 46.6" already
+    read as a point, and the rest of the longitude landed in Latitude. That saved an area
+    about 7.6 km east of the branch (found in review).
   - A blank radius is sent as null, for 0019's default.
 - **The operating unit is chosen by the facilities in it.** No route lists or creates
   operating units: they are 0003's reference data. So the create form reads every
   facility organisation-wide, closed ones included, and offers each operating unit they
   belong to, named by its brand and its facilities' codes ("Spicy Meal", then the
-  codes of its branches). When there is one unit, it is chosen. An operating unit with no facility
-  cannot be offered. A route that lists operating units belongs with whichever module
+  codes of its branches). When there is one unit, it is chosen. If the list cannot be
+  read, the form says so and offers Retry. A list longer than 50 pages is treated as a
+  failure, never as a partial list. An operating unit with no facility cannot be
+  offered. A route that lists operating units belongs with whichever module
   makes them a master.
 - **Who sees what.** The entry and the screens appear to whoever may read
   `org.facilities`, as all three reads ask. Changes are offered only organisation-wide
@@ -261,7 +269,9 @@ exact request first sent.
   - At a branch, the administrator is offered no change.
   - The warehouse manager reads and is offered nothing to change.
   - A cashier sees no entry, and a typed URL is answered "not permitted".
-  - 16 controls each fail a named test.
+  - A pair typed key by key stays in Latitude, unsplit.
+
+  22 controls each fail a named test.
 
 ## Open, for the owner and for UAT
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createApi, type Facility, type Fetch } from '../src/api.ts';
 import {
   amendFacilityBody, areaBody, areaProblem, areaWarning, COORDINATE, coordinateInput, FACILITY_TYPES, formatCoordinate,
-  mapLink, operatingUnits, RADIUS_DEFAULT, RADIUS_MAX, RADIUS_MIN, radiusInput, removeAreaBody, splitPoint,
+  mapLink, MAX_FACILITY_PAGES, operatingUnits, RADIUS_DEFAULT, readAllFacilities, RADIUS_MAX, RADIUS_MIN, radiusInput, removeAreaBody, splitPoint,
 } from '../src/facilities.ts';
 import { asKey } from '../src/i18n.ts';
 import { failureMessage } from '../src/messages.ts';
@@ -161,6 +161,34 @@ test('the operating units offered are those the facilities read belong to, with 
   assert.match(form, /listFacilities\(\{ facilityId: null, status: 'all'/, 'closed facilities\' units count too, read organisation-wide');
 });
 
+test('every page of facilities is read for the choice of unit; a failure or an endless list is never a partial answer', async () => {
+  const pages: Record<string, { facilities: Facility[]; next_after: string | null }> = {
+    '': { facilities: [F({ code: 'A' })], next_after: 'A' },
+    A: { facilities: [F({ code: 'B', operating_unit_id: 'u2' })], next_after: null },
+  };
+  const asked: (string | null)[] = [];
+  const all = await readAllFacilities(async (after) => {
+    asked.push(after);
+    return { ok: true, value: pages[after ?? '']! };
+  });
+  assert.deepEqual(asked, [null, 'A']);
+  assert.ok(all.ok && all.value.map((f) => f.code).join() === 'A,B', 'both pages, so the second page\'s unit is offered');
+
+  const broken = { ok: false as const, http: 0, status: 'network', message: null, constraint: null, detail: null, field: null };
+  let n = 0;
+  const failed = await readAllFacilities(async () => (n++ === 0 ? { ok: true, value: pages['']! } : broken));
+  assert.deepEqual(failed, broken, 'a page that fails fails the whole read');
+
+  let calls = 0;
+  const endless = await readAllFacilities(async () => {
+    calls++;
+    return { ok: true, value: { facilities: [F()], next_after: 'again' } };
+  });
+  assert.equal(endless.ok, false, 'past the cap is a failure, not the pages read so far');
+  assert.equal(calls, MAX_FACILITY_PAGES);
+  assert.match(screen('FacilityForm.tsx'), /setAttempt\(\(n\) => n \+ 1\)/, 'a failed load offers Retry');
+});
+
 // --- the rules read from 0019 -----------------------------------------------------
 
 test('the facility types, decision kinds and status words are 0019\'s, and each has a label', () => {
@@ -181,7 +209,9 @@ test('every constraint the console words for facilities is one 0019 raises or de
   const source = readFileSync(new URL('../src/messages.ts', import.meta.url), 'utf8');
   const mapped = [...source.matchAll(/^\s+((?:facility|operating_unit)_\w+): '/gm)].map((m) => m[1]!);
   assert.ok(mapped.length >= 14);
-  for (const c of mapped) assert.match(MIGRATION, new RegExp(`\\b${c}\\b`), c);
+  // Raised or declared in 0019's code, not only named in one of its comments.
+  const code = MIGRATION.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n');
+  for (const c of mapped) assert.match(code, new RegExp(`\\b${c}\\b`), c);
   for (const c of ['facility_stale', 'facility_is_closed', 'facility_status_unchanged', 'facility_code_key',
     'facility_area_is_on_earth', 'facility_radius_is_metres', 'facility_area_is_whole', 'operating_unit_exists']) {
     assert.ok(mapped.includes(c), c);
@@ -249,10 +279,13 @@ test('CONTROL: Retry on the facility pages resends the request first sent; ids a
   assert.match(page, /pending\.current = send;/);
   for (const form of ['AreaForm', 'StatusChange']) {
     const body = page.slice(page.indexOf(`function ${form}`));
-    assert.match(body.slice(0, 800), /useState\(\(\) => formIds\(\['decision_id'\] as const\)\)/, `${form} mints its ids when it opens`);
+    assert.match(body.slice(0, 800), /useState\(\(\) => formIds\(\['decision_id'\] as const\)\)/, `${form} mints its ids once, kept until a success`);
   }
   const edit = screen('FacilityForm.tsx');
   assert.match(edit, /onRetry=\{\(\) => void send\(sent\)\}/, 'the amendment retries the body it sent');
+  assert.match(edit, /onRetry=\{\(\) => void send\(sent\.current!\)\}/, 'the create form retries the body it sent');
+  assert.doesNotMatch(edit, /onRetry=\{\(\) => void send\(\)\}/, 'no Retry rebuilds a body from the fields as they are now');
+  assert.equal([...edit.matchAll(/disabled=\{inDoubt \|\| busy\}/g)].length, 2, 'both forms lock their fields while a request is out');
   assert.match(edit, /useState\(\(\) => formIds\(CREATE_IDS\)\)/);
   // Never minted at send time: no submit or send body mints an id, wherever in it.
   const senders = [...(page + edit).matchAll(/(?:function submit|async function send)\([^)]*\)[^{]*\{([\s\S]*?)\n  \}\n/g)];
@@ -265,7 +298,15 @@ test('CONTROL: a form opened on the page starts from the facility as shown, and 
   assert.match(page, /function openAs\(mode: 'set' \| 'remove'\) \{\n\s+setLatitude\(formatCoordinate\(facility\.latitude\)\)/,
     'an area form opens with the area as it is now, not what an earlier opening left');
   assert.match(page, /const target = opened \?\? /, 'a reload while the form is open cannot turn a close into a reopen');
-  assert.match(page, /onChange=\{\(e\) => onLatitude\(e\.target\.value\)\}/, 'a pasted point fills both fields');
+  // A point is split only on a paste. Split as typed, "24.7136, 46.6" already read as a
+  // point and the rest of the longitude landed in Latitude, 7.6 km away (found in review).
+  assert.match(page, /onChange=\{\(e\) => setLatitude\(e\.target\.value\)\} onPaste=\{onLatitudePaste\}/, 'a pasted point fills both fields');
+  const onChange = [...page.matchAll(/onChange=\{([^}]*\})?[^}]*\}/g)].map((m) => m[0]);
+  assert.ok(onChange.length >= 4, 'the handlers were found');
+  for (const handler of onChange) assert.doesNotMatch(handler, /splitPoint|onLatitude\(/, `never split as typed: ${handler}`);
+  const paste = page.slice(page.indexOf('function onLatitudePaste'), page.indexOf('function submit', page.indexOf('function onLatitudePaste')));
+  assert.match(paste, /splitPoint\(e\.clipboardData\.getData\('text'\)\)/, 'the pasted text, not the field, is split');
+  assert.match(paste, /e\.preventDefault\(\);/, 'and the paste itself does not also land in Latitude');
 });
 
 test('a closed facility offers no change but reopening, and a branch without an area says so', () => {
@@ -275,4 +316,6 @@ test('a closed facility offers no change but reopening, and a branch without an 
   assert.match(page, /\{writable \? <StatusChange/, 'reopening is offered when closed');
   const edit = screen('FacilityForm.tsx');
   assert.match(edit, /if \(facility\.status === 'closed'\)/, 'a typed edit URL for a closed facility shows why, not a form 0019 refuses');
+  assert.match(page, /text=\{writable \? `\$\{t\(lang, 'area_missing_explained'\)\} \$\{t\(lang, 'area_set_below'\)\}` : t\(lang, 'area_missing_explained'\)\}/,
+    'only someone shown the area form is told to set one below (found in review)');
 });
