@@ -25,11 +25,36 @@ insert into erp.operating_unit (operating_unit_id, brand_id, code, name_en, name
    'OU-CENTRAL', 'Central Region (synthetic)', 'المنطقة الوسطى (بيانات تجريبية)');
 
 -- Two branches, because a single-branch seed hides every cross-branch bug.
-insert into erp.facility (facility_id, operating_unit_id, facility_type, code, name_en, name_ar) values
+--
+-- Each is recorded in 0019's log first, by nobody (facility_recorded: the seed states a
+-- position, as 0003's reference data did), and stamped with that record. BR-001 has an
+-- area — a synthetic point in Riyadh and the warehouse's default 150 m — so its workers
+-- could order; BR-002 has none, the case whose workers are told to ask for one.
+insert into erp.facility_decision (
+  decision_id, kind, facility_id, operating_unit_id, facility_type, code, name_en, name_ar,
+  address_en, address_ar, tz_name, latitude, longitude, geofence_radius_m, status,
+  reason, actor_id, decided_at, recorded_at
+) values
+  ('01936f00-0000-7000-8000-000000005601', 'facility_recorded', '01936f00-0000-7000-8000-000000000401',
+   '01936f00-0000-7000-8000-000000000301', 'branch', 'BR-001', 'Test Branch One', 'الفرع التجريبي الأول',
+   'King Fahd Road, Riyadh (synthetic)', 'طريق الملك فهد، الرياض (تجريبي)', 'Asia/Riyadh', 24.713600, 46.675300, 150, 'open',
+   'Synthetic organisation.', null, timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  ('01936f00-0000-7000-8000-000000005602', 'facility_recorded', '01936f00-0000-7000-8000-000000000402',
+   '01936f00-0000-7000-8000-000000000301', 'branch', 'BR-002', 'Test Branch Two', 'الفرع التجريبي الثاني',
+   null, null, 'Asia/Riyadh', null, null, null, 'open',
+   'Synthetic organisation.', null, timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00');
+
+insert into erp.facility (
+  facility_id, operating_unit_id, facility_type, code, name_en, name_ar, address_en, address_ar,
+  latitude, longitude, geofence_radius_m, as_of_decision_id
+) values
   ('01936f00-0000-7000-8000-000000000401', '01936f00-0000-7000-8000-000000000301',
-   'branch', 'BR-001', 'Test Branch One', 'الفرع التجريبي الأول'),
+   'branch', 'BR-001', 'Test Branch One', 'الفرع التجريبي الأول',
+   'King Fahd Road, Riyadh (synthetic)', 'طريق الملك فهد، الرياض (تجريبي)', 24.713600, 46.675300, 150,
+   '01936f00-0000-7000-8000-000000005601'),
   ('01936f00-0000-7000-8000-000000000402', '01936f00-0000-7000-8000-000000000301',
-   'branch', 'BR-002', 'Test Branch Two', 'الفرع التجريبي الثاني');
+   'branch', 'BR-002', 'Test Branch Two', 'الفرع التجريبي الثاني', null, null, null, null, null,
+   '01936f00-0000-7000-8000-000000005602');
 
 insert into erp.department (department_id, facility_id, code, name_en, name_ar) values
   ('01936f00-0000-7000-8000-000000000501', '01936f00-0000-7000-8000-000000000401',
