@@ -31,6 +31,7 @@ import {
 import type { ImportSummary, Item } from '../_shared/items-db.ts';
 import type { Supplier, SupplierDetail, SupplierImportSummary } from '../_shared/suppliers-db.ts';
 import { withMinor, type ItemPrice, type PriceListRow } from '../_shared/transfer-prices-db.ts';
+import type { Facility } from '../_shared/facilities-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -185,6 +186,40 @@ export function makeDb(sql: Sql): Db {
     withdrawTransferPrice: (actor, i) => run(async () => {
       await sql`select erp.withdraw_transfer_price(
         ${i.decisionId}::uuid, ${i.priceId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+
+    // A coordinate comes back from postgres.js as a string (numeric), and stays one: it
+    // leaves as decimal text, as it arrived, and goes in through a numeric cast.
+    listFacilities: (actor, q) => run(async () => (await sql`
+      select * from erp.list_facilities(${actor}::uuid, ${q.facilityId}::uuid, ${q.status}::text, ${q.search}::text,
+                                        ${q.afterCode}::text, ${q.limit}::integer)`
+    ) as unknown as Facility[]),
+    getFacility: (actor, facilityId, targetId) => run(async () => {
+      const [row] = await sql`select * from erp.get_facility(${actor}::uuid, ${facilityId}::uuid, ${targetId}::uuid)`;
+      return row as unknown as Facility;
+    }),
+    facilityHistory: (actor, facilityId, targetId) => run(async () =>
+      [...await sql`select * from erp.facility_history(${actor}::uuid, ${facilityId}::uuid, ${targetId}::uuid)`]),
+    createFacility: (actor, i) => run(async () => {
+      await sql`select erp.create_facility(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.operatingUnitId}::uuid, ${i.facilityType}::text,
+        ${i.code}::text, ${i.nameEn}::text, ${i.nameAr}::text, ${i.addressEn}::text, ${i.addressAr}::text,
+        ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    amendFacility: (actor, i) => run(async () => {
+      await sql`select erp.amend_facility(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid, ${i.nameEn}::text, ${i.nameAr}::text,
+        ${i.addressEn}::text, ${i.addressAr}::text, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    setFacilityArea: (actor, i) => run(async () => {
+      await sql`select erp.set_facility_area(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.latitude}::numeric, ${i.longitude}::numeric, ${i.radiusM}::integer, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    changeFacilityStatus: (actor, i) => run(async () => {
+      await sql`select erp.change_facility_status(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.status}::text, ${i.reason}::text, ${actor}::uuid, now())`;
     }),
   };
 }

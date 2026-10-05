@@ -65,7 +65,8 @@ export function asRefusal(error: unknown): Refusal | null {
  * The answer a refusal gets:
  *
  *   409 already_recorded  23505 on a decision log's primary key — item_decision_pkey,
- *                         supplier_decision_pkey, transfer_price_decision_pkey — RAISED by that log's
+ *                         supplier_decision_pkey, transfer_price_decision_pkey,
+ *                         facility_decision_pkey — RAISED by that log's
  *                         assert_*_decision_is_new(), or re-raised whole by its import:
  *                         a retry of a write that already succeeded. The console reads the
  *                         record's history to confirm. The same constraint raised natively
@@ -73,7 +74,7 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         review).
  *   409 conflict          any other 23505: a code or a name already taken.
  *   409 stale             the form was loaded before someone else changed the record
- *                         (item_stale, supplier_stale, supplier_item_stale).
+ *                         (item_stale, supplier_stale, supplier_item_stale, facility_stale).
  *   403 forbidden         23001 with no constraint: erp.assert_permitted() refused — the
  *                         capability is hidden or closed, or the person may not act here.
  *                         Every other 23001 a route reachable here raises names a
@@ -98,11 +99,11 @@ const GENERIC: Readonly<Record<string, string>> = {
 
 /** The logs whose route-raised 23505 is a retry. A module adds its log here. */
 const DECISION_LOGS: ReadonlySet<string> = new Set([
-  'item_decision_pkey', 'supplier_decision_pkey', 'transfer_price_decision_pkey',
+  'item_decision_pkey', 'supplier_decision_pkey', 'transfer_price_decision_pkey', 'facility_decision_pkey',
 ]);
 
 /** The stamps an edit form sends back, whose 23001 means someone changed the record since. */
-const STALE: ReadonlySet<string> = new Set(['item_stale', 'supplier_stale', 'supplier_item_stale']);
+const STALE: ReadonlySet<string> = new Set(['item_stale', 'supplier_stale', 'supplier_item_stale', 'facility_stale']);
 
 export function refusalReply(r: Refusal): Reply {
   const body = (status: string) => ({

@@ -10,6 +10,7 @@ import type { SuppliersDb } from '../suppliers-db.ts';
 import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { notUsed } from './not-used.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
+import type { FacilitiesDb } from '../facilities-db.ts';
 
 const TOKEN = 'ab'.repeat(32);
 const ADMIN = '01936f00-0000-7000-8000-000000000900';
@@ -40,6 +41,12 @@ const transferPricesNotUsed = notUsed<TransferPricesDb>('transfer prices', {
   withdrawTransferPrice: true,
 });
 
+/** The facilities routes, which these tests never reach either. */
+const facilitiesNotUsed = notUsed<FacilitiesDb>('facilities', {
+  listFacilities: true, getFacility: true, facilityHistory: true, createFacility: true, amendFacility: true,
+  setFacilityArea: true, changeFacilityStatus: true,
+});
+
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
   signIn?: SignInAnswer;
@@ -51,6 +58,7 @@ function fakeDb(answers: {
     ...itemsNotUsed,
     ...suppliersNotUsed,
     ...transferPricesNotUsed,
+    ...facilitiesNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);

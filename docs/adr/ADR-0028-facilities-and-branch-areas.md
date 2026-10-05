@@ -124,9 +124,79 @@ This is new behaviour that no PRD requirement covers, so it is proposed as **IAM
   branch, then `erp.assert_at_facility()`. `db:check` proves the check waits for a closure
   in flight and then refuses it, with two real sessions.
 - **Every later module reaches the open check** through `erp.assert_facility_open()`.
-- **The data layer and screens are module 4's next steps.** The edge's refusal mapping
-  must then answer `already_recorded` for `facility_decision_pkey`, and `stale` for
-  `facility_stale`.
+- **The screens are module 4's next step.** The data layer is built (step 2 addendum,
+  below): the edge's refusal mapping answers `already_recorded` for
+  `facility_decision_pkey`, and `stale` for `facility_stale`.
+
+## Addendum — 2026-10-05: the data layer (module 4, step 2)
+
+The seven runtime routes are reachable over HTTP through one edge function, `facilities`
+(`supabase/functions/_shared/facilities.ts`), built as `suppliers` and `transfer-prices`
+are (ADR-0026's and ADR-0027's step 2 addenda). Nothing about the routes changed.
+
+- **The routes:**
+  - `GET /` lists facilities, paged by code. Open ones are listed unless `status` asks
+    for `closed` or `all`.
+  - `GET /{facility_id}` reads one facility, and `/{facility_id}/history` reads every
+    decision about it.
+  - `POST /` creates a facility.
+  - `POST /{facility_id}/amend`, `/area` and `/status` change one.
+
+  The seams `erp.assert_facility_open()` and `erp.assert_at_facility()` are not among
+  them. They are owner-only, for later modules' own routes.
+- **The actor is the session's,** through `withSession` (ADR-0025). A Node control test
+  holds this for all four writes and all three reads. The facility a write changes is
+  the one the path names, whatever the body says. The facility a read is asked at is the
+  query's `facility_id`, never the facility read.
+- **The edge checks shape, the database checks rules.** Three shape rules are this
+  module's own:
+  - **A coordinate is decimal text,** as a factor is: `"24.713600"`, never the number
+    24.7136. It may have up to three integer digits and six places. It goes to the route
+    through a `numeric` cast, and comes back as postgres.js answers a numeric, as text,
+    so no float touches it either way. That a point is on the earth is 0019's rule; so
+    is anything past `numeric(9,6)`, which the route refuses in its own words before
+    converting.
+  - **An area is stated whole.** `latitude`, `longitude` and `radius_m` must each be
+    present, as a value or null. The route puts the whole area in force, so an absent
+    field read as null would remove an area by omission. All three null removes it on
+    purpose. A point with a null radius is 0019's to default to 150 m.
+  - **An amendment states both addresses,** for the same reason: an omitted address
+    would clear one.
+- **Refusals** map through `_shared/refusal.ts`, which now lists
+  `facility_decision_pkey` among its decision logs and `facility_stale` among its
+  stamps:
+  - a retry is `already_recorded`;
+  - a form loaded before someone else's change is `stale` (both 409);
+  - a code in use is a conflict (409);
+  - a closed facility, or a status it already has, is `refused` (422);
+  - a code, a type, a name, a point or a radius that breaks a rule is `invalid` (422);
+  - a facility or an operating unit that does not exist is 404.
+- **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/facilities.test.ts`:
+  - A signed-in cashier reads no facility and changes none (§4).
+  - Then, in one transaction that is rolled back:
+    - The seeded first branch reads back with its area as six-place text.
+    - The administrator creates a branch; a retry is answered as a retry, and a code in
+      use as a conflict.
+    - An amendment from a stale form is refused.
+    - An area is set without a radius and reads back at 150 m. The area rules, a value
+      past `numeric(9,6)` included, come back in the route's own words.
+    - The area is removed on purpose.
+    - The branch is closed, refuses an amendment, drops out of the default list, and is
+      reopened.
+    - The warehouse manager reads and is refused all four writes.
+    - The history holds every decision with its actor and reason, and the rollback is
+      checked.
+
+  Another brand's facility is not tested there: the seed's second brand owns none, and
+  `erp_edge` cannot make one. pgTAP 140 covers brand-private reads.
+- **Controls:** 16 deliberate breakages of the edge layer, each failing a named Node or
+  Deno test. Among them:
+  - an actor or a facility taken from the request;
+  - a coordinate accepted as a number, with seven places, or passed through a float;
+  - an absent coordinate, radius or address read as null;
+  - the retry and stale mappings removed;
+  - closed facilities listed by default;
+  - latitude and longitude swapped, or an address dropped, by the driver.
 
 ## Open, for the owner and for UAT
 

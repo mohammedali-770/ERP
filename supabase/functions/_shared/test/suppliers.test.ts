@@ -8,6 +8,7 @@ import { suppliers } from '../suppliers.ts';
 import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
+import type { FacilitiesDb } from '../facilities-db.ts';
 
 const TOKEN = 'cd'.repeat(32);
 const ADMIN = '01936f00-0000-7000-8000-000000000900';
@@ -40,6 +41,11 @@ const transferPricesNotUsed = notUsed<TransferPricesDb>('transfer prices', {
   withdrawTransferPrice: true,
 });
 
+const facilitiesNotUsed = notUsed<FacilitiesDb>('facilities', {
+  listFacilities: true, getFacility: true, facilityHistory: true, createFacility: true, amendFacility: true,
+  setFacilityArea: true, changeFacilityStatus: true,
+});
+
 /** A suppliers database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db & { calls: Call[] } {
   const calls: Call[] = [];
@@ -64,6 +70,7 @@ function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db 
     viewer: async () => { throw new Error('not used'); },
     ...itemsNotUsed,
     ...transferPricesNotUsed,
+    ...facilitiesNotUsed,
     listSuppliers: record('listSuppliers'),
     getSupplier: record('getSupplier'),
     supplierHistory: record('supplierHistory'),
