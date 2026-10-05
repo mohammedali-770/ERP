@@ -438,6 +438,28 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'facility-guard-triggers-exist',
+    title: 'erp.facility carries its enabled guard triggers, TRUNCATE included',
+    because:
+      'PRG-002, B-11, Q-22: a facility\'s code, type, brand and time zone are fixed and no facility ' +
+      'is ever deleted, only because 0019\'s triggers say so — and they bind the owner too. Every ' +
+      'role, order, shift and device points at a facility, so a branch moved to another brand or ' +
+      'given another time zone would rewrite what they mean after the fact. A consistent seed ' +
+      'passes with the triggers gone, so their presence is checked directly.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.facility'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.facility_is_fixed()'::regprocedure),
+                  ('erp.facility'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.facilities_are_never_truncated()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -764,6 +786,41 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
                 from erp.transfer_price p where p.status = 'active'
                 window w as (partition by p.item_unit_id order by p.effective_from)) x
           where (x.prev_minor, x.prev_currency) = (x.price_minor, x.currency)`,
+  },
+  {
+    id: 'facilities-match-their-decisions',
+    title: 'every facility equals the latest decision about it, and its history agrees with itself',
+    because:
+      'I-8, as transfer-prices-match-their-decisions holds it for 0018: each facility must EQUAL ' +
+      'its stamp, with no later decision about it, and every decision must name a real facility ' +
+      'with the same fixed fields — code, type, brand and time zone never change, so no decision ' +
+      'about a facility may disagree on them. Its first decision is its one creation or record, ' +
+      'and a decision with no actor is a record of a facility that predates the log, never a ' +
+      'change somebody made. The routes and triggers hold all of it; this holds every row, the ' +
+      'seed\'s and 0019\'s backfill included.',
+    sql: `select 'facility ' || f.code as violation
+          from erp.facility f
+          left join erp.facility_decision d on d.decision_id = f.as_of_decision_id
+          where d.decision_id is null
+             or (d.facility_id, d.operating_unit_id, d.facility_type, d.code, d.name_en, d.name_ar, d.address_en,
+                 d.address_ar, d.tz_name, d.latitude, d.longitude, d.geofence_radius_m, d.status)
+                is distinct from
+                (f.facility_id, f.operating_unit_id, f.facility_type, f.code, f.name_en, f.name_ar, f.address_en,
+                 f.address_ar, f.tz_name, f.latitude, f.longitude, f.geofence_radius_m, f.status)
+             or exists (select 1 from erp.facility_decision l where l.facility_id = f.facility_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no facility, or disagrees with it on what is fixed'
+          from erp.facility_decision d
+          where not exists (select 1 from erp.facility f
+                             where f.facility_id = d.facility_id and f.operating_unit_id = d.operating_unit_id
+                               and f.facility_type = d.facility_type and f.code = d.code and f.tz_name = d.tz_name)
+          union all
+          select 'facility ' || x.facility_id || ': its first decision is not its one creation or record'
+          from (select d.facility_id,
+                       (array_agg(d.kind order by d.seq))[1] as first_kind,
+                       count(*) filter (where d.kind in ('facility_created', 'facility_recorded')) as births
+                from erp.facility_decision d group by d.facility_id) x
+          where x.first_kind not in ('facility_created', 'facility_recorded') or x.births <> 1`,
   },
   {
     id: 'projection-stamp-resolves-to-a-real-event',

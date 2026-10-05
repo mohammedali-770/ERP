@@ -564,3 +564,25 @@ requirements:
       - IAM-008
       - SEC-003
       - IAM-P08
+
+  # ---------------------------------------------------------------------------
+  # Where a branch worker may order from
+  #
+  # Owner decision, 2026-10-05 (ADR-0028 §2). The warehouse let a phone's position
+  # choose the branch a worker ordered for. The owner chose assignment, as every role
+  # is here (IAM-006), plus a check that the phone is inside the branch's area. No PRD
+  # requirement covers a location check, so it is proposed. pgTAP 140 and db-check
+  # exercise the check; neither is an artifact type req-lint resolves.
+  # ---------------------------------------------------------------------------
+
+  - id: "IAM-P11"
+    module: "IAM"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-05"
+    status: "proposed"
+    text_en: "A branch worker shall order for a branch only if assigned to it and only while their device reports a position, precise to 100 metres or better, inside that branch's area; the position shall be used for the check and not retained by it."
+    text_ar: "يجب ألا يطلب موظف الفرع لفرع إلا إذا كان معيّناً عليه، وما دام جهازه يُبلغ عن موقع داخل نطاق ذلك الفرع بدقة ١٠٠ متر أو أفضل؛ ويُستخدم الموقع للتحقق فقط ولا يُحتفظ به لأجله."
+    relates_to:
+      - IAM-006
+      - SEC-001

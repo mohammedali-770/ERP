@@ -63,4 +63,10 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('branch_worker',     'inventory.transfer_prices', 'read'),
   ('warehouse_manager', 'inventory.transfer_prices', 'read'),
   ('factory_manager',   'inventory.transfer_prices', 'read'),
-  ('general_manager',   'inventory.transfer_prices', 'read');
+  ('general_manager',   'inventory.transfer_prices', 'read'),
+  -- org.facilities (0019). Branches were the administrator's to edit in the warehouse,
+  -- and 0019 gives the administrator write. The managers read where branches are and
+  -- what areas they have; a branch worker needs neither, so reads nothing here.
+  ('warehouse_manager', 'org.facilities', 'read'),
+  ('factory_manager',   'org.facilities', 'read'),
+  ('general_manager',   'org.facilities', 'read');

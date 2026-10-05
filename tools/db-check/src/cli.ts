@@ -282,6 +282,20 @@ try {
        1200, 'SAR', null, 'db-check retry probe', ${admin}, now())`, 'transfer_price_decision_pkey'],
     ['withdraw_transfer_price', (d) => `select erp.withdraw_transfer_price(${d}, ${id('000000005403')},
        'db-check retry probe', ${admin}, now())`, 'transfer_price_decision_pkey'],
+    // 0019's four write routes, against its seed: the same lock, under its own log. A new
+    // warehouse; BR-002 renamed from its seeded record; BR-001's area widened from its
+    // seeded record; and the new warehouse closed, from the decision that created it —
+    // index 16's, so its decision id is …d0017.
+    ['create_facility', (d) => `select erp.create_facility(${d}, ${id('0000000d0501')}, ${id('000000000301')}, 'warehouse',
+       'WH-RETRY-PROBE', 'Retry probe warehouse (synthetic)', 'مستودع فحص الإعادة (تجريبي)', null, null,
+       'db-check retry probe', ${admin}, now())`, 'facility_decision_pkey'],
+    ['amend_facility', (d) => `select erp.amend_facility(${d}, ${id('000000000402')}, ${id('000000005602')},
+       'Test Branch Two (renamed)', 'الفرع التجريبي الثاني (معدل)', null, null, 'db-check retry probe', ${admin}, now())`,
+     'facility_decision_pkey'],
+    ['set_facility_area', (d) => `select erp.set_facility_area(${d}, ${id('000000000401')}, ${id('000000005601')},
+       24.713600, 46.675300, 200, 'db-check retry probe', ${admin}, now())`, 'facility_decision_pkey'],
+    ['change_facility_status', (d) => `select erp.change_facility_status(${d}, ${id('0000000d0501')}, ${id('0000000d0017')},
+       'closed', 'db-check retry probe', ${admin}, now())`, 'facility_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
@@ -361,6 +375,46 @@ try {
       failures++;
       console.log(`  FAIL  transfer_price_at: an order priced while its pack was retired was answered "${errorOf(priced)}"` +
         (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+    }
+  }
+
+  // An order checked against a branch's area while the branch is being closed must wait
+  // for the closure and then be refused: erp.assert_at_facility() reads the facility under
+  // its share lock, which every facility route takes for update. Without it, the order
+  // saw the branch open, the closure committed, and a closed branch took an order. BR-001,
+  // whose stamp is the area probe's decision above (index 18, …d0019); the closure commits
+  // only once the order is seen waiting on a lock, as above.
+  {
+    const closure = cluster.sqlConcurrently(`begin;
+      select erp.change_facility_status(${id('0000000d0502')}, ${id('000000000401')}, ${id('0000000d0019')}, 'closed',
+        'db-check area probe', ${admin}, now());
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = 'erp_area_order' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, 'erp_area_closure');
+    for (let i = 0; i < 400; i++) {
+      const written = cluster.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                    where a.application_name = 'erp_area_closure'
+                                      and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    const order = cluster.sqlConcurrently(`select erp.assert_at_facility(${id('000000000401')}, 24.713600, 46.675300, 10)`,
+      'erp_area_order');
+    const [closed, checked] = await Promise.all([closure, order]);
+    const refused = /ERROR:\s+23001:/.test(checked.stderr)
+      && /CONSTRAINT NAME:\s+facility_admits_no_new_work(\s|$)/m.test(checked.stderr);
+    if (closed.status === 0 && refused) {
+      console.log('  pass  assert_at_facility: an order checked while its branch is closed waits, and is refused');
+    } else {
+      failures++;
+      console.log(`  FAIL  assert_at_facility: an order checked while its branch was closed was answered "${errorOf(checked)}"` +
+        (closed.status === 0 ? '' : `; the closure failed too: ${errorOf(closed)}`));
     }
   }
 } finally {
