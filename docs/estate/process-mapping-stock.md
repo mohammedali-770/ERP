@@ -12,7 +12,7 @@
 
 The warehouse system's design was read from its current copy:
 - its `docs/SYSTEM.md`: §5 (`warehouse_stock`, `factory_stock`, `stock_movements`,
-  `stock_adjustments`), §7's stock triggers, the write functions `adjust_warehouse_stock()`,
+  `stock_adjustments`), §5's stock triggers and its write functions `adjust_warehouse_stock()`,
   `record_stock_count()` and `import_opening_stock()`, §8.6 (stock adjustments) and §10's
   known issues;
 - the migrations that built the ledger (`20260929200000_stock_ledger.sql`), the counts
@@ -78,8 +78,14 @@ synthetically. Opening stock arrives as a count (module 17's import posts one).
 - **The warehouse manager adjusts warehouse stock,** and the factory manager counts
   factory stock: in the seed, the warehouse manager writes stock everywhere and the factory
   manager at the factory only. Who may override is open (ADR-0029, question 2).
-- **Retired packs still count.** The warehouse's old cartons of 12 are counted as cartons of
-  12 after the supplier moved to 24.
+
+## New
+
+- **A retired pack still counts.** The warehouse had one pack per item, with an editable
+  ratio. Here an old carton of 12 is counted as a carton of 12 after the supplier moved to
+  24: stock already held is counted in the pack it is in (I-7).
+- **A count may list many items, and an item in several packs,** where the warehouse
+  counted one item at a time at the warehouse.
 
 ## Not carried
 

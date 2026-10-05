@@ -616,7 +616,7 @@ requirements:
     proposed_priority: "P1"
     origin: "Owner decision, 2026-10-05"
     status: "proposed"
-    text_en: "A stock movement that would leave an item's stock at a facility below zero shall be refused unless a person permitted to override it records it with a stated reason; the balance below zero shall then be shown until a count corrects it."
-    text_ar: "يجب رفض حركة المخزون التي تجعل رصيد صنف في منشأة أقل من الصفر، ما لم يسجلها شخص مخوَّل بالتجاوز مع ذكر السبب؛ ويُعرض الرصيد السالب عندئذٍ حتى يصححه الجرد."
+    text_en: "A stock movement that takes stock out of an item at a facility and would leave its stock there below zero shall be refused unless a person permitted to override it records it with a stated reason; a count shall never be refused for the balance it leaves, and a balance below zero shall be shown as such."
+    text_ar: "يجب رفض حركة المخزون التي تُخرج كمية من صنف في منشأة وتجعل رصيده فيها أقل من الصفر، ما لم يسجلها شخص مخوَّل بالتجاوز مع ذكر السبب؛ ولا يُرفض الجرد أبداً بسبب الرصيد الذي يتركه، ويُعرض الرصيد الأقل من الصفر على حقيقته."
     relates_to:
       - INV-008

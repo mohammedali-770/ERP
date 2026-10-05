@@ -26,7 +26,7 @@
 -- 0040, 0060 do the same), so nothing below calls erp.post_stock(): its recorded_at would
 -- be now(), and the three stock logs are append-only, so 0090 could not freeze it. db-check's
 -- stock-balances-match-their-ledger and stock-ledger-matches-its-decisions prove the
--- position is one the routes could have written.
+-- position obeys the ledger's rules.
 --
 -- Fixed identifiers: facilities …0403 and …0404 and their decisions …5603 and …5604; the
 -- person …0908 and decisions …d008 and …d028; stock decisions …57NN. None contains

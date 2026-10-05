@@ -4,8 +4,9 @@
 -- ADR-0005 · ADR-0012 · ADR-0024 · ADR-0028 · ADR-0029 (proposed) · invariants I-1, I-6, I-7, I-8
 -- docs/domain/ledger-primitives.md
 --
--- Phase 4, module 5. The warehouse kept stock as counters on the item rows
--- (warehouse_stock_pieces, factory_stock) and changed them in place; a trigger wrote a
+-- Phase 4, module 5. The warehouse kept stock as counters, one per item
+-- (warehouse_stock.current_stock_sale_units, factory_stock.current_stock,
+-- raw_materials.current_stock), and changed them in place; a trigger wrote a
 -- stock_movements row as a side effect, labelled from a session setting. The counter was
 -- the master and the movement a log of it. It let stock go negative, and the daily sheet
 -- clamped what it showed at zero; a count overwrote the counter with what was found. Written

@@ -22,7 +22,7 @@
 -- Fixture ids are …0e19NN and …0e20NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(134);
+select plan(138);
 
 -- ---------------------------------------------------------------------------
 -- Helpers — pgTAP only; db-fixtures never sees them
@@ -215,6 +215,10 @@ select is(pg_temp.refusal($$select pg_temp.count('e1910', jsonb_build_array(pg_t
   '22023 stock_facility_required', 'stock is held at a facility: the administrator, organisation-wide, must name one');
 select is(pg_temp.refusal($$select erp.record_stock_count(pg_temp.u('e1911'), erp.org_scope(), null, jsonb_build_array(pg_temp.l('4225', '1')), 'testing', pg_temp.u('900'), now())$$),
   '22023 stock_facility_required', 'and the organisation is not one');
+select is(pg_temp.refusal($$select pg_temp.adjust('e19a1', 'waste', jsonb_build_array(pg_temp.l('4225', '1')), null, '900', null)$$),
+  '22023 stock_facility_required', 'nor may an adjustment leave it out');
+select is(pg_temp.refusal($$select pg_temp.reverse('e19a2', '5703', '900', null)$$),
+  '22023 stock_facility_required', 'nor a reversal');
 select is(pg_temp.refusal($$select pg_temp.count('e1912', jsonb_build_array(pg_temp.l('4225', '1')), null, '900', 'e1999')$$),
   'P0002 facility_exists', 'a facility that does not exist is answered as missing');
 select throws_ok(
@@ -553,6 +557,10 @@ select is((select u ->> 'factor' from erp.stock_on_hand(pg_temp.u('904'), pg_tem
             where u ->> 'status' = 'retired'), '12', 'with every pack, the retired one marked, factors as text');
 select is(pg_temp.refusal($$select * from erp.stock_on_hand(pg_temp.u('900'), null)$$),
   '22023 stock_facility_required', 'CONTROL: an organisation-wide reader names a facility, or every one would mix');
+select is(pg_temp.refusal($$select * from erp.stock_history(pg_temp.u('900'), null, pg_temp.u('4111'))$$),
+  '22023 stock_facility_required', 'for an item''s stock card too');
+select is(pg_temp.refusal($$select * from erp.get_stock_decision(pg_temp.u('900'), null, pg_temp.u('5701'))$$),
+  '22023 stock_facility_required', 'and for one decision');
 select is(pg_temp.refusal($$select * from erp.stock_on_hand(pg_temp.u('904'), pg_temp.u('403'), null, null, 0)$$),
   '22023 stock_page_size', 'a page holds 1 to 500');
 select is((select string_agg(kind || ':' || quantity_in || '/' || quantity_out || '/' || coalesce(counted::text, '-')

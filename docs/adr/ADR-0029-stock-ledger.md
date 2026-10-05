@@ -82,7 +82,7 @@ seed as well as the routes:
 - a balance's stamp names a decision at its own facility;
 - a base quantity is the quantity times the factor;
 - a waste, damage or expiry entry goes out;
-- a count's variance is in the base conversion.
+- a count's variance is at factor 1.
 
 Rules no key can state are held by `db:check`:
 
@@ -92,7 +92,8 @@ Rules no key can state are held by `db:check`:
 - business days follow D3;
 - a reversal mirrors its target whole;
 - nothing is dated at or before an earlier count of the same item, and a count never
-  shares a moment with a movement.
+  shares a moment with a movement;
+- a count's variance is in the item's base unit, once per item.
 
 ### 3. One posting seam
 
@@ -207,7 +208,8 @@ belongs to the ordering module (10), and available is on hand less committed.
 - **A decision at another facility is answered exactly as a missing one.** Reads also stay
   within the facility's brand.
 - **The migration gives the administrator read, write and approve:** a real database has
-  no other role. The seed gives the managers read and write, and gives approve to the
+  no other role. The seed gives the warehouse and factory managers read and write (the
+  general manager read only), and gives approve to the
   factory manager alone, until open question 2 is answered. So the seeded factory manager,
   assigned to the seeded factory, overrides there and nowhere else. The organisation-wide warehouse
   manager, writing but not approving, is the control.
@@ -300,7 +302,8 @@ built in:
   picks a column it can set.
 - **The pgTAP fixtures depended on state, and the hidden-capability control passed
   vacuously** under CAP-P07. Every stateful case now runs self-contained and rolled
-  back. Each hidden control withdraws production first, and asserts CAP-P04's own words.
+  back. Each hidden control withdraws production first, and asserts the gate's own words
+  (CAP-P04 for a write, CAP-P02 for a read).
 
 ## Open, for the owner and for UAT
 
