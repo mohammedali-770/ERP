@@ -269,7 +269,7 @@ _5.2 Identity access and roles_
 | `IAM-003` | F1 | P0 | IT and system administration | T-10 | Permissions shall be based on account type and configurable by role, action, amount, branch, department and data scope. |
 | `IAM-004` | F1 | P0 | IT and system administration | T-10 | The system shall provide separate dashboards and access profiles for executives, finance, HR, operations, branch management, warehouse, procurement, factory, marketing, customer service and IT. |
 | `IAM-005` | F1 | P0 | IT and system administration | T-10 | Sensitive actions shall support limits and approval rules by role rather than one fixed approval flow. |
-| `IAM-006` | F1 | P0 | IT and system administration | T-10 | User access shall be limited to assigned companies, brands, branches, departments and functions. |
+| `IAM-006` | F1 | P0 | IT and system administration | T-10, UAT-facilities | User access shall be limited to assigned companies, brands, branches, departments and functions. |
 | `IAM-007` | F1 | P1 | — | — | The system shall support temporary access with start and expiry dates. |
 | `IAM-008` | F1 | P0 | IT and system administration | T-10 | All sign-in attempts, permission changes and privileged actions shall be recorded in tamper-evident audit logs. |
 | `IAM-009` | F4 | P0 | — | — | Terminated or suspended employee accounts shall be disabled through an approved HR or administrator workflow. |

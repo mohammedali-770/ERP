@@ -10,7 +10,7 @@
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and its staff-testing pack is written, module 4 has 4.
+  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and module 4 has 4, and both their staff-testing packs are written.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So

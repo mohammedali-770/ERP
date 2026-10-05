@@ -265,7 +265,9 @@ exact request first sent.
 
 ## Open, for the owner and for UAT
 
-Recorded rather than guessed. Each is decided before the module that needs it.
+Recorded rather than guessed. Each is decided before the module that needs it. The
+staff-testing pack ([`docs/lab/uat/facilities.md`](../lab/uat/facilities.md)) asks the
+owner all six before it is run.
 
 1. **What was `internal_only` for,** beyond hiding a branch from the geofence lookup? A
    central kitchen that orders nothing, or a branch that must not appear to customers

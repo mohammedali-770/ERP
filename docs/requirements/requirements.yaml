@@ -279,6 +279,7 @@ requirements:
     adr_refs: []
     test_refs:
       - "T-10"
+      - "UAT-facilities"
     estate_refs: []
   - id: "IAM-007"
     module: "IAM"
