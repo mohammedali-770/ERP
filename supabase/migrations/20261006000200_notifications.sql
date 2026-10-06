@@ -42,6 +42,11 @@
 
 create table erp.notification (
   notification_id   uuid        primary key default gen_random_uuid(),
+  -- The order made, and the bell's page cursor: a whole number survives any client, where
+  -- a microsecond moment read into a JavaScript Date loses its last three digits, and a
+  -- cursor rounded down skips the rows that shared it (found in review).
+  seq               bigint      not null generated always as identity
+    constraint notification_seq_is_unique unique,
   kind              text        not null
     constraint notification_kind_is_known check (kind in ('stock_below_zero')),
   recipient_id      uuid        not null references erp.person (person_id),
@@ -60,10 +65,13 @@ create table erp.notification (
   constraint notification_read_after_it_was_made
     check (read_at is null or read_at >= created_at),
   -- One per person per thing it is about: a producer that runs twice tells nobody twice.
-  constraint notification_once_per_person unique (recipient_id, kind, stock_decision_id)
+  constraint notification_once_per_person unique (recipient_id, kind, stock_decision_id),
+  -- Where it happened is where its decision was made.
+  constraint notification_at_its_decisions_facility foreign key (stock_decision_id, facility_id)
+    references erp.stock_decision (decision_id, facility_id)
 );
 
-create index notification_recipient_newest on erp.notification (recipient_id, created_at desc, notification_id desc);
+create index notification_recipient_newest on erp.notification (recipient_id, seq desc);
 create index notification_by_age on erp.notification (created_at);
 
 comment on table erp.notification is
@@ -81,9 +89,9 @@ begin
       using errcode = 'restrict_violation';
   elsif tg_op = 'UPDATE' then
     if old.read_at is not null or new.read_at is null
-       or (new.notification_id, new.kind, new.recipient_id, new.facility_id, new.stock_decision_id, new.data, new.created_at)
+       or (new.notification_id, new.seq, new.kind, new.recipient_id, new.facility_id, new.stock_decision_id, new.data, new.created_at)
           is distinct from
-          (old.notification_id, old.kind, old.recipient_id, old.facility_id, old.stock_decision_id, old.data, old.created_at) then
+          (old.notification_id, old.seq, old.kind, old.recipient_id, old.facility_id, old.stock_decision_id, old.data, old.created_at) then
       raise exception 'a notification changes once, from unread to read, and in nothing else'
         using errcode = 'restrict_violation', constraint = 'notification_is_read_once';
     end if;
@@ -133,11 +141,21 @@ $$;
 -- The first producer (N4): stock taken below zero by an override (D1)
 -- ---------------------------------------------------------------------------
 
--- 0020 stores an override's reason only when a movement does take an item below zero, so a
--- stock decision with one is exactly the event. The trigger is DEFERRED to commit: the
--- decision row is written first and its entries and balances after it (0020, step 7), and
--- what to tell is which balances the decision left below zero. The person who overrode is
--- not told of their own act.
+-- 0020 stores an override's reason only when a movement does take an item below zero (a
+-- count never carries one: it is never refused, so it is never overridden). So a decision
+-- carrying one is the event, and the items to name are those it took out and left below
+-- zero.
+--
+-- The trigger is on the BALANCE, an ordinary AFTER row trigger, not a deferred one on the
+-- decision. 0020's seam writes the decision first, then its entries, then every balance it
+-- touches in ONE statement, each stamped with the decision (ADR-0029 §3, step 7), and
+-- after-row triggers fire when that statement ends. So the first balance's trigger sees
+-- every balance the decision wrote, at what that decision left, still under the seam's key
+-- lock; the rest find the notifications already made. A constraint trigger deferred to
+-- commit was the first design, and review found two faults in it: it read balances at
+-- commit, so two decisions in one transaction both reported the second's figure; and SET
+-- CONSTRAINTS, which needs no privilege, could fire it before any entry existed, and tell
+-- nobody (ADR-0030 §5). The person who overrode is not told of their own act.
 create or replace function erp.notify_stock_below_zero()
 returns trigger
 language plpgsql
@@ -145,35 +163,52 @@ security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  v_items jsonb;
+  v_decision erp.stock_decision;
+  v_items    jsonb;
 begin
+  -- Only a balance a decision has just written: every posting restamps what it touches, so
+  -- an update that keeps the stamp posted nothing, and is not news.
+  if new.on_hand >= 0
+     or (tg_op = 'UPDATE' and new.as_of_decision_id is not distinct from old.as_of_decision_id) then
+    return null;
+  end if;
+  select * into v_decision from erp.stock_decision d where d.decision_id = new.as_of_decision_id;
+  if v_decision.override_reason is null then
+    return null;
+  end if;
+
   select jsonb_agg(jsonb_build_object('item_id', b.item_id, 'on_hand', trim_scale(b.on_hand)::text)
                    order by i.code collate "C")
     into v_items
-    from (select distinct e.item_id from erp.stock_ledger e where e.decision_id = new.decision_id) x
-    join erp.stock_balance b on b.facility_id = new.facility_id and b.item_id = x.item_id
-    join erp.item i on i.item_id = x.item_id
-   where b.on_hand < 0;
+    from erp.stock_balance b
+    join erp.item i on i.item_id = b.item_id
+   where b.facility_id = v_decision.facility_id
+     and b.as_of_decision_id = v_decision.decision_id
+     and b.on_hand < 0
+     -- Taken out by this decision: an item it only put back, still below zero, is not news.
+     and exists (select 1 from erp.stock_ledger e
+                  where e.decision_id = v_decision.decision_id and e.item_id = b.item_id and e.direction = 'out');
   if v_items is null then
     return null;
   end if;
 
   insert into erp.notification (kind, recipient_id, facility_id, stock_decision_id, data)
-  select 'stock_below_zero', p.person_id, new.facility_id, new.decision_id, jsonb_build_object('items', v_items)
+  select 'stock_below_zero', p.person_id, v_decision.facility_id, v_decision.decision_id,
+         jsonb_build_object('items', v_items)
     from erp.person p
    where p.status = 'active'
-     and p.person_id <> new.actor_id
-     and erp.notification_is_open_to(p.person_id, 'stock_below_zero', new.facility_id)
+     and p.person_id <> v_decision.actor_id
+     and erp.notification_is_open_to(p.person_id, 'stock_below_zero', v_decision.facility_id)
   on conflict on constraint notification_once_per_person do nothing;
   return null;
 end;
 $$;
 
-create constraint trigger stock_below_zero_is_notified
-  after insert on erp.stock_decision
-  deferrable initially deferred
+-- No WHEN clause: the function decides, so a trigger whose condition was changed cannot
+-- pass db:check's look at its shape.
+create trigger stock_below_zero_is_notified
+  after insert or update on erp.stock_balance
   for each row
-  when (new.override_reason is not null)
   execute function erp.notify_stock_below_zero();
 
 -- ---------------------------------------------------------------------------
@@ -184,16 +219,16 @@ create constraint trigger stock_below_zero_is_notified
 -- is asked as 'read' too: it changes nothing anyone else sees, and only the reader's own
 -- rows. What is returned is the reader's own, younger than 90 days, and still open to them.
 
--- The latest first, paged by (created_at, notification_id). Codes and names are read now.
+-- The latest first, paged by seq: a page ends before the last seq the bell was shown.
+-- Codes and names are read now.
 create or replace function erp.list_notifications(
   p_actor_id    uuid,
   p_facility_id uuid,
-  p_before_at   timestamptz default null,
-  p_before_id   uuid        default null,
-  p_limit       integer     default 30
+  p_before_seq  bigint  default null,
+  p_limit       integer default 30
 )
 returns table (
-  notification_id uuid, kind text, facility_id uuid, facility_code text, stock_decision_id uuid,
+  notification_id uuid, seq bigint, kind text, facility_id uuid, facility_code text, stock_decision_id uuid,
   created_at timestamptz, read_at timestamptz, items jsonb
 )
 language plpgsql
@@ -208,13 +243,9 @@ begin
     raise exception 'a page holds 1 to 100 notifications'
       using errcode = 'invalid_parameter_value', constraint = 'notification_page_size';
   end if;
-  if (p_before_at is null) <> (p_before_id is null) then
-    raise exception 'a page ends before a moment and an id, both or neither'
-      using errcode = 'invalid_parameter_value', constraint = 'notification_page_size';
-  end if;
 
   return query
-  select n.notification_id, n.kind, n.facility_id, f.code::text, n.stock_decision_id, n.created_at, n.read_at,
+  select n.notification_id, n.seq, n.kind, n.facility_id, f.code::text, n.stock_decision_id, n.created_at, n.read_at,
          coalesce((
            select jsonb_agg(jsonb_build_object(
                     'item_id', i.item_id, 'code', i.code, 'name_en', i.name_en, 'name_ar', i.name_ar,
@@ -226,9 +257,9 @@ begin
     join erp.facility f on f.facility_id = n.facility_id
    where n.recipient_id = p_actor_id
      and n.created_at > now() - interval '90 days'
-     and (p_before_at is null or (n.created_at, n.notification_id) < (p_before_at, p_before_id))
+     and (p_before_seq is null or n.seq < p_before_seq)
      and erp.notification_is_open_to(p_actor_id, n.kind, n.facility_id)
-   order by n.created_at desc, n.notification_id desc
+   order by n.seq desc
    limit p_limit;
 end;
 $$;
@@ -322,7 +353,7 @@ revoke execute on all functions in schema erp from public;
 -- erp_app gets no privilege on the table: only the three routes. Not the producer, the
 -- guard, the rule or the purge.
 grant execute on function
-  erp.list_notifications(uuid, uuid, timestamptz, uuid, integer),
+  erp.list_notifications(uuid, uuid, bigint, integer),
   erp.count_unread_notifications(uuid, uuid),
   erp.mark_notifications_read(uuid, uuid, uuid[])
 to erp_app;

@@ -475,9 +475,12 @@ export const ASSERTIONS: readonly Assertion[] = [
     because:
       'N3 (ADR-0030): a notification changes once, from unread to read, and is deleted only past ' +
       '90 days, only because 0021\'s triggers say so, binding the owner too. N4: stock taken below ' +
-      'zero by an override tells anyone only because a deferred constraint trigger on ' +
-      'erp.stock_decision says so; without DEFERRED it would run before the entries and balances it ' +
-      'reads exist, and tell nobody. A consistent seed passes with any of them gone.',
+      'zero by an override tells anyone only because a trigger on erp.stock_balance says so. It must ' +
+      'be an ordinary AFTER INSERT OR UPDATE row trigger with no WHEN: fired at the end of the seam\'s ' +
+      'one balance statement, it reads what that decision left. A constraint trigger can be deferred ' +
+      'or hurried by SET CONSTRAINTS, which needs no privilege; the first design was one, on the ' +
+      'decision, and review found it told nobody when hurried and reported the wrong balance when ' +
+      'deferred past a second decision. A consistent seed passes with any of them gone.',
     sql: `select x.rel::text || ': no enabled ' || x.what as violation
           from (values
                   ('erp.notification'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
@@ -491,14 +494,13 @@ export const ASSERTIONS: readonly Assertion[] = [
               and t.tgenabled in ('O', 'A') and t.tgqual is null
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)
           union all
-          select 'erp.stock_decision: no enabled AFTER INSERT constraint trigger, deferred, calling erp.notify_stock_below_zero()'
+          select 'erp.stock_balance: no enabled AFTER INSERT OR UPDATE row trigger, not a constraint trigger and with no WHEN, calling erp.notify_stock_below_zero()'
           where not exists (
             select 1 from pg_trigger t
-            where t.tgrelid = 'erp.stock_decision'::regclass
+            where t.tgrelid = 'erp.stock_balance'::regclass and not t.tgisinternal
               and t.tgfoid = 'erp.notify_stock_below_zero()'::regprocedure
-              and t.tgenabled in ('O', 'A') and t.tgconstraint <> 0
-              and t.tgdeferrable and t.tginitdeferred
-              and (t.tgtype & 5) = 5 and (t.tgtype & 2) = 0)`,
+              and t.tgenabled in ('O', 'A') and t.tgconstraint = 0 and t.tgqual is null
+              and (t.tgtype & 21) = 21 and (t.tgtype & 2) = 0)`,
   },
   {
     id: 'stock-guard-triggers-exist',

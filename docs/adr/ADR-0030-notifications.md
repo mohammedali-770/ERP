@@ -63,8 +63,8 @@ owner-approved (`CLAUDE.md` §4).
 
 **What it is about is a real foreign key.** Each source log has its own column, and a
 check binds each kind to exactly one of them. A later module adds its column and its kind
-together. A unique key on recipient, kind and source means a producer that runs twice
-tells nobody twice.
+together, and a second key binds the notification's facility to its decision's. A unique
+key on recipient, kind and source means a producer that runs twice tells nobody twice.
 
 **`data` holds ids and quantities, never names or free text.** For a stock notification,
 it holds the items left below zero and the balance each was left at, as decimal text. The
@@ -110,29 +110,53 @@ warehouse's roles-everywhere rule.
 ago. The warehouse made one exception, low stock, which reached the manager whose count
 caused it; there is no low-stock alert here yet (open question 4).
 
-### 5. The first producer, deferred to commit (N4)
+### 5. The first producer, on the balance (N4)
 
-0020 stores an override's reason only when a movement does take an item below zero. So a
-stock decision carrying one is exactly the event, and no other is.
+0020 stores an override's reason only when a movement does take an item below zero. A
+count never carries one: it is never refused, so it is never overridden. So a decision
+carrying a reason is the event N4 names. **A count that leaves stock below zero tells
+nobody**: a late count, dated before movements that took out more than it found, can do
+that (ADR-0029 §4), and whether it should be told is open question 7.
 
-`erp.notify_stock_below_zero()` runs from a constraint trigger on `erp.stock_decision`,
-`AFTER INSERT`, **deferred to commit**, and only when the decision carries an override
-reason. Deferral is the design. 0020's seam writes the decision first and its entries and
-balances after it (ADR-0029 §3, step 7), and what to tell is which balances the decision
-left below zero. A trigger that fired at the insert would find no entries, and tell
-nobody. `db:check` requires the trigger, deferred; pgTAP proves what it tells.
+`erp.notify_stock_below_zero()` runs from an ordinary `AFTER INSERT OR UPDATE` row trigger
+on `erp.stock_balance`, with no `WHEN`; the function decides. 0020's seam writes the
+decision first, then its entries, then every balance it touches **in one statement**, each
+stamped with the decision (ADR-0029 §3, step 7). After-row triggers fire when that
+statement ends. So the first balance's trigger sees every balance the decision wrote, at
+what that decision left, still under the seam's key lock; the rest find the notifications
+already made.
 
-It names only the items the decision left below zero, in code order, at their balance at
-commit. It tells every active person but the actor to whom §4 says it is open. Being
-deferred, it runs in the poster's transaction: if it fails, the movement is not recorded.
-It raises nothing of its own, and writes one row per recipient.
+It acts only for a balance below zero, newly stamped by a decision that carries an
+override reason. A touch that keeps the stamp, such as the seed's timestamp freeze, posted
+nothing. It names the items the decision took out and left below zero, in code order, at
+the balance that decision left them. An item the decision only put back, still below zero,
+is not news. It tells every active person but the actor to whom §4 says it is open. It
+runs inside the posting: if it fails, the movement is not recorded. It raises nothing of
+its own, and writes one row per recipient.
+
+`db:check` requires the trigger's shape: after, row, insert and update, enabled, not a
+constraint trigger, and no `WHEN`. pgTAP proves what it tells.
+
+**Found in review.** The first design was a constraint trigger on `erp.stock_decision`,
+deferred to commit, because the decision is written before the entries it would read. It
+had two faults, and pgTAP 160 now holds both as controls:
+- **It read balances at commit.** Two overrides in one transaction both reported the
+  second's figure.
+- **One setting turned it off.** `SET CONSTRAINTS ALL IMMEDIATE`, which needs no privilege,
+  fired it at the insert, before any entry existed, and it told nobody. Any later route
+  that hurried its own deferred keys would have silenced every notification.
+
+The synthetic seed holds the producer off while it writes its balances (0070), so two
+builds stay identical; the seed holds no notification.
 
 ### 6. Three routes, behind one capability
 
 The bell is three routes, each asking `platform.notifications` `read` at the facility the
 person is working at, as every read does:
 - **`erp.list_notifications()`** lists the person's own notifications, newest first,
-  paged by moment and id, 1 to 100 at a time. It returns each with its facility's code
+  1 to 100 at a time. A page ends before the last `seq` shown: a whole number, which no
+  client can round. A microsecond moment read into a JavaScript `Date` loses three digits,
+  and a cursor rounded down would skip the rows that shared it (found in review). It returns each with its facility's code
   and its items' codes, names and base units, read now.
 - **`erp.count_unread_notifications()`** counts the person's unread ones.
 - **`erp.mark_notifications_read()`** marks those named, or all when none are named; an
@@ -209,6 +233,8 @@ kind's own rule.
    "this has been dealt with" to what the bell shows, not change anyone's read state.
 6. **Severity (SUP-005).** Is an override below zero a warning, or something a general
    manager must see? Today it tells only the facility's readers of stock.
+7. **A count that leaves stock below zero.** A late count can, without an override, and
+   tells nobody (§5). Should it?
 
 ## Alternatives considered
 
@@ -217,11 +243,13 @@ kind's own rule.
 - **A notification that copies names and the reason.** Rejected: a row would disclose
   what its link might not, a free-text reason naming a person could not be erased within
   90 days, and a renamed item would be shown by its old name.
-- **An immediate trigger on `erp.stock_ledger` or `erp.stock_balance`.** Rejected: the
-  balance is written once per item, and the decision once per document, so a trigger on
-  either would tell once per item or need its own bookkeeping. One deferred trigger on the
-  decision tells once per document.
-- **Calling the producer from `erp.post_stock()`.** Rejected: every later module would
-  have to remember to call it, and a merged migration is never edited. The trigger binds
-  every writer, the seam's later callers included.
+- **A constraint trigger on `erp.stock_decision`, deferred to commit.** Built first, and
+  rejected in review (§5): it read balances at commit, and `SET CONSTRAINTS` could fire it
+  before there was anything to read.
+- **A trigger on `erp.stock_ledger`.** Rejected: the entries are written before the
+  balances, so it would read the balance before the decision.
+- **Calling the producer from `erp.post_stock()`.** Equally exact, since the seam knows
+  the balances it wrote. Rejected for now: it means replacing 0020's whole seam in a new
+  migration to add one call, and the balance trigger binds every writer of a balance,
+  which is the seam alone.
 - **Keeping notifications for good.** Rejected by N3.

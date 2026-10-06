@@ -666,8 +666,8 @@ requirements:
     proposed_priority: "P1"
     origin: "Owner decision, 2026-10-06"
     status: "proposed"
-    text_en: "When a permitted person records a stock movement that takes an item below zero at a facility, the people who may read that facility's stock shall be notified in the application, naming each item left below zero and the balance it was left at."
-    text_ar: "عندما يسجل شخص مخوَّل حركة مخزون تجعل رصيد صنف أقل من الصفر في منشأة، يجب إشعار الأشخاص المخوَّلين بقراءة مخزون تلك المنشأة داخل التطبيق، مع ذكر كل صنف أصبح رصيده أقل من الصفر والرصيد الذي أصبح عليه."
+    text_en: "When a permitted person overrides the refusal of a stock movement that takes an item below zero at a facility, stating a reason, the people who may read that facility's stock shall be notified in the application, naming each item the movement took out and left below zero and the balance it left; a count, which is never refused, shall not raise this notification."
+    text_ar: "عندما يتجاوز شخص مخوَّل رفض حركة مخزون تجعل رصيد صنف أقل من الصفر في منشأة، مع ذكر السبب، يجب إشعار الأشخاص المخوَّلين بقراءة مخزون تلك المنشأة داخل التطبيق، مع ذكر كل صنف أخرجته الحركة وأصبح رصيده أقل من الصفر والرصيد الذي تركته؛ ولا يُصدر الجرد، الذي لا يُرفض أبداً، هذا الإشعار."
     relates_to:
       - INV-P02
       - INV-008

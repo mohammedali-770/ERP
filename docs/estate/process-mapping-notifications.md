@@ -63,7 +63,7 @@ message about a record, not the record.
 | Warehouse kind | Told | ERP |
 |---|---|---|
 | `low_stock`, at or below an item's minimum, once until read | Every warehouse or factory manager | Module 7, stock alerts: no minimum is held yet ([ADR-0030](../adr/ADR-0030-notifications.md), question 4) |
-| — | — | **`stock_below_zero`** (N4): an override took stock below zero (ADR-0029 D1). The warehouse allowed negative stock and said nothing |
+| — | — | **`stock_below_zero`** (N4): an override took stock below zero (ADR-0029 D1). The warehouse allowed negative stock and said nothing. A late count that leaves stock below zero is not told (question 7) |
 | `order_new`, `order_updated`, `order_issue` | The managers | Branch orders, with their module |
 | `order_status`, `order_edited` | The branch that ordered | Branch orders, with their module |
 | `po_pending`, `po_decision` | The general manager; the PO's author | Purchasing, with its module |
@@ -90,6 +90,7 @@ message about a record, not the record.
 
 ## Open
 
-[ADR-0030](../adr/ADR-0030-notifications.md) lists six questions for the owner: when the
+[ADR-0030](../adr/ADR-0030-notifications.md) lists seven questions for the owner: when the
 purge runs, how often the console asks, which facility's notifications the bell shows,
-low stock, whether an action may mark another's notification read, and severity.
+low stock, whether an action may mark another's notification read, severity, and whether
+a count that leaves stock below zero is told.

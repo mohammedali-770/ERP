@@ -5,9 +5,8 @@
 -- stock (ADR-0030, N1–N4). Cases marked CONTROL are why the suite exists.
 --
 -- ORDER MATTERS, as in 150: every stateful case runs inside pg_temp.after() or
--- pg_temp.refusal(), which roll back whatever they did. The producer is a constraint
--- trigger deferred to commit, and this suite never commits, so each case that posts stock
--- fires it with SET CONSTRAINTS … IMMEDIATE, inside the same rolled-back block.
+-- pg_temp.refusal(), which roll back whatever they did. The producer is an ordinary
+-- trigger on the balance, so it fires inside the posting, and the suite needs no commit.
 --
 -- The seed: the administrator (…0900) and the warehouse manager (…0904) read stock
 -- everywhere; the factory manager (…0908) reads and overrides at FA-001 (…0404) alone;
@@ -18,7 +17,7 @@
 -- Fixture ids are …0e21NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(43);
+select plan(49);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -33,15 +32,13 @@ create function pg_temp.l(p_unit text, p_qty text, p_dir text default null) retu
          || case when p_dir is null then '{}'::jsonb else jsonb_build_object('direction', p_dir) end
 $f$;
 
--- A movement, then the producer fired as at commit.
+-- A movement.
 create function pg_temp.adjust(p_id text, p_kind text, p_lines jsonb, p_actor text, p_facility text,
                                p_override text default null)
 returns void language plpgsql as $f$
 begin
   perform erp.record_stock_adjustment(pg_temp.u(p_id), pg_temp.u(p_facility), p_kind, null, p_lines, 'testing',
                                       p_override, pg_temp.u(p_actor), now());
-  set constraints erp.stock_below_zero_is_notified immediate;
-  set constraints erp.stock_below_zero_is_notified deferred;
 end
 $f$;
 
@@ -50,8 +47,6 @@ returns void language plpgsql as $f$
 begin
   perform erp.reverse_stock_decision(pg_temp.u(p_id), pg_temp.u(p_facility), pg_temp.u(p_target), 'testing',
                                      p_override, pg_temp.u(p_actor), now());
-  set constraints erp.stock_below_zero_is_notified immediate;
-  set constraints erp.stock_below_zero_is_notified deferred;
 end
 $f$;
 
@@ -80,8 +75,9 @@ $f$;
 -- Each names a seed decision of its own, as one person is told once per decision.
 create function pg_temp.aged(p_id text, p_days integer, p_decision text default '5708') returns void language sql as $f$
   insert into erp.notification (notification_id, kind, recipient_id, facility_id, stock_decision_id, data, created_at)
-  values (pg_temp.u(p_id), 'stock_below_zero', pg_temp.u('904'), pg_temp.u('404'), pg_temp.u(p_decision),
-          '{"items": []}'::jsonb, now() - make_interval(days => p_days))
+  select pg_temp.u(p_id), 'stock_below_zero', pg_temp.u('904'), d.facility_id, d.decision_id,
+         '{"items": []}'::jsonb, now() - make_interval(days => p_days)
+    from erp.stock_decision d where d.decision_id = pg_temp.u(p_decision)
 $f$;
 
 create function pg_temp.refusal(variadic p_sql text[]) returns text language plpgsql as $f$
@@ -122,7 +118,7 @@ select fk_ok('erp', 'notification', 'stock_decision_id', 'erp', 'stock_decision'
   'a stock notification names the decision it is about');
 select is(has_table_privilege('erp_app', 'erp.notification', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), false,
   'the runtime has no privilege on the table: the bell is three routes');
-select ok(has_function_privilege('erp_app', 'erp.list_notifications(uuid,uuid,timestamptz,uuid,integer)', 'EXECUTE')
+select ok(has_function_privilege('erp_app', 'erp.list_notifications(uuid,uuid,bigint,integer)', 'EXECUTE')
       and has_function_privilege('erp_app', 'erp.count_unread_notifications(uuid,uuid)', 'EXECUTE')
       and has_function_privilege('erp_app', 'erp.mark_notifications_read(uuid,uuid,uuid[])', 'EXECUTE'),
   'the runtime calls the three routes');
@@ -164,6 +160,39 @@ select is(pg_temp.after(
   $$select pg_temp.adjust('e2107', 'waste', jsonb_build_array(pg_temp.l('4205', '182')), '908', '404')$$,
   $$select pg_temp.reverse('e2108', 'e2106', '908', '404', 'Found it was never delivered.')$$),
   '900,904', 'a reversal that takes stock below zero by an override is told as any movement is');
+select is(pg_temp.after(
+  $$select (select data -> 'items' -> 0 ->> 'on_hand' from erp.notification where stock_decision_id = pg_temp.u('e2110') and recipient_id = pg_temp.u('904'))
+        || ' ' ||
+           (select data -> 'items' -> 0 ->> 'on_hand' from erp.notification where stock_decision_id = pg_temp.u('e2111') and recipient_id = pg_temp.u('904'))$$,
+  $$select pg_temp.override_at_factory('e2110')$$,
+  $$select pg_temp.adjust('e2111', 'waste', jsonb_build_array(pg_temp.l('4205', '40')), '908', '404', 'Delivery not entered.')$$),
+  '-28 -68', 'CONTROL: two overrides in one transaction each name the balance their own decision left (found in review)');
+select is(pg_temp.after(
+  $$select pg_temp.told('e2112')$$,
+  $$set constraints all immediate$$,
+  $$select pg_temp.override_at_factory('e2112')$$),
+  '900,904', 'CONTROL: no setting of the session stops it: SET CONSTRAINTS ALL IMMEDIATE told nobody (found in review)');
+select is(pg_temp.after(
+  $$select (select data -> 'items' from erp.notification where stock_decision_id = pg_temp.u('e2113') and recipient_id = pg_temp.u('904'))::text$$,
+  $$select pg_temp.adjust('e2113', 'adjustment',
+      jsonb_build_array(pg_temp.l('4201', '1', 'in'), pg_temp.l('4205', '200', 'out')), '908', '404', 'Delivery not entered.')$$),
+  '[{"item_id": "01936f00-0000-7000-8000-000000004102", "on_hand": "-28"}]',
+  'CONTROL: an item the decision only put back, still below zero (chicken breast, -10 to -9), is not named');
+select is(pg_temp.after(
+  $$select (select count(*) from erp.notification)::text$$,
+  $$update erp.stock_balance set updated_at = now()
+     where facility_id = pg_temp.u('404') and item_id = pg_temp.u('4101')$$),
+  '0', 'CONTROL: a balance touched without a new decision, such as the seed''s freeze, tells nobody');
+select is(pg_temp.after(
+  $$select pg_temp.told('e2114') || '|' || (select (on_hand < 0)::text from erp.stock_balance
+                                             where facility_id = pg_temp.u('404') and item_id = pg_temp.u('4102'))$$,
+  $$select erp.record_stock_count(pg_temp.u('e2114'), pg_temp.u('404'), timestamptz '2026-09-29 04:00:00+00',
+      jsonb_build_array(pg_temp.l('4205', '0')), 'testing', pg_temp.u('908'), now())$$),
+  '|true', 'CONTROL: a late count that leaves stock below zero is no override, and tells nobody (N4)');
+select is(pg_temp.refusal(
+  $$insert into erp.notification (kind, recipient_id, facility_id, stock_decision_id, data)
+    values ('stock_below_zero', pg_temp.u('904'), pg_temp.u('403'), pg_temp.u('5708'), '{}')$$),
+  '23503 notification_at_its_decisions_facility', 'a notification is at its decision''s facility');
 select is(pg_temp.after(
   $$select pg_temp.told('e2109')$$,
   $$select pg_temp.set_state('inventory.items', '404', 'hidden', 'e2181')$$,
@@ -225,25 +254,23 @@ select is(pg_temp.after(
   $$select count(*)::text from erp.list_notifications(pg_temp.u('904'), pg_temp.u('403'))$$,
   $$select pg_temp.aged('e2120', 91)$$, $$select pg_temp.aged('e2121', 89, '5707')$$),
   '1', 'past 90 days a notification is not shown, younger it is (N3)');
--- Every notification one transaction makes shares its moment, so paging is held to
--- (moment, id): rows stated a day or two old make the order deterministic.
+-- Newest first is the order made: seq, which a client cannot round.
 select is(pg_temp.after(
   $$select string_agg(right(notification_id::text, 5), ',')
-      from erp.list_notifications(pg_temp.u('904'), pg_temp.u('404'), null, null, 1)$$,
+      from erp.list_notifications(pg_temp.u('904'), pg_temp.u('404'), null, 1)$$,
   $$select pg_temp.aged('e2122', 2)$$, $$select pg_temp.aged('e2123', 1, '5707')$$),
   'e2123', 'the newest first, a page at a time');
 select is(pg_temp.after(
-  $$select string_agg(right(notification_id::text, 5), ',' order by created_at desc, notification_id desc)
+  $$select string_agg(right(notification_id::text, 5), ',' order by seq desc)
       from erp.list_notifications(pg_temp.u('904'), pg_temp.u('404'),
-           (select created_at from erp.notification where notification_id = pg_temp.u('e2125')),
-           pg_temp.u('e2125'), 30)$$,
-  $$select pg_temp.aged('e2124', 1)$$, $$select pg_temp.aged('e2125', 1, '5707')$$,
-  $$select pg_temp.aged('e2126', 2, '5706')$$),
-  'e2124,e2126', 'the next page ends before the last one shown, by moment and id');
-select is(pg_temp.refusal($$select * from erp.list_notifications(pg_temp.u('904'), pg_temp.u('403'), null, null, 0)$$),
+           (select seq from erp.notification where notification_id = pg_temp.u('e2125')), 30)$$,
+  $$select pg_temp.aged('e2126', 2, '5706')$$, $$select pg_temp.aged('e2124', 1)$$,
+  $$select pg_temp.aged('e2125', 1, '5707')$$),
+  'e2124,e2126', 'the next page ends before the last one shown');
+select is(pg_temp.refusal($$select * from erp.list_notifications(pg_temp.u('904'), pg_temp.u('403'), null, 0)$$),
   '22023 notification_page_size', 'a page holds 1 to 100');
-select is(pg_temp.refusal($$select * from erp.list_notifications(pg_temp.u('904'), pg_temp.u('403'), now(), null, 30)$$),
-  '22023 notification_page_size', 'a page ends before a moment and an id, both or neither');
+select is(pg_temp.refusal($$select * from erp.list_notifications(pg_temp.u('904'), pg_temp.u('403'), null, 101)$$),
+  '22023 notification_page_size', 'and no more than 100');
 select is(pg_temp.refusal($$select erp.mark_notifications_read(pg_temp.u('904'), pg_temp.u('403'), array[]::uuid[])$$),
   '22023 notification_page_size', 'mark 1 to 100, or all: an empty list is a mistake, not "all"');
 select is(pg_temp.refusal(
