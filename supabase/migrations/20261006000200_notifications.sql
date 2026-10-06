@@ -73,6 +73,8 @@ create table erp.notification (
 
 create index notification_recipient_newest on erp.notification (recipient_id, seq desc);
 create index notification_by_age on erp.notification (created_at);
+-- The producer asks whether a decision was told; the composite key to it wants one too.
+create index notification_by_decision on erp.notification (stock_decision_id, facility_id);
 
 comment on table erp.notification is
   'SUP-005/SUP-007. One row per recipient. Ids and quantities only; read once; deleted at 90 days (ADR-0030).';
@@ -146,16 +148,26 @@ $$;
 -- carrying one is the event, and the items to name are those it took out and left below
 -- zero.
 --
--- The trigger is on the BALANCE, an ordinary AFTER row trigger, not a deferred one on the
--- decision. 0020's seam writes the decision first, then its entries, then every balance it
--- touches in ONE statement, each stamped with the decision (ADR-0029 §3, step 7), and
--- after-row triggers fire when that statement ends. So the first balance's trigger sees
--- every balance the decision wrote, at what that decision left, still under the seam's key
--- lock; the rest find the notifications already made. A constraint trigger deferred to
--- commit was the first design, and review found two faults in it: it read balances at
--- commit, so two decisions in one transaction both reported the second's figure; and SET
--- CONSTRAINTS, which needs no privilege, could fire it before any entry existed, and tell
--- nobody (ADR-0030 §5). The person who overrode is not told of their own act.
+-- The triggers are on the BALANCE, ordinary AFTER STATEMENT triggers with transition
+-- tables, not a deferred one on the decision. 0020's seam writes the decision first, then
+-- its entries, then every balance it touches in ONE statement, each stamped with the
+-- decision (ADR-0029 §3, step 7), and an after-statement trigger fires when that
+-- statement ends. So it reads every balance the decision wrote, at what that decision
+-- left, still under the seam's key lock.
+--
+-- Found in review, twice:
+--   - A constraint trigger on the decision, deferred to commit, was the first design. It
+--     read balances at commit, so two decisions in one transaction both reported the
+--     second's figure; and SET CONSTRAINTS, which needs no privilege, could fire it before
+--     any entry existed, and tell nobody (ADR-0030 §5).
+--   - A row trigger on the balance was the second. It ran once per balance a decision left
+--     below zero, each run rebuilding the list and asking every person again, so a
+--     500-line override did that 500 times inside the stock write.
+--
+-- An INSERT … ON CONFLICT DO UPDATE fires both statement triggers, the insert's with the
+-- rows it inserted and the update's with the rows it updated; either run names every item,
+-- since it reads the balances, and the second finds the decision already told. The person
+-- who overrode is not told of their own act.
 create or replace function erp.notify_stock_below_zero()
 returns trigger
 language plpgsql
@@ -163,52 +175,69 @@ security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  v_decision erp.stock_decision;
-  v_items    jsonb;
+  v_decision_ids uuid[];
+  v_decision     erp.stock_decision;
+  v_items        jsonb;
 begin
-  -- Only a balance a decision has just written: every posting restamps what it touches, so
-  -- an update that keeps the stamp posted nothing, and is not news.
-  if new.on_hand >= 0
-     or (tg_op = 'UPDATE' and new.as_of_decision_id is not distinct from old.as_of_decision_id) then
-    return null;
+  -- The decisions that just wrote a balance below zero. An update that keeps the stamp
+  -- posted nothing: every posting restamps what it touches.
+  if tg_op = 'INSERT' then
+    select array_agg(distinct n.as_of_decision_id) into v_decision_ids
+      from new_rows n where n.on_hand < 0;
+  else
+    select array_agg(distinct n.as_of_decision_id) into v_decision_ids
+      from new_rows n
+      join old_rows o on o.facility_id = n.facility_id and o.item_id = n.item_id
+     where n.on_hand < 0 and n.as_of_decision_id is distinct from o.as_of_decision_id;
   end if;
-  select * into v_decision from erp.stock_decision d where d.decision_id = new.as_of_decision_id;
-  if v_decision.override_reason is null then
-    return null;
-  end if;
-
-  select jsonb_agg(jsonb_build_object('item_id', b.item_id, 'on_hand', trim_scale(b.on_hand)::text)
-                   order by i.code collate "C")
-    into v_items
-    from erp.stock_balance b
-    join erp.item i on i.item_id = b.item_id
-   where b.facility_id = v_decision.facility_id
-     and b.as_of_decision_id = v_decision.decision_id
-     and b.on_hand < 0
-     -- Taken out by this decision: an item it only put back, still below zero, is not news.
-     and exists (select 1 from erp.stock_ledger e
-                  where e.decision_id = v_decision.decision_id and e.item_id = b.item_id and e.direction = 'out');
-  if v_items is null then
+  if v_decision_ids is null then
     return null;
   end if;
 
-  insert into erp.notification (kind, recipient_id, facility_id, stock_decision_id, data)
-  select 'stock_below_zero', p.person_id, v_decision.facility_id, v_decision.decision_id,
-         jsonb_build_object('items', v_items)
-    from erp.person p
-   where p.status = 'active'
-     and p.person_id <> v_decision.actor_id
-     and erp.notification_is_open_to(p.person_id, 'stock_below_zero', v_decision.facility_id)
-  on conflict on constraint notification_once_per_person do nothing;
+  for v_decision in
+    select d.* from erp.stock_decision d
+     where d.decision_id = any (v_decision_ids)
+       and d.override_reason is not null
+       and not exists (select 1 from erp.notification x where x.stock_decision_id = d.decision_id)
+     order by d.decision_id
+  loop
+    -- The items this decision took out and left below zero: an item it only put back,
+    -- still below zero, is not news. Found through its entries and the balance's key.
+    select jsonb_agg(jsonb_build_object('item_id', b.item_id, 'on_hand', trim_scale(b.on_hand)::text)
+                     order by i.code collate "C")
+      into v_items
+      from (select distinct e.item_id from erp.stock_ledger e
+             where e.decision_id = v_decision.decision_id and e.direction = 'out') x
+      join erp.stock_balance b on b.facility_id = v_decision.facility_id and b.item_id = x.item_id
+      join erp.item i on i.item_id = b.item_id
+     where b.as_of_decision_id = v_decision.decision_id
+       and b.on_hand < 0;
+    continue when v_items is null;
+
+    insert into erp.notification (kind, recipient_id, facility_id, stock_decision_id, data)
+    select 'stock_below_zero', p.person_id, v_decision.facility_id, v_decision.decision_id,
+           jsonb_build_object('items', v_items)
+      from erp.person p
+     where p.status = 'active'
+       and p.person_id <> v_decision.actor_id
+       and erp.notification_is_open_to(p.person_id, 'stock_below_zero', v_decision.facility_id)
+    on conflict on constraint notification_once_per_person do nothing;
+  end loop;
   return null;
 end;
 $$;
 
 -- No WHEN clause: the function decides, so a trigger whose condition was changed cannot
 -- pass db:check's look at its shape.
-create trigger stock_below_zero_is_notified
-  after insert or update on erp.stock_balance
-  for each row
+create trigger stock_below_zero_is_notified_on_insert
+  after insert on erp.stock_balance
+  referencing new table as new_rows
+  for each statement
+  execute function erp.notify_stock_below_zero();
+create trigger stock_below_zero_is_notified_on_update
+  after update on erp.stock_balance
+  referencing old table as old_rows new table as new_rows
+  for each statement
   execute function erp.notify_stock_below_zero();
 
 -- ---------------------------------------------------------------------------

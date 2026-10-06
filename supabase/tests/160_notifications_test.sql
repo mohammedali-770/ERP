@@ -17,7 +17,7 @@
 -- Fixture ids are …0e21NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(49);
+select plan(50);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -178,6 +178,12 @@ select is(pg_temp.after(
       jsonb_build_array(pg_temp.l('4201', '1', 'in'), pg_temp.l('4205', '200', 'out')), '908', '404', 'Delivery not entered.')$$),
   '[{"item_id": "01936f00-0000-7000-8000-000000004102", "on_hand": "-28"}]',
   'CONTROL: an item the decision only put back, still below zero (chicken breast, -10 to -9), is not named');
+select is(pg_temp.after(
+  $$select (select count(*) from erp.notification where stock_decision_id = pg_temp.u('e2115'))::text || ' ' ||
+           (select (data -> 'items')::text from erp.notification where stock_decision_id = pg_temp.u('e2115') and recipient_id = pg_temp.u('904'))$$,
+  $$select pg_temp.adjust('e2115', 'waste', jsonb_build_array(pg_temp.l('4207', '5'), pg_temp.l('4226', '1')), '908', '404', 'Delivery not entered.')$$),
+  '2 [{"item_id": "01936f00-0000-7000-8000-000000004111", "on_hand": "-5"}, {"item_id": "01936f00-0000-7000-8000-000000004102", "on_hand": "-28"}]',
+  'CONTROL: one notification per person names every item, a new balance and an updated one alike, in code order');
 select is(pg_temp.after(
   $$select (select count(*) from erp.notification)::text$$,
   $$update erp.stock_balance set updated_at = now()

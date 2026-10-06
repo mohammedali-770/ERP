@@ -118,13 +118,15 @@ carrying a reason is the event N4 names. **A count that leaves stock below zero 
 nobody**: a late count, dated before movements that took out more than it found, can do
 that (ADR-0029 §4), and whether it should be told is open question 7.
 
-`erp.notify_stock_below_zero()` runs from an ordinary `AFTER INSERT OR UPDATE` row trigger
-on `erp.stock_balance`, with no `WHEN`; the function decides. 0020's seam writes the
-decision first, then its entries, then every balance it touches **in one statement**, each
-stamped with the decision (ADR-0029 §3, step 7). After-row triggers fire when that
-statement ends. So the first balance's trigger sees every balance the decision wrote, at
-what that decision left, still under the seam's key lock; the rest find the notifications
-already made.
+`erp.notify_stock_below_zero()` runs from two ordinary statement triggers on
+`erp.stock_balance`, `AFTER INSERT` and `AFTER UPDATE`, each with its transition tables
+and no `WHEN`; the function decides. 0020's seam writes the decision first, then its
+entries, then every balance it touches **in one statement**, each stamped with the
+decision (ADR-0029 §3, step 7). An after-statement trigger fires when that statement ends,
+so it reads every balance the decision wrote, at what that decision left, still under the
+seam's key lock. The seam's `INSERT … ON CONFLICT DO UPDATE` fires both: either run names
+every item, since it reads the balances, and the second finds the decision already told.
+Each decision is told once, however many lines it has.
 
 It acts only for a balance below zero, newly stamped by a decision that carries an
 override reason. A touch that keeps the stamp, such as the seed's timestamp freeze, posted
@@ -134,17 +136,23 @@ is not news. It tells every active person but the actor to whom §4 says it is o
 runs inside the posting: if it fails, the movement is not recorded. It raises nothing of
 its own, and writes one row per recipient.
 
-`db:check` requires the trigger's shape: after, row, insert and update, enabled, not a
-constraint trigger, and no `WHEN`. pgTAP proves what it tells.
+`db:check` requires the triggers' shape: after, statement, one on insert and one on
+update, each with its transition tables, enabled, not a constraint trigger, and no `WHEN`.
+pgTAP proves what they tell.
 
-**Found in review.** The first design was a constraint trigger on `erp.stock_decision`,
-deferred to commit, because the decision is written before the entries it would read. It
-had two faults, and pgTAP 160 now holds both as controls:
+**Found in review, twice.** The first design was a constraint trigger on
+`erp.stock_decision`, deferred to commit, because the decision is written before the
+entries it would read. It had two faults, and pgTAP 160 now holds both as controls:
 - **It read balances at commit.** Two overrides in one transaction both reported the
   second's figure.
 - **One setting turned it off.** `SET CONSTRAINTS ALL IMMEDIATE`, which needs no privilege,
   fired it at the insert, before any entry existed, and it told nobody. Any later route
   that hurried its own deferred keys would have silenced every notification.
+
+The second was a row trigger on the balance. It was exact, but it ran once per item a
+decision left below zero, each run rebuilding the list and asking every person again: a
+500-line override did that 500 times inside the stock write (found by the PR's automated
+review).
 
 The synthetic seed holds the producer off while it writes its balances (0070), so two
 builds stay identical; the seed holds no notification.
@@ -248,8 +256,10 @@ kind's own rule.
   before there was anything to read.
 - **A trigger on `erp.stock_ledger`.** Rejected: the entries are written before the
   balances, so it would read the balance before the decision.
+- **A row trigger on `erp.stock_balance`.** Built second, and rejected in review (§5): it
+  redid the whole notification once per item.
 - **Calling the producer from `erp.post_stock()`.** Equally exact, since the seam knows
   the balances it wrote. Rejected for now: it means replacing 0020's whole seam in a new
-  migration to add one call, and the balance trigger binds every writer of a balance,
+  migration to add one call, and the balance triggers bind every writer of a balance,
   which is the seam alone.
 - **Keeping notifications for good.** Rejected by N3.
