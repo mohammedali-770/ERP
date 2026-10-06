@@ -337,7 +337,9 @@ test('CONTROL: leaving with lines typed asks first, by every way out; a save\'s 
   assert.match(app, /onChange=\{\(e\) => \{\s+if \(!guard\.allows\(\)\) return;/, 'the facility picker asks');
   assert.match(app, /function signOut\(\) \{\s+if \(!guard\.allows\(\)\) return;/, 'signing out asks');
   assert.match(app, /if \(guard\.clean\(\)\) return;\s+e\.preventDefault\(\);\s+e\.returnValue = '';/, 'closing the tab asks');
-  assert.match(app, /guard\.bypassOnce\(\);\s+window\.location\.hash = formatRoute\(r\);/, 'a save\'s navigate passes');
+  const navigate = app.slice(app.indexOf('navigate: (r, notice) =>'), app.indexOf('setLeaveGuard: guard.set'));
+  assert.match(navigate.slice(0, navigate.indexOf('},')), /guard\.bypassOnce\(\);\s+window\.location\.hash = formatRoute\(r\);/,
+    'a save\'s navigate passes'); // workAt has the same lines: read navigate's own (found in review)
   const entry = readFileSync(new URL('../src/screens/StockEntry.tsx', import.meta.url), 'utf8');
   assert.equal([...entry.matchAll(/setLeaveGuard\(\(\) => lines\.length > 0\);\s+return \(\) => setLeaveGuard\(null\);/g)].length, 2, 'both stock forms register');
   assert.equal([...entry.matchAll(/sent\.current = body;\s+if \(out\.current\) return;\s+out\.current = true;/g)].length, 2, 'one request at a time');

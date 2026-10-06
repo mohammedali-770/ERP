@@ -28,6 +28,8 @@ import { StockItem } from './screens/StockItem.tsx';
 import { StockDecisionPage } from './screens/StockDecision.tsx';
 import { StockAdjust, StockCount } from './screens/StockEntry.tsx';
 import { holdsOverride, stockWritable, workingFacility } from './stock.ts';
+import { badge, bellVisible } from './notifications.ts';
+import { Notifications } from './screens/Notifications.tsx';
 import { FailureNotice, Loading, Notice } from './screens/ui.tsx';
 
 /**
@@ -78,6 +80,10 @@ export function App() {
   const guard = useMemo(() => leaveGuard(() => window.confirm(t(langRef.current, 'leave_unsaved'))), []);
   const shownHash = useRef(window.location.hash);
   const reverting = useRef(false);
+  /** The bell's unread count, and a counter that asks for it again (notifications.ts). */
+  const [unread, setUnread] = useState(0);
+  const [bellAsk, setBellAsk] = useState(0);
+  const [bellPage, setBellPage] = useState(0);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -163,6 +169,37 @@ export function App() {
     };
   }, [api, token, facilityId, onFailure]);
 
+  // The bell's count, read only on the person's own doing: the shell opening, another
+  // facility, another screen, a mark, coming back to the tab. Never on a timer: every
+  // request moves the session's idle clock, so polling would keep an unattended console
+  // signed in past its 30 minutes (notifications.ts).
+  const ready = session !== null && facilityId !== undefined && session.viewer.facility_id === facilityId;
+  const seesBell = ready && bellVisible(toViewer(session.viewer));
+  useEffect(() => {
+    if (!seesBell) {
+      setUnread(0);
+      return;
+    }
+    let live = true;
+    void api.unreadNotifications(facilityId ?? null).then((answer) => {
+      if (!live) return;
+      if (answer.ok) setUnread(answer.value);
+      else onFailure(answer);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, seesBell, facilityId, route, bellAsk, onFailure]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      setBellAsk((n) => n + 1);
+      setBellPage((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
   const toggleLang = () => setLang((l) => (l === 'ar' ? 'en' : 'ar'));
 
   /**
@@ -229,6 +266,19 @@ export function App() {
       if (formatRoute(r) !== (window.location.hash || '#')) guard.bypassOnce();
       window.location.hash = formatRoute(r);
     },
+    seesBell,
+    refreshBell: () => setBellAsk((n) => n + 1),
+    bellPage,
+    workAt: (id, r) => {
+      if (!guard.allows()) return false;
+      if (formatRoute(r) !== (window.location.hash || '#')) guard.bypassOnce();
+      window.location.hash = formatRoute(r);
+      if (id !== facilityId) {
+        setSession(null);
+        setFacilityId(id);
+      }
+      return true;
+    },
     setLeaveGuard: guard.set,
     onFailure,
   };
@@ -257,6 +307,19 @@ export function App() {
             ))}
           </select>
         </label>
+        {seesBell ? (
+          <a className="bell" href="#notifications" aria-label={t(lang, 'bell_label', { n: unread })}
+             aria-current={current === 'notifications' ? 'page' : undefined}
+             onClick={() => {
+               // Already there, the hash does not change: the click itself asks afresh.
+               if (current !== 'notifications') return;
+               setBellAsk((n) => n + 1);
+               setBellPage((n) => n + 1);
+             }}>
+            <span aria-hidden="true">🔔</span>
+            {badge(unread) !== '' ? <span className="badge" aria-hidden="true">{badge(unread)}</span> : null}
+          </a>
+        ) : null}
         <span className="person">{person}</span>
         <button type="button" className="link" onClick={toggleLang}>{t(lang, 'language')}</button>
         <button type="button" onClick={() => signOut()}>{t(lang, 'sign_out')}</button>
@@ -296,6 +359,9 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
     return anyVisible ? <h1>{t(lang, 'signin_welcome')}</h1> : <Notice tone="info" text={t(lang, 'nothing_enabled')} />;
   }
   // The menu hides what the database would refuse; a typed URL meets the same answer.
+  if (route.screen === 'notifications') {
+    return ctx.seesBell ? <Notifications ctx={ctx} /> : <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+  }
   if (navIdOf(route) === 'suppliers') {
     if (!ctx.seesSuppliers) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
     switch (route.screen) {
