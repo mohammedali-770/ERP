@@ -19,9 +19,18 @@ It holds the owner's decisions of 2026-10-05:
   never at or before the item's last count (proposed `INV-P01`);
 - stock is held per facility.
 
-Counts are `INV-009`; the movements and their records, `INV-006` and `INV-007`; the
-control of negative stock, `INV-008`. This is step 5 of module 5: the module is switched
-on only after this pack is signed.
+The pack evidences the control of negative stock (`INV-008`) and the two proposed
+requirements above. It exercises parts of three others without evidencing them, and
+signing it does not deliver them:
+- **`INV-009`, counts.** Full, partial and late counts and recounts are tested. Blind
+  counts are not built (question B), and variances are not approved: the owner decided
+  on no second approval (D2), recorded as a departure from `INV-009`.
+- **`INV-006`, movements.** Only waste, damage, expiry and adjustment are recorded here.
+  Receipts, issues, transfers, returns and production arrive with their own modules.
+- **`INV-007`, what a movement records.** Each records its user, moment, quantity, pack
+  and facility, but no source document, batch or approval state yet.
+
+This is step 5 of module 5: the module is switched on only after this pack is signed.
 
 > What is being tested: **can the person who keeps the warehouse's stock record what
 > happens to it, count it and correct their mistakes, without help, and does the system
@@ -46,7 +55,7 @@ the rest wait for the modules that need them.
 | # | Question | Today | Answer |
 |---|---|---|---|
 | A | Who may let stock go below zero, and at which facilities? | The administrator, and the factory manager at the factory. The warehouse manager may not | |
-| B | Are counts ever blind, the counter not shown the book first? | No: whoever counts can read the balance | |
+| B | Are counts ever blind, the counter not shown the book first? `INV-009` asks for them; until they are built, this pack does not evidence it | No: whoever counts can read the balance | |
 | C | A count that shows a balance below zero after later movements is shown, not refused. Is that right? | Shown | |
 | D | Does any movement back to zero or above clear an item from "below zero", or only a count? | Any movement | |
 | E | Should the stock left at a closed facility be written off without reopening it? | No: a closed facility takes no entries until reopened | |
