@@ -4,7 +4,7 @@ import type { Ctx } from '../context.ts';
 import { shortId } from '../format.ts';
 import { label, localName, t } from '../i18n.ts';
 import { unitName } from '../items.ts';
-import { formatQuantity, isNegative, isZero } from '../stock.ts';
+import { findBalance, formatQuantity, isNegative, isZero } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import { FailureNotice, Loading, Notice } from './ui.tsx';
 import { stockPlace } from './StockList.tsx';
@@ -37,9 +37,12 @@ export function StockItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       if (!onFailure(i)) setFailure(i);
       return;
     }
-    // The balance is read by the item's code, the list's own search; an item never moved here has none.
+    // The balance is found through the list searched by the item's code, page by page in
+    // code order (stock.ts, findBalance); an item never moved here has none.
+    const code = i.value.code;
     const [b, c] = await Promise.all([
-      api.stockOnHand({ facilityId, search: i.value.code, limit: 500 }), api.stockCard(facilityId, itemId),
+      findBalance((after) => api.stockOnHand({ facilityId, search: code, after, limit: 100 }), itemId, code),
+      api.stockCard(facilityId, itemId),
     ]);
     if (mine !== seq.current) return;
     for (const a of [b, c]) {
@@ -50,7 +53,7 @@ export function StockItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     }
     if (b.ok && c.ok) {
       setItem(i.value);
-      setBalance(b.value.balances.find((x) => x.item_id === itemId) ?? null);
+      setBalance(b.value);
       setRows(c.value.decisions);
       setNext(c.value.next_before);
       setFailure(null);
@@ -62,6 +65,7 @@ export function StockItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     setBalance(undefined);
     setRows(null);
     setNext(null);
+    setLoadingMore(false);
     void load();
     return () => {
       seq.current++;

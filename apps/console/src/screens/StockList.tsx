@@ -3,7 +3,7 @@ import type { Failure, StockBalance, ViewerFacility } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { localName, t } from '../i18n.ts';
 import { unitName } from '../items.ts';
-import { formatQuantity, isNegative, STOCK_FACILITY_TYPES, workingFacility } from '../stock.ts';
+import { formatQuantity, isNegative, STOCK_FACILITY_TYPES, workingFacility, writableHere } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import { FailureNotice, Loading, Notice } from './ui.tsx';
 
@@ -25,6 +25,29 @@ export function stockPlace(ctx: Ctx): { facility: ViewerFacility; notice: null }
 }
 
 /**
+ * Whether the facility worked at is closed, read where the person may read facilities.
+ * The session's list carries no status, and a closed facility admits no new work (0019's
+ * erp.assert_facility_open(), which every stock write meets): offering its forms would
+ * offer only a refusal (found in review). Unknown (null) until read, or where it cannot be.
+ */
+export function useFacilityStatus(ctx: Ctx, facilityId: string | null): 'open' | 'closed' | null {
+  const { api, seesFacilities } = ctx;
+  const [status, setStatus] = useState<'open' | 'closed' | null>(null);
+  useEffect(() => {
+    setStatus(null);
+    if (facilityId === null || !seesFacilities) return;
+    let live = true;
+    void api.getFacility(facilityId, facilityId).then((answer) => {
+      if (live && answer.ok) setStatus(answer.value.status);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, facilityId, seesFacilities]);
+  return status;
+}
+
+/**
  * The stock at the facility worked at (erp.stock_on_hand(), 0020): every item it holds a
  * balance of, in the item's base unit, with when it was last counted. A balance below zero
  * after an override (D1) is marked, and can be listed alone. Paged by item code.
@@ -33,6 +56,8 @@ export function StockList({ ctx }: { ctx: Ctx }) {
   const { api, lang, data } = ctx;
   const place = stockPlace(ctx);
   const facilityId = place.facility?.facility_id ?? null;
+  const status = useFacilityStatus(ctx, facilityId);
+  const writable = writableHere(ctx.stockWritable, status);
   const [search, setSearch] = useState('');
   const [applied, setApplied] = useState('');
   const [negative, setNegative] = useState(false);
@@ -95,7 +120,7 @@ export function StockList({ ctx }: { ctx: Ctx }) {
     <section>
       <header className="page-header">
         <h1>{t(lang, 'stock_at', { code: place.facility.code })} — {localName(lang, place.facility)}</h1>
-        {ctx.stockWritable ? (
+        {writable ? (
           <div className="actions">
             <a className="button primary" href="#current_stock/adjust">{t(lang, 'record_movement')}</a>
             <a className="button" href="#current_stock/count">{t(lang, 'record_count')}</a>
@@ -103,7 +128,8 @@ export function StockList({ ctx }: { ctx: Ctx }) {
         ) : null}
       </header>
       <p className="muted">{t(lang, 'stock_hint')}</p>
-      {!ctx.stockWritable ? <Notice tone="info" text={t(lang, 'read_only_stock')} /> : null}
+      {status === 'closed' ? <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />
+        : !writable ? <Notice tone="info" text={t(lang, 'read_only_stock')} /> : null}
 
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setApplied(search.trim()); }}>
         <input

@@ -6,11 +6,13 @@ import { asKey } from '../src/i18n.ts';
 import { failureMessage } from '../src/messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable } from '../src/navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
+import { leaveGuard } from '../src/leave.ts';
 import {
-  adjustmentBody, ADJUSTMENT_KINDS, countBody, formatQuantity, holdsOverride, isNegative, isZero, MAX_LINES,
-  quantityInput, reversalBody, reversible, STOCK_KINDS, stockLines, stockMoment, stockWritable, workingFacility,
-  type DraftLine,
+  adjustmentBody, ADJUSTMENT_KINDS, countBody, findBalance, formatQuantity, holdsOverride, isNegative, isZero, MAX_BALANCE_PAGES,
+  MAX_LINES, quantityInput, reversalBody, reversible, STOCK_KINDS, stockLines, stockMoment, stockWritable, workingFacility,
+  writableHere, type DraftLine,
 } from '../src/stock.ts';
+import type { Answer, StockBalance, StockList } from '../src/api.ts';
 import { toViewer } from '../src/viewer.ts';
 
 const root = new URL('../../../', import.meta.url);
@@ -259,4 +261,84 @@ test('CONTROL: the stock screens read and write at the facility worked at, never
       assert.ok(m[0].includes('facilityId') || /\(facilityId/.test(src.slice(m.index!, m.index! + 60)), `${f}: ${m[0]}`);
     }
   }
+});
+
+// --- found in review ----------------------------------------------------------------
+
+const balance = (item_id: string, code: string): StockBalance => ({
+  item_id, code, item_kind: 'raw_ingredient', base_unit_key: 'kg', name_en: 'n', name_ar: 'ن', item_status: 'active',
+  on_hand: '1', last_counted_at: null, as_of_decision_id: D, units: [],
+});
+
+test('CONTROL: an item\'s balance is found however many name matches come first; past its code it has none; never a guess', async () => {
+  const pages: StockList[] = [
+    { balances: [balance('a', 'AA-001'), balance('b', 'AB-002')], next_after: 'AB-002' },
+    { balances: [balance('c', 'AC-003'), balance(ITEM, 'RM-CHK-BREAST')], next_after: 'RM-CHK-BREAST' },
+  ];
+  const asked: Array<string | null> = [];
+  const pager = (list: StockList[]) => async (after: string | null): Promise<Answer<StockList>> => {
+    asked.push(after);
+    return { ok: true, value: list[asked.length - 1] ?? { balances: [], next_after: null } };
+  };
+  assert.deepEqual(await findBalance(pager(pages), ITEM, 'RM-CHK-BREAST'), { ok: true, value: pages[1]!.balances[1] },
+    'found on the second page, behind name matches that sort first');
+  assert.deepEqual(asked, [null, 'AB-002']);
+  asked.length = 0;
+  const past = [{ balances: [balance('a', 'AA-001'), balance('z', 'ZZ-999')], next_after: 'ZZ-999' }];
+  assert.deepEqual(await findBalance(pager(past), ITEM, 'RM-CHK-BREAST'), { ok: true, value: null }, 'a code past its own: it has none');
+  assert.equal(asked.length, 1, 'and no further page is read');
+  const failed = await findBalance(async () => ({ ok: false, http: 403, status: 'forbidden', message: null, constraint: null, detail: null, field: null }), ITEM, 'X');
+  assert.equal(failed.ok, false, 'a refusal is passed on');
+  let n = 0;
+  const endless = await findBalance(async () => ({ ok: true, value: { balances: [balance(`x${n}`, `AA-${n++}`)], next_after: 'AA' } }), ITEM, 'ZZ');
+  assert.equal(endless.ok, false, `past ${MAX_BALANCE_PAGES} pages is a failure, never "nothing recorded"`);
+  assert.equal(n, MAX_BALANCE_PAGES);
+  assert.match(read('apps/console/src/screens/StockItem.tsx'), /findBalance\(\(after\) => api\.stockOnHand\(/);
+});
+
+test('CONTROL: a closed facility is offered no stock change; the screens that offer one read its status', () => {
+  assert.equal(writableHere(true, 'open'), true);
+  assert.equal(writableHere(true, null), true, 'unknown: the database still refuses, in words the console has');
+  assert.equal(writableHere(true, 'closed'), false);
+  assert.equal(writableHere(false, 'open'), false);
+  for (const f of ['StockList.tsx', 'StockEntry.tsx', 'StockDecision.tsx']) {
+    const src = readFileSync(new URL(`../src/screens/${f}`, import.meta.url), 'utf8');
+    assert.match(src, /useFacilityStatus\(ctx, /, f);
+    assert.match(src, /writableHere\(ctx\.stockWritable, status\)/, f);
+  }
+  assert.match(read('apps/console/src/messages.ts'), /facility_admits_no_new_work: 'rule_facility_no_new_work'/);
+});
+
+test('CONTROL: leaving with lines typed asks first, by every way out; a save\'s own way out asks nothing', () => {
+  let asked = 0;
+  let answer = false;
+  const g = leaveGuard(() => { asked++; return answer; });
+  assert.equal(g.allows(), true, 'nothing registered: nothing to lose');
+  let lines = 0;
+  g.set(() => lines > 0);
+  assert.equal(g.allows(), true, 'no lines yet');
+  assert.equal(asked, 0);
+  lines = 3;
+  assert.equal(g.clean(), false);
+  assert.equal(g.allows(), false, 'lines typed, and the person stays');
+  answer = true;
+  assert.equal(g.allows(), true, 'lines typed, and the person leaves');
+  assert.equal(asked, 2);
+  g.bypassOnce();
+  assert.equal(g.allows(), true, 'a save leaving');
+  assert.equal(asked, 2, 'asks nothing');
+  answer = false;
+  assert.equal(g.allows(), false, 'the pass is used once');
+  g.set(null);
+  assert.equal(g.allows(), true, 'the form gone: nothing to lose');
+
+  const app = read('apps/console/src/App.tsx');
+  assert.match(app, /if \(!guard\.allows\(\)\) \{\s+reverting\.current = true;/, 'a hash change asks, and puts the hash back');
+  assert.match(app, /onChange=\{\(e\) => \{\s+if \(!guard\.allows\(\)\) return;/, 'the facility picker asks');
+  assert.match(app, /function signOut\(\) \{\s+if \(!guard\.allows\(\)\) return;/, 'signing out asks');
+  assert.match(app, /if \(guard\.clean\(\)\) return;\s+e\.preventDefault\(\);\s+e\.returnValue = '';/, 'closing the tab asks');
+  assert.match(app, /guard\.bypassOnce\(\);\s+window\.location\.hash = formatRoute\(r\);/, 'a save\'s navigate passes');
+  const entry = readFileSync(new URL('../src/screens/StockEntry.tsx', import.meta.url), 'utf8');
+  assert.equal([...entry.matchAll(/setLeaveGuard\(\(\) => lines\.length > 0\);\s+return \(\) => setLeaveGuard\(null\);/g)].length, 2, 'both stock forms register');
+  assert.equal([...entry.matchAll(/sent\.current = body;\s+if \(out\.current\) return;\s+out\.current = true;/g)].length, 2, 'one request at a time');
 });

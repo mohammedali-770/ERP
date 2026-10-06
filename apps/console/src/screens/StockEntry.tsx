@@ -6,11 +6,11 @@ import { formIds } from '../ids.ts';
 import { label, localName, t, type Lang } from '../i18n.ts';
 import { isUnanswered, unitName, writeOutcome } from '../items.ts';
 import {
-  adjustmentBody, ADJUSTMENT_KINDS, countBody, MAX_LINES, stockLines, stockMoment, WOULD_GO_NEGATIVE,
+  adjustmentBody, ADJUSTMENT_KINDS, countBody, MAX_LINES, stockLines, stockMoment, WOULD_GO_NEGATIVE, writableHere,
   type AdjustmentKind, type DraftLine, type LineProblem,
 } from '../stock.ts';
 import { FailureNotice, Field, InDoubt, Notice, ReasonField } from './ui.tsx';
-import { stockPlace } from './StockList.tsx';
+import { stockPlace, useFacilityStatus } from './StockList.tsx';
 
 /** A line as the form holds it: the item it is for, with the pack, quantity and direction typed. */
 interface FormLine extends DraftLine {
@@ -203,16 +203,29 @@ export function StockAdjust({ ctx }: { ctx: Ctx }) {
   const keySeq = useRef(0);
   // The request as first sent: Retry resends exactly this, never the fields as they are now.
   const sent = useRef<StockAdjustmentInput | null>(null);
+  // One request at a time: two quick Enters sent the same id twice (found in review).
+  const out = useRef(false);
+  const status = useFacilityStatus(ctx, place.facility?.facility_id ?? null);
+  // Lines typed are work: every way out of the page asks first (leave.ts).
+  const { setLeaveGuard } = ctx;
+  useEffect(() => {
+    setLeaveGuard(() => lines.length > 0);
+    return () => setLeaveGuard(null);
+  }, [setLeaveGuard, lines.length]);
 
   if (place.facility === null) return <section><a href="#current_stock">{t(lang, 'back')}</a>{place.notice}</section>;
-  if (!ctx.stockWritable) return <Notice tone="info" text={t(lang, 'read_only_stock')} />;
+  if (status === 'closed') return <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />;
+  if (!writableHere(ctx.stockWritable, status)) return <Notice tone="info" text={t(lang, 'read_only_stock')} />;
   const facilityId = place.facility.facility_id;
 
   async function send(body: StockAdjustmentInput) {
     sent.current = body;
+    if (out.current) return;
+    out.current = true;
     setBusy(true);
     setFailure(null);
     const answer = await ctx.api.recordStockAdjustment(body);
+    out.current = false;
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved' || outcome === 'already') {
@@ -318,23 +331,29 @@ export function StockCount({ ctx }: { ctx: Ctx }) {
   const keySeq = useRef(0);
   // The request as first sent: Retry resends exactly this, never the fields as they are now.
   const sent = useRef<StockCountInput | null>(null);
-  // A count is long: leaving with lines typed asks first.
+  // One request at a time: two quick Enters sent the same id twice (found in review).
+  const out = useRef(false);
+  const status = useFacilityStatus(ctx, place.facility?.facility_id ?? null);
+  // Lines typed are work: every way out of the page asks first (leave.ts).
+  const { setLeaveGuard } = ctx;
   useEffect(() => {
-    if (lines.length === 0) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [lines.length]);
+    setLeaveGuard(() => lines.length > 0);
+    return () => setLeaveGuard(null);
+  }, [setLeaveGuard, lines.length]);
 
   if (place.facility === null) return <section><a href="#current_stock">{t(lang, 'back')}</a>{place.notice}</section>;
-  if (!ctx.stockWritable) return <Notice tone="info" text={t(lang, 'read_only_stock')} />;
+  if (status === 'closed') return <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />;
+  if (!writableHere(ctx.stockWritable, status)) return <Notice tone="info" text={t(lang, 'read_only_stock')} />;
   const facilityId = place.facility.facility_id;
 
   async function send(body: StockCountInput) {
     sent.current = body;
+    if (out.current) return;
+    out.current = true;
     setBusy(true);
     setFailure(null);
     const answer = await ctx.api.recordStockCount(body);
+    out.current = false;
     setBusy(false);
     const outcome = writeOutcome(answer);
     if (outcome === 'saved' || outcome === 'already') {

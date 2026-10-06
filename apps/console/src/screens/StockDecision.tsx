@@ -5,11 +5,11 @@ import { formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { unitName } from '../items.ts';
-import { formatQuantity, reversalBody, reversible, WOULD_GO_NEGATIVE } from '../stock.ts';
+import { formatQuantity, reversalBody, reversible, WOULD_GO_NEGATIVE, writableHere } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
-import { stockPlace } from './StockList.tsx';
+import { stockPlace, useFacilityStatus } from './StockList.tsx';
 import { useWrite } from './useWrite.tsx';
 
 type Banner = { tone: 'ok' | 'info'; text: string } | null;
@@ -25,6 +25,7 @@ export function StockDecisionPage({ ctx, decisionId }: { ctx: Ctx; decisionId: s
   const { api, lang, data, onFailure } = ctx;
   const place = stockPlace(ctx);
   const facilityId = place.facility?.facility_id ?? null;
+  const status = useFacilityStatus(ctx, facilityId);
   const [decision, setDecision] = useState<StockDecision | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
@@ -136,7 +137,7 @@ export function StockDecisionPage({ ctx, decisionId }: { ctx: Ctx; decisionId: s
         </table>
       )}
 
-      {ctx.stockWritable && reversible(decision)
+      {writableHere(ctx.stockWritable, status) && reversible(decision)
         ? <Reverse ctx={ctx} facilityId={place.facility.facility_id} target={decision.decision_id} onDone={afterWrite} /> : null}
       {decision.kind === 'count' ? <p className="muted">{t(lang, 'count_not_reversed')}</p> : null}
     </section>

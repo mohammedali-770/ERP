@@ -461,7 +461,9 @@ const EN = {
   rule_stock_before_facility: 'That moment is before this facility was recorded.',
   rule_stock_override_reason: 'Going below zero needs its reason.',
   rule_no_stock_decision: 'No such entry at this facility.',
-  rule_no_pack: 'No such pack at this facility\'s brand.',
+  rule_no_pack: 'No such pack of this item.',
+  rule_stock_lines: 'An entry holds 1 to 500 lines, each naming its pack.',
+  leave_unsaved: 'Leave this page? The lines you have entered are not saved and will be lost.',
   rule_facility_no_new_work: 'This facility is closed and takes no new entries.',
 } as const;
 
@@ -819,7 +821,7 @@ const AR: Readonly<Record<Key, string>> = {
   stock_branch_none: 'لا يحتفظ الفرع بسجل مخزون بعد: لم يُحسم بعد كيف يُحتسب يوم الفرع.',
   stock_office_none: 'لا يحتفظ المكتب بمخزون.',
   record_movement: 'تسجيل حركة',
-  record_movement_hint: 'إدخال واحد لكل ما تَلِف أو تضرّر أو انتهت صلاحيته أو سُوّي في لحظة واحدة. لا تُعدَّل الحركة ولا تُحذف: يُعكس الخطأ أو يصحّحه جرد.',
+  record_movement_hint: 'إدخال واحد لكل ما هُدر أو تلف أو انتهت صلاحيته أو سُوّي في لحظة واحدة. لا تُعدَّل الحركة ولا تُحذف: يُعكس الخطأ أو يصحّحه جرد.',
   record_count: 'تسجيل جرد',
   record_count_hint: 'ما وُجد، بالعبوات التي وُجد فيها. لا يتغيّر إلا ما يُدرج من أصناف؛ والصنف الذي يُجرد صفراً يُضبط على صفر.',
   below_zero_only: 'ما دون الصفر فقط',
@@ -904,7 +906,9 @@ const AR: Readonly<Record<Key, string>> = {
   rule_stock_before_facility: 'هذه اللحظة قبل تسجيل هذه المنشأة.',
   rule_stock_override_reason: 'النزول دون الصفر يحتاج سببه.',
   rule_no_stock_decision: 'لا إدخال كهذا في هذه المنشأة.',
-  rule_no_pack: 'لا عبوة كهذه لعلامة هذه المنشأة.',
+  rule_no_pack: 'لا عبوة كهذه لهذا الصنف.',
+  rule_stock_lines: 'يحمل الإدخال من سطر إلى ٥٠٠ سطر، لكل منها عبوته.',
+  leave_unsaved: 'مغادرة هذه الصفحة؟ الأسطر التي أدخلتها لم تُحفظ وستضيع.',
   rule_facility_no_new_work: 'هذه المنشأة مغلقة ولا تقبل إدخالات جديدة.',
 };
 

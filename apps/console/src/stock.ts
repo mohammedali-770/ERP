@@ -20,7 +20,8 @@
  * Requirements: INV-009 · INV-P01 · INV-P02 · PRG-014
  */
 import type {
-  StockAdjustmentInput, StockCountInput, StockLineInput, StockReversalInput, ViewerFacility,
+  Answer, Failure, StockAdjustmentInput, StockBalance, StockCountInput, StockLineInput, StockList, StockReversalInput,
+  ViewerFacility,
 } from './api.ts';
 import { latinDigits } from './format.ts';
 import { holds, type Viewer } from './navigation.ts';
@@ -92,6 +93,42 @@ export function workingFacility(facilities: readonly ViewerFacility[], facilityI
  */
 export function stockWritable(facility: ViewerFacility | undefined, viewer: Viewer, writable: (v: Viewer) => boolean): boolean {
   return facility !== undefined && STOCK_FACILITY_TYPES.has(facility.facility_type) && writable(viewer);
+}
+
+/**
+ * Whether changes are offered now: the session allows them here, and the facility is not
+ * known to be closed. The session's list of facilities carries no status, so a screen
+ * reads it (erp.get_facility()) where the person may; 0020 refuses a closed facility's
+ * writes regardless (facility_admits_no_new_work), and that refusal is worded.
+ */
+export function writableHere(stockWritable: boolean, status: 'open' | 'closed' | null): boolean {
+  return stockWritable && status !== 'closed';
+}
+
+/** How many pages of balances an item card reads before it gives up and says so. */
+export const MAX_BALANCE_PAGES = 20;
+
+/**
+ * One item's balance at the facility, from the balances list searched by its code. The
+ * search also matches names, so other items can come first, and a page holds 500: the
+ * pages are read in code order until the item is found, or a code past its own shows it
+ * has none. Codes are canonical ASCII, so JavaScript's order is 0020's `collate "C"`.
+ * A search that runs past MAX_BALANCE_PAGES is a failure, never "nothing recorded".
+ */
+export async function findBalance(
+  page: (after: string | null) => Promise<Answer<StockList>>, itemId: string, code: string,
+): Promise<{ ok: true; value: StockBalance | null } | Failure> {
+  let after: string | null = null;
+  for (let n = 0; n < MAX_BALANCE_PAGES; n++) {
+    const answer = await page(after);
+    if (!answer.ok) return answer;
+    const hit = answer.value.balances.find((b) => b.item_id === itemId);
+    if (hit !== undefined) return { ok: true, value: hit };
+    const last = answer.value.balances[answer.value.balances.length - 1];
+    if (answer.value.next_after === null || last === undefined || last.code > code) return { ok: true, value: null };
+    after = answer.value.next_after;
+  }
+  return { ok: false, http: 500, status: 'error', message: null, constraint: null, detail: null, field: null };
 }
 
 /**

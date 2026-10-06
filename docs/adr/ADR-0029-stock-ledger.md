@@ -446,6 +446,10 @@ addendum of 2026-10-05).
   `assert_permitted(…, 'write', p_facility_id)` on all three write routes, and a test
   reads 0020 to hold it.
   - The menu entry asks for read on items as well, as every 0020 read does.
+  - **A closed facility is offered no change.** The session's list of facilities
+    carries no status, so the screens that offer a change read it (`erp.get_facility()`)
+    where the person may read facilities. Where they may not, the database's refusal
+    (`facility_admits_no_new_work`) is worded instead (found in review).
   - The override field (D1) appears only to someone holding approve there, never in a
     preview. Without it, a refusal for going below zero says to count the item or ask a
     manager who may.
@@ -454,7 +458,11 @@ addendum of 2026-10-05).
     with when it was last counted. A balance below zero is marked, and can be listed
     alone. It is paged by code.
   - **An item's stock card** (`#current_stock/items/{id}`): the balance and every
-    decision, newest first. Each row shows its moment on Riyadh's clock, its business
+    decision, newest first. The balance is found through the list searched by the
+    item's code, read page by page in code order until it appears or a code past its
+    own shows it has none. A single capped page could be crowded out by name matches
+    (found in review), and a search past 20 pages is a failure, never "nothing
+    recorded". Each row shows its moment on Riyadh's clock, its business
     day, what came in and went out in the base unit, what a count found, the reason and
     any override reason. A reversed movement is marked. It is paged by seq.
   - **A decision** (`#current_stock/decisions/{id}`): what was found and what was posted,
@@ -465,7 +473,12 @@ addendum of 2026-10-05).
     adjustment, now or at a stated Riyadh moment. It takes up to 500 lines, one per pack;
     an adjustment line states in or out.
   - **Record a count** (`#current_stock/count`): what was found, in the packs found, now
-    or at a stated moment. A count may find none. Leaving with lines typed asks first.
+    or at a stated moment. A count may find none.
+  - **Leaving either form with lines typed asks first, by every way out:** a link or the
+    menu (a hash change, put back if the person stays), the facility picker, signing
+    out, and closing the tab. `beforeunload` alone missed every way out but the last
+    (found in review). A save's own move to the decision asks nothing. Each form sends
+    one request at a time, so two quick Enters do not send its id twice.
 - **A quantity stays text,** from the keyboard to the database, as a coordinate does.
   - Arabic-Indic digits and the Arabic decimal separator are read as ASCII.
   - It is checked against 0020's rule (twelve digits, six places, more than nothing
@@ -482,6 +495,10 @@ addendum of 2026-10-05).
     "check it is what you meant". If not, the form unlocks under a new id, as the
     facility form does. A lost request that still arrives after that is recorded as
     well, and is undone by a reversal. See question 14 below.
+  - A Retry refused outright (below zero, say) leaves the form in doubt, as every
+    console form does: the first request may still land. Start over is the way out.
+    The review asked for the shared lifecycle to unlock instead, which is left for
+    the owner with question 14.
 - **Refusals read as sentences** for every rule 0020 raises in its own words, in English
   and Arabic, a test checking each worded constraint against 0020. A native speaker
   reviews the Arabic, as for every module.
@@ -502,8 +519,10 @@ addendum of 2026-10-05).
   - The factory manager is refused below zero, then saves with an override reason, and
     the factory is listed below zero.
   - A cashier at a branch is told a branch holds no stock yet.
+  - Leaving a form with lines typed by the menu asks first, and when the person stays,
+    the form keeps its lines.
 
-  21 controls each fail a named test.
+  27 controls each fail a named test.
 
 ## Open, for the owner and for UAT
 

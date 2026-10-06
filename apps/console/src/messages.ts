@@ -127,6 +127,7 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   stock_quantity_inexact: 'rule_stock_inexact',
   stock_line_repeats: 'rule_stock_line_repeats',
   stock_direction_is_known: 'rule_stock_direction',
+  stock_lines_are_stated: 'rule_stock_lines',
   stock_not_in_future: 'rule_stock_future',
   stock_moment_before_facility: 'rule_stock_before_facility',
   stock_override_reason_is_stated: 'rule_stock_override_reason',

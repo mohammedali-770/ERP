@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createApi, sessionEnded, type Api, type Failure, type SessionData } from './api.ts';
 import type { Ctx } from './context.ts';
 import { dir, label, localName, t, type Lang } from './i18n.ts';
+import { leaveGuard } from './leave.ts';
 import { failureMessage } from './messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, visibleNavigation, type NavItem } from './navigation.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from './route.ts';
@@ -73,6 +74,10 @@ export function App() {
   // every toggle reload the item page and discard any open form (found in review).
   const langRef = useRef(lang);
   langRef.current = lang;
+  // Every way out of a screen asks first while a form holds unsaved lines (leave.ts).
+  const guard = useMemo(() => leaveGuard(() => window.confirm(t(langRef.current, 'leave_unsaved'))), []);
+  const shownHash = useRef(window.location.hash);
+  const reverting = useRef(false);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -82,10 +87,33 @@ export function App() {
   }, [lang, prefs]);
 
   useEffect(() => {
-    const onHash = () => setRoute(parseRoute(window.location.hash));
+    const onHash = () => {
+      // The hash put back after a refused leave changes nothing.
+      if (reverting.current) {
+        reverting.current = false;
+        return;
+      }
+      if (!guard.allows()) {
+        reverting.current = true;
+        window.location.replace(`${window.location.pathname}${window.location.search}${shownHash.current || '#'}`);
+        return;
+      }
+      shownHash.current = window.location.hash;
+      setRoute(parseRoute(window.location.hash));
+    };
+    // Closing the tab or reloading asks too; returnValue for the browsers that still read it.
+    const onUnload = (e: BeforeUnloadEvent) => {
+      if (guard.clean()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
     window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, [guard]);
 
   // A notice lives on the screen it was addressed to; leaving that screen ends it.
   useEffect(() => {
@@ -143,6 +171,7 @@ export function App() {
    * If the request is lost the session still ends on the server, at 30 minutes idle.
    */
   function signOut() {
+    if (!guard.allows()) return;
     const token = tokens.get();
     signedOut(null);
     window.location.hash = '';
@@ -196,8 +225,11 @@ export function App() {
     seesStock: itemIsVisible(STOCK, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
+      // A form's own way out after a save asks nothing; only a real change of hash uses the pass.
+      if (formatRoute(r) !== (window.location.hash || '#')) guard.bypassOnce();
       window.location.hash = formatRoute(r);
     },
+    setLeaveGuard: guard.set,
     onFailure,
   };
   const groups = visibleNavigation(NAVIGATION, viewer);
@@ -214,6 +246,7 @@ export function App() {
           <select
             value={facilityId ?? ''}
             onChange={(e) => {
+              if (!guard.allows()) return;
               setSession(null);
               setFacilityId(e.target.value === '' ? null : e.target.value);
             }}
