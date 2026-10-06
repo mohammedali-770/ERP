@@ -15,7 +15,7 @@ import { toViewer, transferPricesWritable } from '../src/viewer.ts';
 const root = new URL('../../../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 const PRICES_MIGRATION = read('supabase/migrations/20261004000400_transfer_prices.sql');
-const EDGE = read('supabase/functions/_shared/transfer-prices.ts');
+const EDGE = read('supabase/functions/_shared/fields.ts');
 
 const ITEM = '01936f00-0000-7000-8000-000000004101';
 const UNIT = '01936f00-0000-7000-8000-000000004203';

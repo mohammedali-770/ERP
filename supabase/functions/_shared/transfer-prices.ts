@@ -38,7 +38,7 @@
 import { endpoint, type Deps, type Reply } from './http.ts';
 import type { Session } from './handlers.ts';
 import {
-  facilityOf, form, listLimit, Malformed, noSuchRoute, ok, optionalText, routeOf, shaped, text, uuid, type Source,
+  facilityOf, form, listLimit, Malformed, moment, noSuchRoute, ok, optionalText, routeOf, shaped, text, uuid, type Source,
 } from './fields.ts';
 
 /** A whole number of minor units, as a JSON number. Its range is the route's rule. */
@@ -46,28 +46,6 @@ function priceMinor(source: Source): number {
   const v = source['price_minor'];
   if (typeof v !== 'number' || !Number.isSafeInteger(v)) throw new Malformed('price_minor');
   return v;
-}
-
-/** An offset PostgreSQL accepts: within ±15:59. */
-const MOMENT = /^(\d{4})-(\d{2})-(\d{2})T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d{1,6})?)?(Z|[+-](0\d|1[0-5]):[0-5]\d)$/;
-
-/**
- * An ISO 8601 moment with its offset, or null — absent or null — for now. The day must
- * exist: Date.parse() rolls 30 February over to 2 March, so the date is rebuilt and
- * compared. An impossible day or offset reached PostgreSQL and came back a 422 naming
- * no field, where it is a 400 naming this one (found in review).
- */
-function effectiveFrom(source: Source): string | null {
-  const v = source['effective_from'];
-  if (v === undefined || v === null) return null;
-  const m = typeof v === 'string' ? MOMENT.exec(v) : null;
-  if (m === null) throw new Malformed('effective_from');
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const day = new Date(Date.UTC(y, mo - 1, d));
-  if (y < 1 || day.getUTCFullYear() !== y || day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) {
-    throw new Malformed('effective_from');
-  }
-  return v as string;
 }
 
 async function list(request: Request, s: Session, deps: Deps): Promise<Reply> {
@@ -109,7 +87,7 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
       itemUnitId: uuid(b, 'item_unit_id'),
       priceMinor: priceMinor(b),
       currency: text(b, 'currency', 3),
-      effectiveFrom: effectiveFrom(b),
+      effectiveFrom: moment(b, 'effective_from'),
       reason: text(b, 'reason', 500),
     });
     return ok({ decision_id: decisionId });

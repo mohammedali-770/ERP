@@ -32,6 +32,7 @@ import type { ImportSummary, Item } from '../_shared/items-db.ts';
 import type { Supplier, SupplierDetail, SupplierImportSummary } from '../_shared/suppliers-db.ts';
 import { withMinor, type ItemPrice, type PriceListRow } from '../_shared/transfer-prices-db.ts';
 import type { Facility } from '../_shared/facilities-db.ts';
+import type { StockBalance } from '../_shared/stock-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -220,6 +221,51 @@ export function makeDb(sql: Sql): Db {
       await sql`select erp.change_facility_status(
         ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid,
         ${i.status}::text, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+
+    // A quantity comes back from postgres.js as a string (numeric), and stays one, as a
+    // coordinate does; a seq (int8) comes back as a string too. Inside the routes' jsonb
+    // answers 0020 writes quantities and factors as text itself. Lines go through
+    // sql.json() for the reason above.
+    //
+    // A business date is a calendar date at the facility (D3), and postgres.js parses a
+    // date as a Date at UTC midnight, which a browser west of Greenwich shows as the day
+    // before (found in review). So the columns are named and the date is cast to text:
+    // "2026-09-25", as the database holds it.
+    stockOnHand: (actor, q) => run(async () => (await sql`
+      select * from erp.stock_on_hand(${actor}::uuid, ${q.facilityId}::uuid, ${q.search}::text,
+                                      ${q.afterCode}::text, ${q.limit}::integer, ${q.negativeOnly}::boolean)`
+    ) as unknown as StockBalance[]),
+    stockHistory: (actor, q) => run(async () =>
+      [...await sql`
+        select decision_id, seq, kind, occurred_at, business_date::text as business_date, quantity_in, quantity_out,
+               counted, reason, override_reason, actor_id, decided_at, recorded_at, reverses_decision_id,
+               reversed_by_decision_id
+          from erp.stock_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.itemId}::uuid,
+                                 ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+    getStockDecision: (actor, facilityId, decisionId) => run(async () => {
+      const [row] = await sql`
+        select decision_id, seq, kind, facility_id, occurred_at, business_date::text as business_date,
+               reverses_decision_id, reversed_by_decision_id, override_reason, reason, actor_id, decided_at,
+               recorded_at, entries, counted
+          from erp.get_stock_decision(${actor}::uuid, ${facilityId}::uuid, ${decisionId}::uuid)`;
+      return row as Record<string, unknown>;
+    }),
+    recordStockAdjustment: (actor, i) => run(async () => {
+      await sql`select erp.record_stock_adjustment(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.kind}::text, ${i.occurredAt}::timestamptz,
+        ${sql.json(i.lines as unknown as postgres.JSONValue)}::jsonb, ${i.reason}::text, ${i.overrideReason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    recordStockCount: (actor, i) => run(async () => {
+      await sql`select erp.record_stock_count(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.countedAt}::timestamptz,
+        ${sql.json(i.lines as unknown as postgres.JSONValue)}::jsonb, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    reverseStockDecision: (actor, i) => run(async () => {
+      await sql`select erp.reverse_stock_decision(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.targetDecisionId}::uuid, ${i.reason}::text,
+        ${i.overrideReason}::text, ${actor}::uuid, now())`;
     }),
   };
 }

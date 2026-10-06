@@ -92,3 +92,7 @@ import_map = "./functions/deno.json"
 [functions.facilities]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.stock]
+verify_jwt = false
+import_map = "./functions/deno.json"

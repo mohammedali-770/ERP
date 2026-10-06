@@ -7,6 +7,7 @@ import type { Supplier, SuppliersDb } from '../suppliers-db.ts';
 import { suppliers } from '../suppliers.ts';
 import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { Refusal } from '../refusal.ts';
+import type { StockDb } from '../stock-db.ts';
 import { notUsed } from './not-used.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
 
@@ -46,6 +47,12 @@ const facilitiesNotUsed = notUsed<FacilitiesDb>('facilities', {
   setFacilityArea: true, changeFacilityStatus: true,
 });
 
+/** The stock routes, which these tests never reach either. */
+const stockNotUsed = notUsed<StockDb>('stock', {
+  stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
+  recordStockCount: true, reverseStockDecision: true,
+});
+
 /** A suppliers database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db & { calls: Call[] } {
   const calls: Call[] = [];
@@ -71,6 +78,7 @@ function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db 
     ...itemsNotUsed,
     ...transferPricesNotUsed,
     ...facilitiesNotUsed,
+    ...stockNotUsed,
     listSuppliers: record('listSuppliers'),
     getSupplier: record('getSupplier'),
     supplierHistory: record('supplierHistory'),
