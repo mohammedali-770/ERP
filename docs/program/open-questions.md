@@ -566,6 +566,14 @@ Options: keep it manual; record sign-offs as data (who, when, which revision of 
 mapping) and have `erp.decide_capability()` refuse `pilot` or `enabled` without one; or
 refuse runtime promotion past `pilot`, so only a migration can open a module.
 
+**Found 2026-10-06, drafting module 5's switch-on:** a promotion scoped to one facility
+cannot be a plain migration. The decision names the facility by its id, facilities are
+made at run time, and a rebuild applies migrations before any facility exists. The
+drafted migration finds the facility by code when applied, and records nothing (with a
+warning) where it is absent. That works, but makes a migration's effect depend on run-time
+data. If facility pilots become the norm, a reviewed run-time decision may be the better
+instrument (ADR-0029's step 6 addendum).
+
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
 
