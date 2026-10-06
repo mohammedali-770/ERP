@@ -636,7 +636,7 @@ requirements:
   # neither is an artifact type req-lint resolves. The staff testing pack
   # (UAT-notifications) evidences SUP-P03 whole. It exercises SUP-P01 and SUP-P02
   # without evidencing them: a session cannot show what a row stores, a person's access
-  # being taken away, or anything 90 days old. So it is cited on SUP-P03 alone.
+  # changing, or anything 90 days old. So it is cited on SUP-P03 alone.
   # ---------------------------------------------------------------------------
 
   - id: "SUP-P01"

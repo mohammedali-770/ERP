@@ -122,12 +122,15 @@ and what those told can read; and one neither decides: where the bell is switche
   team lists in their `ERP_ALLOWED_ORIGINS` the exact address each console's page is
   opened at: `http://localhost:5173` where a computer runs the console itself, or the
   second computer's address and port if the participant opens the console from there.
-- The console starts in Arabic, as it will for staff, and each person works in their own
-  language: the language button in the top bar (العربية / English) switches it, and the
-  browser remembers the choice through every sign-out. This version quotes the English
-  labels; the Arabic version of this pack quotes the Arabic ones. Before the participant
-  arrives, the team signs in once and out again on each computer, to check that the
-  functions answer. Part 12 switches the participant's console to the other language.
+- The console starts in Arabic in a browser that has never been switched, and each person
+  works in their own language. The language button (العربية / English) sits at the corner
+  of the sign-in card before sign-in, and in the top bar after it; the browser remembers
+  the last choice through every sign-out. Before the participant arrives, the team signs
+  in once and out again on each computer, to check that the functions answer, and leaves
+  the participant's console in the participant's own language. Whoever sits down at the
+  second computer checks its language first, since it keeps the last person's. This
+  version quotes the English labels; the Arabic version of this pack quotes the Arabic
+  ones. Part 12 switches the participant's console to the other language, and back.
 - A second computer, placed where the observer can see both screens and the participant
   cannot see the second. The factory manager, the administrator and the accountant are
   staff in those roles, not the team; each is given these pages to follow and signs below.
@@ -136,7 +139,9 @@ and what those told can read; and one neither decides: where the bell is switche
   before the next signs in. Where the participant acts once an entry is saved, the
   observer tells them when.
 - After each save on the second computer, the console opens the saved entry. Before
-  anything else, the observer writes down the time in its heading, for 3.3. The entry
+  anything else, the observer writes down the time in its heading, for 3.3, as hh:mm on
+  the 24-hour clock in Western digits: the two consoles may show the same minute in
+  different digits and clocks when they run in different languages. The entry
   shows what it took out, not what is left, so whoever saved it then opens Current stock,
   and the observer writes down the item's balance there. Nothing is read aloud: the
   participant learns of an entry only from the bell.
@@ -202,7 +207,7 @@ and what those told can read; and one neither decides: where the bell is switche
 |---|---|---|
 | 3.1 | Open the bell | Two, newest first: the chicken breast above the chicken strips. Each reads "Stock went below zero at" and the factory's code, and is marked unread |
 | 3.2 | Say where each happened | At the factory, matched by its code in "Where you are working": the bell shows the code, not the name. Note whether that is enough |
-| 3.3 | Say when each happened | The time in the heading of each saved entry on the second computer, in Riyadh time, as the observer wrote it down |
+| 3.3 | Say when each happened | The time in the heading of each saved entry on the second computer, in Riyadh time, as the observer wrote it down, once what the participant reads is converted to the same digits and clock |
 | 3.4 | Say which item, and how much is left | Chicken breast at -20 Kilogram; chicken strips at -28 Piece: each in red, in the item's base unit |
 | 3.5 | Look on the bell for who did it, and why | **There is none**: neither a name nor a reason is on the bell. The reason is on the entry itself, and who made it, as a short code (Part 8) |
 
@@ -281,8 +286,8 @@ and what those told can read; and one neither decides: where the bell is switche
 
 | # | Task | Passes when |
 |---|---|---|
-| 12.1 | On the bell's page, switch the console to the other language | Every label changes, and the page mirrors: in Arabic it reads right to left and the bell sits toward the left of the top bar, in English the reverse. The newest still reads that stock went below zero at the factory's code, is marked unread, and shows the breast at -50 in red, the minus sign before the number |
-| 12.2 | Switch back, read the page's hint aloud, and say what it means | Their own notifications, from every facility they may open, kept for 90 days, understood without help |
+| 12.1 | On the bell's page, switch the console to the other language | Every label changes, and the page mirrors: in Arabic it reads right to left and the bell sits toward the left of the top bar, in English the reverse. The newest still reads that stock went below zero at the factory's code, is marked unread, and shows the breast at -50 in red, shown as -50, not 50-, in either direction |
+| 12.2 | Switch back | Every label is back in the participant's own language, and the page reads in its own direction again; nothing on it has changed |
 | 12.3 | On the newest, the chicken breast at -50, say what the button naming the factory's code will do, then press it | "Where you are working" switches to the factory, and the waste opens. Working for the whole organisation, every factory notification carries the same button. Note whether the button's words say that the place of work changes: "Work at … and open" in English, «الانتقال إلى … وفتحه» ("go to … and open it") in Arabic |
 
 ## Part 13 · Never told (accountant)
