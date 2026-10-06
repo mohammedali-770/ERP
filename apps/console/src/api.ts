@@ -2,8 +2,9 @@
  * The console's client for the edge functions: sign-in, the session, sign-out, module 1's
  * items routes (supabase/functions/_shared/items.ts), module 2's suppliers routes
  * (supabase/functions/_shared/suppliers.ts), module 3's transfer-prices routes
- * (supabase/functions/_shared/transfer-prices.ts) and module 4's facilities routes
- * (supabase/functions/_shared/facilities.ts).
+ * (supabase/functions/_shared/transfer-prices.ts), module 4's facilities routes
+ * (supabase/functions/_shared/facilities.ts) and module 5's stock routes
+ * (supabase/functions/_shared/stock.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -22,7 +23,7 @@
  * sends the same ids, and the database answers `already_recorded` instead of recording
  * the decision twice.
  *
- * Requirements: IAM-003 · IAM-006 · IAM-P11 · INV-002 · INV-005 · PRC-005 · SEC-008 · CAP-P04
+ * Requirements: IAM-003 · IAM-006 · IAM-P11 · INV-002 · INV-005 · INV-009 · INV-P01 · PRC-005 · SEC-008 · CAP-P04
  */
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -563,6 +564,150 @@ export interface FacilityStatusInput {
   readonly reason: string;
 }
 
+/**
+ * One item's balance at a facility, as erp.stock_on_hand() returns it (0020). A quantity
+ * is decimal TEXT in the item's base unit, never a number, and may stand below zero after
+ * an override (D1); a pack's factor is text too.
+ */
+export interface StockBalance {
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_kind: string;
+  readonly base_unit_key: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly item_status: 'active' | 'retired';
+  readonly on_hand: string;
+  readonly last_counted_at: string | null;
+  readonly as_of_decision_id: string;
+  readonly units: readonly { readonly item_unit_id: string; readonly unit_key: string; readonly factor: string; readonly status: 'active' | 'retired' }[];
+}
+
+export interface StockList {
+  readonly balances: readonly StockBalance[];
+  readonly next_after: string | null;
+}
+
+/** Stock is held at one facility: every read names it (ADR-0029 D4). */
+export interface StockQuery {
+  readonly facilityId: string;
+  readonly search?: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+  readonly negativeOnly?: boolean;
+}
+
+export type StockKind = 'count' | 'adjustment' | 'waste' | 'damage' | 'expiry' | 'reversal';
+
+/**
+ * One decision on an item's stock card, as erp.stock_history() returns it: what it moved
+ * in the item's base unit, or what a count found. A business date is the facility's
+ * calendar day as text ("2026-09-25"); a seq is decimal text, the page's bookmark.
+ */
+export interface StockCardRow {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: StockKind;
+  readonly occurred_at: string;
+  readonly business_date: string;
+  readonly quantity_in: string;
+  readonly quantity_out: string;
+  readonly counted: string | null;
+  readonly reason: string;
+  readonly override_reason: string | null;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly reverses_decision_id: string | null;
+  readonly reversed_by_decision_id: string | null;
+}
+
+export interface StockCard {
+  readonly decisions: readonly StockCardRow[];
+  readonly next_before: string | null;
+}
+
+export interface StockEntry {
+  readonly entry_id: string | number;
+  readonly line_no: number;
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: string;
+  readonly direction: 'in' | 'out';
+  readonly quantity: string;
+  readonly base_quantity: string;
+  readonly reverses_entry_id: string | number | null;
+}
+
+export interface StockCounted {
+  readonly line_no: number;
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: string;
+  readonly quantity: string;
+  readonly base_quantity: string;
+}
+
+/** One stock decision whole, as erp.get_stock_decision() returns it, at its own facility. */
+export interface StockDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: StockKind;
+  readonly facility_id: string;
+  readonly occurred_at: string;
+  readonly business_date: string;
+  readonly reverses_decision_id: string | null;
+  readonly reversed_by_decision_id: string | null;
+  readonly override_reason: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly entries: readonly StockEntry[];
+  readonly counted: readonly StockCounted[];
+}
+
+/** A line as the edge takes it: a conversion, a quantity as decimal text, and a direction on an adjustment. */
+export interface StockLineInput {
+  readonly item_unit_id: string;
+  readonly quantity: string;
+  readonly direction?: 'in' | 'out';
+}
+
+/**
+ * An adjustment or a write-off at one facility. The moment is ISO 8601 with its offset,
+ * or null for now; the override reason is D1's, or null.
+ */
+export interface StockAdjustmentInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly kind: 'adjustment' | 'waste' | 'damage' | 'expiry';
+  readonly occurred_at: string | null;
+  readonly lines: readonly StockLineInput[];
+  readonly reason: string;
+  readonly override_reason: string | null;
+}
+
+export interface StockCountInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly counted_at: string | null;
+  readonly lines: readonly StockLineInput[];
+  readonly reason: string;
+}
+
+/** A reversal names the decision it reverses in the path only. */
+export interface StockReversalInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly reason: string;
+  readonly override_reason: string | null;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -611,6 +756,13 @@ export interface Api {
   amendFacility(targetId: string, input: AmendFacilityInput): Promise<Answer<{ decision_id: string }>>;
   setFacilityArea(targetId: string, input: AreaInput): Promise<Answer<{ decision_id: string }>>;
   changeFacilityStatus(targetId: string, input: FacilityStatusInput): Promise<Answer<{ decision_id: string }>>;
+  stockOnHand(query: StockQuery): Promise<Answer<StockList>>;
+  stockCard(facilityId: string, itemId: string, before?: string | null): Promise<Answer<StockCard>>;
+  getStockDecision(facilityId: string, decisionId: string): Promise<Answer<StockDecision>>;
+  recordStockAdjustment(input: StockAdjustmentInput): Promise<Answer<{ decision_id: string }>>;
+  recordStockCount(input: StockCountInput): Promise<Answer<{ decision_id: string }>>;
+  /** The decision reversed is the one the path names; the body names the facility, as every stock write does. */
+  reverseStockDecision(targetDecisionId: string, input: StockReversalInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -771,5 +923,21 @@ export function createApi(config: ApiConfig): Api {
       call('POST', `/facilities/${encodeURIComponent(targetId)}/area`, input, decision),
     changeFacilityStatus: (targetId, input) =>
       call('POST', `/facilities/${encodeURIComponent(targetId)}/status`, input, decision),
+
+    stockOnHand: (q) =>
+      call('GET', `/stock${query({
+        facility_id: q.facilityId, search: q.search, after: q.after, limit: q.limit,
+        negative: q.negativeOnly === true ? 'true' : null,
+      })}`, undefined, (b) => ({ balances: b['balances'] as StockBalance[], next_after: text(b['next_after']) })),
+    stockCard: (facilityId, itemId, before = null) =>
+      call('GET', `/stock/items/${encodeURIComponent(itemId)}${query({ facility_id: facilityId, before })}`, undefined,
+        (b) => ({ decisions: b['decisions'] as StockCardRow[], next_before: text(b['next_before']) })),
+    getStockDecision: (facilityId, decisionId) =>
+      call('GET', `/stock/decisions/${encodeURIComponent(decisionId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['decision'] as StockDecision),
+    recordStockAdjustment: (input) => call('POST', '/stock/adjustments', input, decision),
+    recordStockCount: (input) => call('POST', '/stock/counts', input, decision),
+    reverseStockDecision: (targetDecisionId, input) =>
+      call('POST', `/stock/decisions/${encodeURIComponent(targetDecisionId)}/reverse`, input, decision),
   };
 }

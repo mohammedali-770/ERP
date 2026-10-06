@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018 or 0019 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019 or 0020 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -111,6 +111,28 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   facility_status_unchanged: 'rule_facility_status_unchanged',
   facility_exists: 'rule_no_facility',
   operating_unit_exists: 'rule_no_operating_unit',
+  facility_admits_no_new_work: 'rule_facility_no_new_work',
+  // 0020's, for stock. Not stock_decision_pkey, for the reason given above for
+  // supplier_decision_pkey.
+  stock_would_go_negative: 'rule_stock_negative',
+  stock_backdated_before_count: 'rule_stock_backdated',
+  stock_count_moment_taken: 'rule_stock_count_moment',
+  stock_reversal_counted_since: 'rule_stock_counted_since',
+  stock_decision_is_not_reversible: 'rule_stock_not_reversible',
+  stock_already_reversed: 'rule_stock_already_reversed',
+  stock_branch_business_day_undecided: 'rule_stock_branch',
+  stock_facility_holds_no_stock: 'rule_stock_office',
+  stock_facility_required: 'rule_stock_facility_required',
+  stock_quantity_is_valid: 'rule_stock_quantity',
+  stock_quantity_inexact: 'rule_stock_inexact',
+  stock_line_repeats: 'rule_stock_line_repeats',
+  stock_direction_is_known: 'rule_stock_direction',
+  stock_not_in_future: 'rule_stock_future',
+  stock_moment_before_facility: 'rule_stock_before_facility',
+  stock_override_reason_is_stated: 'rule_stock_override_reason',
+  stock_decision_reason_is_stated: 'rule_reason_required',
+  stock_decision_exists: 'rule_no_stock_decision',
+  item_unit_exists: 'rule_no_pack',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

@@ -22,6 +22,11 @@ import { SupplierCreate, SupplierEdit } from './screens/SupplierForm.tsx';
 import { SupplierImport } from './screens/SupplierImport.tsx';
 import { SuppliersList } from './screens/SuppliersList.tsx';
 import { TransferPricesList } from './screens/TransferPricesList.tsx';
+import { StockList } from './screens/StockList.tsx';
+import { StockItem } from './screens/StockItem.tsx';
+import { StockDecisionPage } from './screens/StockDecision.tsx';
+import { StockAdjust, StockCount } from './screens/StockEntry.tsx';
+import { holdsOverride, stockWritable, workingFacility } from './stock.ts';
 import { FailureNotice, Loading, Notice } from './screens/ui.tsx';
 
 /**
@@ -37,6 +42,7 @@ const ITEMS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === '
 const SUPPLIERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'suppliers')!;
 const TRANSFER_PRICES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'transfer_prices')!;
 const FACILITIES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'facilities')!;
+const STOCK: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'current_stock')!;
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -184,6 +190,10 @@ export function App() {
     seesTransferPrices: itemIsVisible(TRANSFER_PRICES, viewer),
     facilitiesWritable: facilitiesWritable(viewer, facilityId, (v) => itemIsWritable(FACILITIES, v)),
     seesFacilities: itemIsVisible(FACILITIES, viewer),
+    // The masters' inverse: stock changes only AT a warehouse or a factory, where 0020 asks.
+    stockWritable: stockWritable(workingFacility(data.facilities, facilityId), viewer, (v) => itemIsWritable(STOCK, v)),
+    stockOverride: holdsOverride(viewer),
+    seesStock: itemIsVisible(STOCK, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       window.location.hash = formatRoute(r);
@@ -278,6 +288,16 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
       case 'facility_new': return <FacilityCreate ctx={ctx} />;
       case 'facility': return <FacilityDetail ctx={ctx} targetId={route.targetId} />;
       case 'facility_edit': return <FacilityEdit ctx={ctx} targetId={route.targetId} />;
+    }
+  }
+  if (navIdOf(route) === 'current_stock') {
+    if (!ctx.seesStock) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'current_stock': return <StockList ctx={ctx} />;
+      case 'stock_item': return <StockItem ctx={ctx} itemId={route.itemId} />;
+      case 'stock_decision': return <StockDecisionPage ctx={ctx} decisionId={route.decisionId} />;
+      case 'stock_adjust': return <StockAdjust ctx={ctx} />;
+      case 'stock_count': return <StockCount ctx={ctx} />;
     }
   }
   if (!itemsVisible) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;

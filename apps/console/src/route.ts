@@ -27,6 +27,11 @@ export type Route =
   | { readonly screen: 'facility_new' }
   | { readonly screen: 'facility'; readonly targetId: string }
   | { readonly screen: 'facility_edit'; readonly targetId: string }
+  | { readonly screen: 'current_stock' }
+  | { readonly screen: 'stock_item'; readonly itemId: string }
+  | { readonly screen: 'stock_decision'; readonly decisionId: string }
+  | { readonly screen: 'stock_adjust' }
+  | { readonly screen: 'stock_count' }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,6 +76,17 @@ export function parseRoute(hash: string): Route {
     if (path.length === 3 && path[2] === 'edit') return { screen: 'facility_edit', targetId: id.toLowerCase() };
     return unknown;
   }
+  // Stock is always the facility worked at's (ADR-0029 D4): no route names a facility.
+  if (path[0] === 'current_stock') {
+    if (path.length === 1) return { screen: 'current_stock' };
+    if (path.length === 2 && path[1] === 'adjust') return { screen: 'stock_adjust' };
+    if (path.length === 2 && path[1] === 'count') return { screen: 'stock_count' };
+    const id = path[2];
+    if (path.length !== 3 || id === undefined || !UUID.test(id)) return unknown;
+    if (path[1] === 'items') return { screen: 'stock_item', itemId: id.toLowerCase() };
+    if (path[1] === 'decisions') return { screen: 'stock_decision', decisionId: id.toLowerCase() };
+    return unknown;
+  }
   if (path[0] === 'transfer_prices') {
     if (path.length === 1) return { screen: 'transfer_prices' };
     const id = path[1]!;
@@ -100,6 +116,11 @@ export function formatRoute(route: Route): string {
     case 'facility_new': return '#facilities/new';
     case 'facility': return `#facilities/${route.targetId}`;
     case 'facility_edit': return `#facilities/${route.targetId}/edit`;
+    case 'current_stock': return '#current_stock';
+    case 'stock_item': return `#current_stock/items/${route.itemId}`;
+    case 'stock_decision': return `#current_stock/decisions/${route.decisionId}`;
+    case 'stock_adjust': return '#current_stock/adjust';
+    case 'stock_count': return '#current_stock/count';
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -109,6 +130,7 @@ export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
   if (route.screen === 'transfer_prices' || route.screen === 'item_prices') return 'transfer_prices';
   if (route.screen === 'facilities' || route.screen.startsWith('facility')) return 'facilities';
+  if (route.screen === 'current_stock' || route.screen.startsWith('stock_')) return 'current_stock';
   return route.screen === 'suppliers' || route.screen === 'supplier' || route.screen.startsWith('supplier_')
     ? 'suppliers' : 'items';
 }
