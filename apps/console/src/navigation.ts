@@ -111,10 +111,10 @@ export function visibleNavigation<P>(groups: readonly NavGroup<P>[], viewer: Vie
 }
 
 /**
- * The capabilities the console knows about, as registered by 0010, 0011, 0012, 0016, 0018
- * and 0019. The screens arrive in Phase 4, module by module, each behind its capability:
- * items (module 1), suppliers (module 2), transfer prices (module 3) and facilities
- * (module 4) have screens; the rest are entries with nothing
+ * The capabilities the console knows about, as registered by 0010, 0011, 0012, 0016, 0018,
+ * 0019 and 0020. The screens arrive in Phase 4, module by module, each behind its capability:
+ * items (module 1), suppliers (module 2), transfer prices (module 3), facilities
+ * (module 4) and stock (module 5) have screens; the rest are entries with nothing
  * behind them yet, and stay hidden until their capability is recorded open.
  */
 export const NAVIGATION: readonly NavGroup[] = [
@@ -132,7 +132,8 @@ export const NAVIGATION: readonly NavGroup[] = [
       { id: 'items', labelKey: 'items', capability: 'inventory.items', action: 'read' },
       // Every 0018 read asks for read on items too: a price names an item.
       { id: 'transfer_prices', labelKey: 'transfer_prices', capability: 'inventory.transfer_prices', action: 'read', alsoReads: ['inventory.items'] },
-      { id: 'current_stock', labelKey: 'current_stock', capability: 'inventory.stock', action: 'read' },
+      // Every 0020 read asks for read on items too: a balance names an item.
+      { id: 'current_stock', labelKey: 'current_stock', capability: 'inventory.stock', action: 'read', alsoReads: ['inventory.items'] },
     ],
   },
   {

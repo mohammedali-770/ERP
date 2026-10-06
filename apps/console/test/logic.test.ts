@@ -188,7 +188,7 @@ test('routes parse and format both ways, and an id must be a UUID', () => {
   for (const r of routes) assert.deepEqual(parseRoute(formatRoute(r)), r);
   assert.deepEqual(parseRoute(`#items/${id.toUpperCase()}`), { screen: 'item', itemId: id });
   assert.deepEqual(parseRoute('#items/ITM-001'), { screen: 'unknown', id: 'items/ITM-001' });
-  assert.deepEqual(parseRoute('#current_stock'), { screen: 'unknown', id: 'current_stock' });
+  assert.deepEqual(parseRoute('#production'), { screen: 'unknown', id: 'production' }, 'a menu entry whose module has no screens yet');
   assert.deepEqual(parseRoute(''), { screen: 'home' });
   assert.deepEqual(parseRoute('#items/%E0'), { screen: 'unknown', id: 'items/%E0' }, 'a malformed escape blanks nothing');
 });

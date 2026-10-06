@@ -29,6 +29,14 @@ export interface Ctx {
   readonly facilitiesWritable: boolean;
   /** Whether the person may read facilities here. */
   readonly seesFacilities: boolean;
+  /** Whether the stock screens offer changes here: at a warehouse or a factory only (stock.ts, stockWritable). */
+  readonly stockWritable: boolean;
+  /** Whether the person may let stock go below zero here, with a reason (D1; stock.ts, holdsOverride). */
+  readonly stockOverride: boolean;
+  /** Whether the person may read stock here: the stock entry asks for read on items too. */
+  readonly seesStock: boolean;
+  /** A form with unsaved work registers what makes it dirty; every way out then asks first (leave.ts). Null clears it. */
+  readonly setLeaveGuard: (dirty: (() => boolean) | null) => void;
   /** Goes to `route`, with a notice shown once on arrival (an `already_recorded` success). */
   readonly navigate: (route: Route, notice?: string) => void;
   /**

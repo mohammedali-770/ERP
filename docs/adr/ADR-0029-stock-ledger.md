@@ -428,6 +428,102 @@ routes.
     counting now, ignoring `negative`, reading a decision at no facility, or answering a
     business date as a UTC moment.
 
+## Addendum — 2026-10-06: the screens (module 5, step 3)
+
+Five screens in the console, under Inventory → Current stock. They are built as the
+facility and transfer-price screens are: ids minted once per form, Retry resending the
+exact request first sent, and fields locked while a request is out or in doubt (ADR-0024's
+addendum of 2026-10-05).
+
+- **Where.** Every stock screen reads and writes at the facility being worked at, and
+  only at a warehouse or a factory (D4). The route never names a facility.
+  - Organisation-wide, the page asks the person to choose a warehouse or factory under
+    "Where you are working", because 0020 would refuse rather than mix them (§8).
+  - At a branch, it says a branch holds no stock record yet (Q-06); at an office, none.
+- **Who.** This is the masters' inverse. Items, suppliers, prices and facilities change
+  only organisation-wide. Stock changes only *at* a warehouse or factory, to someone
+  whose viewer there holds write on `inventory.stock`. That mirrors 0020's
+  `assert_permitted(…, 'write', p_facility_id)` on all three write routes, and a test
+  reads 0020 to hold it.
+  - The menu entry asks for read on items as well, as every 0020 read does.
+  - **A closed facility is offered no change.** The session's list of facilities
+    carries no status, so the screens that offer a change read it (`erp.get_facility()`)
+    where the person may read facilities. Where they may not, the database's refusal
+    (`facility_admits_no_new_work`) is worded instead (found in review).
+  - The override field (D1) appears only to someone holding approve there, never in a
+    preview. Without it, a refusal for going below zero says to count the item or ask a
+    manager who may.
+- **The screens:**
+  - **Stock at a facility** (`#current_stock`): every balance, in each item's base unit,
+    with when it was last counted. A balance below zero is marked, and can be listed
+    alone. It is paged by code.
+  - **An item's stock card** (`#current_stock/items/{id}`): the balance and every
+    decision, newest first. The balance is found through the list searched by the
+    item's code, read page by page in code order until it appears or a code past its
+    own shows it has none. A single capped page could be crowded out by name matches
+    (found in review), and a search past 20 pages is a failure, never "nothing
+    recorded". Each row shows its moment on Riyadh's clock, its business
+    day, what came in and went out in the base unit, what a count found, the reason and
+    any override reason. A reversed movement is marked. It is paged by seq.
+  - **A decision** (`#current_stock/decisions/{id}`): what was found and what was posted,
+    line by line, in the packs used, and the reversal that undid it or the decision it
+    undid. A movement not yet reversed offers Reverse; a count says it is corrected by
+    counting again.
+  - **Record a movement** (`#current_stock/adjust`): a waste, damage, expiry or
+    adjustment, now or at a stated Riyadh moment. It takes up to 500 lines, one per pack;
+    an adjustment line states in or out.
+  - **Record a count** (`#current_stock/count`): what was found, in the packs found, now
+    or at a stated moment. A count may find none.
+  - **Leaving either form with lines typed asks first, by every way out:** a link or the
+    menu (a hash change, put back if the person stays), the facility picker, signing
+    out, and closing the tab. `beforeunload` alone missed every way out but the last
+    (found in review). A save's own move to the decision asks nothing. Each form sends
+    one request at a time, so two quick Enters do not send its id twice.
+- **A quantity stays text,** from the keyboard to the database, as a coordinate does.
+  - Arabic-Indic digits and the Arabic decimal separator are read as ASCII.
+  - It is checked against 0020's rule (twelve digits, six places, more than nothing
+    except on a count), which a test reads from 0020, and sent as typed.
+  - A test reads every stock screen's source and finds no arithmetic on a quantity.
+  - A repeated pack, a line without a pack or quantity, and an adjustment line without a
+    direction are named by their line before anything is sent.
+- **A pack retired since is still offered,** marked retired: stock already held is
+  counted and written off in the pack it is in (I-7).
+- **A lost answer.**
+  - A form in doubt offers Retry, which sends the same request and is answered
+    "already saved", or Start over.
+  - Start over reads the decision by its id. If it is there, the form goes to it, with
+    "check it is what you meant". If not, the form unlocks under a new id, as the
+    facility form does. A lost request that still arrives after that is recorded as
+    well, and is undone by a reversal. See question 14 below.
+  - A Retry refused outright (below zero, say) leaves the form in doubt, as every
+    console form does: the first request may still land. Start over is the way out.
+    The review asked for the shared lifecycle to unlock instead, which is left for
+    the owner with question 14.
+- **Refusals read as sentences** for every rule 0020 raises in its own words, in English
+  and Arabic, a test checking each worded constraint against 0020. A native speaker
+  reviews the Arabic, as for every module.
+- **Proved in a browser** against a scratch database and the edge, in English and
+  Arabic. The run checked these, in order:
+  - Organisation-wide, the page asks for a warehouse or factory.
+  - At the warehouse, the seeded balances read back as text.
+  - A waste of "١٫٥" kg saves and moves the balance.
+  - Twenty cartons are refused below zero, with no override offered to the warehouse
+    manager.
+  - A repeated pack is named by its line before sending.
+  - A count stated at 06:00 Riyadh posts its difference from the book at that moment,
+    with its business day.
+  - A movement dated before that count is refused.
+  - The waste is reversed once, and the card shows it marked.
+  - A write whose answer was lost locks the form, and Retry is answered "already saved"
+    and recorded once.
+  - The factory manager is refused below zero, then saves with an override reason, and
+    the factory is listed below zero.
+  - A cashier at a branch is told a branch holds no stock yet.
+  - Leaving a form with lines typed by the menu asks first, and when the person stays,
+    the form keeps its lines.
+
+  27 controls each fail a named test.
+
 ## Open, for the owner and for UAT
 
 Recorded rather than guessed. Each is decided before the module that needs it.
@@ -471,6 +567,14 @@ Recorded rather than guessed. Each is decided before the module that needs it.
     before the facility's record began, but within that a year typed one too few is still
     taken. Should a movement stated more than some days before it is recorded need a
     manager, or be refused?
+
+14. **A Start over that finds nothing unlocks the form under a new id** (step 3's
+    addendum), as the facility form does. If the lost request is still in flight, it lands
+    too, and the movement is recorded twice. That is visible on the card, and a reversal
+    undoes it. The alternative keeps the old id until the person leaves the form, so a
+    late arrival is answered "already saved". But the form then shows edits the request
+    never carried, which the item forms' review found worse. Which should the warehouse
+    have?
 
 ## Alternatives considered
 

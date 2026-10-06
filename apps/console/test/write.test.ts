@@ -164,8 +164,10 @@ test('CONTROL: no screen rebuilds a request on Retry', () => {
 });
 
 test('CONTROL: every detail page\'s sub-forms share one write lifecycle, and lock while a request is out', () => {
-  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx'];
-  const forms: Record<string, number> = { 'ItemDetail.tsx': 3, 'SupplierDetail.tsx': 3, 'FacilityDetail.tsx': 2, 'ItemPrices.tsx': 2 };
+  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx', 'StockDecision.tsx'];
+  const forms: Record<string, number> = {
+    'ItemDetail.tsx': 3, 'SupplierDetail.tsx': 3, 'FacilityDetail.tsx': 2, 'ItemPrices.tsx': 2, 'StockDecision.tsx': 1,
+  };
   for (const name of screens.filter((f) => f !== 'useWrite.tsx')) {
     assert.doesNotMatch(source(name), /function useWrite\(/, `${name} keeps no copy of its own`);
     assert.doesNotMatch(source(name), /function seeWhatIsSaved\(/, `${name}: Start over is the shared one`);
@@ -193,7 +195,7 @@ test('CONTROL: every detail page\'s sub-forms share one write lifecycle, and loc
 });
 
 test('CONTROL: every full-page form keeps the request it sent, locks while it is out, and Start over unlocks nothing it has not seen', () => {
-  const pages: Array<[string, number]> = [['ItemForm.tsx', 2], ['SupplierForm.tsx', 2], ['FacilityForm.tsx', 2]];
+  const pages: Array<[string, number]> = [['ItemForm.tsx', 2], ['SupplierForm.tsx', 2], ['FacilityForm.tsx', 2], ['StockEntry.tsx', 2]];
   for (const [page, n] of pages) {
     const src = source(page);
     assert.equal([...src.matchAll(/disabled=\{inDoubt \|\| busy\}/g)].length, n, `${page}: both forms lock while a request is out`);
