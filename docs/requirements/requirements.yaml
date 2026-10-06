@@ -2263,9 +2263,10 @@ requirements:
     text_en: "Negative stock shall be prevented or explicitly controlled through an exception approval policy."
     text_ar: "يجب منع المخزون السالب أو التحكم فيه صراحة من خلال سياسة اعتماد للاستثناءات."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-stock"
     estate_refs: []
   - id: "INV-009"
     module: "INV"

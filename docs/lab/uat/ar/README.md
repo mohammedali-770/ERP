@@ -32,6 +32,7 @@
 | [الموردون](./suppliers.md) | صاحب قائمة الموردين ومدير المستودع | [`suppliers.md`](../suppliers.md) |
 | [أسعار التحويل](./transfer-prices.md) | من يحدد أسعار التحويل ومدير المستودع وموظف فرع | [`transfer-prices.md`](../transfer-prices.md) |
 | [الفروع والمنشآت](./facilities.md) | من يتولى قائمة الفروع ومدير المستودع وموظف فرع | [`facilities.md`](../facilities.md) |
+| [المخزون والحركات](./stock.md) | من يتولى مخزون المستودع ومدير المصنع وموظف فرع | [`stock.md`](../stock.md) |
 | [تطبيق العميل](./customer-app.md) | عملاء أو موظفون ينوبون عنهم | [`customer-app.md`](../customer-app.md) |
 | [التقارير](./reporting.md) | المالية والعمليات | [`reporting.md`](../reporting.md) |
 | [الدعم](./support.md) | تقنية المعلومات ومديرو الفروع | [`support.md`](../support.md) |

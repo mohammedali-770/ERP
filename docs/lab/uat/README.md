@@ -27,7 +27,7 @@ cannot perform real workflows".
 
 ## The packs
 
-Arabic versions of all thirteen are in [`ar/`](./ar/) — see the note at the end of
+Arabic versions of all fourteen are in [`ar/`](./ar/) — see the note at the end of
 this file before using them.
 
 | Pack | Who runs it | Covers |
@@ -39,6 +39,7 @@ this file before using them.
 | [`suppliers`](./suppliers.md) | The supplier list's owner, the warehouse manager | Suppliers, what they sell, contact erasure, bulk upload — module 2's step 5 (ADR-0026) |
 | [`transfer-prices`](./transfer-prices.md) | Whoever sets transfer prices, the warehouse manager, a branch worker | Prices per pack, from now or set ahead, withdrawal, history — module 3's step 5 (ADR-0027) |
 | [`facilities`](./facilities.md) | Whoever keeps the branch list, the warehouse manager, a branch worker | Branches and facilities, each branch's ordering area, closing and reopening, history — module 4's step 5 (ADR-0028) |
+| [`stock`](./stock.md) | Whoever keeps the warehouse's stock, the factory manager, a branch worker | Balances, write-offs and adjustments, counts stated late, below zero and its override, reversals, the stock card — module 5's step 5 (ADR-0029) |
 | [`customer-app`](./customer-app.md) | Customers, or staff acting as them | Ordering, tracking, history, notifications |
 | [`reporting`](./reporting.md) | Finance, operations | Standard reports reconciling to source |
 | [`support`](./support.md) | IT, branch managers | Runbooks, alerts, incident handling |
@@ -65,7 +66,7 @@ whether they could do it.
 
 ## Before these are used
 
-> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` and `suppliers` added 2026-10-04, `transfer-prices` and `facilities` 2026-10-05.**
+> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` and `suppliers` added 2026-10-04, `transfer-prices` and `facilities` 2026-10-05, `stock` 2026-10-06.**
 >
 > `PRG-014` requires user-facing material in both languages. The English packs
 > here remain the source of truth — they are updated first and the Arabic

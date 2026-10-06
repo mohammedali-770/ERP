@@ -606,6 +606,8 @@ requirements:
     status: "proposed"
     text_en: "A stock movement at a warehouse or a factory shall belong to the calendar date, in the facility's time zone, of the moment it happened; a movement entered late shall state that moment, and no movement shall be dated at or before the last count of the item at that facility."
     text_ar: "يجب أن تُنسب حركة المخزون في المستودع أو المصنع إلى التاريخ التقويمي، بتوقيت المنشأة، للحظة التي حدثت فيها؛ ويجب أن تذكر الحركة المُدخلة متأخرةً تلك اللحظة، وألا تؤرَّخ أي حركة في وقت آخر جرد للصنف في تلك المنشأة أو قبله."
+    test_refs:
+      - UAT-stock
     relates_to:
       - INV-007
       - INV-009
@@ -618,5 +620,7 @@ requirements:
     status: "proposed"
     text_en: "A stock movement that takes stock out of an item at a facility and would leave its stock there below zero shall be refused unless a person permitted to override it records it with a stated reason; a count shall never be refused for the balance it leaves, and a balance below zero shall be shown as such."
     text_ar: "يجب رفض حركة المخزون التي تُخرج كمية من صنف في منشأة وتجعل رصيده فيها أقل من الصفر، ما لم يسجلها شخص مخوَّل بالتجاوز مع ذكر السبب؛ ولا يُرفض الجرد أبداً بسبب الرصيد الذي يتركه، ويُعرض الرصيد الأقل من الصفر على حقيقته."
+    test_refs:
+      - UAT-stock
     relates_to:
       - INV-008
