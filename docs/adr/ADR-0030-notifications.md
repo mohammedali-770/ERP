@@ -328,6 +328,36 @@ The bell is in the console (`apps/console/src/notifications.ts`,
   - one that arrived after the page was loaded survived "Mark all read", and a click on
     the bell showed it.
 
+## Addendum — 2026-10-06: the staff testing pack (module 6, step 5)
+
+The pack is written, in English and Arabic:
+[`docs/lab/uat/notifications.md`](../lab/uat/notifications.md) and
+[`ar/notifications.md`](../lab/uat/ar/notifications.md).
+- **Who runs it.** The warehouse manager is the participant. The factory manager makes the
+  overrides on a second computer, the administrator checks that marks are personal and
+  who else is told, and the accountant has a bell that stock never rings.
+- **What it evidences.** It evidences SUP-P03 whole, and is cited there alone. It
+  exercises SUP-P01, SUP-P02, SUP-005, SUP-006 and SUP-007 without evidencing them. A
+  session cannot show what a row stores, a person's access being taken away, or anything
+  90 days old.
+- **Before the session.** Its owner's table asks this ADR's open questions as staff will
+  meet them, with ADR-0029's questions 2 and 9 and where the bell is switched on.
+- **Language.** The session runs in each person's own language, the console's Arabic
+  first, and one part switches to the other language.
+
+Writing the pack found two things about the console. Neither is the bell's, and the pack
+is written around both:
+- **An idle sign-out can give the wrong reason.** After 30 minutes untouched, opening a
+  screen sends several requests at once. The database answers `idle` only to the first
+  and `ended` to the rest (0014), and the console shows whichever answer arrives last. On
+  Current stock the facility check, which drops its failures, can take the `idle` answer.
+  The person then reads "Your session has ended" rather than "You were signed out after
+  30 minutes without activity". The pack accepts either, and the observer notes which. A
+  fix keeps the first reason and stops the facility check swallowing a session's end.
+- **Every test person's short code reads the same.** A stock entry shows who recorded it
+  as the first eight characters of their id, and every synthetic id begins with the same
+  eight. The pack asks whether the participant needed to know who; real ids will differ.
+
 ## Open, for the owner and for UAT
 
 1. **When is the purge run?** In a hosted project, a scheduled job (`pg_cron`, or an

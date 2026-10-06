@@ -633,7 +633,10 @@ requirements:
   # for alerts with ownership and deduplication (SUP-005); it says neither who the
   # recipients are, how long a notification is kept, nor what raises one. All three are
   # new behaviour, so all three are proposed. pgTAP 160 and db-check exercise them;
-  # neither is an artifact type req-lint resolves.
+  # neither is an artifact type req-lint resolves. The staff testing pack
+  # (UAT-notifications) evidences SUP-P03 whole. It exercises SUP-P01 and SUP-P02
+  # without evidencing them: a session cannot show what a row stores, a person's access
+  # being taken away, or anything 90 days old. So it is cited on SUP-P03 alone.
   # ---------------------------------------------------------------------------
 
   - id: "SUP-P01"
@@ -668,6 +671,8 @@ requirements:
     status: "proposed"
     text_en: "When a permitted person overrides the refusal of a stock movement that takes an item below zero at a facility, stating a reason, the people who may read that facility's stock shall be notified in the application, naming each item the movement took out and left below zero and the balance it left; a count, which is never refused, shall not raise this notification."
     text_ar: "عندما يتجاوز شخص مخوَّل رفض حركة مخزون تجعل رصيد صنف أقل من الصفر في منشأة، مع ذكر السبب، يجب إشعار الأشخاص المخوَّلين بقراءة مخزون تلك المنشأة داخل التطبيق، مع ذكر كل صنف أخرجته الحركة وأصبح رصيده أقل من الصفر والرصيد الذي تركته؛ ولا يُصدر الجرد، الذي لا يُرفض أبداً، هذا الإشعار."
+    test_refs:
+      - UAT-notifications
     relates_to:
       - INV-P02
       - INV-008
