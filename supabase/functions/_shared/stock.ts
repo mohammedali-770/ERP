@@ -78,11 +78,13 @@ function lines(source: Source): StockLine[] {
   });
 }
 
-/** A history page ends before a seq: decimal text of an int8. */
+/** A history page ends before a seq: decimal text of a positive int8. */
 function beforeSeq(query: Source): string | null {
   const v = query['before'];
   if (v === undefined) return null;
-  if (typeof v !== 'string' || !/^[1-9]\d{0,17}$/.test(v)) throw new Malformed('before');
+  if (typeof v !== 'string' || !/^[1-9]\d{0,18}$/.test(v) || BigInt(v) > 9223372036854775807n) {
+    throw new Malformed('before');
+  }
   return v;
 }
 
@@ -161,7 +163,7 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
     return ok({ decision_id: decisionId });
   }
   if (path.length === 3 && path[0] === 'decisions' && path[2] === 'reverse') {
-    const targetDecisionId = uuid({ decision_id: path[1] }, 'decision_id');
+    const targetDecisionId = uuid({ target_decision_id: path[1] }, 'target_decision_id');
     const b = await form(request);
     const decisionId = uuid(b, 'decision_id');
     await deps.db.reverseStockDecision(actor, {

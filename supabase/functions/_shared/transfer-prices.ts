@@ -48,7 +48,6 @@ function priceMinor(source: Source): number {
   return v;
 }
 
-
 async function list(request: Request, s: Session, deps: Deps): Promise<Reply> {
   const q = Object.fromEntries(new URL(request.url).searchParams);
   const limit = listLimit(q);

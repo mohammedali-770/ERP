@@ -161,7 +161,7 @@ Deno.test('every stock route, as erp_edge, through the router and the driver, ro
         const opening = await send('GET', `/decisions/${OPENING}?facility_id=${WAREHOUSE}`);
         equal(opening.http, 200, 'the opening count');
         const d = opening.body.decision as Row;
-        equal(d.kind, 'count', 'a count');
+        equal([d.kind, d.business_date], ['count', '2026-09-25'], 'a count, on its calendar date as text');
         const found = (d.counted as Row[]).find((c) => c.item_unit_id === CARTON);
         equal([found?.quantity, found?.base_quantity], ['12', '120'], 'twelve cartons, 120 kg');
         const elsewhere = await send('GET', `/decisions/${OPENING}?facility_id=${FACTORY}`, undefined, admin.token);
@@ -185,6 +185,7 @@ Deno.test('every stock route, as erp_edge, through the router and the driver, ro
         const decision = (await send('GET', `/decisions/${counted}?facility_id=${WAREHOUSE}`)).body.decision as Row;
         equal((decision.entries as Row[]).map((e) => [e.direction, e.quantity, e.unit_key]), [['out', '1', 'kg']],
           'the variance, in the base unit');
+        equal(decision.business_date, '2026-10-01', 'its business day is Riyadh\'s calendar date, as text (D3)');
       });
 
       const wasted = id();
@@ -263,7 +264,8 @@ Deno.test('every stock route, as erp_edge, through the router and the driver, ro
         const second = await send('GET', `/items/${CHICKEN}?facility_id=${WAREHOUSE}&limit=2&before=${first.body.next_before}`);
         equal((second.body.decisions as Row[]).map((d) => d.kind), ['count', 'waste'], 'the two before them');
         const decision = (page.body.decisions as Row[]).find((d) => d.decision_id === counted);
-        equal([decision?.counted, decision?.quantity_out], ['120.5', '1'], 'a count shows what it found and its variance, as text');
+        equal([decision?.counted, decision?.quantity_out, decision?.business_date], ['120.5', '1', '2026-10-01'],
+          'a count shows what it found, its variance and its business day, as text');
       });
 
       await t.step('a branch, a facility left out, another brand\'s pack and a quantity sent as a number are refused', async () => {

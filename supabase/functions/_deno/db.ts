@@ -227,16 +227,28 @@ export function makeDb(sql: Sql): Db {
     // coordinate does; a seq (int8) comes back as a string too. Inside the routes' jsonb
     // answers 0020 writes quantities and factors as text itself. Lines go through
     // sql.json() for the reason above.
+    //
+    // A business date is a calendar date at the facility (D3), and postgres.js parses a
+    // date as a Date at UTC midnight, which a browser west of Greenwich shows as the day
+    // before (found in review). So the columns are named and the date is cast to text:
+    // "2026-09-25", as the database holds it.
     stockOnHand: (actor, q) => run(async () => (await sql`
       select * from erp.stock_on_hand(${actor}::uuid, ${q.facilityId}::uuid, ${q.search}::text,
                                       ${q.afterCode}::text, ${q.limit}::integer, ${q.negativeOnly}::boolean)`
     ) as unknown as StockBalance[]),
     stockHistory: (actor, q) => run(async () =>
-      [...await sql`select * from erp.stock_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.itemId}::uuid,
-                                                    ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+      [...await sql`
+        select decision_id, seq, kind, occurred_at, business_date::text as business_date, quantity_in, quantity_out,
+               counted, reason, override_reason, actor_id, decided_at, recorded_at, reverses_decision_id,
+               reversed_by_decision_id
+          from erp.stock_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.itemId}::uuid,
+                                 ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
     getStockDecision: (actor, facilityId, decisionId) => run(async () => {
       const [row] = await sql`
-        select * from erp.get_stock_decision(${actor}::uuid, ${facilityId}::uuid, ${decisionId}::uuid)`;
+        select decision_id, seq, kind, facility_id, occurred_at, business_date::text as business_date,
+               reverses_decision_id, reversed_by_decision_id, override_reason, reason, actor_id, decided_at,
+               recorded_at, entries, counted
+          from erp.get_stock_decision(${actor}::uuid, ${facilityId}::uuid, ${decisionId}::uuid)`;
       return row as Record<string, unknown>;
     }),
     recordStockAdjustment: (actor, i) => run(async () => {

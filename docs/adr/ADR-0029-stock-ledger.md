@@ -356,8 +356,9 @@ routes.
 - **Every route names its facility.** These are the first writes scoped to one: a
   write's body must state `facility_id`, or it is a 400, and 0020 asks permission there.
   A read asks at the query's `facility_id`, as every read does. Left out, the edge asks
-  with none and 0020 refuses it (`stock_facility_required`, §8), rather than mix every
-  facility's stock.
+  with none, and 0020 refuses rather than mix every facility's stock: an
+  organisation-wide person gets `stock_facility_required` (§8), and a facility-scoped
+  one is refused by the gate first (403), since the gate runs before that check.
 - **The edge checks shape, the database checks rules.** Four shape rules are this
   module's own:
   - **A quantity is decimal text,** as a factor and a coordinate are: `"2.5"`, never the
@@ -371,6 +372,9 @@ routes.
   - **A line carries on only its conversion, its quantity and its direction.** Nothing
     else a client puts on a line reaches the database. A malformed line names itself:
     `lines[2].quantity`.
+  - **A business date is text,** `"2026-09-25"`: the facility's calendar day (D3).
+    postgres.js parses a `date` as a moment at UTC midnight, which a browser west of
+    Greenwich shows as the day before, so the driver casts it (found in review).
   - **An adjustment or a count is a document, not a form.** It may be up to 128 KiB,
     because 500 lines at their longest are about 50 KB, past a form's 8 KiB. A reversal
     has no lines and stays a form.
@@ -382,9 +386,10 @@ routes.
   - a missing override permission is `forbidden` (403);
   - stock that would go below zero, a movement dated at or before a count, a count at a
     movement's moment, a reversal a count has covered, a count reversed, a branch or an
-    office, and a closed facility are each `refused` (422);
-  - a kind, a direction, a quantity or a moment that breaks a rule, and a read with no
-    facility, are `invalid` (422);
+    office, and a closed facility are each `refused` (422). The closed facility is held by
+    the Node test alone: 0019's own tests close one end to end;
+  - a kind, a direction, a quantity or a moment that breaks a rule is `invalid` (422),
+    and so is an organisation-wide read with no facility;
   - a conversion of another brand, or a decision at another facility, is 404, exactly as
     a missing one is.
 - **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/stock.test.ts`:
@@ -410,7 +415,7 @@ routes.
     - A branch, a read with no facility, another brand's pack, a quantity sent as a
       number, and a seventh decimal place are each refused.
     - The rollback is checked.
-- **Controls:** 20 deliberate breakages of the edge layer, each failing a named Node or
+- **Controls:** 21 deliberate breakages of the edge layer, each failing a named Node or
   Deno test. Among them:
   - an actor taken from the query or a header;
   - a line passed on whole;
@@ -420,7 +425,8 @@ routes.
   - the retry mapping removed, or a native collision answered as a retry;
   - a count held to a form's 8 KiB;
   - the driver dropping the override reason, sending the lines as a JSON string,
-    counting now, ignoring `negative`, or reading a decision at no facility.
+    counting now, ignoring `negative`, reading a decision at no facility, or answering a
+    business date as a UTC moment.
 
 ## Open, for the owner and for UAT
 

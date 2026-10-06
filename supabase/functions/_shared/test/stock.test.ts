@@ -259,6 +259,10 @@ test('the reads pass their ids and facility, and page by code and by seq', async
   assert.deepEqual(history.calls[0]!.args, [{ facilityId: WAREHOUSE, itemId: ITEM, beforeSeq: '12', limit: 1 }]);
   assert.equal(h['decisions'][0].counted, '123.5');
   assert.equal(h['next_before'], '7', 'a full page names the seq the next one ends before');
+  // The largest int8 is a seq like any other.
+  const last = fakeDb(ADMIN);
+  assert.equal((await stock(get(`/items/${ITEM}?before=9223372036854775807`), deps(last))).status, 200);
+  assert.equal((last.calls[0]!.args[0] as { beforeSeq: unknown }).beforeSeq, '9223372036854775807');
   const first = fakeDb(ADMIN);
   const f = await json(await stock(get(`/items/${ITEM}?facility_id=${WAREHOUSE}`), deps(first)));
   assert.deepEqual(first.calls[0]!.args, [{ facilityId: WAREHOUSE, itemId: ITEM, beforeSeq: null, limit: 100 }]);
@@ -299,7 +303,8 @@ test('a malformed stock field is a 400 naming it, and nothing reaches the databa
     [get(`/items/${ITEM}?before=0`), 'before'],
     [get(`/items/${ITEM}?before=-1`), 'before'],
     [get(`/items/${ITEM}?before=1.5`), 'before'],
-    [get(`/items/${ITEM}?before=1234567890123456789`), 'before'],
+    [get(`/items/${ITEM}?before=9223372036854775808`), 'before'],
+    [get(`/items/${ITEM}?before=12345678901234567890`), 'before'],
     [get('/decisions/not-a-uuid'), 'decision_id'],
     [get(`/decisions/${STAMP}?facility_id=nope`), 'facility_id'],
     [post('/adjustments', { ...ADJUST, decision_id: 'x' }), 'decision_id'],
@@ -347,7 +352,7 @@ test('a malformed stock field is a 400 naming it, and nothing reaches the databa
     [post('/adjustments', line({ item_unit_id: KG, quantity: '1', direction: 1 })), 'lines[1].direction'],
     [post('/counts', { ...COUNT, decision_id: undefined }), 'decision_id'],
     [post('/counts', without(COUNT, 'reason')), 'reason'],
-    [post('/decisions/not-a-uuid/reverse', REVERSE), 'decision_id'],
+    [post('/decisions/not-a-uuid/reverse', REVERSE), 'target_decision_id'],
     [post(`/decisions/${TARGET}/reverse`, without(REVERSE, 'decision_id')), 'decision_id'],
     [post(`/decisions/${TARGET}/reverse`, without(REVERSE, 'reason')), 'reason'],
     [post('/adjustments', 'not json'), 'body'],
@@ -386,8 +391,14 @@ test('a full count of 500 lines fits; a document past 128 KiB is 413, and a reve
   }));
   const db = fakeDb(ADMIN);
   const response = await stock(post('/adjustments', { ...ADJUST, kind: 'adjustment', lines: full, reason: 'ع'.repeat(500) }), deps(db));
-  assert.equal(response.status, 200, 'the longest document the route accepts reaches it');
+  assert.equal(response.status, 200, 'the longest adjustment the route accepts reaches it');
   assert.equal((db.calls[0]!.args[0] as { lines: unknown[] }).lines.length, 500);
+  const count = fakeDb(ADMIN);
+  const counted = await stock(post('/counts', {
+    ...COUNT, lines: full.map(({ item_unit_id, quantity }) => ({ item_unit_id, quantity })), reason: 'ع'.repeat(500),
+  }), deps(count));
+  assert.equal(counted.status, 200, 'and the longest count');
+  assert.equal((count.calls[0]!.args[0] as { lines: unknown[] }).lines.length, 500);
 
   for (const [path, body] of [
     ['/adjustments', { ...ADJUST, reason: 'x'.repeat(140 * 1024) }],
@@ -418,7 +429,7 @@ test('each kind of stock refusal is answered as the person can act on it', async
     ['reverseStockDecision', new Refusal('23001', 'a count is not reversed', 'stock_decision_is_not_reversible', null, 'A count is corrected by counting again.'), 422, 'refused'],
     ['recordStockAdjustment', new Refusal('23001', 'a branch holds no stock yet', 'stock_branch_business_day_undecided', null, null), 422, 'refused'],
     ['recordStockAdjustment', new Refusal('23001', 'an office holds no stock', 'stock_facility_holds_no_stock', null, null), 422, 'refused'],
-    ['recordStockAdjustment', new Refusal('23001', 'facility is closed', 'facility_is_closed', null, null), 422, 'refused'],
+    ['recordStockAdjustment', new Refusal('23001', 'facility WH-001 is closed and admits no new work', 'facility_admits_no_new_work', null, null), 422, 'refused'],
     ['recordStockAdjustment', new Refusal('23514', 'this records an adjustment, a waste, a damage or an expiry', 'stock_decision_kind_is_known', null, null), 422, 'invalid'],
     ['recordStockAdjustment', new Refusal('23514', 'line 1: a quantity is a number with up to twelve digits and six decimal places', 'stock_quantity_is_valid', null, null), 422, 'invalid'],
     ['recordStockAdjustment', new Refusal('23514', 'line 1: 1.5 g is past six decimal places', 'stock_quantity_inexact', null, 'Enter it in a larger unit, or in the base unit.'), 422, 'invalid'],
@@ -430,7 +441,7 @@ test('each kind of stock refusal is answered as the person can act on it', async
     ['recordStockAdjustment', new Refusal('22023', 'stock is held at one facility: name it', 'stock_facility_required', null, null), 422, 'invalid'],
     ['recordStockAdjustment', new Refusal('P0002', `no conversion ${BOX}`, 'item_unit_exists', null, null), 404, 'not_found'],
     ['reverseStockDecision', new Refusal('P0002', `no stock decision ${TARGET} at WH-001`, 'stock_decision_exists', null, null), 404, 'not_found'],
-    ['recordStockCount', new Refusal('P0002', 'no facility', 'facility_exists', null, null), 404, 'not_found'],
+    ['recordStockCount', new Refusal('P0002', `no facility ${WAREHOUSE}`, 'facility_exists', null, null), 404, 'not_found'],
   ];
   for (const [method, refusal, http, status] of cases) {
     const db = fakeDb(ADMIN, { [method]: async () => { throw refusal; } });

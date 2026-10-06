@@ -72,7 +72,8 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         record's history to confirm. The same constraint raised natively
  *                         is a conflict, not a retry: nothing was recorded (found in
  *                         review).
- *   409 conflict          any other 23505: a code or a name already taken.
+ *   409 conflict          any other 23505: a code or a name already taken, or a stock
+ *                         decision already reversed (stock_already_reversed).
  *   409 stale             the form was loaded before someone else changed the record
  *                         (item_stale, supplier_stale, supplier_item_stale, facility_stale).
  *   403 forbidden         23001 with no constraint: erp.assert_permitted() refused — the
