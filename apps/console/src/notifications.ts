@@ -25,6 +25,7 @@
  * Requirements: SUP-006 · SUP-007 · SUP-P01 · SUP-P02 · SUP-P03 · PRG-014
  */
 import type { MarkRead, Notification, ViewerFacility } from './api.ts';
+import { asKey, type Key } from './i18n.ts';
 import { itemIsVisible, type NavItem, type Viewer } from './navigation.ts';
 import type { Route } from './route.ts';
 
@@ -50,6 +51,10 @@ export function badge(unread: number): string {
  * What to mark read: the ids named, or every unread one, said. An empty list is never
  * sent, since the edge and 0021 refuse it rather than read it as "all"; a list past 0021's
  * hundred is cut to its first hundred, the newest, which is what the person sees first.
+ *
+ * The page's "Mark all read" sends the ids it lists, never `all`: `all` would also mark
+ * one that arrived after the page was loaded, which the person has not seen (found in
+ * review). `all` stays in the client for a later caller that means it.
  */
 export function markOf(ids: readonly string[] | 'all'): MarkRead | null {
   if (ids === 'all') return { all: true };
@@ -68,22 +73,31 @@ export function unreadIds(rows: readonly Notification[]): string[] {
  *   - `here`: the decision, at the facility worked at;
  *   - `switch`: the decision, after switching to the facility it happened at, which the
  *     person may work at;
- *   - `none`: nowhere the person may work, or a kind the console cannot open yet.
+ *   - `none`, `elsewhere`: it happened where the person may not work, and says so;
+ *   - `none`, `unsupported`: a kind the console cannot open yet, which offers nothing.
  * The facility is the notification's, never one a URL names: a stock route reads only the
  * facility worked at (route.ts).
  */
 export type Target =
   | { readonly kind: 'here'; readonly route: Route }
   | { readonly kind: 'switch'; readonly facility: ViewerFacility; readonly route: Route }
-  | { readonly kind: 'none' };
+  | { readonly kind: 'none'; readonly reason: 'elsewhere' | 'unsupported' };
 
 export function openTarget(n: Notification, workingAt: string | null, facilities: readonly ViewerFacility[]): Target {
-  if (n.kind !== 'stock_below_zero' || n.stock_decision_id === null) return { kind: 'none' };
+  if (n.kind !== 'stock_below_zero' || n.stock_decision_id === null) return { kind: 'none', reason: 'unsupported' };
   const route: Route = { screen: 'stock_decision', decisionId: n.stock_decision_id };
   if (n.facility_id === workingAt) return { kind: 'here', route };
   const facility = facilities.find((f) => f.facility_id === n.facility_id);
-  return facility === undefined ? { kind: 'none' } : { kind: 'switch', facility, route };
+  return facility === undefined ? { kind: 'none', reason: 'elsewhere' } : { kind: 'switch', facility, route };
 }
 
 /** The kinds the console has words for; another kind is shown by its key, not hidden. */
 export const NOTIFICATION_KINDS = ['stock_below_zero'] as const;
+
+/**
+ * The words for a kind, only for a kind the console knows: a kind named like another
+ * string's tail (`unread`, `open_at`) must not borrow that string (found in review).
+ */
+export function kindKey(kind: string): Key | null {
+  return (NOTIFICATION_KINDS as readonly string[]).includes(kind) ? asKey(`notif_${kind}`) : null;
+}

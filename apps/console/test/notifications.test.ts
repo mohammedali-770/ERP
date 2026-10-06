@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createApi, type Fetch, type Notification, type ViewerFacility } from '../src/api.ts';
 import { asKey } from '../src/i18n.ts';
 import { itemIsVisible } from '../src/navigation.ts';
-import { badge, BELL, bellVisible, MAX_MARK, markOf, NOTIFICATION_KINDS, openTarget, unreadIds } from '../src/notifications.ts';
+import { badge, BELL, bellVisible, kindKey, MAX_MARK, markOf, NOTIFICATION_KINDS, openTarget, unreadIds } from '../src/notifications.ts';
 import { formatRoute, navIdOf, parseRoute } from '../src/route.ts';
 import { toViewer } from '../src/viewer.ts';
 
@@ -14,6 +14,7 @@ const MIGRATION = read('supabase/migrations/20261006000200_notifications.sql');
 const EDGE = read('supabase/functions/_shared/notifications.ts');
 const APP = read('apps/console/src/App.tsx');
 const SCREEN = read('apps/console/src/screens/Notifications.tsx');
+const LOGIC = read('apps/console/src/notifications.ts');
 
 const WAREHOUSE = '01936f00-0000-7000-8000-000000000403';
 const FACTORY = '01936f00-0000-7000-8000-000000000404';
@@ -113,36 +114,63 @@ test('CONTROL: a notification opens at its own facility: here, after switching t
   assert.equal(away.kind, 'switch', 'from the warehouse, the factory\'s is opened by working there first');
   assert.ok(away.kind === 'switch' && away.facility.facility_id === FACTORY);
   assert.equal(openTarget(note(), null, FACILITIES).kind, 'switch', 'organisation-wide too: a stock screen reads one facility');
-  assert.deepEqual(openTarget(note({ facility_id: ELSEWHERE, facility_code: 'WH-9' }), WAREHOUSE, FACILITIES), { kind: 'none' },
-    'a facility the person may not work at is not opened');
-  assert.deepEqual(openTarget(note({ kind: 'po_pending' }), FACTORY, FACILITIES), { kind: 'none' }, 'a kind not built yet');
-  assert.deepEqual(openTarget(note({ stock_decision_id: null }), FACTORY, FACILITIES), { kind: 'none' });
+  assert.deepEqual(openTarget(note({ facility_id: ELSEWHERE, facility_code: 'WH-9' }), WAREHOUSE, FACILITIES),
+    { kind: 'none', reason: 'elsewhere' }, 'a facility the person may not work at is not opened, and says so');
+  assert.deepEqual(openTarget(note({ kind: 'po_pending' }), FACTORY, FACILITIES), { kind: 'none', reason: 'unsupported' },
+    'a kind not built yet offers nothing');
+  assert.deepEqual(openTarget(note({ stock_decision_id: null }), FACTORY, FACILITIES), { kind: 'none', reason: 'unsupported' });
+  assert.match(SCREEN, /target\.reason === 'elsewhere' \?/, '"you do not work at" only when that is why');
   // The screen goes only where openTarget says, by navigate or workAt: it builds no stock route itself.
   assert.match(SCREEN, /openTarget\(n, facilityId, data\.facilities\)/);
   assert.match(SCREEN, /ctx\.workAt\(target\.facility\.facility_id, target\.route\)/);
   assert.doesNotMatch(SCREEN, /current_stock/);
 });
 
-test('switching to open asks first while a form holds lines, as the picker does', () => {
+test('switching to open asks first while a form holds lines, as the picker does, and marks read only once it has gone', () => {
   const workAt = APP.slice(APP.indexOf('workAt: (id, r) =>'), APP.indexOf('setLeaveGuard: guard.set'));
-  assert.match(workAt, /if \(!guard\.allows\(\)\) return;/);
+  assert.match(workAt, /if \(!guard\.allows\(\)\) return false;/);
   assert.ok(workAt.indexOf('guard.allows()') < workAt.indexOf('setFacilityId(id)'), 'asked before anything changes');
+  const open = SCREEN.slice(SCREEN.indexOf('function open('), SCREEN.indexOf('const unread ='));
+  assert.ok(open.indexOf('went = ctx.workAt(') < open.indexOf('void mark('), 'a refused switch leaves it unread (found in review)');
+  assert.match(open, /if \(went && n\.read_at === null\) void mark/);
+});
+
+test('CONTROL: "Mark all read" marks the ones listed, by id, never one that arrived after the page was loaded', () => {
+  assert.match(SCREEN, /onClick=\{\(\) => void mark\(unread\)\}>\{t\(lang, 'mark_all_read'\)\}/);
+  assert.doesNotMatch(SCREEN, /mark\('all'\)|all: true/, 'the page never sends all (found in review)');
+  const mark = SCREEN.slice(SCREEN.indexOf('async function mark('), SCREEN.indexOf('function open('));
+  assert.match(mark, /ctx\.refreshBell\(\);/, 'and the bell is asked again after a mark');
+  assert.ok(mark.indexOf('if (!answer.ok)') < mark.indexOf('ctx.refreshBell()'), 'after the mark is saved');
+});
+
+test('a kind is worded only if it is one the console knows: no kind borrows another string', () => {
+  assert.equal(kindKey('stock_below_zero'), 'notif_stock_below_zero');
+  for (const k of ['unread', 'open', 'open_at', 'cannot_open', 'po_pending']) assert.equal(kindKey(k), null, k);
+  assert.match(SCREEN, /const kind = kindKey\(n\.kind\);/);
 });
 
 // --- the bell -------------------------------------------------------------------
 
 test('CONTROL: the bell is asked on the person\'s doing, never on a timer that would hold the session open', () => {
-  assert.doesNotMatch(APP, /setInterval|setTimeout/, 'every request moves the session\'s idle clock (0014)');
+  for (const [name, source] of [['App.tsx', APP], ['Notifications.tsx', SCREEN], ['notifications.ts', LOGIC]] as const) {
+    assert.doesNotMatch(source, /setInterval|setTimeout|requestAnimationFrame/, `${name}: every request moves the session's idle clock (0014)`);
+  }
   const effect = APP.slice(APP.indexOf('api.unreadNotifications'), APP.indexOf('const toggleLang'));
   assert.match(effect, /\[api, seesBell, facilityId, route, bellAsk, onFailure\]/,
     'read again on another facility, another screen, and a mark');
   assert.match(APP, /visibilitychange/, 'and on coming back to the tab');
+  const bell = APP.slice(APP.indexOf('className="bell"'), APP.indexOf('<span className="person">'));
+  assert.match(bell, /if \(current !== 'notifications'\) return;\s+setBellAsk\(\(n\) => n \+ 1\);\s+setBellPage\(\(n\) => n \+ 1\);/,
+    'a click on the bell from its own page asks afresh, as the hash does not change');
+  assert.match(SCREEN, /\[api, facilityId, ctx\.bellPage\]/, 'and the list is read again with it');
 });
 
 test('the bell\'s door is 0021\'s capability, asked as its routes ask it: hidden, it is not shown', () => {
   assert.match(MIGRATION, /\('platform\.notifications', 'Notifications', 'الإشعارات'/);
   assert.equal(BELL.capability, 'platform.notifications');
   assert.equal(BELL.action, 'read');
+  const gates = [...MIGRATION.matchAll(/erp\.assert_permitted\(p_actor_id, '([a-z_.]+)', '([a-z]+)', p_facility_id\)/g)].map((m) => `${m[1]}:${m[2]}`);
+  assert.deepEqual(gates, Array(3).fill(`${BELL.capability}:${BELL.action}`), 'each of 0021\'s three routes asks what the bell shows on');
   const viewer = (state: string, perms: string[]) => toViewer({
     person: { person_id: 'p', employee_number: '1', full_name_en: null, full_name_ar: null, primary_facility_id: null, status: 'active' },
     facility_id: null, org_wide: true, facilities: [], permissions: perms,

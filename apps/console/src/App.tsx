@@ -83,6 +83,7 @@ export function App() {
   /** The bell's unread count, and a counter that asks for it again (notifications.ts). */
   const [unread, setUnread] = useState(0);
   const [bellAsk, setBellAsk] = useState(0);
+  const [bellPage, setBellPage] = useState(0);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -191,7 +192,9 @@ export function App() {
   }, [api, seesBell, facilityId, route, bellAsk, onFailure]);
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') setBellAsk((n) => n + 1);
+      if (document.visibilityState !== 'visible') return;
+      setBellAsk((n) => n + 1);
+      setBellPage((n) => n + 1);
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
@@ -265,14 +268,16 @@ export function App() {
     },
     seesBell,
     refreshBell: () => setBellAsk((n) => n + 1),
+    bellPage,
     workAt: (id, r) => {
-      if (!guard.allows()) return;
+      if (!guard.allows()) return false;
       if (formatRoute(r) !== (window.location.hash || '#')) guard.bypassOnce();
       window.location.hash = formatRoute(r);
       if (id !== facilityId) {
         setSession(null);
         setFacilityId(id);
       }
+      return true;
     },
     setLeaveGuard: guard.set,
     onFailure,
@@ -304,7 +309,13 @@ export function App() {
         </label>
         {seesBell ? (
           <a className="bell" href="#notifications" aria-label={t(lang, 'bell_label', { n: unread })}
-             aria-current={current === 'notifications' ? 'page' : undefined}>
+             aria-current={current === 'notifications' ? 'page' : undefined}
+             onClick={() => {
+               // Already there, the hash does not change: the click itself asks afresh.
+               if (current !== 'notifications') return;
+               setBellAsk((n) => n + 1);
+               setBellPage((n) => n + 1);
+             }}>
             <span aria-hidden="true">🔔</span>
             {badge(unread) !== '' ? <span className="badge" aria-hidden="true">{badge(unread)}</span> : null}
           </a>

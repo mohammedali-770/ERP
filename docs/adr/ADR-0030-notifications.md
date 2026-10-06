@@ -278,7 +278,12 @@ The bell is in the console (`apps/console/src/notifications.ts`,
   **Never on a timer.** Every request a session makes moves its idle clock (0014,
   `erp.resolve_session()`). A bell asking once a minute would have kept an unattended
   console signed in for good, past the 30 minutes idle that should end it (found
-  designing this step). It answers question 2.
+  designing this step). It answers question 2. A click on the bell from its own page,
+  and coming back to the tab, read the page's list again too, so the list and the badge
+  agree. One residual: an operating system can mark a window visible again on its own,
+  for instance when another application's window closes over it. The count is then asked
+  once, with nobody there, and the idle clock moves once. Review judged this a small
+  risk, and it is left as is.
 - **The page** (`#notifications`) lists the person's own, newest first, 30 at a time,
   with "Load more" paging by `seq`. Each shows:
   - what happened and where: "Stock went below zero at" and the facility's code;
@@ -286,30 +291,42 @@ The bell is in the console (`apps/console/src/notifications.ts`,
   - whether it is unread;
   - the items it names, with today's code and name, at the balance the decision left,
     in the item's base unit, as text.
-- **Marking read is the person's own:** one at a time, or "Mark all read", which sends
-  `all: true` and never an empty list. A selection with nothing in it sends nothing.
-- **Opening one marks it read and goes to its decision,** by `openTarget()`:
+- **Marking read is the person's own:** one at a time, or "Mark all read".
+  - **"Mark all read" marks the unread ones listed, by id, never `all`.** `all` would
+    also mark one that arrived after the page was loaded, which the person has not seen:
+    it would leave the bell at zero and show up later already read (found in review).
+    Such a notification stays unread, and the bell says so.
+  - A selection with nothing in it sends nothing, and the edge and 0021 refuse an empty
+    list rather than read it as "all".
+- **Opening one goes to its decision, and marks it read once it has gone,** by
+  `openTarget()`. A switch the person declines leaves it unread (found in review).
   - where the person works at the facility it happened at, it opens there;
   - from anywhere else they may work, including organisation-wide, a button naming the
     facility ("Work at … and open") switches the facility worked at first, since a stock
     screen reads only that facility (ADR-0029's step 3 addendum), and asks first while a
     form holds typed lines;
   - where they may not work, it says so and offers nothing;
-  - a kind the console cannot open yet offers nothing.
+  - a kind the console cannot open yet offers nothing, and says nothing. Only a kind the
+    console knows is worded, so a kind named like another string's tail cannot borrow
+    that string.
 - **Tested** by `apps/console/test/notifications.test.ts` (Node), which:
   - checks that no call names an actor;
-  - checks that the cursor travels as text and marking all is said;
+  - checks that the cursor travels as text, and that the page's "Mark all read" sends
+    the ids it lists and asks the bell again after the mark is saved;
   - checks that nothing to mark sends nothing;
   - checks where each one opens;
   - checks that the bell's door is 0021's capability;
   - checks that every kind 0021 knows has words;
-  - reads `App.tsx` and fails on any timer.
+  - reads `App.tsx`, the page and the logic, and fails on any timer.
 
-  Eight deliberate breaks each failed a named test. A browser run against the scratch
-  database and edge functions passed 24 checks, in English and Arabic: an override at
-  the factory rang the warehouse manager's bell on their next click, opening it switched
-  them to the factory and its decision, the factory manager's bell stayed quiet, and the
-  administrator's "Mark all read" left the warehouse manager's own unread one alone.
+  Sixteen deliberate breaks each failed a named test. A browser run against the scratch
+  database and edge functions passed 29 checks, in English and Arabic:
+  - an override at the factory rang the warehouse manager's bell on their next click;
+  - opening it switched them to the factory and its decision;
+  - the factory manager's bell stayed quiet;
+  - the administrator's "Mark all read" left the warehouse manager's own unread one alone;
+  - one that arrived after the page was loaded survived "Mark all read", and a click on
+    the bell showed it.
 
 ## Open, for the owner and for UAT
 

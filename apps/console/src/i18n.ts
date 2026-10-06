@@ -927,13 +927,13 @@ const AR: Readonly<Record<Key, string>> = {
   notifications: 'الإشعارات',
   bell_label: 'الإشعارات: {n} غير مقروءة',
   notifications_hint: 'إشعاراتك من كل منشأة يحق لك فتحها، تُحفظ ٩٠ يوماً.',
-  notifications_none: 'لا إشعارات.',
+  notifications_none: 'لا توجد إشعارات.',
   notif_stock_below_zero: 'نزل المخزون دون الصفر في {code}',
   notif_unread: 'غير مقروء',
   mark_read: 'تعليم كمقروء',
   mark_all_read: 'تعليم الكل كمقروء',
   notif_open: 'فتح',
-  notif_open_at: 'العمل في {code} والفتح',
+  notif_open_at: 'الانتقال إلى {code} وفتحه',
   notif_cannot_open: 'لا تعمل في {code}، فلا يمكن فتحه من هنا.',
 };
 
