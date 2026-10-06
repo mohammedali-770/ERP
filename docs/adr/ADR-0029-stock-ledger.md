@@ -526,13 +526,17 @@ addendum of 2026-10-05).
 
 ## Addendum — 2026-10-06: the switch-on, drafted and held (module 5, step 6)
 
-`supabase/migrations/20261006000100_stock_pilot_at_central_warehouse.sql` records one
+**Not on `main`.** The migration was drafted in pull request #48, which the owner closed
+for now (2026-10-06); it is kept there, at commit `390c4db`, and comes back as a new pull
+request once the preconditions below hold.
+
+The migration, `20261006000100_stock_pilot_at_central_warehouse.sql`, records one
 capability decision: `inventory.stock` at `pilot` at the central warehouse, and nowhere
 else. Organisation-wide it stays hidden, and `capability_state_for()` reads a
 facility's own state before the organisation's. The owner chose the warehouse alone for
 the pilot (2026-10-06).
 
-**It is held unmerged.** The consolidation plan's step 6, and the migration's header,
+**It is held.** The consolidation plan's step 6, and the migration's header,
 name five things that must hold first:
 1. the stock pack is signed by staff;
 2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
