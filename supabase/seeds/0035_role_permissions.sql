@@ -75,4 +75,12 @@ insert into erp.role_permission (role_key, capability_key, action) values
   -- what areas they have; a branch worker needs neither, so reads nothing here.
   ('warehouse_manager', 'org.facilities', 'read'),
   ('factory_manager',   'org.facilities', 'read'),
-  ('general_manager',   'org.facilities', 'read');
+  ('general_manager',   'org.facilities', 'read'),
+  -- platform.notifications (0021). Everyone has a bell; 0021 gives the administrator one.
+  -- What rings it is each notification's own rule (N2), not this grant: the accountant
+  -- holds a bell that stock never rings, for they cannot read stock.
+  ('branch_worker',     'platform.notifications', 'read'),
+  ('warehouse_manager', 'platform.notifications', 'read'),
+  ('factory_manager',   'platform.notifications', 'read'),
+  ('general_manager',   'platform.notifications', 'read'),
+  ('accountant',        'platform.notifications', 'read');

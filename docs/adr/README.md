@@ -59,3 +59,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0027](./ADR-0027-transfer-prices.md) | Transfer prices: what a branch is charged for a pack, from when |
 | [ADR-0028](./ADR-0028-facilities-and-branch-areas.md) | Facilities: branches made a master, and the area a branch worker orders from |
 | [ADR-0029](./ADR-0029-stock-ledger.md) | Stock: a ledger at each warehouse and factory, posted through one seam |
+| [ADR-0030](./ADR-0030-notifications.md) | Notifications: an in-app bell, rung by the records people can open |

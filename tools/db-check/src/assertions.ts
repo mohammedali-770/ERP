@@ -470,6 +470,37 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'notification-guard-triggers-exist',
+    title: 'erp.notification carries its enabled guard triggers, and stock below zero its producer',
+    because:
+      'N3 (ADR-0030): a notification changes once, from unread to read, and is deleted only past ' +
+      '90 days, only because 0021\'s triggers say so, binding the owner too. N4: stock taken below ' +
+      'zero by an override tells anyone only because a deferred constraint trigger on ' +
+      'erp.stock_decision says so; without DEFERRED it would run before the entries and balances it ' +
+      'reads exist, and tell nobody. A consistent seed passes with any of them gone.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.notification'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.notification_guard()'::regprocedure),
+                  ('erp.notification'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.notification_guard()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)
+          union all
+          select 'erp.stock_decision: no enabled AFTER INSERT constraint trigger, deferred, calling erp.notify_stock_below_zero()'
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = 'erp.stock_decision'::regclass
+              and t.tgfoid = 'erp.notify_stock_below_zero()'::regprocedure
+              and t.tgenabled in ('O', 'A') and t.tgconstraint <> 0
+              and t.tgdeferrable and t.tginitdeferred
+              and (t.tgtype & 5) = 5 and (t.tgtype & 2) = 0)`,
+  },
+  {
     id: 'stock-guard-triggers-exist',
     title: 'erp.stock_balance carries its enabled guard triggers, TRUNCATE included',
     because:

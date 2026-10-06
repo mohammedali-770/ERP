@@ -624,3 +624,51 @@ requirements:
       - UAT-stock
     relates_to:
       - INV-008
+
+  # ---------------------------------------------------------------------------
+  # Notifications: who is told, how long it is kept, and what tells them first
+  #
+  # Owner decisions, 2026-10-06 (ADR-0030 N2 to N4). The PRD asks that notification
+  # recipient rules prevent disclosure through an inappropriate channel (SUP-007), and
+  # for alerts with ownership and deduplication (SUP-005); it says neither who the
+  # recipients are, how long a notification is kept, nor what raises one. All three are
+  # new behaviour, so all three are proposed. pgTAP 160 and db-check exercise them;
+  # neither is an artifact type req-lint resolves.
+  # ---------------------------------------------------------------------------
+
+  - id: "SUP-P01"
+    module: "SUP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-06"
+    status: "proposed"
+    text_en: "A notification shall go only to the people who may open what it is about, at the facility where it happened, decided when it happens; it shall be shown to a person only while they still may, it shall hold no name or free text, and the person whose action raised it shall not be told of it."
+    text_ar: "يجب ألا يُرسل الإشعار إلا إلى الأشخاص المخوَّلين بفتح ما يتعلق به، في المنشأة التي حدث فيها، ويُحدَّد ذلك عند وقوعه؛ ولا يُعرض على الشخص إلا ما دام مخوَّلاً بذلك، ولا يحمل أي اسم أو نص حر، ولا يُبلَّغ به الشخص الذي تسبب فعله فيه."
+    relates_to:
+      - SUP-007
+      - SUP-005
+
+  - id: "SUP-P02"
+    module: "SUP"
+    proposed_phase: "F1"
+    proposed_priority: "P2"
+    origin: "Owner decision, 2026-10-06"
+    status: "proposed"
+    text_en: "A notification shall be kept for 90 days and then deleted; until then it shall never be changed except to be marked read once by its recipient, and it shall not be shown once 90 days have passed."
+    text_ar: "يجب الاحتفاظ بالإشعار ٩٠ يوماً ثم حذفه؛ وحتى ذلك الحين لا يُغيَّر أبداً إلا بتعليمه مقروءاً مرة واحدة من قِبل مستلمه، ولا يُعرض بعد مرور ٩٠ يوماً."
+    relates_to:
+      - SUP-005
+      - SUP-006
+
+  - id: "SUP-P03"
+    module: "SUP"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-06"
+    status: "proposed"
+    text_en: "When a permitted person records a stock movement that takes an item below zero at a facility, the people who may read that facility's stock shall be notified in the application, naming each item left below zero and the balance it was left at."
+    text_ar: "عندما يسجل شخص مخوَّل حركة مخزون تجعل رصيد صنف أقل من الصفر في منشأة، يجب إشعار الأشخاص المخوَّلين بقراءة مخزون تلك المنشأة داخل التطبيق، مع ذكر كل صنف أصبح رصيده أقل من الصفر والرصيد الذي أصبح عليه."
+    relates_to:
+      - INV-P02
+      - INV-008
+      - SUP-006

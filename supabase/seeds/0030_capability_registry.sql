@@ -79,6 +79,11 @@ insert into erp.capability_decision (
   ('01936f00-0000-7000-8000-00000000c008', 'org.facilities', null, 'pilot',
    'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
    '01936f00-0000-7000-8000-000000000900', 'administrator',
+   timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  -- platform.notifications (0021): the same, for module 6.
+  ('01936f00-0000-7000-8000-00000000c009', 'platform.notifications', null, 'pilot',
+   'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
+   '01936f00-0000-7000-8000-000000000900', 'administrator',
    timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00');
 
 -- The projection, stamped with the decision each row was computed through (I-8).
@@ -99,4 +104,6 @@ insert into erp.capability_state (capability_key, facility_id, state, as_of_deci
   ('inventory.transfer_prices', erp.capability_org_scope(), 'pilot',
    '01936f00-0000-7000-8000-00000000c007', timestamptz '2026-09-20 00:00:00+00'),
   ('org.facilities',            erp.capability_org_scope(), 'pilot',
-   '01936f00-0000-7000-8000-00000000c008', timestamptz '2026-09-20 00:00:00+00');
+   '01936f00-0000-7000-8000-00000000c008', timestamptz '2026-09-20 00:00:00+00'),
+  ('platform.notifications',    erp.capability_org_scope(), 'pilot',
+   '01936f00-0000-7000-8000-00000000c009', timestamptz '2026-09-20 00:00:00+00');
