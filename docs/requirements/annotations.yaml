@@ -1134,6 +1134,34 @@ INV-005:
     # Module 3, transfer prices (ADR-0027): a price names a pack through the conversion seam.
     - UAT-transfer-prices
 
+# Module 5, stock and movements (ADR-0029). The pack is the module's step 5: the movements
+# a warehouse and a factory record, each with its user, moment and pack, negative stock
+# refused unless overridden with a reason, and counts. Receipt, issue, transfers and
+# production arrive with their own modules; branch stock waits on Q-06.
+INV-006:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-stock
+
+INV-007:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-stock
+
+INV-008:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-stock
+
+INV-009:
+  status: "baselined"
+  owner: "Operations management"
+  test_refs:
+    - UAT-stock
+
 PRC-005:
   status: "baselined"
   owner: "Operations management"

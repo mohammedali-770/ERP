@@ -2239,9 +2239,10 @@ requirements:
     text_en: "Stock movements shall include receipt, issue, sale consumption, production consumption, production output, transfer, return, adjustment, waste, damage and expiry."
     text_ar: "يجب أن تشمل حركات المخزون الاستلام والصرف واستهلاك البيع واستهلاك الإنتاج ومخرجات الإنتاج والتحويل والمرتجع والتسوية والهدر والتلف والانتهاء."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-stock"
     estate_refs: []
   - id: "INV-007"
     module: "INV"
@@ -2251,9 +2252,10 @@ requirements:
     text_en: "Every stock movement shall record source document, user, date, quantity, unit, location, batch where applicable and approval state."
     text_ar: "يجب أن تسجل كل حركة مخزون المستند المصدر والمستخدم والتاريخ والكمية والوحدة والموقع والدفعة عند الحاجة وحالة الاعتماد."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-stock"
     estate_refs: []
   - id: "INV-008"
     module: "INV"
@@ -2263,9 +2265,10 @@ requirements:
     text_en: "Negative stock shall be prevented or explicitly controlled through an exception approval policy."
     text_ar: "يجب منع المخزون السالب أو التحكم فيه صراحة من خلال سياسة اعتماد للاستثناءات."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-stock"
     estate_refs: []
   - id: "INV-009"
     module: "INV"
@@ -2275,9 +2278,10 @@ requirements:
     text_en: "Stock counts shall support full counts, cycle counts, blind counts, recounts and approved variances."
     text_ar: "يجب أن يدعم جرد المخزون الجرد الشامل والدوري والأعمى وإعادة العد واعتماد الفروقات."
     status: "baselined"
-    owner: null
+    owner: "Operations management"
     adr_refs: []
-    test_refs: []
+    test_refs:
+      - "UAT-stock"
     estate_refs: []
   - id: "INV-010"
     module: "INV"
