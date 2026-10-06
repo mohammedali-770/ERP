@@ -210,15 +210,16 @@ test('a malformed query is a 400 naming its field, and nothing reaches the datab
   }
 });
 
-test('a path that is no route is 404, and nothing is edited or deleted', async () => {
-  for (const request of [
-    get('/read'), get(`/${N1}`), post('', { all: true }), post('/unread', { all: true }), post(`/${N1}/read`, {}),
-    new Request(`${base}/${N1}`, { method: 'DELETE', headers: auth }),
-    new Request(`${base}/read`, { method: 'PATCH', headers: auth }),
-  ]) {
+test('a path that is no route is 404, a method none takes is 405, and nothing is edited or deleted', async () => {
+  for (const [request, status] of [
+    [get('/read'), 404], [get(`/${N1}`), 404], [post('', { all: true }), 404], [post('/unread', { all: true }), 404],
+    [post(`/${N1}/read`, {}), 404],
+    [new Request(`${base}/${N1}`, { method: 'DELETE', headers: auth }), 405],
+    [new Request(`${base}/read`, { method: 'PATCH', headers: auth }), 405],
+  ] as const) {
     const db = fakeDb(MANAGER);
     const response = await notifications(request, deps(db));
-    assert.ok(response.status === 404 || response.status === 405, `${request.method} ${request.url}: ${response.status}`);
+    assert.equal(response.status, status, `${request.method} ${request.url}`);
     assert.deepEqual(db.calls, []);
   }
 });

@@ -194,8 +194,11 @@ Deno.test('every notification route, as erp_edge, rung by the stock function, ro
         const read = ((await bell(manager.token)).body.notifications as Row[]).find((n) => n.notification_id === mine[0]!.notification_id);
         assert(typeof read?.read_at === 'string', 'and it shows when it was read');
         equal(await unread(admin.token), 2, 'the administrator\'s copies are their own');
-        const all = await send('notifications', admin.token, 'POST', '/read', { facility_id: WAREHOUSE, all: true });
-        equal([all.body, await unread(admin.token)], [{ status: 'ok', marked: 2 }, 0], 'all, said');
+        const both = await send('notifications', admin.token, 'POST', '/read',
+          { facility_id: WAREHOUSE, notification_ids: theirs.map((n) => n.notification_id) });
+        equal([both.body, await unread(admin.token)], [{ status: 'ok', marked: 2 }, 0], 'two ids in one uuid[], over the driver');
+        const all = await send('notifications', manager.token, 'POST', '/read', { facility_id: WAREHOUSE, all: true });
+        equal([all.body, await unread(manager.token)], [{ status: 'ok', marked: 1 }, 0], 'all, said');
         equal(theirs.length, 2, 'the administrator was told of both');
       });
 

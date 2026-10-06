@@ -34,9 +34,9 @@
  */
 import { endpoint, type Deps, type Reply } from './http.ts';
 import type { Session } from './handlers.ts';
-import { facilityOf, form, Malformed, noSuchRoute, ok, optionalUuid, routeOf, shaped, type Source } from './fields.ts';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import {
+  facilityOf, form, Malformed, noSuchRoute, ok, optionalUuid, routeOf, shaped, UUID, type Source,
+} from './fields.ts';
 
 /** The bell's page: 30 unless asked, at most 100, as 0021 allows. */
 function pageLimit(query: Source): number {

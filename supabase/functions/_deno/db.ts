@@ -271,7 +271,9 @@ export function makeDb(sql: Sql): Db {
 
     // A seq (int8) comes back from postgres.js as a string, and stays one: it is the page
     // cursor, and a number would round it past 2^53. The items' balances are text inside
-    // 0021's jsonb. A count is an integer and comes back a number.
+    // 0021's jsonb. A count is an integer and comes back a number. created_at and read_at
+    // come back as Dates and reach the console as ISO moments to the millisecond: shown,
+    // never sent back, since the cursor is the seq.
     listNotifications: (actor, q) => run(async () => (await sql`
       select notification_id, seq, kind, facility_id, facility_code, stock_decision_id, created_at, read_at, items
         from erp.list_notifications(${actor}::uuid, ${q.facilityId}::uuid, ${q.beforeSeq}::bigint, ${q.limit}::integer)`

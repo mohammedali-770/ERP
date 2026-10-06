@@ -15,7 +15,7 @@ import { readJsonBody, type Deps, type Reply } from './http.ts';
 import { withSession, type Session } from './handlers.ts';
 import type { Handler } from './http.ts';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * A write's body is a form; an import's is a file of up to 5000 rows (0012, 0016). A
