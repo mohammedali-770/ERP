@@ -3,8 +3,9 @@
  * items routes (supabase/functions/_shared/items.ts), module 2's suppliers routes
  * (supabase/functions/_shared/suppliers.ts), module 3's transfer-prices routes
  * (supabase/functions/_shared/transfer-prices.ts), module 4's facilities routes
- * (supabase/functions/_shared/facilities.ts) and module 5's stock routes
- * (supabase/functions/_shared/stock.ts).
+ * (supabase/functions/_shared/facilities.ts), module 5's stock routes
+ * (supabase/functions/_shared/stock.ts) and module 6's notifications routes
+ * (supabase/functions/_shared/notifications.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -708,6 +709,41 @@ export interface StockReversalInput {
   readonly override_reason: string | null;
 }
 
+/** One item a stock notification names, read when the bell is read (0021). */
+export interface NotificationItem {
+  readonly item_id: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly base_unit_key: string;
+  /** Decimal text: the balance the decision left, in the item's base unit. */
+  readonly on_hand: string;
+}
+
+/** One notification, as erp.list_notifications() returns it: the reader's own. */
+export interface Notification {
+  readonly notification_id: string;
+  /** The page cursor: decimal text of an int8, never a number. */
+  readonly seq: string;
+  readonly kind: string;
+  /** Where it happened, which may not be where the person is working. */
+  readonly facility_id: string;
+  readonly facility_code: string;
+  readonly stock_decision_id: string | null;
+  readonly created_at: string;
+  readonly read_at: string | null;
+  readonly items: readonly NotificationItem[];
+}
+
+export interface NotificationPage {
+  readonly notifications: readonly Notification[];
+  /** The page after this one ends before this seq; null when this is the last. */
+  readonly next_before: string | null;
+}
+
+/** The ids marked read, 1 to 100, or every unread one, said: never an empty list. */
+export type MarkRead = { readonly notificationIds: readonly string[] } | { readonly all: true };
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -763,6 +799,11 @@ export interface Api {
   recordStockCount(input: StockCountInput): Promise<Answer<{ decision_id: string }>>;
   /** The decision reversed is the one the path names; the body names the facility, as every stock write does. */
   reverseStockDecision(targetDecisionId: string, input: StockReversalInput): Promise<Answer<{ decision_id: string }>>;
+  /** The bell is asked where the person works; it lists their notifications from every facility they may open. */
+  listNotifications(facilityId: string | null, before?: string | null): Promise<Answer<NotificationPage>>;
+  unreadNotifications(facilityId: string | null): Promise<Answer<number>>;
+  /** Answers how many were marked: none, for ones already read, which is no error. */
+  markNotificationsRead(facilityId: string | null, mark: MarkRead): Promise<Answer<number>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -939,5 +980,16 @@ export function createApi(config: ApiConfig): Api {
     recordStockCount: (input) => call('POST', '/stock/counts', input, decision),
     reverseStockDecision: (targetDecisionId, input) =>
       call('POST', `/stock/decisions/${encodeURIComponent(targetDecisionId)}/reverse`, input, decision),
+
+    listNotifications: (facilityId, before = null) =>
+      call('GET', `/notifications${query({ facility_id: facilityId, before })}`, undefined,
+        (b) => ({ notifications: b['notifications'] as Notification[], next_before: text(b['next_before']) })),
+    unreadNotifications: (facilityId) =>
+      call('GET', `/notifications/unread${query({ facility_id: facilityId })}`, undefined, (b) => Number(b['unread'])),
+    markNotificationsRead: (facilityId, mark) =>
+      call('POST', '/notifications/read', {
+        facility_id: facilityId,
+        ...('all' in mark ? { all: true } : { notification_ids: mark.notificationIds }),
+      }, (b) => Number(b['marked'])),
   };
 }

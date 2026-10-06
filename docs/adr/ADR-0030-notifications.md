@@ -259,20 +259,76 @@ addendum). Nothing about the routes changed.
   decision left, page, count and mark; the factory manager is not told of their own act;
   a cashier's bell is empty.
 
+## Addendum — 2026-10-06: the screens (module 6, step 3)
+
+The bell is in the console (`apps/console/src/notifications.ts`,
+`src/screens/Notifications.tsx`). Nothing about the routes changed.
+
+- **The bell sits in the top bar,** beside the person's name, not in the menu. It is
+  shown where `platform.notifications` is not hidden and the person holds read on it, as
+  a menu entry would be. A typed `#notifications` meets the same answer. A badge counts the
+  unread, up to "99+", and the bell's label says the number in words for a screen reader.
+- **The count is asked only on the person's own doing:**
+  - when the shell opens;
+  - when the facility worked at changes;
+  - on every move to another screen;
+  - after a mark;
+  - when they come back to the tab.
+
+  **Never on a timer.** Every request a session makes moves its idle clock (0014,
+  `erp.resolve_session()`). A bell asking once a minute would have kept an unattended
+  console signed in for good, past the 30 minutes idle that should end it (found
+  designing this step). It answers question 2.
+- **The page** (`#notifications`) lists the person's own, newest first, 30 at a time,
+  with "Load more" paging by `seq`. Each shows:
+  - what happened and where: "Stock went below zero at" and the facility's code;
+  - when, in Riyadh time;
+  - whether it is unread;
+  - the items it names, with today's code and name, at the balance the decision left,
+    in the item's base unit, as text.
+- **Marking read is the person's own:** one at a time, or "Mark all read", which sends
+  `all: true` and never an empty list. A selection with nothing in it sends nothing.
+- **Opening one marks it read and goes to its decision,** by `openTarget()`:
+  - where the person works at the facility it happened at, it opens there;
+  - from anywhere else they may work, including organisation-wide, a button naming the
+    facility ("Work at … and open") switches the facility worked at first, since a stock
+    screen reads only that facility (ADR-0029's step 3 addendum), and asks first while a
+    form holds typed lines;
+  - where they may not work, it says so and offers nothing;
+  - a kind the console cannot open yet offers nothing.
+- **Tested** by `apps/console/test/notifications.test.ts` (Node), which:
+  - checks that no call names an actor;
+  - checks that the cursor travels as text and marking all is said;
+  - checks that nothing to mark sends nothing;
+  - checks where each one opens;
+  - checks that the bell's door is 0021's capability;
+  - checks that every kind 0021 knows has words;
+  - reads `App.tsx` and fails on any timer.
+
+  Eight deliberate breaks each failed a named test. A browser run against the scratch
+  database and edge functions passed 24 checks, in English and Arabic: an override at
+  the factory rang the warehouse manager's bell on their next click, opening it switched
+  them to the factory and its decision, the factory manager's bell stayed quiet, and the
+  administrator's "Mark all read" left the warehouse manager's own unread one alone.
+
 ## Open, for the owner and for UAT
 
 1. **When is the purge run?** In a hosted project, a scheduled job (`pg_cron`, or an
    edge function on a schedule) would call `erp.purge_notifications()`. Either is
    hosted configuration, owner-approved one action at a time. Until then, nothing older
    than 90 days is shown, but it is still stored.
-2. **How often does the console ask?** A bell that asks every minute is one request per
-   open console per minute. Realtime would need a grant the runtime does not hold, and a
-   decision of its own.
+2. **How often does the console ask?** *Answered by the screens (step 3 addendum): never
+   on a timer.* Every request moves the session's idle clock, so a bell that asked once a
+   minute would keep an unattended console signed in for good. It asks on the person's
+   own doing, so a notification shows on their next click, not the moment it is made. If
+   that is too slow somewhere, Realtime would need a grant the runtime does not hold, and
+   a decision of its own.
 3. **Which facility's notifications does the bell show?** Today, every facility's the
    person may open. A worker who switches between the warehouse and the factory sees
    both in one list, each marked with its facility. Opening one from the other facility
-   would switch "Where you are working" first, and the console asks before leaving a
-   typed form (ADR-0029's step 3 addendum).
+   switches "Where you are working" first (step 3 addendum), and the console asks before
+   leaving a typed form (ADR-0029's step 3 addendum). Should the bell show only the
+   facility worked at instead?
 4. **Low stock.** The warehouse's most frequent alert. It needs a minimum per item and
    facility, which no module holds yet, and a rule for re-alerting while it stays low.
    The plan gives it module 7, stock alerts, which would add its kind here. Should the

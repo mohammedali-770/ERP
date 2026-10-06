@@ -32,6 +32,7 @@ export type Route =
   | { readonly screen: 'stock_decision'; readonly decisionId: string }
   | { readonly screen: 'stock_adjust' }
   | { readonly screen: 'stock_count' }
+  | { readonly screen: 'notifications' }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -87,6 +88,8 @@ export function parseRoute(hash: string): Route {
     if (path[1] === 'decisions') return { screen: 'stock_decision', decisionId: id.toLowerCase() };
     return unknown;
   }
+  // The bell's page: the person's own, from every facility they may open.
+  if (path[0] === 'notifications') return path.length === 1 ? { screen: 'notifications' } : unknown;
   if (path[0] === 'transfer_prices') {
     if (path.length === 1) return { screen: 'transfer_prices' };
     const id = path[1]!;
@@ -121,6 +124,7 @@ export function formatRoute(route: Route): string {
     case 'stock_decision': return `#current_stock/decisions/${route.decisionId}`;
     case 'stock_adjust': return '#current_stock/adjust';
     case 'stock_count': return '#current_stock/count';
+    case 'notifications': return '#notifications';
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -128,6 +132,7 @@ export function formatRoute(route: Route): string {
 /** The menu entry a route belongs to, for marking it current. */
 export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
+  if (route.screen === 'notifications') return 'notifications';
   if (route.screen === 'transfer_prices' || route.screen === 'item_prices') return 'transfer_prices';
   if (route.screen === 'facilities' || route.screen.startsWith('facility')) return 'facilities';
   if (route.screen === 'current_stock' || route.screen.startsWith('stock_')) return 'current_stock';

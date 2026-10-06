@@ -465,6 +465,19 @@ const EN = {
   rule_stock_lines: 'An entry holds 1 to 500 lines, each naming its pack.',
   leave_unsaved: 'Leave this page? The lines you have entered are not saved and will be lost.',
   rule_facility_no_new_work: 'This facility is closed and takes no new entries.',
+
+  // notifications (module 6)
+  notifications: 'Notifications',
+  bell_label: 'Notifications: {n} unread',
+  notifications_hint: 'Yours, from every facility you may open, kept for 90 days.',
+  notifications_none: 'No notifications.',
+  notif_stock_below_zero: 'Stock went below zero at {code}',
+  notif_unread: 'unread',
+  mark_read: 'Mark read',
+  mark_all_read: 'Mark all read',
+  notif_open: 'Open',
+  notif_open_at: 'Work at {code} and open',
+  notif_cannot_open: 'You do not work at {code}, so it cannot be opened from here.',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -910,6 +923,18 @@ const AR: Readonly<Record<Key, string>> = {
   rule_stock_lines: 'يحمل الإدخال من سطر إلى ٥٠٠ سطر، لكل منها عبوته.',
   leave_unsaved: 'مغادرة هذه الصفحة؟ الأسطر التي أدخلتها لم تُحفظ وستضيع.',
   rule_facility_no_new_work: 'هذه المنشأة مغلقة ولا تقبل إدخالات جديدة.',
+
+  notifications: 'الإشعارات',
+  bell_label: 'الإشعارات: {n} غير مقروءة',
+  notifications_hint: 'إشعاراتك من كل منشأة يحق لك فتحها، تُحفظ ٩٠ يوماً.',
+  notifications_none: 'لا إشعارات.',
+  notif_stock_below_zero: 'نزل المخزون دون الصفر في {code}',
+  notif_unread: 'غير مقروء',
+  mark_read: 'تعليم كمقروء',
+  mark_all_read: 'تعليم الكل كمقروء',
+  notif_open: 'فتح',
+  notif_open_at: 'العمل في {code} والفتح',
+  notif_cannot_open: 'لا تعمل في {code}، فلا يمكن فتحه من هنا.',
 };
 
 export const STRINGS: Readonly<Record<Lang, Readonly<Record<Key, string>>>> = { en: EN, ar: AR };

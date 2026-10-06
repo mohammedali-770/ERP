@@ -35,6 +35,16 @@ export interface Ctx {
   readonly stockOverride: boolean;
   /** Whether the person may read stock here: the stock entry asks for read on items too. */
   readonly seesStock: boolean;
+  /** Whether the person has a bell here (notifications.ts, bellVisible). */
+  readonly seesBell: boolean;
+  /** Reads the bell's unread count again, after the person has marked something read. */
+  readonly refreshBell: () => void;
+  /**
+   * Switches where the person is working to `facilityId`, then goes to `route`: how a
+   * notification from another facility is opened, since a stock route reads only the
+   * facility worked at. Asks first when a form holds unsaved lines, as the picker does.
+   */
+  readonly workAt: (facilityId: string, route: Route) => void;
   /** A form with unsaved work registers what makes it dirty; every way out then asks first (leave.ts). Null clears it. */
   readonly setLeaveGuard: (dirty: (() => boolean) | null) => void;
   /** Goes to `route`, with a notice shown once on arrival (an `already_recorded` success). */
