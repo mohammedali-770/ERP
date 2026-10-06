@@ -524,6 +524,46 @@ addendum of 2026-10-05).
 
   27 controls each fail a named test.
 
+## Addendum — 2026-10-06: the switch-on, drafted and held (module 5, step 6)
+
+**Not on `main`.** The migration was drafted in pull request #48, which the owner closed
+for now (2026-10-06); it is kept there, at commit `390c4db`, and comes back as a new pull
+request once the preconditions below hold.
+
+The migration, `20261006000100_stock_pilot_at_central_warehouse.sql`, records one
+capability decision: `inventory.stock` at `pilot` at the central warehouse, and nowhere
+else. Organisation-wide it stays hidden, and `capability_state_for()` reads a
+facility's own state before the organisation's. The owner chose the warehouse alone for
+the pilot (2026-10-06).
+
+**It is held.** The consolidation plan's step 6, and the migration's header,
+name five things that must hold first:
+1. the stock pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. module 1 is switched on, since every stock read asks read on items too, and items are
+   made only organisation-wide;
+4. the owner has answered the pack's questions;
+5. the real warehouse code replaces the synthetic seed's.
+
+**A migration cannot name a facility that does not exist yet.** A facility-scoped
+decision references `erp.facility`, and facilities are made at run time (0019). So the
+migration finds the warehouse by its code when it is applied.
+- Where there is none, it records nothing and warns, and the capability stays hidden.
+  Every local rebuild is that case, since migrations run before the seed; there the
+  seed opens the capability for the suites, as before.
+- A facility with that code that is not an open warehouse is an error, never a pilot
+  somewhere else.
+- Proved on a scratch database:
+  - the warning on a rebuild, with nothing recorded;
+  - applied once the warehouse exists, a pilot there alone: with the organisation
+    hidden, the factory and both branches stay hidden;
+  - a branch's code refused;
+  - an unknown code warned and skipped.
+
+This is the first promotion by migration. It records a gap: every facility-scoped
+promotion will meet the same problem. It is noted under Q-23.
+
 ## Open, for the owner and for UAT
 
 Recorded rather than guessed. Each is decided before the module that needs it.

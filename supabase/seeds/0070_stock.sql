@@ -224,6 +224,13 @@ where e.decision_id = '01936f00-0000-7000-8000-000000005705' and e.line_no = 1;
 -- The balances, each the sum of its entries and stamped with the latest decision about it
 -- ---------------------------------------------------------------------------
 
+-- 0021's producer, both its triggers, is held off while the balances are written: FA-001's synthetic override
+-- (…5708) left chicken breast at -10, and telling anyone of it here would mint random ids
+-- and moments, so two builds would differ. The seed holds no notification; pgTAP 160 makes
+-- its own. Turned back on below, and db:check requires it enabled.
+alter table erp.stock_balance disable trigger stock_below_zero_is_notified_on_insert;
+alter table erp.stock_balance disable trigger stock_below_zero_is_notified_on_update;
+
 insert into erp.stock_balance (facility_id, item_id, on_hand, last_counted_at, as_of_decision_id, updated_at) values
   -- WH-001
   ('01936f00-0000-7000-8000-000000000403', '01936f00-0000-7000-8000-000000004101', 121.5, timestamptz '2026-09-25 03:00:00+00',
@@ -243,3 +250,6 @@ insert into erp.stock_balance (facility_id, item_id, on_hand, last_counted_at, a
    '01936f00-0000-7000-8000-000000005708', timestamptz '2026-09-30 11:05:00+00'),
   ('01936f00-0000-7000-8000-000000000404', '01936f00-0000-7000-8000-000000004102', 172, timestamptz '2026-09-25 04:00:00+00',
    '01936f00-0000-7000-8000-000000005707', timestamptz '2026-09-29 05:10:00+00');
+
+alter table erp.stock_balance enable trigger stock_below_zero_is_notified_on_insert;
+alter table erp.stock_balance enable trigger stock_below_zero_is_notified_on_update;

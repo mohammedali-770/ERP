@@ -470,6 +470,44 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'notification-guard-triggers-exist',
+    title: 'erp.notification carries its enabled guard triggers, and stock below zero its producer',
+    because:
+      'N3 (ADR-0030): a notification changes once, from unread to read, and is deleted only past ' +
+      '90 days, only because 0021\'s triggers say so, binding the owner too. N4: stock taken below ' +
+      'zero by an override tells anyone only because two triggers on erp.stock_balance say so: ' +
+      'ordinary AFTER INSERT and AFTER UPDATE statement triggers, with their transition tables and no ' +
+      'WHEN, fired when the seam\'s one balance statement ends, reading what that decision left. A ' +
+      'constraint trigger can be deferred or hurried by SET CONSTRAINTS, which needs no privilege; the ' +
+      'first design was one, on the decision, and review found it told nobody when hurried and ' +
+      'reported the wrong balance when deferred past a second decision. The second was a row ' +
+      'trigger, which review found redid the whole notification once per item. A consistent seed ' +
+      'passes with any of them gone.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.notification'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.notification_guard()'::regprocedure),
+                  ('erp.notification'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.notification_guard()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)
+          union all
+          select 'erp.stock_balance: no enabled AFTER ' || x.what || ' statement trigger with its transition ' ||
+                 'tables, not a constraint trigger and with no WHEN, calling erp.notify_stock_below_zero()'
+          from (values (4, 'INSERT', false), (16, 'UPDATE', true)) as x(event, what, needs_old)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = 'erp.stock_balance'::regclass and not t.tgisinternal
+              and t.tgfoid = 'erp.notify_stock_below_zero()'::regprocedure
+              and t.tgenabled in ('O', 'A') and t.tgconstraint = 0 and t.tgqual is null
+              and (t.tgtype & x.event) = x.event and (t.tgtype & 3) = 0
+              and t.tgnewtable = 'new_rows' and (not x.needs_old or t.tgoldtable = 'old_rows'))`,
+  },
+  {
     id: 'stock-guard-triggers-exist',
     title: 'erp.stock_balance carries its enabled guard triggers, TRUNCATE included',
     because:
