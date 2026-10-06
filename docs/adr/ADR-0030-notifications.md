@@ -218,6 +218,47 @@ kind's own rule.
 - A producer failing fails the write that caused it. That is the price of a
   notification that cannot be lost between a commit and a queue; there is no queue.
 
+## Addendum — 2026-10-06: the data layer (module 6, step 2)
+
+The three routes are reachable over HTTP through one edge function, `notifications`
+(`supabase/functions/_shared/notifications.ts`), built as `stock` is (ADR-0029's step 2
+addendum). Nothing about the routes changed.
+
+- **The routes:**
+  - `GET /` lists the person's notifications, newest first: 30 a page unless `limit`
+    asks for 1 to 100. A full page answers `next_before`, the last `seq` as decimal text,
+    and the next page sends it back as `before`.
+  - `GET /unread` answers how many are unread, as a number.
+  - `POST /read` marks those named in `notification_ids`, 1 to 100, or every unread one
+    when the body says `all: true`, and answers how many it marked.
+- **The actor is the session's,** through `withSession` (ADR-0025). Nobody reads, counts
+  or marks another person's notifications by naming them: a Node control test holds this
+  for all three routes, and the Deno test has the factory manager name the warehouse
+  manager's notification and mark nothing.
+- **The facility** is `facility_id`, in the query of a read and in the body of the mark,
+  as every read asks it. Left out, the bell is asked organisation-wide, which 0021's gate
+  answers as it answers any read.
+- **The edge checks shape, the database checks rules.** Three shape rules are this
+  module's own:
+  - **A page ends before a `seq`,** decimal text of a positive int8, checked to fit; a
+    moment is refused as a cursor (§6). The driver keeps the `seq` as text, as it keeps a
+    stock card's, so it is never rounded past 2^53.
+  - **Marking all is said, not implied.** Both `notification_ids` and `all`, or neither,
+    is a 400, and so is an empty list or `all: false`. A list that lost its ids on the way
+    is never read as every one.
+  - **Marking is idempotent.** Marking one already read marks nothing and is no error,
+    so a lost answer is retried as it was sent, with no decision id: there is no log, only
+    the reader's own read state.
+- **Refusals** map through `_shared/refusal.ts`, unchanged: a hidden bell or a person
+  without one is `forbidden` (403); a page or a list of the wrong size is `invalid` (422),
+  in 0021's own words; anything else is a 500 that says nothing.
+- **Tested** by `_shared/test/notifications.test.ts` (Node: the actor, every shape rule,
+  every refusal) and `_deno/test/notifications.test.ts` (Deno, end to end, as `erp_edge`,
+  rolled back): the factory manager overrides at the factory **through the stock function**,
+  and the administrator and the warehouse manager read the item at the balance that
+  decision left, page, count and mark; the factory manager is not told of their own act;
+  a cashier's bell is empty.
+
 ## Open, for the owner and for UAT
 
 1. **When is the purge run?** In a hosted project, a scheduled job (`pg_cron`, or an
