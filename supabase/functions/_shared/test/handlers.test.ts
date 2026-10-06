@@ -8,6 +8,7 @@ import { bearerToken, endpoint, parseAllowedOrigins, type Deps } from '../http.t
 import type { ItemsDb } from '../items-db.ts';
 import type { SuppliersDb } from '../suppliers-db.ts';
 import type { TransferPricesDb } from '../transfer-prices-db.ts';
+import type { StockDb } from '../stock-db.ts';
 import { notUsed } from './not-used.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
@@ -47,6 +48,12 @@ const facilitiesNotUsed = notUsed<FacilitiesDb>('facilities', {
   setFacilityArea: true, changeFacilityStatus: true,
 });
 
+/** The stock routes, which these tests never reach either. */
+const stockNotUsed = notUsed<StockDb>('stock', {
+  stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
+  recordStockCount: true, reverseStockDecision: true,
+});
+
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
   signIn?: SignInAnswer;
@@ -59,6 +66,7 @@ function fakeDb(answers: {
     ...suppliersNotUsed,
     ...transferPricesNotUsed,
     ...facilitiesNotUsed,
+    ...stockNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);

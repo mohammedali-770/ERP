@@ -332,6 +332,96 @@ claim, and whether its documents say what the code does — found these, now fix
 - Nine statements in these documents and the migration's header said more, or other,
   than the code does.
 
+## Addendum — 2026-10-06: the data layer (module 5, step 2)
+
+The six runtime routes are reachable over HTTP through one edge function, `stock`
+(`supabase/functions/_shared/stock.ts`), built as `facilities` is (ADR-0028's step 2
+addendum). Nothing about the routes changed. `erp.post_stock()` and
+`erp.lock_stock()` are not among them: they are owner-only, for later modules' own
+routes.
+
+- **The routes:**
+  - `GET /` reads the balances at a facility, paged by code; `negative=true` lists only
+    what stands below zero.
+  - `GET /items/{item_id}` reads an item's stock card at a facility, newest first, paged
+    by `before`, a seq as decimal text.
+  - `GET /decisions/{decision_id}` reads one decision whole, at the facility asked. A
+    decision at another facility is a 404, as a missing one is.
+  - `POST /adjustments` records an adjustment, a waste, a damage or an expiry.
+  - `POST /counts` records a count.
+  - `POST /decisions/{decision_id}/reverse` reverses one. The decision reversed is the
+    one the path names, whatever the body says.
+- **The actor is the session's,** through `withSession` (ADR-0025). A Node control test
+  holds this for all three writes and all three reads.
+- **Every route names its facility.** These are the first writes scoped to one: a
+  write's body must state `facility_id`, or it is a 400, and 0020 asks permission there.
+  A read asks at the query's `facility_id`, as every read does. Left out, the edge asks
+  with none and 0020 refuses it (`stock_facility_required`, §8), rather than mix every
+  facility's stock.
+- **The edge checks shape, the database checks rules.** Four shape rules are this
+  module's own:
+  - **A quantity is decimal text,** as a factor and a coordinate are: `"2.5"`, never the
+    number 2.5, with no sign, no exponent and no decimal comma. It goes to a `numeric`
+    column inside the lines' `jsonb`, and every answer carries quantities and factors as
+    text, so no float touches one either way. How many digits and places is 0020's rule
+    (twelve and six), refused in its own words.
+  - **A moment names its offset,** as a transfer price's does (ADR-0027's step 2
+    addendum). The check moved from `transfer-prices.ts` into `fields.ts`, so both use
+    one. Left out, a moment is now.
+  - **A line carries on only its conversion, its quantity and its direction.** Nothing
+    else a client puts on a line reaches the database. A malformed line names itself:
+    `lines[2].quantity`.
+  - **An adjustment or a count is a document, not a form.** It may be up to 128 KiB,
+    because 500 lines at their longest are about 50 KB, past a form's 8 KiB. A reversal
+    has no lines and stays a form.
+- **Refusals** map through `_shared/refusal.ts`, which now lists `stock_decision_pkey`
+  among its decision logs:
+  - a retry is `already_recorded`, and the console confirms it through
+    `GET /decisions/{id}` at the same facility;
+  - a decision already reversed is a conflict (409);
+  - a missing override permission is `forbidden` (403);
+  - stock that would go below zero, a movement dated at or before a count, a count at a
+    movement's moment, a reversal a count has covered, a count reversed, a branch or an
+    office, and a closed facility are each `refused` (422);
+  - a kind, a direction, a quantity or a moment that breaks a rule, and a read with no
+    facility, are `invalid` (422);
+  - a conversion of another brand, or a decision at another facility, is 404, exactly as
+    a missing one is.
+- **Proved end to end, as `erp_edge`,** by `supabase/functions/_deno/test/stock.test.ts`:
+  - A signed-in cashier reads their branch's stock, which is none, reads nothing at the
+    warehouse, and writes off nothing.
+  - Then, in one transaction that is rolled back:
+    - The seeded balances read back as text, factors included. The factory stands at
+      -10 kg, and only it is listed below zero.
+    - The opening count reads back with what it found, and is a 404 at the factory.
+    - The warehouse manager records a count stated late, at 09:00 Riyadh with its offset.
+      It reads back as 06:00 UTC and posts the difference from the book. The same
+      moment without its offset is a 400.
+    - A waste is recorded, and a retry carrying other lines is answered as a retry and
+      moves nothing.
+    - Movements dated before the count, at its instant, or within its stated minute are
+      refused. So is one in the future.
+    - Going below zero is refused. With an override reason it is refused to the
+      warehouse manager (403), allowed to the factory manager at the factory, and refused
+      to them at the warehouse.
+    - The waste is reversed, once. A decision a count has since covered and a count
+      itself are refused, and a reversal from another facility is a 404.
+    - The item's card holds every decision, newest first, paged by seq.
+    - A branch, a read with no facility, another brand's pack, a quantity sent as a
+      number, and a seventh decimal place are each refused.
+    - The rollback is checked.
+- **Controls:** 20 deliberate breakages of the edge layer, each failing a named Node or
+  Deno test. Among them:
+  - an actor taken from the query or a header;
+  - a line passed on whole;
+  - a quantity accepted as a number or passed through a float;
+  - a write with no facility, or a reversal whose target is taken from the body;
+  - a moment without its offset;
+  - the retry mapping removed, or a native collision answered as a retry;
+  - a count held to a form's 8 KiB;
+  - the driver dropping the override reason, sending the lines as a JSON string,
+    counting now, ignoring `negative`, or reading a decision at no facility.
+
 ## Open, for the owner and for UAT
 
 Recorded rather than guessed. Each is decided before the module that needs it.

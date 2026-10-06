@@ -8,6 +8,7 @@ import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import type { FacilitiesDb, Facility } from '../facilities-db.ts';
 import { facilities } from '../facilities.ts';
 import { Refusal } from '../refusal.ts';
+import type { StockDb } from '../stock-db.ts';
 import { notUsed } from './not-used.ts';
 
 const TOKEN = 'ef'.repeat(32);
@@ -42,6 +43,12 @@ const transferPricesNotUsed = notUsed<TransferPricesDb>('transfer prices', {
   withdrawTransferPrice: true,
 });
 
+/** The stock routes, which these tests never reach either. */
+const stockNotUsed = notUsed<StockDb>('stock', {
+  stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
+  recordStockCount: true, reverseStockDecision: true,
+});
+
 /** A facilities database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db & { calls: Call[] } {
   const calls: Call[] = [];
@@ -65,6 +72,7 @@ function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db
     ...itemsNotUsed,
     ...suppliersNotUsed,
     ...transferPricesNotUsed,
+    ...stockNotUsed,
     listFacilities: record('listFacilities'),
     getFacility: record('getFacility'),
     facilityHistory: record('facilityHistory'),
