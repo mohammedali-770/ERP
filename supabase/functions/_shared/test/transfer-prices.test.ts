@@ -8,6 +8,7 @@ import { asMinor, withMinor, type PriceListRow, type TransferPricesDb } from '..
 import { transferPrices } from '../transfer-prices.ts';
 import { Refusal } from '../refusal.ts';
 import type { StockDb } from '../stock-db.ts';
+import type { NotificationsDb } from '../notifications-db.ts';
 import { notUsed } from './not-used.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
 
@@ -48,6 +49,9 @@ const stockNotUsed = notUsed<StockDb>('stock', {
   stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
   recordStockCount: true, reverseStockDecision: true,
 });
+const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
+  listNotifications: true, countUnreadNotifications: true, markNotificationsRead: true,
+});
 
 /** A transfer-prices database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<TransferPricesDb> = {}): Db & { calls: Call[] } {
@@ -73,6 +77,7 @@ function fakeDb(person: string | null, override: Partial<TransferPricesDb> = {})
     ...suppliersNotUsed,
     ...facilitiesNotUsed,
     ...stockNotUsed,
+    ...notificationsNotUsed,
     listTransferPrices: record('listTransferPrices'),
     itemTransferPrices: record('itemTransferPrices'),
     transferPriceHistory: record('transferPriceHistory'),

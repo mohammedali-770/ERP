@@ -9,6 +9,7 @@ import type { FacilitiesDb, Facility } from '../facilities-db.ts';
 import { facilities } from '../facilities.ts';
 import { Refusal } from '../refusal.ts';
 import type { StockDb } from '../stock-db.ts';
+import type { NotificationsDb } from '../notifications-db.ts';
 import { notUsed } from './not-used.ts';
 
 const TOKEN = 'ef'.repeat(32);
@@ -48,6 +49,9 @@ const stockNotUsed = notUsed<StockDb>('stock', {
   stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
   recordStockCount: true, reverseStockDecision: true,
 });
+const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
+  listNotifications: true, countUnreadNotifications: true, markNotificationsRead: true,
+});
 
 /** A facilities database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db & { calls: Call[] } {
@@ -73,6 +77,7 @@ function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db
     ...suppliersNotUsed,
     ...transferPricesNotUsed,
     ...stockNotUsed,
+    ...notificationsNotUsed,
     listFacilities: record('listFacilities'),
     getFacility: record('getFacility'),
     facilityHistory: record('facilityHistory'),

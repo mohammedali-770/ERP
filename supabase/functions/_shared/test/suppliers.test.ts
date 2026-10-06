@@ -8,6 +8,7 @@ import { suppliers } from '../suppliers.ts';
 import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import { Refusal } from '../refusal.ts';
 import type { StockDb } from '../stock-db.ts';
+import type { NotificationsDb } from '../notifications-db.ts';
 import { notUsed } from './not-used.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
 
@@ -52,6 +53,9 @@ const stockNotUsed = notUsed<StockDb>('stock', {
   stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
   recordStockCount: true, reverseStockDecision: true,
 });
+const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
+  listNotifications: true, countUnreadNotifications: true, markNotificationsRead: true,
+});
 
 /** A suppliers database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db & { calls: Call[] } {
@@ -79,6 +83,7 @@ function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db 
     ...transferPricesNotUsed,
     ...facilitiesNotUsed,
     ...stockNotUsed,
+    ...notificationsNotUsed,
     listSuppliers: record('listSuppliers'),
     getSupplier: record('getSupplier'),
     supplierHistory: record('supplierHistory'),

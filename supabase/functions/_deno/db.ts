@@ -33,6 +33,7 @@ import type { Supplier, SupplierDetail, SupplierImportSummary } from '../_shared
 import { withMinor, type ItemPrice, type PriceListRow } from '../_shared/transfer-prices-db.ts';
 import type { Facility } from '../_shared/facilities-db.ts';
 import type { StockBalance } from '../_shared/stock-db.ts';
+import type { Notification } from '../_shared/notifications-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -266,6 +267,23 @@ export function makeDb(sql: Sql): Db {
       await sql`select erp.reverse_stock_decision(
         ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.targetDecisionId}::uuid, ${i.reason}::text,
         ${i.overrideReason}::text, ${actor}::uuid, now())`;
+    }),
+
+    // A seq (int8) comes back from postgres.js as a string, and stays one: it is the page
+    // cursor, and a number would round it past 2^53. The items' balances are text inside
+    // 0021's jsonb. A count is an integer and comes back a number.
+    listNotifications: (actor, q) => run(async () => (await sql`
+      select notification_id, seq, kind, facility_id, facility_code, stock_decision_id, created_at, read_at, items
+        from erp.list_notifications(${actor}::uuid, ${q.facilityId}::uuid, ${q.beforeSeq}::bigint, ${q.limit}::integer)`
+    ) as unknown as Notification[]),
+    countUnreadNotifications: (actor, facilityId) => run(async () => {
+      const [row] = await sql`select erp.count_unread_notifications(${actor}::uuid, ${facilityId}::uuid) as unread`;
+      return row?.['unread'] as number;
+    }),
+    markNotificationsRead: (actor, i) => run(async () => {
+      const [row] = await sql`select erp.mark_notifications_read(
+        ${actor}::uuid, ${i.facilityId}::uuid, ${i.notificationIds as string[] | null}::uuid[]) as marked`;
+      return row?.['marked'] as number;
     }),
   };
 }
