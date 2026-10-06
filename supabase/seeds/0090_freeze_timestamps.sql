@@ -25,7 +25,8 @@
 -- erp.item_decision (0012) likewise: a fourth append-only log, seeded with literal times.
 --
 -- erp.supplier_decision (0016) is the fifth, erp.transfer_price_decision (0018) the sixth,
--- erp.facility_decision (0019) the seventh.
+-- erp.facility_decision (0019) the seventh, and 0020's three stock logs — stock_decision,
+-- stock_ledger and stock_count_log — the eighth to tenth.
 
 do $$
 declare
@@ -48,7 +49,8 @@ begin
       and not a.attisdropped
       and ty.typname = 'timestamptz'
       and c.relname not in ('event_log', 'capability_decision', 'identity_decision', 'item_decision', 'supplier_decision',
-                            'transfer_price_decision', 'facility_decision')
+                            'transfer_price_decision', 'facility_decision', 'stock_decision', 'stock_ledger',
+                            'stock_count_log')
       and a.attname in ('created_at', 'enrolled_at', 'ingested_at', 'applied_at', 'updated_at')
   loop
     execute format('update erp.%I set %I = $1 where %I is not null', t.relname, t.attname, t.attname)

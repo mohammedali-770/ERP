@@ -15,7 +15,7 @@
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { loadMigrations, duplicateVersions, unrecognisedFiles } from './migrations.ts';
-import { ASSERTIONS, SEED_ASSERTIONS, type Assertion } from './assertions.ts';
+import { ASSERTIONS, LOG_BY_NAME, SEED_ASSERTIONS, STOCK_ASSERTIONS, type Assertion } from './assertions.ts';
 import { findPostgresBin, startCluster, type Cluster } from './cluster.ts';
 import { planSeed } from './seed.ts';
 import { readdirSync } from 'node:fs';
@@ -154,8 +154,8 @@ try {
   // Asserted by attempting the write, not by reading the catalogue: a trigger
   // that exists and does not fire is the failure this is looking for.
   console.log('');
-  // Every log every-decision-log-is-append-only discovers — each %_log and %_decision
-  // table — and every partition of one. That assertion proves the triggers exist; only an
+  // Every log every-decision-log-is-append-only discovers — each %_log, %_decision and
+  // %_ledger table, by the one predicate both read — and every partition of one. That assertion proves the triggers exist; only an
   // attempted write proves they refuse. A partition is tried by name because naming it
   // is what slipped past 0004's statement trigger (0013). Each attempt runs in a
   // transaction that is rolled back, so an unprotected table is reported without being
@@ -175,7 +175,7 @@ try {
     .sql(`with recursive logs as (
             select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'erp' and c.relkind in ('r', 'p') and not c.relispartition
-              and (c.relname like '%\\_log' or c.relname like '%\\_decision')
+              and ${LOG_BY_NAME}
           ),
           partitions as (
             select i.inhrelid as oid from logs l join pg_inherits i on i.inhparent = l.oid
@@ -187,8 +187,14 @@ try {
           order by 1`)
     .split('\n').map((x) => x.trim()).filter(Boolean);
   for (const table of guarded) {
+    // The first column a plain UPDATE may set to itself. An identity column refuses that in
+    // the rewriter, before any trigger fires — "can only be updated to DEFAULT" — so a log
+    // whose first column were one would read as unprotected. None is today: stock_ledger,
+    // the first log with an identity besides seq, was declared decision_id first for this
+    // reason; this keeps the next one from depending on column order (found in review).
     const column = cluster
-      .sql(`select attname from pg_attribute where attrelid = 'erp.${table}'::regclass and attnum = 1`).trim();
+      .sql(`select attname from pg_attribute where attrelid = 'erp.${table}'::regclass and attnum > 0
+              and not attisdropped and attidentity = '' and attgenerated = '' order by attnum limit 1`).trim();
     const unrefused: string[] = [];
     for (const [op, statement] of [
       ['UPDATE', `update erp.${table} set ${column} = ${column} where true`],
@@ -296,6 +302,18 @@ try {
        24.713600, 46.675300, 200, 'db-check retry probe', ${admin}, now())`, 'facility_decision_pkey'],
     ['change_facility_status', (d) => `select erp.change_facility_status(${d}, ${id('0000000d0501')}, ${id('0000000d0017')},
        'closed', 'db-check retry probe', ${admin}, now())`, 'facility_decision_pkey'],
+    // 0020's three write routes, against 0070's seed: the same lock, under its own log. A
+    // kilogram of rice wasted at WH-001; the factory's strips counted; WH-001's chicken
+    // waste reversed. Each passes the route's every rule the first time, so the retry is
+    // refused for being one, and for nothing else.
+    ['record_stock_adjustment', (d) => `select erp.record_stock_adjustment(${d}, ${id('000000000403')}, 'waste', null,
+       '[{"item_unit_id": "01936f00-0000-7000-8000-000000004225", "quantity": "1"}]'::jsonb,
+       'db-check retry probe', null, ${admin}, now())`, 'stock_decision_pkey'],
+    ['record_stock_count', (d) => `select erp.record_stock_count(${d}, ${id('000000000404')}, null,
+       '[{"item_unit_id": "01936f00-0000-7000-8000-000000004205", "quantity": "170"}]'::jsonb,
+       'db-check retry probe', ${admin}, now())`, 'stock_decision_pkey'],
+    ['reverse_stock_decision', (d) => `select erp.reverse_stock_decision(${d}, ${id('000000000403')}, ${id('000000005703')},
+       'db-check retry probe', null, ${admin}, now())`, 'stock_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
@@ -417,6 +435,175 @@ try {
         (closed.status === 0 ? '' : `; the closure failed too: ${errorOf(closed)}`));
     }
   }
+
+  // STOCK (0020). Every writer of a balance takes erp.lock_stock()'s key lock, and every
+  // rule that reads the balance is judged after it. Each race below is two real sessions,
+  // the first holding its transaction open until the second is seen waiting on a lock, as
+  // above; all at WH-001, on items no earlier probe touched. Without the lock — the draft
+  // locked balance ROWS, which do not exist before an item's first movement — each of them
+  // went wrong (found in review).
+  const warehouse = id('000000000403');
+  const manager = id('000000000904');
+  const lines = (...l: ReadonlyArray<readonly [string, string, string?]>) => `'${JSON.stringify(
+    l.map(([unit, quantity, direction]) => ({ item_unit_id: `01936f00-0000-7000-8000-${unit}`, quantity,
+      ...(direction ? { direction } : {}) })))}'::jsonb`;
+  const adjust = (decision: string, kind: string, at: string, body: string) =>
+    `select erp.record_stock_adjustment(${id(decision)}, ${warehouse}, '${kind}', ${at}, ${body},
+       'db-check stock probe', null, ${manager}, now())`;
+  const count = (decision: string, body: string) =>
+    `select erp.record_stock_count(${id(decision)}, ${warehouse}, null, ${body}, 'db-check stock probe', ${manager}, now())`;
+  const raisedAs = (stderr: string, state: string, constraint: string) =>
+    new RegExp(`ERROR:\\s+${state}:`).test(stderr)
+    && new RegExp(`CONSTRAINT NAME:\\s+${constraint}(\\s|$)`, 'm').test(stderr)
+    && /LOCATION:\s+exec_stmt_raise,/.test(stderr);
+  const overlap = async (held: string, waiter: string, tag: string) => {
+    const holder = `erp_${tag}_held`;
+    const waiting = `erp_${tag}_waiter`;
+    const first = cluster!.sqlConcurrently(`begin; ${held};
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = '${waiting}' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, holder);
+    for (let i = 0; i < 400; i++) {
+      const written = cluster!.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                     where a.application_name = '${holder}'
+                                       and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    return Promise.all([first, cluster!.sqlConcurrently(waiter, waiting)]);
+  };
+  const report = (ok: boolean, pass: string, fail: string) => {
+    if (ok) console.log(`  pass  ${pass}`);
+    else { failures++; console.log(`  FAIL  ${fail}`); }
+  };
+  console.log('');
+  {
+    // D1: two outward adjustments, each within the 108 l of frying oil held, together beyond
+    // it. The second must wait and then be refused; read before the first committed, it
+    // took the oil to -12 with nobody's override.
+    const take = (d: string) => adjust(d, 'adjustment', 'null', lines(['000000004223', '60', 'out']));
+    const [first, second] = await overlap(take('0000000d0601'), take('0000000d0602'), 'stock_negative');
+    report(first.status === 0 && raisedAs(second.stderr, '23001', 'stock_would_go_negative'),
+      'post_stock: two withdrawals that together overdraw an item — the second waits, and is refused',
+      `post_stock: the second of two overdrawing withdrawals was answered "${errorOf(second)}"` +
+        (first.status === 0 ? '' : `; the first failed too: ${errorOf(first)}`));
+  }
+  {
+    // The first movements of two items that have no balance yet, listed in opposite orders.
+    // The draft's placeholder rows, inserted in line order, deadlocked here (40P01); both
+    // must be recorded. This guards against bringing placeholders back. It does not test the
+    // key lock: the balances are written per item in item order, so without any lock these
+    // two still cannot deadlock. The next probe but two does (found in review).
+    const gloves = ['000000004217', '2', 'in'] as const;
+    const basket = ['000000004220', '1', 'in'] as const;
+    const [first, second] = await overlap(adjust('0000000d0603', 'adjustment', 'null', lines(gloves, basket)),
+      adjust('0000000d0604', 'adjustment', 'null', lines(basket, gloves)), 'stock_first');
+    report(first.status === 0 && second.status === 0,
+      'post_stock: two first movements of the same new items, in opposite orders, are both recorded',
+      `post_stock: two first movements in opposite orders were answered "${errorOf(first)}" and "${errorOf(second)}"`);
+  }
+  {
+    // Two reversals of one adjustment, with different ids. The second must be refused by
+    // the route, under its own name — not by the unique key's own words, which the edge
+    // answers as a bare conflict.
+    const reverse = (d: string) => `select erp.reverse_stock_decision(${id(d)}, ${warehouse}, ${id('000000005704')},
+       'db-check stock probe', null, ${manager}, now())`;
+    const [first, second] = await overlap(reverse('0000000d0605'), reverse('0000000d0606'), 'stock_reversal');
+    report(first.status === 0 && raisedAs(second.stderr, '23505', 'stock_already_reversed'),
+      'reverse_stock_decision: a second reversal of one decision waits, and is refused as already reversed',
+      `reverse_stock_decision: a second reversal was answered "${errorOf(second)}"` +
+        (first.status === 0 ? '' : `; the first failed too: ${errorOf(first)}`));
+  }
+  {
+    // A count racing a waste dated before it. The count must wait and read the book with the
+    // waste in it: 40 l held, 10 l wasted an hour ago, 35 l found now — so 35 l. Read before
+    // the waste committed, the count posted -5 against 40, the waste then took 10 more, and
+    // the balance said 25 with 35 on the shelf.
+    const [waste, counted] = await overlap(
+      adjust('0000000d0607', 'waste', "now() - interval '1 hour'", lines(['000000004216', '2'])),
+      count('0000000d0608', lines(['000000004216', '7'])), 'stock_count');
+    // The balance AND its ledger: without the lock the count still wrote 35 over the
+    // waste's 30, so the balance read right while the entries summed to 25 (found by this
+    // probe's control).
+    const [onHand, entries] = cluster.sql(`select b.on_hand, (select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end)
+                                            from erp.stock_ledger e where e.facility_id = b.facility_id and e.item_id = b.item_id)
+                                         from erp.stock_balance b
+                                        where b.facility_id = ${warehouse} and b.item_id = ${id('000000004105')}`).trim().split('|');
+    report(waste.status === 0 && counted.status === 0 && Number(onHand) === 35 && Number(entries) === 35,
+      'record_stock_count: a count racing a waste dated before it waits, and the balance and its entries equal what was found',
+      `record_stock_count: a count racing an earlier waste left a balance of ${onHand} l and entries summing to ${entries}` +
+        ` against 35 found ("${errorOf(waste)}", "${errorOf(counted)}")`);
+  }
+  {
+    // A count racing an item's FIRST movement, dated before the count: what a row lock
+    // cannot cover, because there is no row yet to lock. 10 strips put in an hour ago, 10
+    // found now, so nothing to post. Under row locks, the count read no balance, posted +10
+    // and wrote 10 over the movement's 10, so the balance read right and its entries said 20
+    // (found in review).
+    const [movement, counted] = await overlap(
+      adjust('0000000d0611', 'adjustment', "now() - interval '1 hour'", lines(['000000004205', '10', 'in'])),
+      count('0000000d0612', lines(['000000004205', '10'])), 'stock_unborn');
+    const [onHand, entries] = cluster.sql(`select b.on_hand, (select sum(case e.direction when 'in' then e.base_quantity else -e.base_quantity end)
+                                            from erp.stock_ledger e where e.facility_id = b.facility_id and e.item_id = b.item_id)
+                                         from erp.stock_balance b
+                                        where b.facility_id = ${warehouse} and b.item_id = ${id('000000004102')}`).trim().split('|');
+    report(movement.status === 0 && counted.status === 0 && Number(onHand) === 10 && Number(entries) === 10,
+      'record_stock_count: a count racing an item\'s first movement waits on the key lock, and posts nothing it did not find',
+      `record_stock_count: a count racing an item's first movement left a balance of ${onHand} and entries summing to ${entries}` +
+        ` against 10 found ("${errorOf(movement)}", "${errorOf(counted)}")`);
+  }
+  {
+    // "Now" is the clock once the lock is held. The waste's transaction begins first, then
+    // waits behind a count of the same item made "now"; it must be dated after the count and
+    // recorded. Dated from its own transaction's start, it fell before the count it waited
+    // for and was refused as backdated (0018's finding, for stock).
+    const waiting = 'erp_stock_now_waiter';
+    const holder = 'erp_stock_now_held';
+    const waste = cluster.sqlConcurrently(`begin; select now();
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                            where a.application_name = '${holder}' and l.locktype = 'transactionid' and l.granted);
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      ${adjust('0000000d0609', 'waste', 'null', lines(['000000004211', '10']))};
+      commit;`, waiting);
+    for (let i = 0; i < 400; i++) {
+      const started = cluster.sql(`select exists (select 1 from pg_stat_activity
+                                    where application_name = '${waiting}' and xact_start is not null)`).trim() === 't';
+      if (started) break;
+      await pause(25);
+    }
+    const held = cluster.sqlConcurrently(`begin; ${count('0000000d0610', lines(['000000004211', '500']))};
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = '${waiting}' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, holder);
+    const [counted, wasted] = await Promise.all([held, waste]);
+    const after = cluster.sql(`select (select occurred_at from erp.stock_decision where decision_id = ${id('0000000d0609')})
+                                    > (select occurred_at from erp.stock_decision where decision_id = ${id('0000000d0610')})`).trim();
+    report(counted.status === 0 && wasted.status === 0 && after === 't',
+      'post_stock: a movement made "now" that waited behind a count is dated after it, and recorded',
+      `post_stock: a "now" movement that waited behind a count was answered "${errorOf(wasted)}"` +
+        (counted.status === 0 ? '' : `; the count failed too: ${errorOf(counted)}`));
+  }
+
+  // And the ledger's rules again, over everything the probes above posted through the
+  // routes, races included.
+  check(cluster, 'Stock assertions, after the probes', STOCK_ASSERTIONS);
 } finally {
   cluster?.stop();
 }

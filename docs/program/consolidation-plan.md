@@ -4,13 +4,13 @@
   ADR-0020
 - **Requirements:** MFG-012 · IAM-003 · IAM-006 · PRG-010 · PRG-011 · CAP-P01..P12
 - **Blockers:** B-03 · B-10 and B-11 (both re-scoped down) · [Q-20](./open-questions.md) ·
-  [Q-22](./open-questions.md) · [Q-23](./open-questions.md) · [Q-24](./open-questions.md)
+  [Q-22](./open-questions.md) (answered for stock movements on 2026-10-05) · [Q-23](./open-questions.md) · [Q-24](./open-questions.md)
   (before the first deployment). [Q-21](./open-questions.md) was answered on 2026-10-02 by
   [ADR-0023](../adr/ADR-0023-edge-functions-hold-the-erp-credential.md), and the
   edge-layer foundation it called for was built on 2026-10-03
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
-  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4 and module 4 has 4, and both their staff-testing packs are written.
+  4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4, module 4 has 4 and module 5 has 2, and the first four modules' staff-testing packs are written.
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -202,7 +202,7 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 |---|---|---|
 | Phases 1–3 — foundations | 3 | 3 |
 | Phase 3 residuals — the API layer and sign-in; the console's layout, Arabic/RTL, print and offline support | 2 | 1 — the API layer and sign-in, 2026-10-03. The console's layout and Arabic/RTL came with module 1's screens on 2026-10-04; print and offline support remain |
-| Phase 4 — modules | 22 | 0 — module 1 has 4 of its 6 sub-steps, module 2 has 4 (its database layer, tests, data layer and screens), module 3 has 4 (its database layer, tests, data layer and screens), module 4 has 4 (its database layer, tests, data layer and screens) |
+| Phase 4 — modules | 22 | 0 — module 1 has 4 of its 6 sub-steps, module 2 has 4 (its database layer, tests, data layer and screens), module 3 has 4 (its database layer, tests, data layer and screens), module 4 has 4 (its database layer, tests, data layer and screens), module 5 has 2 (its database layer and tests) |
 | Phase 5 — decommission | 1 | 0 |
 | **Total** | **28** | **4 — about 14%** |
 
@@ -230,7 +230,7 @@ Sizes are the warehouse's own: source lines of its screens and logic, and its ta
 | 2 | Suppliers | 367 · 1 | Yes | Same place as before. The item–supplier link — the warehouse's `raw_materials.supplier_id`, now naming a conversion — lives here, not on the master, so items no longer depend on suppliers: the old order's second dependency error. **Database layer, tests, data layer and screens built** — [ADR-0026](../adr/ADR-0026-suppliers.md) and its addenda, [process mapping](../estate/process-mapping-suppliers.md); staff testing (its [UAT pack](../lab/uat/suppliers.md) is written) and switch-on remain |
 | 3 | Item pricing — internal transfer prices | 246 · 1 | Split out | Money as integer minor units, with history and an effective date (I-7). **Database layer, tests, data layer and screens built** — a price per pack, from a moment, never backdated, over HTTP as the `transfer-prices` edge function and set from the console; [ADR-0027](../adr/ADR-0027-transfer-prices.md), [process mapping](../estate/process-mapping-transfer-prices.md); the staff-testing pack is written ([`transfer-prices`](../lab/uat/transfer-prices.md), en + ar) and waits on the owner's five answers and a session; switch-on remains |
 | 4 | **Branches** — and the geofence that places a branch worker | 468 · 1 | **No** | `erp.facility` made a master. **Database layer, tests, data layer and screens built** — closed, never deleted; an area per branch; and, by the owner's decision of 2026-10-05, a worker is assigned to their branch and the area is a check at order time, not what places them ([ADR-0028](../adr/ADR-0028-facilities-and-branch-areas.md), IAM-P11, [process mapping](../estate/process-mapping-facilities.md)); over HTTP as the `facilities` edge function and kept from the console; the staff-testing pack is written ([`facilities`](../lab/uat/facilities.md), en + ar) and waits on the owner's six answers and a session; switch-on remains |
-| 5 | Stock and movements | 1,834 · 4 | Yes | **Moved before purchasing**: receiving a PO writes stock |
+| 5 | Stock and movements | 1,834 · 4 | Yes | **Moved before purchasing**: receiving a PO writes stock. **Database layer and tests built** — a ledger at each warehouse and factory, the balance its sum, posted through one seam every later module uses; by the owner's decisions of 2026-10-05, negative stock refused unless overridden with a reason, no second approval, a movement's business day the facility's calendar date, stock per facility ([ADR-0029](../adr/ADR-0029-stock-ledger.md), INV-P01, INV-P02, [process mapping](../estate/process-mapping-stock.md)); no branch holds stock until Q-06 is answered; the data layer, screens, staff testing and switch-on remain |
 | 6 | **Notifications** — the in-app bell | 302 · 3 | **No** | Web push needs owner approval (`CLAUDE.md` §4) and ships off |
 | 7 | Stock alerts | 206 · 0 | Split out | |
 | 8 | Purchase orders and receipts | 3,124 · 7 | Yes | Commitments in money, no payment |
