@@ -220,3 +220,4 @@ fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; 
 .notification-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
 .notification-items { margin: 0.5rem 0; padding-inline-start: 1.25rem; }
 .pill { font-size: 0.75rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.order-decisions { margin: 0.75rem 0; }

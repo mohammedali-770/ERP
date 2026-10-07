@@ -144,7 +144,7 @@ function Lines({ ctx, lines, setLines, withDirection }: {
 }
 
 /** Now, or a stated Riyadh date and time (D3): an explicit choice, never a blank date read as now. */
-function MomentFields({ lang, legend, when, setWhen, date, setDate, time, setTime, dateRef, timeRef }: {
+export function MomentFields({ lang, legend, when, setWhen, date, setDate, time, setTime, dateRef, timeRef }: {
   lang: Lang; legend: string; when: 'now' | 'stated'; setWhen: (w: 'now' | 'stated') => void;
   date: string; setDate: (v: string) => void; time: string; setTime: (v: string) => void;
   dateRef: RefObject<HTMLInputElement>; timeRef: RefObject<HTMLInputElement>;

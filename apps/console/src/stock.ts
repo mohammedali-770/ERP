@@ -31,8 +31,11 @@ import { momentInput } from './transfer-prices.ts';
 export const ADJUSTMENT_KINDS = ['waste', 'damage', 'expiry', 'adjustment'] as const;
 export type AdjustmentKind = (typeof ADJUSTMENT_KINDS)[number];
 
-/** Every kind 0020 records (stock_decision_kind_is_known), for labels. */
-export const STOCK_KINDS = ['count', 'adjustment', 'waste', 'damage', 'expiry', 'reversal'] as const;
+/**
+ * Every kind a stock decision records (stock_decision_kind_is_known), for labels: 0020's,
+ * and 0023's receipt, which only a purchase order posts and only through it is reversed.
+ */
+export const STOCK_KINDS = ['count', 'adjustment', 'waste', 'damage', 'expiry', 'reversal', 'receipt'] as const;
 
 /** The facility types that hold stock (0020: stock_branch_business_day_undecided, stock_facility_holds_no_stock). */
 export const STOCK_FACILITY_TYPES: ReadonlySet<string> = new Set(['warehouse', 'factory']);

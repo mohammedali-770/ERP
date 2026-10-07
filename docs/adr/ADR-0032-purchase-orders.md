@@ -259,3 +259,71 @@ changed.
   and its retry, self-approval refused and the accountant approving, a receipt moving
   stock, the stock route refusing to reverse it and the order's route reversing it, cancel,
   close and reject, and limits set and cleared by the administrator alone.
+
+## Addendum — 2026-10-07: the screens (module 8, step 3)
+
+The console reads and changes orders through the `purchase-orders` function, at the
+warehouse or factory being worked at, as the stock screens do (ADR-0029's step 3
+addendum).
+
+- **The entry, "Purchase orders",** sits under Purchasing beside Suppliers. It is shown
+  only to someone who may read orders, suppliers and items where none is hidden, since
+  every order read asks all three (navigation.ts, `alsoReads`). Organisation-wide, or at a
+  branch or an office, the page says that orders go to a warehouse or a factory.
+- **What is offered is 0023's gates, read at the facility** (purchase-orders.ts,
+  `purchaseRights`): raise, cancel and close to someone holding write on orders; approve
+  and reject to someone holding approve; receive and reverse a receipt to someone holding
+  write on orders and on stock, since a receipt moves stock; the limit to someone holding
+  read, and set and clear to someone holding write, on limits. Nothing is offered in a
+  preview, or where the capability admits no new work.
+- **The list (`#purchase_orders`)** gives the facility's orders newest first, one state
+  alone on asking, each with its supplier, what has arrived and its total.
+- **A new order (`#purchase_orders/new`)** is one active supplier, found by code or name,
+  and up to 200 lines of what it sells now: the supply, its pack and its item all current.
+  Each line is a pack, a quantity typed as decimal text and a price per pack typed in
+  riyals; the VAT rate is typed as a percentage, 15 to start. **The figures shown before
+  sending are 0023's**: each line's amount and the VAT are worked out in BigInt from the
+  text typed, rounded half up as 0023's `round()` does, so the total the person checks is
+  the one the order will carry. A repeated pack, a bad quantity or price, a rate past 100%
+  and a line or order past 0023's caps are named before sending. The order's id is minted
+  with its decision (I-1); a lost answer is retried as first sent, and Start over looks
+  for the order before minting new ids, as a stock entry does.
+- **An order's page (`#purchase_orders/{id}`)** shows its lines with what has arrived and
+  what is still to come, every receipt, and every decision. The decisions offered are the
+  ones 0023 would take (`orderActions`): approve and reject while pending, and **never on
+  an order the person raised (PRC-004)** — they are told someone else decides it, and may
+  cancel it; cancel while nothing has arrived; close short once part has; receive while
+  approved and not in full. A facility known to be closed is offered no approval or
+  receipt. Each decision is its own path, built once and retried as sent (write.ts).
+- **A receipt** is a quantity per open line in the pack ordered, blank where none came,
+  never more than is still to come (compared as decimal text, not as floats), a moment —
+  now or stated, as a stock entry's — and an optional delivery note. **A receipt is
+  reversed from its order only**: on the stock card it reads "Receipt", and the stock
+  decision's page offers no reversal (0023: `stock_receipt_reversed_through_its_order`).
+  The override (D1) is offered on a reversal to those who hold it, as on stock.
+- **The limit (`#purchase_orders/limits`)** shows the one in force, before VAT, and every
+  decision about it; it is set and cleared against the history's stamp, a clearing
+  included, as a minimum is (ADR-0031's step 3 addendum).
+- **Every 0023 refusal a person can meet is worded** in both languages (messages.ts); the
+  retry keys are not, since PostgreSQL's own collision is no "already saved".
+- **Tested** by `apps/console/test/purchase-orders.test.ts` (Node) against the migration's
+  own states, kinds, gates, rounding and constraints, and by a browser run against the
+  scratch database and edge. In that run:
+  - the warehouse manager reads the list and raises an order within the limit, approved
+    when raised, and one over it, which waits, with no approval offered;
+  - a repeated pack and a VAT rate past 100% are named before sending;
+  - the accountant approves the large order, and rejects the seed's pending one;
+  - the manager receives ten cartons (stock rises 100 kg), is refused more than is to
+    come before sending, reverses the receipt from the order (stock falls back), receives
+    again and closes the order short;
+  - the administrator raises the limit and clears it, then raises an order of their own,
+    which waits and offers them no approval;
+  - the list and an order are read in Arabic, right to left; the cashier has no entry.
+
+**Found in review of step 2, fixed here:** a VAT rate past a 32-bit integer is now a 400
+naming `vat_rate_bp`, not PostgreSQL's cast failure; a delivery note is bounded for size
+at the edge and held to 64 characters by 0023 after trimming, as 0023 measures it; the
+Node suite sends a 200-line receipt past a form's 8 KiB and a document past 64 KiB; and the
+Deno test retries an approval, a receipt, a reversal, a limit and its clearing, each
+answered `already_recorded` and confirmed through the reads, and holds a business date to
+text.

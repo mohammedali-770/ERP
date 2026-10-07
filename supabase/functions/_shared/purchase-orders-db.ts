@@ -15,6 +15,13 @@
  *   never "125.00". The driver turns the routes' bigint amounts into numbers through
  *   ./transfer-prices-db.ts's withMinor(), which refuses anything not a safe integer; 0023
  *   caps every amount far below 2^53. A VAT rate is whole basis points: 1500 is 15%.
+ *
+ * ONE ORDER'S NESTED RECORDS come as 0023's jsonb builds them, not as the list's columns:
+ * inside erp.get_purchase_order()'s `lines`, `decisions` and `receipts`, a `seq` is a JSON
+ * number and a moment is PostgreSQL's text (`…10:36:37.565678+00:00`), while the order's
+ * own `raised_at` is the driver's (`…05:30:00.000Z`). Both moments parse to the same
+ * instant. Nothing pages by a nested seq; anything that does should ask 0023 for text,
+ * as the list's is (found in review).
  */
 
 /** One line of a new order, as erp.raise_purchase_order() reads it (0023). */

@@ -158,6 +158,9 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
         const chicken = orders.find((o) => o.purchase_order_id === PENDING);
         equal([chicken?.subtotal_minor, chicken?.vat_minor, chicken?.total_minor, chicken?.vat_rate_bp, typeof chicken?.seq],
           [750000, 112500, 862500, 1500, 'string'], 'halalas as numbers, a seq as text');
+        // A business date is the facility's day as text: a date cast to a JavaScript Date
+        // comes back as UTC midnight, a day early in Riyadh (the stock module's finding).
+        assert(/^\d{4}-\d{2}-\d{2}$/.test(String(chicken?.business_date)), `a business date as text: ${chicken?.business_date}`);
         const pending = await send('GET', `?facility_id=${WAREHOUSE}&state=pending`);
         equal((pending.body.orders as Row[]).map((o) => o.purchase_order_id), [PENDING], 'one state');
         const unnamed = await send('GET', '', undefined, admin.token);
@@ -170,6 +173,7 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
       await t.step('an order reads whole: quantities as text, prices as numbers', async () => {
         const o = await order(RICE_AND_COLA);
         equal([o.state, o.progress, o.subtotal_minor, o.vat_minor], ['approved', 'none', 126000, 0], 'approved by the limit, 0% VAT');
+        assert(/^\d{4}-\d{2}-\d{2}$/.test(String(o.business_date)), `a business date as text: ${o.business_date}`);
         equal((o.lines as Row[]).map((l) => [l.line_no, l.unit_key, l.quantity, l.price_minor, l.amount_minor, l.received, l.remaining]),
           [[1, 'bag', '20', 4500, 90000, '0', '20'], [2, 'carton', '10', 3600, 36000, '0', '10']], 'its lines');
         equal((o.decisions as Row[]).map((d) => [d.kind, d.state, d.limit_decision_id]),
@@ -208,9 +212,14 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
           'nobody approves an order they raised (PRC-004)');
         const notTheirs = await send('POST', `/${large}/approve`, { decision_id: id(), facility_id: WAREHOUSE, reason });
         equal([notTheirs.http, notTheirs.body.status], [403, 'forbidden'], 'the warehouse manager does not approve');
-        const approved = await send('POST', `/${large}/approve`, { decision_id: id(), facility_id: WAREHOUSE, reason }, accountant.token);
+        const approval = id();
+        const approved = await send('POST', `/${large}/approve`, { decision_id: approval, facility_id: WAREHOUSE, reason }, accountant.token);
         equal(approved.http, 200, 'the accountant approves');
         equal((await order(large)).state, 'approved', 'approved');
+        const retry = await send('POST', `/${large}/approve`, { decision_id: approval, facility_id: WAREHOUSE, reason }, accountant.token);
+        equal([retry.http, retry.body.status, retry.body.constraint], [409, 'already_recorded', 'purchase_order_decision_pkey'],
+          'an approval retried');
+        assert(((await order(large)).decisions as Row[]).some((d) => d.decision_id === approval), 'the console confirms it');
       });
 
       let receipt = '';
@@ -226,6 +235,12 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
         equal([o.progress, (o.lines as Row[])[0]?.received, (o.lines as Row[])[0]?.remaining], ['partial', '5', '15'], 'part arrived');
         equal((o.receipts as Row[]).map((r) => [r.decision_id, r.delivery_note, r.reversed_by_decision_id]),
           [[receipt, 'DN-7', null]], 'the receipt the console confirms a retry against');
+        const retry = await send('POST', `/${RICE_AND_COLA}/receipts`, {
+          decision_id: receipt, facility_id: WAREHOUSE, lines: [{ line_no: 1, quantity: '5' }], delivery_note: 'DN-7',
+        });
+        equal([retry.http, retry.body.status, retry.body.constraint], [409, 'already_recorded', 'stock_decision_pkey'],
+          'a receipt retried');
+        equal(await riceOnHand(), '125', 'and nothing more arrived');
         const over = await send('POST', `/${RICE_AND_COLA}/receipts`, {
           decision_id: id(), facility_id: WAREHOUSE, lines: [{ line_no: 1, quantity: '16' }],
         });
@@ -251,6 +266,9 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
         equal(await riceOnHand(), '100', 'the stock went back out');
         const o = await order(RICE_AND_COLA);
         equal([o.progress, (o.receipts as Row[])[0]?.reversed_by_decision_id], ['none', reversal], 'reopened, and the reversal shown');
+        const retry = await send('POST', `/receipts/${receipt}/reverse`, { decision_id: reversal, facility_id: WAREHOUSE, reason });
+        equal([retry.http, retry.body.status, retry.body.constraint], [409, 'already_recorded', 'stock_decision_pkey'],
+          'a reversal retried, which the order confirms');
         const again = await send('POST', `/receipts/${receipt}/reverse`, { decision_id: id(), facility_id: WAREHOUSE, reason });
         equal([again.http, again.body.status, again.body.constraint], [409, 'conflict', 'stock_already_reversed'], 'once');
       });
@@ -287,6 +305,13 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
         equal(await send('POST', '/limits', {
           decision_id: set, facility_id: FACTORY, limit_minor: 300000, currency: 'SAR', expected_decision_id: null, reason,
         }, admin.token), { http: 200, body: { status: 'ok', decision_id: set } }, 'a first limit at the factory, against none');
+        const retrySet = await send('POST', '/limits', {
+          decision_id: set, facility_id: FACTORY, limit_minor: 300000, currency: 'SAR', expected_decision_id: null, reason,
+        }, admin.token);
+        equal([retrySet.http, retrySet.body.status, retrySet.body.constraint], [409, 'already_recorded', 'purchase_limit_decision_pkey'],
+          'a limit retried');
+        const factory = await send('GET', `/limits?facility_id=${FACTORY}`, undefined, admin.token);
+        equal((factory.body.decisions as Row[]).map((d) => [d.decision_id, d.limit_minor]), [[set, 300000]], 'which the history confirms');
         const stale = await send('POST', '/limits', {
           decision_id: id(), facility_id: FACTORY, limit_minor: 400000, currency: 'SAR', expected_decision_id: null, reason,
         }, admin.token);
@@ -298,6 +323,12 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
         const cleared = id();
         equal(await send('POST', '/limits/clear', { decision_id: cleared, facility_id: FACTORY, expected_decision_id: set, reason }, admin.token),
           { http: 200, body: { status: 'ok', decision_id: cleared } }, 'cleared');
+        const retryClear = await send('POST', '/limits/clear', { decision_id: cleared, facility_id: FACTORY, expected_decision_id: set, reason }, admin.token);
+        equal([retryClear.http, retryClear.body.status, retryClear.body.constraint], [409, 'already_recorded', 'purchase_limit_decision_pkey'],
+          'a clearing retried');
+        const after = await send('GET', `/limits?facility_id=${FACTORY}`, undefined, admin.token);
+        equal((after.body.decisions as Row[]).map((d) => [d.decision_id, d.limit_minor, d.is_current]),
+          [[cleared, null, true], [set, 300000, false]], 'a cleared limit has no amount, and its clearing is in force');
       });
 
       throw new Rollback();

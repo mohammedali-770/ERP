@@ -330,6 +330,9 @@ test('a malformed purchase-orders field is a 400 naming it, and nothing reaches 
     [post('', { ...RAISE, vat_rate_bp: '1500' }), 'vat_rate_bp'],
     [post('', { ...RAISE, vat_rate_bp: 15.5 }), 'vat_rate_bp'],
     [post('', without(RAISE, 'vat_rate_bp')), 'vat_rate_bp'],
+    // The driver casts a rate to integer: past int4, PostgreSQL's own cast names no field.
+    [post('', { ...RAISE, vat_rate_bp: 3000000000 }), 'vat_rate_bp'],
+    [post('', { ...RAISE, vat_rate_bp: -2147483649 }), 'vat_rate_bp'],
     [post('', { ...RAISE, lines: [] }), 'lines'],
     [post('', { ...RAISE, lines: 'x' }), 'lines'],
     [post('', { ...RAISE, lines: [null] }), 'lines[0]'],
@@ -348,7 +351,9 @@ test('a malformed purchase-orders field is a 400 naming it, and nothing reaches 
     [post('/not-a-uuid/approve', DECIDE), 'purchase_order_id'],
     [post('/not-a-uuid/receipts', RECEIVE), 'purchase_order_id'],
     [post(`/${ORDER}/receipts`, { ...RECEIVE, received_at: '2026-10-07T09:30:00' }), 'received_at'],
-    [post(`/${ORDER}/receipts`, { ...RECEIVE, delivery_note: 'x'.repeat(65) }), 'delivery_note'],
+    // The edge bounds a note's size; that it is 64 characters once trimmed is 0023's rule.
+    [post(`/${ORDER}/receipts`, { ...RECEIVE, delivery_note: 'x'.repeat(501) }), 'delivery_note'],
+    [post(`/${ORDER}/receipts`, { ...RECEIVE, delivery_note: 7 }), 'delivery_note'],
     [post(`/${ORDER}/receipts`, rline({ line_no: '1' })), 'lines[0].line_no'],
     [post(`/${ORDER}/receipts`, rline({ line_no: 0 })), 'lines[0].line_no'],
     [post(`/${ORDER}/receipts`, rline({ line_no: 1.5 })), 'lines[0].line_no'],
@@ -384,6 +389,21 @@ test('an order or a receipt is a document of up to 200 lines; a decision or a li
     'a full order of 200 lines fits');
   const over = await purchaseOrders(post('', { ...RAISE, lines: [...full, full[0]] }), deps(fakeDb(ADMIN)));
   assert.deepEqual([over.status, (await json(over))['field']], [400, 'lines'], '201 lines is too many');
+  // A receipt is a document too: 200 lines of long quantities are past the 8 KiB a form may be.
+  const received = Array.from({ length: 200 }, (_, i) => ({ line_no: i + 1, quantity: '999999999999.999999' }));
+  const receiptBody = { ...RECEIVE, lines: received };
+  assert.ok(JSON.stringify(receiptBody).length > 8 * 1024, 'the receipt is past a form\'s limit');
+  const receipt = fakeDb(ADMIN);
+  assert.equal((await purchaseOrders(post(`/${ORDER}/receipts`, receiptBody), deps(receipt))).status, 200,
+    'a full receipt of 200 lines fits');
+  assert.equal(receipt.calls.length, 1);
+  // And a document has a limit: past 64 KiB is 413, before anything is read.
+  for (const [path, body] of [['', RAISE], [`/${ORDER}/receipts`, RECEIVE]] as const) {
+    const big = fakeDb(ADMIN);
+    const response = await purchaseOrders(post(path, { ...body, padding: 'x'.repeat(64 * 1024) }), deps(big));
+    assert.equal(response.status, 413, `document ${path}`);
+    assert.deepEqual(big.calls, [], path);
+  }
   for (const [, path, body] of WRITES.filter(([m]) => m !== 'raisePurchaseOrder' && m !== 'receivePurchaseOrder')) {
     const big = fakeDb(ADMIN);
     const response = await purchaseOrders(post(path, { ...body, reason: 'x'.repeat(9000) }), deps(big));

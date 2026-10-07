@@ -209,19 +209,24 @@ test('CONTROL: stock is shown, in the menu and on screen, only where items may b
 
 // --- 0020's words ------------------------------------------------------------------
 
-test('the kinds are 0020\'s, a write-off form offers only what its route records, and every kind has a label', () => {
-  const known = /constraint stock_decision_kind_is_known check \(kind in \(([^)]+)\)\)/.exec(STOCK_MIGRATION)![1]!.match(/'(\w+)'/g)!.map((k) => k.slice(1, -1));
+test('the kinds are the latest check\'s, a write-off form offers only what its route records, and every kind has a label', () => {
+  const kinds = (sql: string) => /constraint stock_decision_kind_is_known\s+check \(kind in \(([^)]+)\)\)/.exec(sql)![1]!.match(/'(\w+)'/g)!.map((k) => k.slice(1, -1));
+  // 0023 widened 0020's check with 'receipt' (I-10): the latest definition is the one in force.
+  const latest = kinds(read('supabase/migrations/20261007000400_purchase_orders.sql'));
+  assert.deepEqual([...kinds(STOCK_MIGRATION), 'receipt'].sort(), [...latest].sort(), '0023 only adds a receipt');
+  const known = latest;
   assert.deepEqual([...STOCK_KINDS].sort(), known.sort());
   const route = /p_kind not in \(([^)]+)\) then\s+raise exception 'this records an adjustment/.exec(STOCK_MIGRATION)![1]!.match(/'(\w+)'/g)!.map((k) => k.slice(1, -1));
   assert.deepEqual([...ADJUSTMENT_KINDS].sort(), route.sort());
   for (const kind of known) assert.notEqual(asKey(`stock_kind_${kind}`), null, kind);
 });
 
-test('every constraint the console words for stock is one 0020 or 0022 raises, and the commonest refusals are worded', () => {
+test('every constraint the console words for stock is one 0020, 0022 or 0023 raises, and the commonest refusals are worded', () => {
   const messages = read('apps/console/src/messages.ts');
   const worded = [...messages.matchAll(/^\s+(stock_\w+): '/gm)].map((m) => m[1]!);
   assert.ok(worded.length >= 15);
-  const raised = `${STOCK_MIGRATION}\n${read('supabase/migrations/20261007000200_stock_minimums.sql')}`;
+  const raised = [STOCK_MIGRATION, read('supabase/migrations/20261007000200_stock_minimums.sql'),
+    read('supabase/migrations/20261007000400_purchase_orders.sql')].join('\n');
   for (const c of worded) assert.match(raised, new RegExp(`constraint = '${c}'`), c);
   assert.doesNotMatch(messages, /stock_decision_pkey:/, 'a native collision is no "already saved"');
   for (const c of ['stock_would_go_negative', 'stock_backdated_before_count', 'stock_reversal_counted_since', 'stock_already_reversed']) {
