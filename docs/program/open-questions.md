@@ -612,6 +612,35 @@ Related: IAM-008, SEC-006, IAM-P02, ADR-0025, ADR-0022 §2.
 
 ---
 
+## Q-25 — How does a history screen say who made an entry?
+
+**Decides:** Product Owner, with Operations · **Expensive after:** staff are created in
+bulk, or the first history screen is switched on
+
+Found 2026-10-06 writing the notifications staff testing pack (ADR-0030's step 5
+addendum). Every history screen shows who made an entry: items, suppliers, transfer
+prices, facilities, a stock card and a stock decision. It shows the person's name only
+when it is the reader's own entry, and otherwise **the first eight characters of the
+person's id**, with the whole id only as a tooltip: no route the screens call answers
+another person's name. But:
+
+- A person's id is a UUIDv7 (ADR-0005), which begins with its creation time. Its first
+  eight characters change only about once a minute, so two people created within the same
+  minute show the same code. Every synthetic person in the test data does, and staff
+  imported in one batch would.
+- So "who did this" cannot be answered from the screen, which an override's reason, a
+  reversal or a disputed count may need.
+
+Options:
+- Show the id's trailing characters, which are random.
+- Show the employee number, read when the screen is drawn: it is not a name, but it
+  identifies.
+- Show the name to readers with a stated need, under a permission of its own.
+
+Related: SEC-006, ADR-0005, ADR-0025.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate
