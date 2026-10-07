@@ -731,8 +731,9 @@ requirements:
   # holds, how a limit is compared, or how a receipt is undone. The owner chose one order
   # per receiving facility, priced as a commitment only, approved above a limit compared
   # before VAT by someone who did not raise it, and a receipt reversed as stock is. pgTAP
-  # 180 and db-check exercise them; neither is an artifact type req-lint resolves. Staff
-  # testing comes at step 5.
+  # 180 and db-check exercise them; neither is an artifact type req-lint resolves. The
+  # staff testing pack (UAT-purchase-orders) evidences all three; a reversal refused after
+  # a count, and the two races, are the database's tests' alone.
   # ---------------------------------------------------------------------------
 
   - id: "PRC-P01"
@@ -743,6 +744,8 @@ requirements:
     status: "proposed"
     text_en: "A purchase order shall be raised for one receiving warehouse or factory, from one supplier, for packs that supplier supplies, each line priced per pack in whole halalas with one VAT rate for the order; it shall be numbered by its facility and business day, recorded with who raised it, when and why, and never changed once raised: it is cancelled, rejected or closed by a further decision, and its prices commit nothing to payment."
     text_ar: "يجب أن يُصدر أمر الشراء لمستودع أو مصنع واحد يستلمه، من مورد واحد، لعبوات يوردها ذلك المورد، بسعر لكل عبوة في كل سطر بالهللات الكاملة ونسبة ضريبة قيمة مضافة واحدة للأمر؛ ويُرقَّم بحسب منشأته ويوم عمله، ويُسجَّل مع من أصدره ومتى ولماذا، ولا يتغير بعد إصداره أبداً: بل يُلغى أو يُرفض أو يُغلق بقرار لاحق، ولا تُلزم أسعاره بأي دفع."
+    test_refs:
+      - UAT-purchase-orders
     relates_to:
       - PRC-001
       - PRC-005
@@ -755,6 +758,8 @@ requirements:
     status: "proposed"
     text_en: "A purchase order whose amount before VAT is within the approval limit in force at its facility shall be approved when raised, recorded as approved by that limit; any other shall wait until a person permitted to approve orders at that facility, other than the person who raised it, approves or rejects it; a limit shall be set or cleared only by a person permitted to, recorded with who, when and why."
     text_ar: "يجب اعتماد أمر الشراء الذي يقع مبلغه قبل ضريبة القيمة المضافة ضمن حد الاعتماد النافذ في منشأته عند إصداره، ويُسجَّل أنه اعتُمد بذلك الحد؛ وينتظر غيره حتى يعتمده أو يرفضه شخص مخوَّل باعتماد الأوامر في تلك المنشأة غير من أصدره؛ ولا يُحدَّد الحد أو يُلغى إلا من شخص مخوَّل بذلك، ويُسجَّل مع من فعل ذلك ومتى ولماذا."
+    test_refs:
+      - UAT-purchase-orders
     relates_to:
       - PRC-002
       - PRC-004
@@ -769,6 +774,8 @@ requirements:
     status: "proposed"
     text_en: "Goods received against an approved purchase order shall be recorded as a stock movement into its facility, line by line in the packs ordered and never more than is still to come; a receipt recorded by mistake shall be reversed whole, once, with a reason, before any count of its items has covered it, taking the stock back out and reopening the order's lines; an order with goods received shall not be cancelled, and may be closed when the rest will not arrive."
     text_ar: "يجب تسجيل البضاعة المستلمة مقابل أمر شراء معتمد حركةَ مخزون إلى منشأته، سطراً بسطر بالعبوات المطلوبة، ولا تزيد أبداً على ما بقي منتظراً؛ ويجب عكس الاستلام المسجل خطأً كاملاً، مرة واحدة، مع ذكر السبب، قبل أن يشمل أي جرد أصنافه، فيُخرج المخزون ويُعيد فتح أسطر الأمر؛ ولا يُلغى أمر استُلمت بضاعة مقابله، ويجوز إغلاقه حين لا يصل الباقي."
+    test_refs:
+      - UAT-purchase-orders
     relates_to:
       - PRC-006
       - INV-006

@@ -245,6 +245,12 @@ Deno.test('every purchase-orders route, as erp_edge, through the router and the 
           decision_id: id(), facility_id: WAREHOUSE, lines: [{ line_no: 1, quantity: '16' }],
         });
         equal([over.http, over.body.constraint], [422, 'purchase_receipt_exceeds_order'], 'never more than is still to come');
+        // The edge bounds a note's size; 0023 holds it to 64 characters once trimmed, and says so.
+        const longNote = await send('POST', `/${RICE_AND_COLA}/receipts`, {
+          decision_id: id(), facility_id: WAREHOUSE, lines: [{ line_no: 1, quantity: '1' }], delivery_note: `  ${'N'.repeat(65)}  `,
+        });
+        equal([longNote.http, longNote.body.status, longNote.body.constraint], [422, 'invalid', 'purchase_receipt_delivery_note_is_canonical'],
+          'a delivery note past 64 characters is 0023\'s refusal, worded');
         const numeric = await send('POST', `/${RICE_AND_COLA}/receipts`, {
           decision_id: id(), facility_id: WAREHOUSE, lines: [{ line_no: 1, quantity: 1 }],
         });

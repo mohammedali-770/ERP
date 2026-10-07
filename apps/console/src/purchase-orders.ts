@@ -27,7 +27,7 @@ import type {
 import { latinDigits } from './format.ts';
 import { holds, stateOf, type NavItem, type Viewer } from './navigation.ts';
 import { quantityInput, STOCK_FACILITY_TYPES } from './stock.ts';
-import { CURRENCY, priceInput } from './transfer-prices.ts';
+import { CURRENCY, MAX_MINOR, priceInput } from './transfer-prices.ts';
 
 /** An order's states, in 0023's order (purchase_order_state_is_known). */
 export const ORDER_STATES = ['pending', 'approved', 'rejected', 'cancelled', 'closed'] as const;
@@ -69,7 +69,8 @@ export const MAX_DELIVERY_NOTE = 64;
  * decimals, since a basis point is a hundredth of a percent, and at most 100%.
  */
 export function vatInput(raw: string): { ok: true; value: number } | { ok: false } {
-  const v = latinDigits(raw).trim().replace(/%$/, '').trim();
+  // Either percent sign: the Arabic keyboard types ٪ (U+066A) (found in review).
+  const v = latinDigits(raw).trim().replace(/[%٪]$/, '').trim();
   const m = /^(\d{1,3})(?:\.(\d{1,2}))?$/.exec(v);
   if (m === null) return { ok: false };
   const bp = Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'));
@@ -157,7 +158,8 @@ export function orderLines(drafts: readonly DraftOrderLine[]):
     const q = quantityInput(d.quantity, false);
     if (!q.ok) return { ok: false, problem: { kind: 'quantity', line } };
     const p = priceInput(d.price);
-    if (!p.ok) return { ok: false, problem: { kind: 'price', line } };
+    // 0023's cap per pack, 1,000,000,000.00 riyals, named before sending (found in review).
+    if (!p.ok || p.value > MAX_MINOR) return { ok: false, problem: { kind: 'price', line } };
     const amount = lineAmount(q.value, p.value);
     if (amount > MAX_LINE_MINOR) return { ok: false, problem: { kind: 'line_too_much', line } };
     subtotal += amount;
@@ -347,16 +349,19 @@ export interface OrderActions {
 /**
  * The decisions offered on an order, as 0023 would take them:
  *
- *   approve, reject   pending, to one holding approve who did not raise it (PRC-004)
+ *   approve, reject   pending, to one holding approve who did not raise it (PRC-004);
+ *                     approve only while the facility is open and the supplier active
  *   cancel            pending or approved, with nothing received: else it is closed
  *   close             approved, with part received and the rest not coming
  *   receive           approved, and not yet received in full
  *
  * A receipt's own reversal is offered beside it (receiptReversible).
  */
-export function orderActions(order: Pick<PurchaseOrder, 'state' | 'progress' | 'raised_by'>, personId: string,
+export function orderActions(order: Pick<PurchaseOrder, 'state' | 'progress' | 'raised_by' | 'supplier_status'>, personId: string,
                              rights: PurchaseRights, facilityOpen: boolean): OrderActions {
-  const decides = rights.approves && order.state === 'pending' && order.raised_by !== personId && facilityOpen;
+  // Approving commits the company to buy, so 0023 asks an active supplier too (found in review).
+  const decides = rights.approves && order.state === 'pending' && order.raised_by !== personId && facilityOpen
+    && order.supplier_status === 'active';
   return {
     approve: decides,
     // Rejecting is not new work, but it is offered with approval: one decision, made by the approver.
@@ -367,9 +372,14 @@ export function orderActions(order: Pick<PurchaseOrder, 'state' | 'progress' | '
   };
 }
 
-/** Whether a receipt is offered for reversal: not reversed yet, by one who may receive here. */
-export function receiptReversible(r: { readonly reversed_by_decision_id: string | null }, rights: PurchaseRights): boolean {
-  return rights.receives && r.reversed_by_decision_id === null;
+/**
+ * Whether a receipt is offered for reversal: not reversed yet, by one who may receive here,
+ * at a facility not known to be closed: 0020's seam refuses a closed facility's every
+ * posting, a reversal included (found in review).
+ */
+export function receiptReversible(r: { readonly reversed_by_decision_id: string | null }, rights: PurchaseRights,
+                                  facilityOpen: boolean): boolean {
+  return rights.receives && r.reversed_by_decision_id === null && facilityOpen;
 }
 
 /** 0023's refusal when a receipt's reversal would take stock below zero (D1): the form then offers the override. */

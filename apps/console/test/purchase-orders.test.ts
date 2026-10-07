@@ -111,7 +111,7 @@ test('CONTROL: no purchase-orders call names an actor; a decision is its path; a
 
 test('CONTROL: a VAT rate is typed as a percentage and sent as 0023\'s whole basis points', () => {
   assert.match(MIGRATION, /check \(vat_rate_bp between 0 and 10000\)/, '0023: 0 to 10000 basis points');
-  for (const [typed, bp] of [['15', 1500], ['0', 0], ['15.5', 1550], ['15.05', 1505], ['100', 10000], ['١٥', 1500], ['5%', 500], [' 7.25 ', 725]] as const) {
+  for (const [typed, bp] of [['15', 1500], ['0', 0], ['15.5', 1550], ['15.05', 1505], ['100', 10000], ['١٥', 1500], ['5%', 500], ['١٥٪', 1500], [' 7.25 ', 725]] as const) {
     assert.deepEqual(vatInput(typed), { ok: true, value: bp }, typed);
   }
   for (const typed of ['', '100.01', '101', '-1', '15.123', '1e1', '15,5', 'x']) assert.equal(vatInput(typed).ok, false, typed);
@@ -152,7 +152,11 @@ test('the lines of an order: a pack once each, a quantity above nothing, a price
     'a free line is 0023\'s to allow (0 to 100,000,000,000)');
   assert.deepEqual(orderLines([draft(CARTON, '1', '1'), draft(BAG, '1', '1'), draft(CARTON, '2', '1')]),
     { ok: false, problem: { kind: 'repeat', line: 3, first: 1 } }, '0023 refuses a repeated pack (purchase_order_line_pack_once)');
-  assert.deepEqual(orderLines([draft(CARTON, '999999999999', '9999999999')]), { ok: false, problem: { kind: 'line_too_much', line: 1 } });
+  assert.deepEqual(orderLines([draft(CARTON, '999999999999', '1000000000')]), { ok: false, problem: { kind: 'line_too_much', line: 1 } });
+  // 0023's cap per pack, 1,000,000,000.00 riyals, named before sending (found in review).
+  assert.match(MIGRATION, /\(v_line ->> 'price_minor'\)::numeric > 100000000000 then/);
+  assert.equal(orderLines([draft(CARTON, '1', '1000000000')]).ok, true);
+  assert.deepEqual(orderLines([draft(CARTON, '1', '1000000000.01')]), { ok: false, problem: { kind: 'price', line: 1 } });
   assert.deepEqual(orderLines(Array.from({ length: 11 }, (_, i) => draft(String(i), '10000', '99999999.99'))),
     { ok: false, problem: { kind: 'order_too_much' } });
 });
@@ -260,7 +264,8 @@ test('CONTROL: orders are read where all three of 0023\'s reads are held, and ch
 });
 
 const ALL: PurchaseRights = { sees: true, raises: true, approves: true, receives: true, seesLimits: true, setsLimits: true };
-const order = (state: PurchaseOrder['state'], progress: PurchaseOrder['progress'], raisedBy = SOMEONE) => ({ state, progress, raised_by: raisedBy });
+const order = (state: PurchaseOrder['state'], progress: PurchaseOrder['progress'], raisedBy = SOMEONE,
+               supplier: PurchaseOrder['supplier_status'] = 'active') => ({ state, progress, raised_by: raisedBy, supplier_status: supplier });
 
 test('CONTROL: nobody is offered approval of an order they raised (PRC-004); each decision is offered where 0023 would take it', () => {
   assert.deepEqual(orderActions(order('pending', 'none'), ME, ALL, true),
@@ -278,11 +283,18 @@ test('CONTROL: nobody is offered approval of an order they raised (PRC-004); eac
     assert.deepEqual(Object.values(orderActions(order(s, 'none'), ME, ALL, true)).some(Boolean), false, s);
   }
   assert.deepEqual(orderActions(order('pending', 'none'), ME, ALL, false),
-    { approve: false, reject: true, cancel: true, close: false, receive: false }, 'a closed facility takes no approval or receipt');
+    { approve: false, reject: true, cancel: true, close: false, receive: false }, 'a closed facility takes no approval');
+  assert.deepEqual(orderActions(order('approved', 'partial'), ME, ALL, false),
+    { approve: false, reject: false, cancel: false, close: true, receive: false }, 'nor a receipt; it may still be closed short');
+  assert.deepEqual(orderActions(order('pending', 'none', SOMEONE, 'retired'), ME, ALL, true),
+    { approve: false, reject: true, cancel: true, close: false, receive: false }, 'a stopped supplier takes no approval (found in review)');
+  assert.match(MIGRATION, /if p_kind = 'order_approved' then\s+perform erp\.assert_facility_open\(p_facility_id\);\s+perform erp\.assert_supplier_active\(o\.supplier_id\);/);
   assert.deepEqual(Object.values(orderActions(order('pending', 'none'), ME, NO_PURCHASE_RIGHTS, true)).some(Boolean), false);
-  assert.equal(receiptReversible({ reversed_by_decision_id: null }, ALL), true);
-  assert.equal(receiptReversible({ reversed_by_decision_id: D }, ALL), false, 'once');
-  assert.equal(receiptReversible({ reversed_by_decision_id: null }, { ...ALL, receives: false }), false);
+  assert.equal(receiptReversible({ reversed_by_decision_id: null }, ALL, true), true);
+  assert.equal(receiptReversible({ reversed_by_decision_id: D }, ALL, true), false, 'once');
+  assert.equal(receiptReversible({ reversed_by_decision_id: null }, { ...ALL, receives: false }, true), false);
+  assert.equal(receiptReversible({ reversed_by_decision_id: null }, ALL, false), false, 'a closed facility posts nothing, a reversal included');
+  assert.match(SCREEN, /receiptReversible\(r, ctx\.purchase, status !== 'closed'\)/);
   assert.match(SCREEN, /const actions = orderActions\(order, data\.person\.person_id, ctx\.purchase, status !== 'closed'\);/,
     'the page asks for the signed-in person, from the session');
 });
@@ -319,6 +331,30 @@ test('the screens read and write only at the facility worked at, and every write
   // The new order: sent as built, Retry resends that, Start over looks for the order before minting new ids.
   assert.match(SCREEN, /onRetry=\{\(\) => void send\(sent\.current!\)\}/);
   assert.match(SCREEN, /const found = await api\.getPurchaseOrder\(facilityId, ids\.purchase_order_id\);/);
+  // A sub-form's Start over says "already saved" when the record holds its lost id, each
+  // asking its own record: a second receipt of the same goods would otherwise be taken
+  // (found in review). Read per form, so two forms' checks cannot trade places unnoticed.
+  const body = (name: string): string => {
+    const start = SCREEN.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, name);
+    const next = SCREEN.slice(start + 1).search(/\n(export )?function /);
+    return next < 0 ? SCREEN.slice(start) : SCREEN.slice(start, start + 1 + next);
+  };
+  const recorded: Array<[string, RegExp]> = [
+    ['DecideOrder', /\}, \(seen\) => \(seen as PurchaseOrder\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+    ['ReceiveForm', /\}, \(seen\) => \(seen as PurchaseOrder\)\.receipts\.some\(\(r\) => r\.decision_id === ids\.decision_id\)\);/],
+    ['ReverseReceipt', /\}, \(seen\) => \(seen as PurchaseOrder\)\.receipts\.some\(\(r\) => r\.reversed_by_decision_id === ids\.decision_id\)\);/],
+    ['SetLimit', /\}, \(seen\) => \(seen as LimitHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+    ['ClearLimit', /\}, \(seen\) => \(seen as LimitHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+  ];
+  for (const [form, re] of recorded) assert.match(body(form), re, form);
+  // And each says what was saved: a decision, a receipt, a reversal.
+  assert.match(SCREEN, /const decisionsDone = afterWrite\(t\(lang, 'saved'\), t\(lang, 'decision_already_recorded'\)\);/);
+  assert.match(SCREEN, /<ReceiveForm ctx=\{ctx\}[^>]*\s+onDone=\{afterWrite\(t\(lang, 'receipt_saved'\), t\(lang, 'receipt_already_recorded'\)\)\}/);
+  assert.match(SCREEN, /<ReverseReceipt [^>]*\s+onDone=\{afterWrite\(t\(lang, 'saved'\), t\(lang, 'reversal_already_recorded'\)\)\}/);
+  // An approver or a receiver is not told they cannot change orders (found in review).
+  assert.match(SCREEN, /: !ctx\.purchase\.raises && !ctx\.purchase\.approves && !ctx\.purchase\.receives\s+\? <Notice tone="info" text=\{t\(lang, 'read_only_orders'\)\} \/>/);
+  assert.match(SCREEN, /setLeaveGuard\(\(\) => lines\.length > 0 \|\| supplier !== null\);/, 'a chosen supplier is work too');
   assert.match(SCREEN, /formIds\(\['decision_id', 'purchase_order_id'\] as const\)/, 'an order\'s id is minted with its decision (I-1)');
   assert.match(SCREEN, /<fieldset className="plain" disabled=\{locked\}>/, 'locked while a request is out or in doubt');
   assert.match(SCREEN, /writableHere\(ctx\.purchase\.raises, status\)/, 'a closed facility raises nothing');
@@ -346,7 +382,9 @@ test('every constraint 0023 raises for a person to act on is worded, and neither
   const raised = [...new Set([...MIGRATION.matchAll(/constraint = '(purchase_\w+)'/g)].map((m) => m[1]!))].filter((c) => !unreachable.has(c));
   assert.ok(raised.length >= 30, raised.join(', '));
   const generic = failureMessage('en', { ok: false, http: 422, status: 'refused', message: 'm', constraint: null, detail: null, field: null }).text;
-  for (const c of [...raised, 'stock_receipt_reversed_through_its_order']) {
+  // And the seams 0023 calls, whose refusals reach the same forms (found in review).
+  for (const c of [...raised, 'stock_receipt_reversed_through_its_order', 'supplier_admits_no_new_work', 'facility_admits_no_new_work',
+    'stock_would_go_negative', 'stock_reversal_counted_since', 'stock_backdated_before_count']) {
     const m = failureMessage('en', { ok: false, http: 422, status: 'refused', message: 'm', constraint: c, detail: null, field: null });
     assert.notEqual(m.text, generic, c);
   }

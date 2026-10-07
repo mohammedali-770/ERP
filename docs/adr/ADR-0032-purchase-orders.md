@@ -330,3 +330,58 @@ Node suite sends a 200-line receipt past a form's 8 KiB and a document past 64 K
 Deno test retries an approval, a receipt, a reversal, a limit and its clearing, each
 answered `already_recorded` and confirmed through the reads, and holds a business date to
 text.
+
+## Addendum — 2026-10-07: the staff testing pack (module 8, step 5)
+
+[`docs/lab/uat/purchase-orders.md`](../lab/uat/purchase-orders.md), with its Arabic version
+in [`ar/`](../lab/uat/ar/purchase-orders.md), is run by whoever orders and receives the
+warehouse's stock, with the accountant, the administrator, the factory manager and a
+cashier on a second computer. It evidences PRC-P01, PRC-P02 and INV-P04, which now name it.
+In thirteen parts it covers:
+- the orders at the warehouse;
+- raising one within the limit and one over it, and what is named before sending;
+- the accountant approving and rejecting;
+- receiving, refusing more than is still to come, and reversing a receipt from its order;
+- an order received in full, one closed short, and one cancelled;
+- the administrator's limit, and their own order, which waits although it is within it;
+- a lost answer retried;
+- the factory manager and a cashier;
+- the other language.
+
+**Every figure in it was run first in a browser** against the scratch database and edge,
+as the session scripts it: stock rising and falling by each receipt and reversal, every
+total before and after sending, and each order's number in the day's series. The script
+checks every "Passes when" the screens can show, 51 checks, and passes clean. A first
+draft said a rejection's history showed the accountant by a short code, where it shows
+their own name to them, and left out choosing the warehouse after signing in afresh: the
+script had not checked either, and now checks both (found in review).
+
+It holds thirteen questions for the owner to answer before the session: this ADR's ten,
+and three that the session's staff will meet:
+- whether an order received in full should close itself;
+- whether a receipt on an order closed short may still be reversed;
+- where the module is switched on.
+
+Three clauses are left to the database's tests, and the pack says which: a reversal after
+a count, and the two races.
+
+**Found in review of step 3, fixed before it:**
+- **A lost receipt answer.** Start over on a sub-form now reads the record and says
+  "already saved" when the record holds the lost request's id (write.ts, `recorded`). A
+  receipt recorded under a lost answer looked like any other, so the same goods could be
+  received twice. Decisions, reversals and limits work the same way.
+- **What is no longer offered.** Approve is not offered while the order's supplier has
+  stopped. A receipt's reversal is not offered at a closed facility. Both are refusals
+  0023 makes, and the supplier's is now worded.
+- **A facility switch is not covered.** Switching facility, or leaving the page, unmounts a
+  form in doubt, as every full-page form in the console does, and its request is lost: the
+  leave prompt is all that stands between the person and raising it twice. A first fix
+  looked up the order at the facility the request went to, but the form never survives
+  the switch to make that lookup (found in review, Codex), so it was taken out. Keeping an
+  in-doubt request across navigation is a console-wide change, put to the owner as Q-26.
+- **Checks before sending.** A price past 0023's cap per pack is caught before sending,
+  and the Arabic percent sign is read.
+- **Saying what was saved.** A decision's and a reversal's Start over say "this decision" or
+  "this reversal was already saved", not the receipt's or the order's words; and a record of
+  an unexpected shape is read as "not there", so the form resets under new ids rather than
+  unlocking the used one (found in review).

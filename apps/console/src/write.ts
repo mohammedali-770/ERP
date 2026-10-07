@@ -50,6 +50,13 @@ export interface WriteHooks {
   onFailure(failure: Failure): boolean;
   /** A fresh read of the record, which Start over makes before the form may decide again. */
   see(): Promise<Answer<unknown>>;
+  /**
+   * Whether what `see` read holds the request in doubt, by its id: the lost answer's write
+   * was recorded. Start over then reports 'already', not 'checked', so the person is told,
+   * where the record's look alone would not show it — a second receipt of the same goods
+   * would be taken (found in review). Absent, Start over says nothing either way.
+   */
+  recorded?: ((seen: unknown) => boolean) | undefined;
   /** The form's reset for its next decision: new ids, closed, fields cleared. */
   after(): void;
   onDone: Done;
@@ -116,11 +123,19 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
       if (!h.onFailure(now)) state.setFailure(now);
       return;
     }
+    // Asked before anything unlocks; a record of an unexpected shape is "not seen there", so
+    // the form still resets under new ids rather than unlocking the used one (found in review).
+    let already = false;
+    try {
+      already = h.recorded?.(now.value) ?? false;
+    } catch {
+      already = false;
+    }
     pending = null;
     state.setInDoubt(false);
     state.setFailure(null);
     h.after();
-    h.onDone('checked');
+    h.onDone(already ? 'already' : 'checked');
   }
 
   return {

@@ -178,6 +178,8 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   purchase_limit_is_minor_units: 'rule_limit_amount',
   purchase_limit_currency_is_known: 'rule_price_currency',
   purchase_limit_reason_is_stated: 'rule_reason_required',
+  // 0016's seam, which 0023's raise and approval call: a supplier stopped since it was chosen.
+  supplier_admits_no_new_work: 'rule_supplier_retired',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {
