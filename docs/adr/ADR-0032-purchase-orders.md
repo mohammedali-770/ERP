@@ -350,7 +350,11 @@ In thirteen parts it covers:
 
 **Every figure in it was run first in a browser** against the scratch database and edge,
 as the session scripts it: stock rising and falling by each receipt and reversal, every
-total before and after sending, and each order's number in the day's series.
+total before and after sending, and each order's number in the day's series. The script
+checks every "Passes when" the screens can show, 51 checks, and passes clean. A first
+draft said a rejection's history showed the accountant by a short code, where it shows
+their own name to them, and left out choosing the warehouse after signing in afresh: the
+script had not checked either, and now checks both (found in review).
 
 It holds thirteen questions for the owner to answer before the session: this ADR's ten,
 and three that the session's staff will meet:
@@ -377,3 +381,7 @@ a count, and the two races.
   in-doubt request across navigation is a console-wide change, put to the owner as Q-26.
 - **Checks before sending.** A price past 0023's cap per pack is caught before sending,
   and the Arabic percent sign is read.
+- **Saying what was saved.** A decision's and a reversal's Start over say "this decision" or
+  "this reversal was already saved", not the receipt's or the order's words; and a record of
+  an unexpected shape is read as "not there", so the form resets under new ids rather than
+  unlocking the used one (found in review).

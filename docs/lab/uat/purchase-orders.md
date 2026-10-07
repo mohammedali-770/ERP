@@ -44,12 +44,12 @@ Three of their clauses are not shown here, and the database's tests hold them (p
 and `db:check`):
 - **a reversal is refused once a count has covered the receipt's items.** No count is
   recorded in this session; the stock pack shows the same rule for a movement.
-- **a limit set by the person who raises an order does not approve it** is shown (Part
-  10), but **two orders raised at once are numbered one after the other**, and **two
-  receipts racing for the last of a line never take it past what was ordered**, are
-  races `db:check` holds with two real sessions.
-- **who made each change.** A history names the person signed in; anyone else is shown
-  by a short code, and every person in the test data has the same one.
+- **two orders raised at once are numbered one after the other**, a race `db:check`
+  holds with two real sessions.
+- **two receipts racing for the last of a line never take it past what was ordered**,
+  likewise.
+
+A limit set by the person who raises an order does not approve it: Part 10 shows that.
 
 It exercises parts of four others without evidencing them, and signing it does not
 deliver them:
@@ -137,7 +137,10 @@ ones the session's staff will meet.
 - A second computer, placed where the observer can see both screens and the participant
   cannot see the second. Its people take turns, each signing out before the next signs in.
   Where the participant acts once a change is saved, the observer tells them when.
-- Where a task says an item stands at a quantity, it is read on Current stock.
+- Where a task says an item stands at a quantity, it is read on Current stock, which gives
+  it in the item's storage unit: "150 Kilogram", "1254 Can".
+- Who made each change: a history names the person signed in; anyone else is shown by a
+  short code, and every person in the test data has the same one (Q-25).
 - An order's number is the facility's code, "PO", its business day written as eight
   digits, and its place in that day's series: the first order the participant raises
   today ends in today's date and 0001. The rows below give only the series number.
@@ -186,8 +189,9 @@ ones the session's staff will meet.
 
 | # | Task | Passes when |
 |---|---|---|
-| 2.1 | Back on the list, raise an order: find Al Waha Poultry, add a line of 2 cartons of chicken breast at 125 riyals a carton, leave VAT at 15, and give a reason | Before anything is sent the line reads SAR 250.00, and the order "Before VAT SAR 250.00", "VAT SAR 37.50", "Total SAR 287.50". Only what the supplier sells is offered; only active suppliers are found |
-| 2.2 | Raise it | "Order raised." The order opens, numbered with today's date and 0001, **Approved**: "Approved when raised: within the facility's limit." No Approve or Reject is offered; Receive goods is |
+| 2.1 | Back on the list, press Raise an order, and search for the supplier SUP-OLD | "No active supplier matches.": the test data's former oil trader has stopped, and a stopped supplier takes no order |
+| 2.2 | Find Al Waha Poultry instead, add a line of 2 cartons of chicken breast at 125 riyals a carton, leave VAT at 15, and give a reason | Before anything is sent the line reads SAR 250.00, and the order "Before VAT SAR 250.00", "VAT SAR 37.50", "Total SAR 287.50". Only what the supplier sells is offered |
+| 2.3 | Raise it | "Order raised." The order opens, numbered with today's date and 0001, **Approved**: "Approved when raised: within the facility's limit." No Approve or Reject is offered; Receive goods is |
 
 ## Part 3 · Caught before sending
 
@@ -211,7 +215,7 @@ ones the session's staff will meet.
 |---|---|---|
 | 5.1 | On the second computer, the accountant signs in and chooses the central warehouse | Purchase orders and Approval limit, under Purchasing. On Purchase orders, no "Raise an order", and no note that they cannot change orders |
 | 5.2 | The accountant opens today's 0003, presses Approve, gives a reason, and approves | Approved. No Cancel order was offered to them |
-| 5.3 | The accountant opens 30 September's chicken (SAR 8,625.00), and rejects it with a reason | Rejected. Its history: raised, then rejected, by the accountant's short code |
+| 5.3 | The accountant opens 30 September's chicken (SAR 8,625.00), and rejects it with a reason | Rejected. Its history: raised by someone shown as a short code, then rejected under the accountant's own name, with their reason |
 | 5.4 | The accountant opens Approval limit | "Limit before VAT: SAR 5,000.00", with its history; no form to change it |
 | 5.5 | The participant opens today's 0003 again | Approved, by someone shown as a short code; Receive goods is offered |
 
@@ -221,22 +225,22 @@ ones the session's staff will meet.
 |---|---|---|
 | 6.1 | The participant opens 30 September's rice and cola order | Receive goods: rice, 20 Bag still to come; cola, 10 Carton |
 | 6.2 | Enter 21 bags of rice, and receive | **Refused before sending**: "Line 1: that is more than is still to come." |
-| 6.3 | Enter 10 bags of rice and 10 cartons of cola, delivery note DN-2207, received now, and receive | "Received into stock." Received: Part. Rice: 10 received, 10 still to come; cola: 10 received, 0 to come. Receipts: one, DN-2207, "1. 10 Bag · RM-RICE", "2. 10 Carton" with the cola's code. On Current stock: **rice 150 kg, cola 1254 cans** |
+| 6.3 | Enter 10 bags of rice and 10 cartons of cola, delivery note DN-2207, received now, and receive | "Received into stock." Received: Part. Rice: 10 received, 10 still to come; cola: 10 received, 0 to come. Receipts: one, DN-2207, "1. 10 Bag · RM-RICE", "2. 10 Carton" with the cola's code. On Current stock: rice **150 Kilogram**, cola **1254 Can** |
 
 ## Part 7 · A receipt made in error
 
 | # | Task | Passes when |
 |---|---|---|
 | 7.1 | On the receipt, press its time | The stock decision: "Receipt", reason "Received against a purchase order"; rice Bag (5), In, 10, 50 in the base unit; cola Carton (24), In, 10, 240. **No Reverse is offered here**: a receipt is reversed from its order |
-| 7.2 | Back on the order, press Reverse on the receipt, give a reason, and reverse | The receipt reads "Reversed". Received: Nothing yet; 20 bags and 10 cartons still to come. On Current stock: **rice 100 kg, cola 1014 cans** |
+| 7.2 | Back on the order, press Reverse on the receipt, give a reason, and reverse | The receipt reads "Reversed". Received: Nothing yet; 20 bags and 10 cartons still to come. On Current stock: rice **100 Kilogram**, cola **1014 Can** |
 | 7.3 | Look for a way to reverse it again | None: a receipt is reversed once |
 
 ## Part 8 · In full, and closed short
 
 | # | Task | Passes when |
 |---|---|---|
-| 8.1 | Receive 20 bags of rice and 10 cartons of cola, delivery note DN-2208 | Received: **In full**. No Receive goods, no Close short, no Cancel order is offered; the order stays Approved (question K). Rice 200 kg, cola 1254 cans |
-| 8.2 | Open today's 0003 (50 cartons, approved by the accountant), and receive 20 cartons, delivery note DN-3101 | Received: Part; 30 still to come. Chicken breast **321.5 kg**. Cancel order is no longer offered: goods have arrived |
+| 8.1 | Receive 20 bags of rice and 10 cartons of cola, delivery note DN-2208 | Received: **In full**. No Receive goods, no Close short, no Cancel order is offered; the order stays Approved (question K). Rice **200 Kilogram**, cola **1254 Can** |
+| 8.2 | Open today's 0003 (50 cartons, approved by the accountant), and receive 20 cartons, delivery note DN-3101 | Received: Part; 30 still to come. Chicken breast **321.5 Kilogram**. Cancel order is no longer offered: goods have arrived |
 | 8.3 | The supplier says the rest will not come: close the order short, with a reason | **Closed**, Received: Part. Nothing more can be received. Its receipt still offers Reverse (question L) |
 
 ## Part 9 · Cancelled
@@ -249,18 +253,18 @@ ones the session's staff will meet.
 
 | # | Task | Passes when |
 |---|---|---|
-| 10.1 | The accountant signs out; the administrator signs in on the second computer, chooses the central warehouse, opens Approval limit, and sets it to 10,000, with a reason | "Limit before VAT: SAR 10,000.00"; its history shows two, the newest the administrator's |
+| 10.1 | The accountant signs out; the administrator signs in on the second computer, chooses the central warehouse, opens Approval limit, and sets it to 10,000, with a reason | "Limit before VAT: SAR 10,000.00"; its history shows two, both under the administrator's own name, the newest first |
 | 10.2 | The participant raises 50 cartons of chicken breast at 125 again, VAT 15 | 0004, **Approved when raised**: 6,250.00 is within 10,000.00 |
 | 10.3 | The administrator raises an order from Corner Grocer: 4 bags of rice at 45, VAT 0 | 0005, SAR 180.00, **Waiting for approval**, although it is within the limit: the administrator set the limit, so it does not approve their own order. "You raised this order, so someone else approves or rejects it. You can still cancel it." No Approve is offered |
-| 10.4 | The administrator signs out; the accountant signs in and opens 0005 | Approve and Reject are offered to the accountant. They leave it as it is |
-| 10.5 | The accountant signs out; the administrator signs in, opens Approval limit, and clears it, with a reason | "No limit: every order waits for an approver." Its history shows three |
+| 10.4 | The administrator signs out; the accountant signs in, chooses the central warehouse, and opens 0005 | Approve and Reject are offered to the accountant. They leave it as it is |
+| 10.5 | The accountant signs out; the administrator signs in, chooses the central warehouse, opens Approval limit, and clears it, with a reason | "No limit: every order waits for an approver." Its history shows three |
 
 ## Part 11 · When the connection drops
 
 | # | Task | Passes when |
 |---|---|---|
 | 11.1 | The participant opens today's 0004. The observer cuts the participant's network, and the participant receives 5 cartons, delivery note DN-3102 | Told the server did not answer, so the change may or may not have been saved, with Retry and Start over; the form is locked |
-| 11.2 | The observer restores the network, and the participant presses Retry | "Received into stock." One receipt, DN-3102; chicken breast **371.5 kg** |
+| 11.2 | The observer restores the network, and the participant presses Retry | "Received into stock." One receipt, DN-3102; chicken breast **371.5 Kilogram** |
 
 Cut before the receipt is sent, the first attempt never reaches the server, so this part
 shows the form locking while the answer is in doubt and Retry sending the receipt, not a
@@ -273,14 +277,15 @@ already recorded, and Start over then says it was saved.
 
 | # | Task | Passes when |
 |---|---|---|
-| 12.1 | The administrator signs out; the factory manager signs in on the second computer, and opens Purchase orders | Only the factory is offered under "Where you are working". One order, SAR 2,875.00, waiting for approval, raised by the factory manager: no Approve or Reject offered. None of the warehouse's orders. No Approval limit entry |
-| 12.2 | The factory manager signs out; the cashier signs in | No Purchase orders and no Approval limit in the menu |
+| 12.1 | The administrator signs out; the factory manager signs in on the second computer, and opens Purchase orders | Only the factory is offered under "Where you are working". One order, SAR 2,875.00, waiting for approval; none of the warehouse's orders. No Approval limit entry |
+| 12.2 | The factory manager opens that order | Raised by the factory manager, under their own name. Cancel order is offered; Approve and Reject are not: the factory manager approves nothing |
+| 12.3 | The factory manager signs out; the cashier signs in | No Purchase orders and no Approval limit in the menu |
 
 ## Part 13 · The other language
 
 | # | Task | Passes when |
 |---|---|---|
-| 13.1 | On today's 0003, switch the console to the other language | Every label changes, and the page mirrors. In Arabic: the state «مغلق», «قبل الضريبة» 6,250.00 ر.س, «الإجمالي» 7,187.50 ر.س; every amount and quantity in Western digits, read left to right |
+| 13.1 | On today's 0003, switch the console to the other language | Every label changes, and the page mirrors. In Arabic: the state «مغلق», «قبل الضريبة» 6,250.00 ر.س, «الإجمالي» 7,187.50 ر.س; every amount and quantity in Western digits, read left to right. Dates and times are in Arabic-Indic digits, as on every Arabic page |
 | 13.2 | Switch back | Every label is back in the participant's own language, and nothing on the page has changed |
 
 ---

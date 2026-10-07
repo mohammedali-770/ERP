@@ -513,7 +513,7 @@ export function PurchaseOrderPage({ ctx, purchaseOrderId }: { ctx: Ctx; purchase
   const ownPending = order.state === 'pending' && order.raised_by === data.person.person_id && ctx.purchase.approves;
   const lineOf = new Map(order.lines.map((l) => [l.line_no, l]));
   const pack = (key: string) => unitName(lang, data.units, key);
-  const decisionsDone = afterWrite(t(lang, 'saved'), t(lang, 'order_already_recorded'));
+  const decisionsDone = afterWrite(t(lang, 'saved'), t(lang, 'decision_already_recorded'));
 
   return (
     <section>
@@ -616,7 +616,7 @@ export function PurchaseOrderPage({ ctx, purchaseOrderId }: { ctx: Ctx; purchase
                     </em>
                   ) : !reloading && receiptReversible(r, ctx.purchase, status !== 'closed') ? (
                     <ReverseReceipt key={r.decision_id} ctx={ctx} order={order} receipt={r} facilityId={facility}
-                      onDone={afterWrite(t(lang, 'saved'), t(lang, 'receipt_already_recorded'))} />
+                      onDone={afterWrite(t(lang, 'saved'), t(lang, 'reversal_already_recorded'))} />
                   ) : null}
                 </td>
               </tr>

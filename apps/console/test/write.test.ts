@@ -114,6 +114,22 @@ test('CONTROL: Start over reads the record before anything unlocks; a failed rea
   assert.equal(h.life.pending, null, 'and the lost request can no longer be retried');
 });
 
+test('CONTROL: a record of an unexpected shape is "not seen there": the form still resets, never unlocking the used id', async () => {
+  const h = harness({ ok: true, value: {} });
+  h.hooks.recorded = () => {
+    throw new TypeError('no receipts');
+  };
+  await h.life.run(request({}, [LOST]).send);
+  await h.life.startOver();
+  assert.deepEqual(h.log, ['see', 'after', 'done:checked']);
+  assert.equal(h.state.inDoubt, false);
+});
+
+test('the hook carries recorded to the lifecycle, every render', () => {
+  const hook = readFileSync(new URL('../src/screens/useWrite.tsx', import.meta.url), 'utf8');
+  assert.match(hook, /hooks\.current = \{[^}]*\brecorded \};/, 'without it, Start over never asks');
+});
+
 test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {
   // A receipt recorded under a lost answer looks like any other: without this, the person
   // was told nothing and could receive the same goods twice (found in review).

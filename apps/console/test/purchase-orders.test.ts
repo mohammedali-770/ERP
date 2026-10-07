@@ -331,15 +331,29 @@ test('the screens read and write only at the facility worked at, and every write
   // The new order: sent as built, Retry resends that, Start over looks for the order before minting new ids.
   assert.match(SCREEN, /onRetry=\{\(\) => void send\(sent\.current!\)\}/);
   assert.match(SCREEN, /const found = await api\.getPurchaseOrder\(facilityId, ids\.purchase_order_id\);/);
-  // A sub-form's Start over says "already saved" when the record holds its lost id: a
-  // second receipt of the same goods would otherwise be taken (found in review).
-  for (const found of [
-    '\\(seen as PurchaseOrder\\)\\.decisions\\.some\\(\\(d\\) => d\\.decision_id === ids\\.decision_id\\)',
-    '\\(seen as PurchaseOrder\\)\\.receipts\\.some\\(\\(r\\) => r\\.decision_id === ids\\.decision_id\\)',
-    '\\(seen as PurchaseOrder\\)\\.receipts\\.some\\(\\(r\\) => r\\.reversed_by_decision_id === ids\\.decision_id\\)',
-  ]) assert.match(SCREEN, new RegExp(`\\}, \\(seen\\) => ${found}\\);`), found);
-  assert.equal([...SCREEN.matchAll(/\}, \(seen\) => \(seen as LimitHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/g)].length, 2,
-    'set and clear a limit, likewise');
+  // A sub-form's Start over says "already saved" when the record holds its lost id, each
+  // asking its own record: a second receipt of the same goods would otherwise be taken
+  // (found in review). Read per form, so two forms' checks cannot trade places unnoticed.
+  const body = (name: string): string => {
+    const start = SCREEN.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, name);
+    const next = SCREEN.slice(start + 1).search(/\n(export )?function /);
+    return next < 0 ? SCREEN.slice(start) : SCREEN.slice(start, start + 1 + next);
+  };
+  const recorded: Array<[string, RegExp]> = [
+    ['DecideOrder', /\}, \(seen\) => \(seen as PurchaseOrder\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+    ['ReceiveForm', /\}, \(seen\) => \(seen as PurchaseOrder\)\.receipts\.some\(\(r\) => r\.decision_id === ids\.decision_id\)\);/],
+    ['ReverseReceipt', /\}, \(seen\) => \(seen as PurchaseOrder\)\.receipts\.some\(\(r\) => r\.reversed_by_decision_id === ids\.decision_id\)\);/],
+    ['SetLimit', /\}, \(seen\) => \(seen as LimitHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+    ['ClearLimit', /\}, \(seen\) => \(seen as LimitHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/],
+  ];
+  for (const [form, re] of recorded) assert.match(body(form), re, form);
+  // And each says what was saved: a decision, a receipt, a reversal.
+  assert.match(SCREEN, /const decisionsDone = afterWrite\(t\(lang, 'saved'\), t\(lang, 'decision_already_recorded'\)\);/);
+  assert.match(SCREEN, /<ReceiveForm ctx=\{ctx\}[^>]*\s+onDone=\{afterWrite\(t\(lang, 'receipt_saved'\), t\(lang, 'receipt_already_recorded'\)\)\}/);
+  assert.match(SCREEN, /<ReverseReceipt [^>]*\s+onDone=\{afterWrite\(t\(lang, 'saved'\), t\(lang, 'reversal_already_recorded'\)\)\}/);
+  // An approver or a receiver is not told they cannot change orders (found in review).
+  assert.match(SCREEN, /: !ctx\.purchase\.raises && !ctx\.purchase\.approves && !ctx\.purchase\.receives\s+\? <Notice tone="info" text=\{t\(lang, 'read_only_orders'\)\} \/>/);
   assert.match(SCREEN, /setLeaveGuard\(\(\) => lines\.length > 0 \|\| supplier !== null\);/, 'a chosen supplier is work too');
   assert.match(SCREEN, /formIds\(\['decision_id', 'purchase_order_id'\] as const\)/, 'an order\'s id is minted with its decision (I-1)');
   assert.match(SCREEN, /<fieldset className="plain" disabled=\{locked\}>/, 'locked while a request is out or in doubt');

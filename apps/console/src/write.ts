@@ -123,10 +123,17 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
       if (!h.onFailure(now)) state.setFailure(now);
       return;
     }
+    // Asked before anything unlocks; a record of an unexpected shape is "not seen there", so
+    // the form still resets under new ids rather than unlocking the used one (found in review).
+    let already = false;
+    try {
+      already = h.recorded?.(now.value) ?? false;
+    } catch {
+      already = false;
+    }
     pending = null;
     state.setInDoubt(false);
     state.setFailure(null);
-    const already = h.recorded?.(now.value) ?? false;
     h.after();
     h.onDone(already ? 'already' : 'checked');
   }
