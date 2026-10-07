@@ -33,7 +33,7 @@ enabled = true
 # wire rather than through psql, so a psql meta-command is a syntax error.
 # Order matters — the organisation must exist before anything references it, and
 # the timestamp freeze must run last.
-sql_paths = ["./seeds/0010_organisation.sql", "./seeds/0015_identity.sql", "./seeds/0020_awkward_cases.sql", "./seeds/0030_capability_registry.sql", "./seeds/0035_role_permissions.sql", "./seeds/0040_items.sql", "./seeds/0050_suppliers.sql", "./seeds/0060_transfer_prices.sql", "./seeds/0070_stock.sql", "./seeds/0090_freeze_timestamps.sql"]
+sql_paths = ["./seeds/0010_organisation.sql", "./seeds/0015_identity.sql", "./seeds/0020_awkward_cases.sql", "./seeds/0030_capability_registry.sql", "./seeds/0035_role_permissions.sql", "./seeds/0040_items.sql", "./seeds/0050_suppliers.sql", "./seeds/0060_transfer_prices.sql", "./seeds/0070_stock.sql", "./seeds/0075_stock_minimums.sql", "./seeds/0090_freeze_timestamps.sql"]
 
 [studio]
 enabled = true

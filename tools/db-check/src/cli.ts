@@ -314,6 +314,13 @@ try {
        'db-check retry probe', ${admin}, now())`, 'stock_decision_pkey'],
     ['reverse_stock_decision', (d) => `select erp.reverse_stock_decision(${d}, ${id('000000000403')}, ${id('000000005703')},
        'db-check retry probe', null, ${admin}, now())`, 'stock_decision_pkey'],
+    // 0022's two write routes, against 0075's seed: the same lock, under its own log.
+    // WH-001's chicken minimum lowered to 80 kg, and FA-001's strips' cleared, each from
+    // the decision the seed stamped it with.
+    ['set_stock_minimum', (d) => `select erp.set_stock_minimum(${d}, ${id('000000000403')}, ${id('000000004201')}, '80',
+       ${id('000000005801')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
+    ['clear_stock_minimum', (d) => `select erp.clear_stock_minimum(${d}, ${id('000000000404')}, ${id('000000004102')},
+       ${id('000000005805')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
@@ -392,6 +399,44 @@ try {
     } else {
       failures++;
       console.log(`  FAIL  transfer_price_at: an order priced while its pack was retired was answered "${errorOf(priced)}"` +
+        (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+    }
+  }
+
+  // A minimum set in a pack while the pack is being retired must wait for the retirement
+  // and then be refused: erp.set_stock_minimum() reads the pack again under the item's share
+  // lock, which retire_item_unit() takes for update. Read only before it waited, a pack
+  // retired meanwhile was taken as current, and the minimum named a retired carton (found
+  // in review). The gloves' carton of 10 at WH-001, which nothing else here uses.
+  {
+    const retirement = cluster.sqlConcurrently(`begin;
+      select erp.retire_item_unit(${id('0000000d0402')}, ${id('000000004218')}, 'db-check minimum probe', ${admin}, now());
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = 'erp_minimum_set' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, 'erp_minimum_retirement');
+    for (let i = 0; i < 400; i++) {
+      const written = cluster.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                    where a.application_name = 'erp_minimum_retirement'
+                                      and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    const set = cluster.sqlConcurrently(`select erp.set_stock_minimum(${id('0000000d0701')}, ${id('000000000403')},
+      ${id('000000004218')}, '2', null, 'db-check minimum probe', ${admin}, now())`, 'erp_minimum_set');
+    const [retired, minimum] = await Promise.all([retirement, set]);
+    const refused = /ERROR:\s+23001:/.test(minimum.stderr)
+      && /CONSTRAINT NAME:\s+stock_minimum_pack_is_retired(\s|$)/m.test(minimum.stderr);
+    if (retired.status === 0 && refused) {
+      console.log('  pass  set_stock_minimum: a minimum set while its pack is retired waits, and is refused');
+    } else {
+      failures++;
+      console.log(`  FAIL  set_stock_minimum: a minimum set while its pack was retired was answered "${errorOf(minimum)}"` +
         (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
     }
   }

@@ -365,6 +365,51 @@ is written around both:
   whether the participant needed to know who. The question is recorded as
   [Q-25](../program/open-questions.md).
 
+## Addendum — 2026-10-07: the switch-on, drafted and held (module 6, step 6)
+
+**Not on `main`.** The migration was drafted in pull request #53, which the owner closed
+for now (2026-10-07); it is kept there, at commit `6229e64`, and comes back as a new pull
+request once the preconditions below hold.
+
+The migration, `20261007000100_notifications_pilot_at_central_warehouse.sql`, records one
+capability decision: `platform.notifications` at `pilot` at the central warehouse, and
+nowhere else. The owner chose to draft it and hold it unmerged, and to pilot at the
+central warehouse alone (2026-10-07). That is the only place the held stock pilot (ADR-0029's
+step 6 addendum) would let the bell ring.
+
+**What it opens.** Organisation-wide the bell stays hidden, and `capability_state_for()`
+reads a facility's own state before the organisation's. So a person sees the bell only
+while working at the warehouse. Working organisation-wide, or anywhere else, they see none
+and its routes refuse. The list a person sees there still holds every facility's
+notifications they may open (§6), which while stock is open only at the warehouse means
+the warehouse's.
+
+**It is held** until five things hold, named in the migration's header:
+1. the notifications pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. stock is switched on at the same warehouse first. That is module 5's held migration,
+   closed PR #48, with module 1 before it. The bell rings only where stock and items are
+   both open (§4), so opened alone it would ring for nobody. Both held files are dated
+   before 0022 (module 7, merged after them), so each needs a fresh timestamp when it
+   comes back, later than every merged migration, stock's before the bell's (Q-23);
+4. the owner has answered the pack's questions, J among them. A real database grants the
+   bell to the administrator alone (0021), and granting it to other roles is a permission
+   change, owner-approved and made on its own;
+5. the real warehouse code replaces the synthetic seed's.
+
+**It finds the warehouse by code when applied,** as module 5's does, since a facility is
+made at run time.
+- Where there is none, it records nothing and warns. Every local rebuild is that case,
+  and there the seed opens the bell for the suites, as before.
+- A facility with that code that is not an open warehouse is an error.
+- Proved on a scratch database:
+  - with no warehouse: a warning, and no decision;
+  - with the warehouse present and the organisation hidden: `pilot` at the warehouse,
+    `hidden` at the factory and organisation-wide. The warehouse manager's count answered
+    at the warehouse and was refused (CAP-P02) at the factory and organisation-wide;
+  - with the code pointed at the factory: refused.
+
 ## Open, for the owner and for UAT
 
 1. **When is the purge run?** In a hosted project, a scheduled job (`pg_cron`, or an
@@ -414,3 +459,12 @@ is written around both:
   migration to add one call, and the balance triggers bind every writer of a balance,
   which is the seam alone.
 - **Keeping notifications for good.** Rejected by N3.
+
+## Addendum — 2026-10-07: a second kind (module 7)
+
+[ADR-0031](./ADR-0031-stock-alerts.md) adds `stock_low`: stock falling to its minimum,
+once per drop. It widens 0021's two checks on a row's kind and source, and replaces
+`erp.notification_is_open_to()` and `erp.list_notifications()` with `create or replace` in
+0022; 0021 is unchanged. By the owner's decision A3 its actor **is** told, so §4's "the
+person who acted is not told of their own act" is now the rule of the below-zero kind,
+and SUP-P01 says each kind's own rule decides.

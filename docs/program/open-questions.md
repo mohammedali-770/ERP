@@ -574,6 +574,12 @@ warning) where it is absent. That works, but makes a migration's effect depend o
 data. If facility pilots become the norm, a reviewed run-time decision may be the better
 instrument (ADR-0029's step 6 addendum).
 
+Module 6's switch-on (2026-10-07, closed PR #53, ADR-0030's step 6 addendum) is a second such migration,
+for the bell at the same warehouse, and depends on module 5's being merged first. Two
+held migrations that must land in order are the pattern this question warns of. And both held files are dated before migrations merged since (0021, and module 7's 0022),
+so when they come back each needs a fresh timestamp, later than every merged migration,
+stock's before the bell's, or a hosted project would refuse it as out of order.
+
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
 

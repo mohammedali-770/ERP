@@ -529,6 +529,40 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'stock-minimum-guard-triggers-exist',
+    title: 'erp.stock_minimum carries its enabled guard triggers, and stock falling to a minimum its producer',
+    because:
+      'I-8, B-11: a minimum stays the minimum of one facility and item and is cleared, never ' +
+      'deleted, only because 0022\'s triggers say so, binding the owner too; its log is covered by ' +
+      'every-decision-log-is-append-only. A2 (ADR-0031): stock falling to its minimum tells anyone ' +
+      'only because an AFTER UPDATE statement trigger on erp.stock_balance says so, with both ' +
+      'transition tables, since a crossing is the balance before the posting against the balance ' +
+      'after it. Not a constraint trigger and with no WHEN, for 0021\'s reasons. A consistent seed ' +
+      'passes with any of them gone.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.stock_minimum'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.stock_minimum_is_fixed()'::regprocedure),
+                  ('erp.stock_minimum'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.stock_minimum_is_fixed()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)
+          union all
+          select 'erp.stock_balance: no enabled AFTER UPDATE statement trigger with both transition tables, ' ||
+                 'not a constraint trigger and with no WHEN, calling erp.notify_stock_low()'
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = 'erp.stock_balance'::regclass and not t.tgisinternal
+              and t.tgfoid = 'erp.notify_stock_low()'::regprocedure
+              and t.tgenabled in ('O', 'A') and t.tgconstraint = 0 and t.tgqual is null
+              and (t.tgtype & 16) = 16 and (t.tgtype & 3) = 0
+              and t.tgnewtable = 'new_rows' and t.tgoldtable = 'old_rows')`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -978,6 +1012,28 @@ export const SEED_ASSERTIONS: readonly Assertion[] = [
           from pg_attribute a
           where a.attrelid = 'erp.supplier_decision'::regclass and a.attnum > 0 and not a.attisdropped
             and a.attname in ('contact_person', 'phone', 'email', 'address')`,
+  },
+  {
+    id: 'stock-minimums-match-their-decisions',
+    title: 'every stock minimum equals the latest decision about it',
+    because:
+      'I-8, as supplier-projections-match-their-decisions holds it for 0016: each minimum must ' +
+      'EQUAL its stamp — the facility, the item and the base quantity, empty once cleared — with ' +
+      'no later decision about the same item at the same facility, and every decision must be ' +
+      'about a minimum that exists. The bell reads the projection, not the log (ADR-0031), so a ' +
+      'minimum that drifted from its decision would ring at a figure nobody set.',
+    sql: `select 'minimum of ' || m.item_id || ' at ' || m.facility_id as violation
+          from erp.stock_minimum m
+          left join erp.stock_minimum_decision d on d.decision_id = m.as_of_decision_id
+          where d.decision_id is null
+             or (d.facility_id, d.item_id, d.minimum) is distinct from (m.facility_id, m.item_id, m.minimum)
+             or exists (select 1 from erp.stock_minimum_decision l
+                         where l.facility_id = m.facility_id and l.item_id = m.item_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no minimum'
+          from erp.stock_minimum_decision d
+          where not exists (select 1 from erp.stock_minimum m
+                             where m.facility_id = d.facility_id and m.item_id = d.item_id)`,
   },
   {
     id: 'transfer-prices-match-their-decisions',
