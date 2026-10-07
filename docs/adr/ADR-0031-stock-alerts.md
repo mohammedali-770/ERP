@@ -269,3 +269,22 @@ addendum). Nothing about the routes changed.
 
   The page is also read in Arabic, right to left; the factory manager sees the factory's
   two low items; and the accountant has no entry.
+
+## Addendum — 2026-10-07: the staff testing pack (module 7, step 5)
+
+[`docs/lab/uat/stock-alerts.md`](../lab/uat/stock-alerts.md), with its Arabic version, is
+run by whoever looks after the warehouse's stock, with the administrator, the factory
+manager, the accountant and a cashier on a second computer. It evidences INV-P03 and
+SUP-P04, and exercises INV-013, SUP-P01 and SUP-005 without evidencing them. The owner's
+seven questions it opens with are this ADR's four, the 0 that meant none in the warehouse,
+a minimum raised above stock ringing nothing, and where the module is switched on.
+
+Every figure, word and count it quotes was run end to end in a browser against the
+scratch database before it was written: the low list, minimums in cartons, buckets,
+bottles and packs, the refusals of none and of the minimum already in force, the bell for
+the person who moved the stock and for the administrator, once per drop, both kinds for
+one override, the factory manager told only of the factory, Retry after a lost
+connection recording once, and the Arabic page.
+
+A count past a minimum is not in the session: the database's own tests hold it, and it
+is question C.
