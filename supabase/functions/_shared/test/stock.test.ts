@@ -9,6 +9,7 @@ import type { FacilitiesDb } from '../facilities-db.ts';
 import type { StockBalance, StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
 import { stock } from '../stock.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
@@ -57,6 +58,11 @@ const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
 const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
   stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
 });
+const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
+  purchaseOrders: true, getPurchaseOrder: true, purchaseLimitHistory: true, raisePurchaseOrder: true,
+  decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
+  clearPurchaseLimit: true,
+});
 
 /** A stock database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<StockDb> = {}): Db & { calls: Call[] } {
@@ -90,6 +96,7 @@ function fakeDb(person: string | null, override: Partial<StockDb> = {}): Db & { 
     reverseStockDecision: record('reverseStockDecision') as StockDb['reverseStockDecision'],
     ...notificationsNotUsed,
     ...stockAlertsNotUsed,
+    ...purchaseOrdersNotUsed,
   };
   return db;
 }

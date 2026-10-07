@@ -11,6 +11,7 @@ import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import type { StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
 import { notUsed } from './not-used.ts';
 import { session, signIn, signOut, withSession, type Session } from '../handlers.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
@@ -61,6 +62,11 @@ const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
 const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
   stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
 });
+const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
+  purchaseOrders: true, getPurchaseOrder: true, purchaseLimitHistory: true, raisePurchaseOrder: true,
+  decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
+  clearPurchaseLimit: true,
+});
 
 /** A database that records what it was asked and answers what it is told to. */
 function fakeDb(answers: {
@@ -77,6 +83,7 @@ function fakeDb(answers: {
     ...stockNotUsed,
     ...notificationsNotUsed,
     ...stockAlertsNotUsed,
+    ...purchaseOrdersNotUsed,
     calls,
     async signIn(n, p) {
       calls.push(`signIn ${n} ${p}`);

@@ -11,6 +11,7 @@ import { Refusal } from '../refusal.ts';
 import type { StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
 import { notUsed } from './not-used.ts';
 
 const TOKEN = 'ef'.repeat(32);
@@ -56,6 +57,11 @@ const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
 const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
   stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
 });
+const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
+  purchaseOrders: true, getPurchaseOrder: true, purchaseLimitHistory: true, raisePurchaseOrder: true,
+  decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
+  clearPurchaseLimit: true,
+});
 
 /** A facilities database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db & { calls: Call[] } {
@@ -83,6 +89,7 @@ function fakeDb(person: string | null, override: Partial<FacilitiesDb> = {}): Db
     ...stockNotUsed,
     ...notificationsNotUsed,
     ...stockAlertsNotUsed,
+    ...purchaseOrdersNotUsed,
     listFacilities: record('listFacilities'),
     getFacility: record('getFacility'),
     facilityHistory: record('facilityHistory'),

@@ -35,6 +35,7 @@ import type { Facility } from '../_shared/facilities-db.ts';
 import type { StockBalance } from '../_shared/stock-db.ts';
 import type { Notification } from '../_shared/notifications-db.ts';
 import type { StockMinimum } from '../_shared/stock-alerts-db.ts';
+import type { PurchaseOrderRow } from '../_shared/purchase-orders-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -308,6 +309,61 @@ export function makeDb(sql: Sql): Db {
       await sql`select erp.clear_stock_minimum(
         ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.itemId}::uuid, ${i.expectedDecisionId}::uuid,
         ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+
+    // 0023. Amounts are bigints, which postgres.js answers as text: each becomes a number
+    // through withMinor(), which refuses anything not a safe integer. Inside the order's
+    // JSON they are numbers already, and quantities text (0023).
+    purchaseOrders: (actor, q) => run(async () => (await sql`
+      select purchase_order_id, seq::text as seq, number, business_date::text as business_date, state, progress,
+             supplier_id, supplier_code, supplier_name_en, supplier_name_ar, currency, vat_rate_bp,
+             subtotal_minor, vat_minor, total_minor, line_count, raised_by, raised_at, as_of_decision_id
+        from erp.purchase_orders(${actor}::uuid, ${q.facilityId}::uuid, ${q.state}::text, ${q.beforeSeq}::bigint,
+                                 ${q.limit}::integer)`
+    ).map((row) => withMinor<PurchaseOrderRow>('erp.purchase_orders', row, ['subtotal_minor', 'vat_minor', 'total_minor']))),
+    getPurchaseOrder: (actor, facilityId, purchaseOrderId) => run(async () => {
+      const [row] = await sql`
+        select purchase_order_id, number, business_date::text as business_date, state, progress, supplier_id,
+               supplier_code, supplier_name_en, supplier_name_ar, supplier_status, currency, vat_rate_bp,
+               subtotal_minor, vat_minor, total_minor, raised_by, raised_at, as_of_decision_id, lines, decisions, receipts
+          from erp.get_purchase_order(${actor}::uuid, ${facilityId}::uuid, ${purchaseOrderId}::uuid)`;
+      return withMinor<Record<string, unknown>>('erp.get_purchase_order', row as Record<string, unknown>,
+        ['subtotal_minor', 'vat_minor', 'total_minor']);
+    }),
+    purchaseLimitHistory: (actor, q) => run(async () => (await sql`
+      select decision_id, seq::text as seq, kind, limit_minor, currency, reason, actor_id, decided_at, recorded_at, is_current
+        from erp.purchase_limit_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.beforeSeq}::bigint, ${q.limit}::integer)`
+    ).map((row) => withMinor<Record<string, unknown>>('erp.purchase_limit_history', row, ['limit_minor']))),
+    raisePurchaseOrder: (actor, i) => run(async () => {
+      await sql`select erp.raise_purchase_order(
+        ${i.decisionId}::uuid, ${i.purchaseOrderId}::uuid, ${i.facilityId}::uuid, ${i.supplierId}::uuid,
+        ${i.vatRateBp}::integer, ${sql.json(i.lines as unknown as postgres.JSONValue)}::jsonb, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    decidePurchaseOrder: (actor, i) => run(async () => {
+      await sql`select erp.decide_purchase_order(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.purchaseOrderId}::uuid, ${i.kind}::text, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    receivePurchaseOrder: (actor, i) => run(async () => {
+      await sql`select erp.receive_purchase_order(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.purchaseOrderId}::uuid, ${i.receivedAt}::timestamptz,
+        ${sql.json(i.lines as unknown as postgres.JSONValue)}::jsonb, ${i.deliveryNote}::text, ${actor}::uuid, now())`;
+    }),
+    reversePurchaseReceipt: (actor, i) => run(async () => {
+      await sql`select erp.reverse_purchase_receipt(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.receiptDecisionId}::uuid, ${i.reason}::text,
+        ${i.overrideReason}::text, ${actor}::uuid, now())`;
+    }),
+    setPurchaseLimit: (actor, i) => run(async () => {
+      await sql`select erp.set_purchase_limit(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.limitMinor}::bigint, ${i.currency}::text,
+        ${i.expectedDecisionId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    clearPurchaseLimit: (actor, i) => run(async () => {
+      await sql`select erp.clear_purchase_limit(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid, ${i.reason}::text,
+        ${actor}::uuid, now())`;
     }),
   };
 }

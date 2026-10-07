@@ -17,6 +17,7 @@ import type { FacilitiesDb } from './facilities-db.ts';
 import type { StockDb } from './stock-db.ts';
 import type { NotificationsDb } from './notifications-db.ts';
 import type { StockAlertsDb } from './stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from './purchase-orders-db.ts';
 
 /** `erp.sign_in()`: `erp.verify_pin()`'s answer, plus a token on `ok` (0014). */
 export type SignInAnswer =
@@ -60,7 +61,7 @@ export interface SessionDb {
 
 /** Every route the edge may call: the session routes, and each module's. */
 export type Db = SessionDb & ItemsDb & SuppliersDb & TransferPricesDb & FacilitiesDb & StockDb & NotificationsDb
-  & StockAlertsDb;
+  & StockAlertsDb & PurchaseOrdersDb;
 
 /** Raised when the database answers something this edge does not understand. */
 export class UnexpectedAnswer extends Error {

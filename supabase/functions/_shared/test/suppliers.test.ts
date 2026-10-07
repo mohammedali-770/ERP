@@ -10,6 +10,7 @@ import { Refusal } from '../refusal.ts';
 import type { StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
 import { notUsed } from './not-used.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
 
@@ -60,6 +61,11 @@ const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
 const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
   stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
 });
+const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
+  purchaseOrders: true, getPurchaseOrder: true, purchaseLimitHistory: true, raisePurchaseOrder: true,
+  decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
+  clearPurchaseLimit: true,
+});
 
 /** A suppliers database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db & { calls: Call[] } {
@@ -89,6 +95,7 @@ function fakeDb(person: string | null, override: Partial<SuppliersDb> = {}): Db 
     ...stockNotUsed,
     ...notificationsNotUsed,
     ...stockAlertsNotUsed,
+    ...purchaseOrdersNotUsed,
     listSuppliers: record('listSuppliers'),
     getSupplier: record('getSupplier'),
     supplierHistory: record('supplierHistory'),
