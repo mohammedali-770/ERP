@@ -580,7 +580,7 @@ held migrations that must land in order are the pattern this question warns of. 
 so when they come back each needs a fresh timestamp, later than every merged migration,
 stock's before the bell's, or a hosted project would refuse it as out of order.
 
-Module 7's switch-on (2026-10-07, ADR-0031's step 6 addendum) is a third, for stock alerts
+Module 7's switch-on (2026-10-07, closed PR #58, ADR-0031's step 6 addendum) is a third, for stock alerts
 at the same warehouse, after both: it is dated after 0022, and when the other two come
 back with fresh timestamps it needs a later one still. Three held migrations in a fixed
 order, each re-dated by hand, strengthen the case for a reviewed run-time decision.

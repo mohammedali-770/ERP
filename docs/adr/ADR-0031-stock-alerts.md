@@ -304,6 +304,10 @@ is question C.
 
 ## Addendum — 2026-10-07: the switch-on, drafted and held (module 7, step 6)
 
+**Not on `main`.** The migration was drafted in pull request #58, which the owner closed
+for now (2026-10-07); it is kept there, at commit `e39bb15`, and comes back as a new pull
+request once the preconditions below hold.
+
 The migration, `20261007000300_stock_alerts_pilot_at_central_warehouse.sql`, records one
 capability decision: `inventory.stock_alerts` at `pilot` at the central warehouse, and
 nowhere else. It is drafted and held unmerged, as modules 5's and 6's were (closed pull
