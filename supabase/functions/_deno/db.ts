@@ -34,6 +34,7 @@ import { withMinor, type ItemPrice, type PriceListRow } from '../_shared/transfe
 import type { Facility } from '../_shared/facilities-db.ts';
 import type { StockBalance } from '../_shared/stock-db.ts';
 import type { Notification } from '../_shared/notifications-db.ts';
+import type { StockMinimum } from '../_shared/stock-alerts-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -286,6 +287,27 @@ export function makeDb(sql: Sql): Db {
       const [row] = await sql`select erp.mark_notifications_read(
         ${actor}::uuid, ${i.facilityId}::uuid, ${i.notificationIds as string[] | null}::uuid[]) as marked`;
       return row?.['marked'] as number;
+    }),
+
+    // 0022: numerics come back as text from postgres.js, and stay text; the minimum's
+    // moments as Dates, which reach the console as ISO moments.
+    stockMinimums: (actor, q) => run(async () => (await sql`
+      select * from erp.stock_minimums(${actor}::uuid, ${q.facilityId}::uuid, ${q.lowOnly}::boolean,
+                                       ${q.afterCode}::text, ${q.limit}::integer)`
+    ) as unknown as StockMinimum[]),
+    stockMinimumHistory: (actor, q) => run(async () =>
+      [...await sql`
+        select * from erp.stock_minimum_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.itemId}::uuid,
+                                                ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+    setStockMinimum: (actor, i) => run(async () => {
+      await sql`select erp.set_stock_minimum(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.itemUnitId}::uuid, ${i.quantity}::text,
+        ${i.expectedDecisionId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    clearStockMinimum: (actor, i) => run(async () => {
+      await sql`select erp.clear_stock_minimum(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.itemId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.reason}::text, ${actor}::uuid, now())`;
     }),
   };
 }

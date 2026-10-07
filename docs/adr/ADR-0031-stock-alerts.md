@@ -166,3 +166,47 @@ holds nothing here.
 4. **Should one notification name every item a decision took low,** or one per item? It
    names them all now, as the override's does.
 
+
+## Addendum — 2026-10-07: the data layer (module 7, step 2)
+
+0022's four routes are reachable over HTTP through one edge function, `stock-alerts`
+(`supabase/functions/_shared/stock-alerts.ts`), built as `stock` is (ADR-0029's step 2
+addendum). Nothing about the routes changed.
+
+- **The routes:**
+  - `GET /` lists every item with a minimum at the query's `facility_id`, by code, 100 a
+    page unless `limit` asks for 1 to 500; `low=true` lists the low ones alone. A full
+    page answers `next_after`, the last code, and the next page sends it back as `after`.
+  - `GET /items/{item_id}` gives one item's decisions there, newest first, paged by a
+    `seq` sent as decimal text, as a stock card is.
+  - `POST /minimums` sets a minimum: `decision_id`, `facility_id`, `item_unit_id`,
+    `quantity`, `expected_decision_id` and `reason`.
+  - `POST /items/{item_id}/clear` clears one: `decision_id`, `facility_id`,
+    `expected_decision_id` and `reason`. The item is named in the path, so a body cannot
+    name another.
+- **The actor is the session's,** through `withSession` (ADR-0025); a Node control test
+  forges it in every way a body or header could, on both writes.
+- **The edge checks shape, the database checks rules.** Two shape rules are this
+  module's own:
+  - **A quantity is decimal text,** as stock's is: "2.5", never the number 2.5. That it
+    is more than nothing, exact in the base unit and within range is 0022's to refuse.
+  - **The stamp is stated.** A set must carry `expected_decision_id`: the stamp the form
+    read, or `null` when the item had no minimum there. Left out, it is a 400, never read
+    as "none", since a form that never read the minimum must not pass for one that read
+    its absence. A clear carries a stamp, always, since there is a minimum to clear.
+- **Refusals** map through `_shared/refusal.ts`, which now knows
+  `stock_minimum_decision_pkey`: raised by 0022's retry check it is `already_recorded`
+  (409), and the console confirms the retry through the item's history at the same
+  facility; raised natively it is a conflict. `stock_minimum_stale` is `stale` (409).
+  The rest are 0022's own words: `refused` for an unchanged minimum, one not set, a
+  retired pack or item, a branch or a closed facility; `invalid` for none, an inexact
+  quantity or no reason; `not_found` for another brand's pack or item.
+- **The bell needs nothing new:** the notifications function passes each item through as
+  0022's page gives it, and a low-stock item carries its `minimum`.
+- **Tested** by `_shared/test/stock-alerts.test.ts` (Node: the actor, every shape rule,
+  every refusal, paging) and `_deno/test/stock-alerts.test.ts` (Deno, end to end, as
+  `erp_edge`, rolled back): the warehouse manager raises chicken's minimum in cartons,
+  retries, is refused a stale and an unchanged one; wastes past it **through the stock
+  function**, and both they and the administrator read the low-stock notification
+  **through the notifications function**, at the balance left and the minimum crossed;
+  a second waste while low rings nothing; then clears it. A cashier reads and sets none.
