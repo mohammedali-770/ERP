@@ -508,7 +508,10 @@ warehouse and factory stock only:
 - **Branches are not covered.** A branch's business day opens with its shift (Q-06), so
   no branch holds a stock record until Q-06 is answered.
 - **Orders, purchase orders, batches and the daily sheet** are asked again when their
-  modules are built, with this answer as the default to confirm.
+  modules are built, with this answer as the default to confirm. **Purchase orders took
+  it (2026-10-07):** an order's business day, and the day its number counts in, is the
+  calendar date at its facility of the moment it is raised, and a receipt is a stock
+  movement, dated by D3. ADR-0032's question 4 asks the owner to confirm it.
 
 The original question is kept below.
 

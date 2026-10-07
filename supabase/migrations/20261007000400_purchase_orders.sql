@@ -1088,7 +1088,10 @@ begin
               hint = 'One line per pack: add the quantities together.';
     end if;
     -- Under the item's share lock, which erp.retire_item_unit() takes for update, the pack is
-    -- read again and held; then the supply, held too, which erp.retire_supplier_item() updates.
+    -- read again and held; then the supply, held too. erp.retire_supplier_item() takes the
+    -- supplier's row for update before the supply's, and this route holds the supplier under
+    -- erp.assert_supplier_active()'s share lock, so a retirement and a raise serialise there
+    -- first; the supply's own lock is a second fence.
     v_item := erp.assert_item_active(u.item_id);
     select x.* into u from erp.item_unit x where x.item_unit_id = u.item_unit_id for share;
     if u.status <> 'active' then

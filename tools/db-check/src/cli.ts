@@ -698,9 +698,12 @@ try {
   }
   {
     // An order raised for a pack while the supplier's supply of it is retired must wait for
-    // the retirement and then be refused: the supply is read under its share lock. Read
-    // without it, the order named a supply that no longer existed. The poultry supplier's
-    // loose kilograms, which no later probe orders.
+    // the retirement and then be refused. A retirement takes its supplier's row for update
+    // first, and the raise holds that row under erp.assert_supplier_active()'s share lock, so
+    // the two serialise there; the supply is then read, and held, under its own share lock as
+    // well. Read with neither, the order named a supply that no longer existed (a control
+    // removing both fails this). The poultry supplier's loose kilograms, which no later probe
+    // orders.
     const [retired, raised] = await overlap(
       `select erp.retire_supplier_item(${id('0000000d0808')}, ${id('000000005202')}, 'db-check purchase probe', ${admin}, now())`,
       `select erp.raise_purchase_order(${id('0000000d0809')}, ${id('0000000d0810')}, ${warehouse}, ${id('000000005101')}, 1500,
