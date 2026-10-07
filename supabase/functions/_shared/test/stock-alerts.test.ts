@@ -9,6 +9,7 @@ import type { FacilitiesDb } from '../facilities-db.ts';
 import type { StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb, StockMinimum } from '../stock-alerts-db.ts';
+import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
 import { stockAlerts } from '../stock-alerts.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
@@ -55,6 +56,11 @@ const stockNotUsed = notUsed<StockDb>('stock', {
 const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
   listNotifications: true, countUnreadNotifications: true, markNotificationsRead: true,
 });
+const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
+  purchaseOrders: true, getPurchaseOrder: true, purchaseLimitHistory: true, raisePurchaseOrder: true,
+  decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
+  clearPurchaseLimit: true,
+});
 
 /** A stock-alerts database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<StockAlertsDb> = {}): Db & { calls: Call[] } {
@@ -81,6 +87,7 @@ function fakeDb(person: string | null, override: Partial<StockAlertsDb> = {}): D
     ...facilitiesNotUsed,
     ...stockNotUsed,
     ...notificationsNotUsed,
+    ...purchaseOrdersNotUsed,
     stockMinimums: record('stockMinimums') as StockAlertsDb['stockMinimums'],
     stockMinimumHistory: record('stockMinimumHistory') as StockAlertsDb['stockMinimumHistory'],
     setStockMinimum: record('setStockMinimum') as StockAlertsDb['setStockMinimum'],

@@ -104,3 +104,7 @@ import_map = "./functions/deno.json"
 [functions.stock-alerts]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.purchase-orders]
+verify_jwt = false
+import_map = "./functions/deno.json"

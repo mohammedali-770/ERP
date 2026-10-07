@@ -209,3 +209,53 @@ and adding one would change who every stock bell rings for.
   The console's stock screens name each kind from 0020's list, so they show a receipt by
   its raw kind until step 3 adds its label.
 - **The edge function, screens and staff testing follow,** as for every module.
+
+## Addendum — 2026-10-07: the data layer (module 8, step 2)
+
+0023's nine runtime routes are reachable over HTTP through one edge function,
+`purchase-orders` (`supabase/functions/_shared/purchase-orders.ts`), built as `stock` and
+`stock-alerts` are (ADR-0029's and ADR-0031's step 2 addenda). Nothing about the routes
+changed.
+
+- **The routes:**
+  - `GET /` lists one facility's orders, newest first, paged by the raise's `seq` sent as
+    decimal text, 100 a page unless `limit` asks for 1 to 500; `state` narrows to one.
+  - `GET /{purchase_order_id}` gives one order whole, at the query's `facility_id`.
+  - `GET /limits` gives a facility's limits, newest first, paged the same way.
+  - `POST /` raises an order: `decision_id`, `purchase_order_id`, `facility_id`,
+    `supplier_id`, `vat_rate_bp`, `lines` and `reason`.
+  - `POST /{purchase_order_id}/approve`, `/reject`, `/cancel` and `/close` decide one:
+    `decision_id`, `facility_id` and `reason`. **The decision is the path:** no body names
+    a kind, so none can name another.
+  - `POST /{purchase_order_id}/receipts` receives against one: `decision_id`, `facility_id`,
+    `received_at` (with its offset, or absent for now), `lines` and an optional
+    `delivery_note`.
+  - `POST /receipts/{receipt_id}/reverse` reverses a receipt: `decision_id`, `facility_id`,
+    `reason` and an optional `override_reason`.
+  - `POST /limits` sets a facility's limit — `limit_minor`, `currency` and
+    `expected_decision_id`, present and null only where the facility never had one, as a
+    minimum's stamp is (ADR-0031's step 2 addendum) — and `POST /limits/clear` clears it,
+    against a stamp always.
+- **Two kinds of number, kept apart.** A quantity is decimal text, both ways, as stock's
+  are. An amount — a price per pack, a limit — and a VAT rate are JSON whole numbers, both
+  ways, as transfer prices' are; the driver turns 0023's bigints into numbers through
+  `withMinor()`, which refuses anything not a safe integer.
+- **A line carries on only what it is:** an order line its `item_unit_id`, `quantity` and
+  `price_minor`; a receipt line its `line_no`, a whole number, and `quantity`. Anything
+  else on a line is dropped, so no receipt line can name a pack: it arrives in the one
+  ordered.
+- **An order or a receipt is a document** of up to 200 lines, read up to 64 KiB; a
+  decision, a reversal and a limit are forms, up to 8 KiB.
+- **Retries.** `purchase_order_decision_pkey` and `purchase_limit_decision_pkey` join the
+  logs whose route-raised 23505 is answered 409 `already_recorded`; a receipt and a
+  reversal answer on `stock_decision_pkey`, as stock's do. The console confirms a raise, a
+  decision, a receipt or a reversal through the order at the same facility, and a limit
+  through the facility's limit history. The same order id under a new decision is 409
+  `conflict` (`purchase_order_raised_once`), and `purchase_limit_stale` is 409 `stale`.
+- **Tested** by the Node suite (`_shared/test/purchase-orders.test.ts`): the actor on every
+  write, the kind from the path, the lines' fields, amounts and quantities, every route's
+  shape, and each refusal's answer; and end to end by the Deno test
+  (`_deno/test/purchase-orders.test.ts`): the seeded orders, a raise approved by the limit
+  and its retry, self-approval refused and the accountant approving, a receipt moving
+  stock, the stock route refusing to reverse it and the order's route reversing it, cancel,
+  close and reject, and limits set and cleared by the administrator alone.
