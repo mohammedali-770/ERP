@@ -301,9 +301,12 @@ addendum).
   reversed from its order only**: on the stock card it reads "Receipt", and the stock
   decision's page offers no reversal (0023: `stock_receipt_reversed_through_its_order`).
   The override (D1) is offered on a reversal to those who hold it, as on stock.
-- **The limit (`#purchase_orders/limits`)** shows the one in force, before VAT, and every
-  decision about it; it is set and cleared against the history's stamp, a clearing
-  included, as a minimum is (ADR-0031's step 3 addendum).
+- **The limit (`#purchase_limits`)** is its own entry, "Approval limit", under Purchasing,
+  since 0023's limit read asks read on limits alone: someone who sets limits need not read
+  orders (found in review). It shows the one in force, before VAT, and every decision about
+  it; it is set and cleared against the history's stamp, a clearing included, as a minimum
+  is (ADR-0031's step 3 addendum), in riyals up to 0023's 100,000,000,000.00, past a
+  price's ten digits (found in review).
 - **Every 0023 refusal a person can meet is worded** in both languages (messages.ts); the
   retry keys are not, since PostgreSQL's own collision is no "already saved".
 - **Tested** by `apps/console/test/purchase-orders.test.ts` (Node) against the migration's

@@ -194,10 +194,17 @@ export function receiptLines(order: Pick<PurchaseOrder, 'lines'>, typed: Readonl
   return { ok: true, value: lines };
 }
 
-/** A limit typed in riyals, as whole halalas, more than nothing: to have none, it is cleared. */
+/**
+ * A limit typed in riyals, as whole halalas, more than nothing: to have none, it is
+ * cleared. Its own parser, not a price's: a price stops at ten digits of riyals, and a
+ * limit runs to 0023's 100,000,000,000.00 (found in review). Read as priceInput reads.
+ */
 export function limitInput(raw: string): { ok: true; value: number } | { ok: false } {
-  const p = priceInput(raw);
-  return p.ok && p.value > 0 && p.value <= MAX_LIMIT_MINOR ? p : { ok: false };
+  const v = latinDigits(raw).trim();
+  const m = /^(\d{1,12})(?:\.(\d{1,2}))?$/.exec(v);
+  if (m === null) return { ok: false };
+  const halalas = Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'));
+  return halalas > 0 && halalas <= MAX_LIMIT_MINOR ? { ok: true, value: halalas } : { ok: false };
 }
 
 /** Optional text as the routes take it: blank is null. */

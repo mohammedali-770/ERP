@@ -144,6 +144,8 @@ export const NAVIGATION: readonly NavGroup[] = [
       { id: 'suppliers', labelKey: 'suppliers', capability: 'procurement.suppliers', action: 'read' },
       // Every 0023 order read asks for read on suppliers and items too: an order names both.
       { id: 'purchase_orders', labelKey: 'purchase_orders', capability: 'procurement.purchase_orders', action: 'read', alsoReads: ['procurement.suppliers', 'inventory.items'] },
+      // Its own entry: 0023's limit read asks for limits alone, and a limit-setter need not read orders.
+      { id: 'purchase_limits', labelKey: 'purchase_limits', capability: 'procurement.purchase_limits', action: 'read' },
     ],
   },
   {

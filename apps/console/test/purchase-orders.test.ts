@@ -186,8 +186,13 @@ test('CONTROL: a limit is set against the decision in force, a clearing included
   assert.match(SCREEN, /const stamp = limitStamp\(history\)/, 'the stamp is the history\'s, read by the page');
   assert.equal([...SCREEN.matchAll(/expectedDecisionId: stamp[,\s}]/g)].length, 2, 'set and clear each send the stamp they were handed');
   assert.deepEqual(limitInput('5000'), { ok: true, value: 500000 });
-  for (const typed of ['0', '0.00', '', '-1', '1.005']) assert.equal(limitInput(typed).ok, false, typed);
+  // 0023's whole range, past a price's ten digits of riyals (found in review).
+  assert.deepEqual(limitInput('100000000000'), { ok: true, value: 10_000_000_000_000 });
+  assert.deepEqual(limitInput('12345678901.5'), { ok: true, value: 1_234_567_890_150 });
+  assert.deepEqual(limitInput('٥٠٠٠٫٢٥'), { ok: true, value: 500025 });
+  for (const typed of ['0', '0.00', '', '-1', '1.005', '100000000000.01', '1,000']) assert.equal(limitInput(typed).ok, false, typed);
   assert.match(MIGRATION, /check \(limit_minor between 1 and 10000000000000\)/);
+  assert.match(SCREEN, /required maxLength=\{15\} value=\{amount\}/, 'the field holds "100000000000.00"');
 });
 
 // --- who may do what -------------------------------------------------------------
@@ -238,6 +243,17 @@ test('CONTROL: orders are read where all three of 0023\'s reads are held, and ch
   assert.equal(rights(wh, viewerWith([...admin.permissions], { 'procurement.purchase_orders': 'read_only' })).approves, false);
   assert.match(APP, /purchase: purchaseRights\(workingFacility\(data\.facilities, facilityId\), viewer, PURCHASE_ORDERS, itemIsVisible\)/);
   assert.match(APP, /seesPurchaseOrders: itemIsVisible\(PURCHASE_ORDERS, viewer\)/);
+  // The limit: its own entry, gated by limits' read alone, as 0023's limit read asks.
+  const LIMITS = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'purchase_limits')!;
+  assert.deepEqual([LIMITS.capability, LIMITS.action, LIMITS.alsoReads], ['procurement.purchase_limits', 'read', undefined]);
+  assert.match(MIGRATION, /begin\s+perform erp\.assert_permitted\(p_actor_id, 'procurement\.purchase_limits', 'read', p_facility_id\);\s+perform erp\.assert_stock_facility_named\(p_facility_id\);\s+if p_limit is null/,
+    'erp.purchase_limit_history() asks read on limits, and nothing else');
+  const limitsOnly = viewerWith(['procurement.purchase_limits:read']);
+  assert.equal(itemIsVisible(LIMITS, limitsOnly), true, 'a limit reader who reads no orders has the entry');
+  assert.equal(itemIsVisible(ENTRY, limitsOnly), false);
+  assert.equal(rights(wh, limitsOnly).seesLimits, true);
+  assert.match(APP, /seesPurchaseLimits: itemIsVisible\(PURCHASE_LIMITS, viewer\)/);
+  assert.match(APP, /if \(navIdOf\(route\) === 'purchase_limits'\) \{\s+return ctx\.seesPurchaseLimits \? <PurchaseLimits ctx=\{ctx\} \/>/);
   // 0023's gates, which these rights mirror.
   assert.match(MIGRATION, /case when p_kind in \('order_approved', 'order_rejected'\) then 'approve' else 'write' end/);
   assert.ok(MIGRATION.includes("erp.assert_permitted(p_actor_id, 'procurement.purchase_limits', 'write', p_facility_id)"));
@@ -275,14 +291,18 @@ test('CONTROL: nobody is offered approval of an order they raised (PRC-004); eac
 
 test('purchase-order routes parse and format both ways, name no facility, and mark their own entry current', () => {
   const routes: Route[] = [
-    { screen: 'purchase_orders' }, { screen: 'purchase_order_new' }, { screen: 'purchase_limits' },
-    { screen: 'purchase_order', purchaseOrderId: ORDER },
+    { screen: 'purchase_orders' }, { screen: 'purchase_order_new' }, { screen: 'purchase_order', purchaseOrderId: ORDER },
   ];
   for (const r of routes) {
     assert.deepEqual(parseRoute(formatRoute(r)), r);
     assert.equal(navIdOf(r), 'purchase_orders', r.screen);
     assert.doesNotMatch(formatRoute(r), new RegExp(WAREHOUSE));
   }
+  // The limit is its own entry, so someone who reads no orders can reach it (found in review).
+  assert.deepEqual(parseRoute('#purchase_limits'), { screen: 'purchase_limits' });
+  assert.equal(formatRoute({ screen: 'purchase_limits' }), '#purchase_limits');
+  assert.equal(navIdOf({ screen: 'purchase_limits' }), 'purchase_limits');
+  assert.equal(parseRoute('#purchase_orders/limits').screen, 'unknown', 'not an order\'s route: no order id is "limits"');
   assert.equal(parseRoute(`#purchase_orders/${ORDER}/x`).screen, 'unknown');
   assert.equal(parseRoute('#purchase_orders/nope').screen, 'unknown');
   assert.equal(parseRoute(`#purchase_orders/${ORDER.toUpperCase()}`).screen, 'purchase_order');

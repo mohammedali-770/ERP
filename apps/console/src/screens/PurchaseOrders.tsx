@@ -109,7 +109,7 @@ export function PurchaseOrdersList({ ctx }: { ctx: Ctx }) {
       <header className="page-header">
         <h1>{t(lang, 'purchase_orders_at', { code: place.facility.code })} — {localName(lang, place.facility)}</h1>
         <div className="actions">
-          {ctx.purchase.seesLimits ? <a className="button" href="#purchase_orders/limits">{t(lang, 'purchase_limits')}</a> : null}
+          {ctx.purchase.seesLimits ? <a className="button" href="#purchase_limits">{t(lang, 'purchase_limits')}</a> : null}
           {raises ? <a className="button primary" href="#purchase_orders/new">{t(lang, 'raise_order')}</a> : null}
         </div>
       </header>
@@ -905,12 +905,21 @@ export function PurchaseLimits({ ctx }: { ctx: Ctx }) {
     void load();
   };
 
-  if (place.facility === null) return <section><a href="#purchase_orders">{t(lang, 'back')}</a>{place.notice}</section>;
+  // Reached from the orders list, or from its own entry by someone who reads no orders.
+  const back = ctx.seesPurchaseOrders ? <a href="#purchase_orders">{t(lang, 'back')}</a> : null;
+  if (place.facility === null) {
+    return (
+      <section>
+        <header className="page-header"><h1>{t(lang, 'purchase_limits')}</h1></header>
+        {place.notice}
+      </section>
+    );
+  }
   if (!ctx.purchase.seesLimits) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
   if (history === null) {
     return (
       <section>
-        <a href="#purchase_orders">{t(lang, 'back')}</a>
+        {back}
         {failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />}
       </section>
     );
@@ -920,7 +929,7 @@ export function PurchaseLimits({ ctx }: { ctx: Ctx }) {
   const stamp = limitStamp(history);
   return (
     <section>
-      <a href="#purchase_orders">{t(lang, 'back')}</a>
+      {back}
       <header className="page-header">
         <h1>{t(lang, 'purchase_limits_at', { code: place.facility.code })} — {localName(lang, place.facility)}</h1>
       </header>
@@ -1003,7 +1012,7 @@ function SetLimit({ ctx, facilityId, stamp, onDone }: { ctx: Ctx; facilityId: st
       {w.inDoubt ? <InDoubt lang={lang} busy={w.busy} onRetry={w.retry} onStartOver={() => void w.startOver()} /> : null}
       <fieldset className="plain" disabled={w.locked}>
         <Field label={t(lang, 'po_limit')} hint={t(lang, 'price_hint')}>
-          <input dir="ltr" inputMode="decimal" required maxLength={13} value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input dir="ltr" inputMode="decimal" required maxLength={15} value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <button type="submit" className="primary" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'set_limit')}</button>

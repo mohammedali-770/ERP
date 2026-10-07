@@ -42,6 +42,8 @@ export interface Ctx {
   readonly seesStockAlerts: boolean;
   /** Whether the person may read orders here: the entry asks for read on suppliers and items too. Organisation-wide, the page asks for a facility. */
   readonly seesPurchaseOrders: boolean;
+  /** Whether the person may read approval limits here: their own entry, as 0023's limit read asks limits alone. */
+  readonly seesPurchaseLimits: boolean;
   /** What the person may do with orders at the facility worked at, by 0023's gates (purchase-orders.ts, purchaseRights). */
   readonly purchase: PurchaseRights;
   /** Whether the person has a bell here (notifications.ts, bellVisible). */
