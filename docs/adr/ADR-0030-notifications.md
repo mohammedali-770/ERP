@@ -367,6 +367,10 @@ is written around both:
 
 ## Addendum — 2026-10-07: the switch-on, drafted and held (module 6, step 6)
 
+**Not on `main`.** The migration was drafted in pull request #53, which the owner closed
+for now (2026-10-07); it is kept there, at commit `6229e64`, and comes back as a new pull
+request once the preconditions below hold.
+
 The migration, `20261007000100_notifications_pilot_at_central_warehouse.sql`, records one
 capability decision: `platform.notifications` at `pilot` at the central warehouse, and
 nowhere else. The owner chose to draft it and hold it unmerged, and to pilot at the

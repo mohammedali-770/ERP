@@ -574,7 +574,7 @@ warning) where it is absent. That works, but makes a migration's effect depend o
 data. If facility pilots become the norm, a reviewed run-time decision may be the better
 instrument (ADR-0029's step 6 addendum).
 
-Module 6's switch-on (2026-10-07, ADR-0030's step 6 addendum) is a second such migration,
+Module 6's switch-on (2026-10-07, closed PR #53, ADR-0030's step 6 addendum) is a second such migration,
 for the bell at the same warehouse, and depends on module 5's being merged first. Two
 held migrations that must land in order are the pattern this question warns of. And module 5's file is dated 2026-10-06 00:01, before 0021, which is already merged; when it
 comes back it needs a new timestamp, later than 0021's and earlier than this one's, or a
