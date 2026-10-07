@@ -4,8 +4,9 @@
  * (supabase/functions/_shared/suppliers.ts), module 3's transfer-prices routes
  * (supabase/functions/_shared/transfer-prices.ts), module 4's facilities routes
  * (supabase/functions/_shared/facilities.ts), module 5's stock routes
- * (supabase/functions/_shared/stock.ts) and module 6's notifications routes
- * (supabase/functions/_shared/notifications.ts).
+ * (supabase/functions/_shared/stock.ts), module 6's notifications routes
+ * (supabase/functions/_shared/notifications.ts) and module 7's stock-alerts routes
+ * (supabase/functions/_shared/stock-alerts.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -718,6 +719,90 @@ export interface NotificationItem {
   readonly base_unit_key: string;
   /** Decimal text: the balance the decision left, in the item's base unit. */
   readonly on_hand: string;
+  /** Decimal text: on a low-stock notification only, the minimum it crossed (0022). */
+  readonly minimum?: string;
+}
+
+/**
+ * One item's minimum at a facility, as erp.stock_minimums() returns it (0022): its minimum
+ * in the base unit and as entered, what is on hand ("0" for an item never moved there),
+ * and whether it is at or below its minimum. Quantities are decimal TEXT.
+ */
+export interface MinimumRow {
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_kind: string;
+  readonly base_unit_key: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly item_status: 'active' | 'retired';
+  readonly minimum: string;
+  readonly on_hand: string;
+  readonly is_low: boolean;
+  readonly as_of_decision_id: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: string;
+  readonly quantity: string;
+  readonly decided_at: string;
+}
+
+export interface MinimumList {
+  readonly minimums: readonly MinimumRow[];
+  readonly next_after: string | null;
+}
+
+/** A minimum is held at one facility: every read names it, as stock's do. */
+export interface MinimumQuery {
+  readonly facilityId: string;
+  readonly lowOnly?: boolean;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+/**
+ * One decision about an item's minimum, as erp.stock_minimum_history() returns it, newest
+ * first: set, with the pack and quantity entered and the base quantity, or cleared, with
+ * none. `is_current` marks the one in force, whose id is the stamp the next decision is
+ * checked against.
+ */
+export interface MinimumDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: 'minimum_set' | 'minimum_cleared';
+  readonly item_unit_id: string | null;
+  readonly unit_key: string | null;
+  readonly factor: string | null;
+  readonly quantity: string | null;
+  readonly minimum: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly is_current: boolean;
+}
+
+export interface MinimumHistory {
+  readonly decisions: readonly MinimumDecision[];
+  readonly next_before: string | null;
+}
+
+/** A minimum, in a pack, against the stamp read: null only when the item never had one here. */
+export interface SetMinimumInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly item_unit_id: string;
+  readonly quantity: string;
+  readonly expected_decision_id: string | null;
+  readonly reason: string;
+}
+
+/** A clear names its item in the path only, and always a stamp. */
+export interface ClearMinimumInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly expected_decision_id: string;
+  readonly reason: string;
 }
 
 /** One notification, as erp.list_notifications() returns it: the reader's own. */
@@ -804,6 +889,11 @@ export interface Api {
   unreadNotifications(facilityId: string | null): Promise<Answer<number>>;
   /** Answers how many were marked: none, for ones already read, which is no error. */
   markNotificationsRead(facilityId: string | null, mark: MarkRead): Promise<Answer<number>>;
+  stockMinimums(query: MinimumQuery): Promise<Answer<MinimumList>>;
+  stockMinimumHistory(facilityId: string, itemId: string, before?: string | null): Promise<Answer<MinimumHistory>>;
+  setStockMinimum(input: SetMinimumInput): Promise<Answer<{ decision_id: string }>>;
+  /** The item cleared is the one the path names; the body names the facility and the stamp. */
+  clearStockMinimum(itemId: string, input: ClearMinimumInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -991,5 +1081,16 @@ export function createApi(config: ApiConfig): Api {
         facility_id: facilityId,
         ...('all' in mark ? { all: true } : { notification_ids: mark.notificationIds }),
       }, (b) => Number(b['marked'])),
+
+    stockMinimums: (q) =>
+      call('GET', `/stock-alerts${query({
+        facility_id: q.facilityId, low: q.lowOnly === true ? 'true' : null, after: q.after, limit: q.limit,
+      })}`, undefined, (b) => ({ minimums: b['minimums'] as MinimumRow[], next_after: text(b['next_after']) })),
+    stockMinimumHistory: (facilityId, itemId, before = null) =>
+      call('GET', `/stock-alerts/items/${encodeURIComponent(itemId)}${query({ facility_id: facilityId, before })}`, undefined,
+        (b) => ({ decisions: b['decisions'] as MinimumDecision[], next_before: text(b['next_before']) })),
+    setStockMinimum: (input) => call('POST', '/stock-alerts/minimums', input, decision),
+    clearStockMinimum: (itemId, input) =>
+      call('POST', `/stock-alerts/items/${encodeURIComponent(itemId)}/clear`, input, decision),
   };
 }

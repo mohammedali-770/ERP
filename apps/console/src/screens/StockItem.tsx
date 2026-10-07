@@ -109,7 +109,10 @@ export function StockItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       <a href="#current_stock">{t(lang, 'back')}</a>
       <header className="page-header">
         <h1><bdi dir="ltr">{item.code}</bdi> — {localName(lang, item)}</h1>
-        <div className="actions"><a className="button" href={`#items/${item.item_id}`}>{t(lang, 'items')}</a></div>
+        <div className="actions">
+          {ctx.seesStockAlerts ? <a className="button" href={`#stock_alerts/items/${item.item_id}`}>{t(lang, 'stock_minimum_link')}</a> : null}
+          <a className="button" href={`#items/${item.item_id}`}>{t(lang, 'items')}</a>
+        </div>
       </header>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       <p>

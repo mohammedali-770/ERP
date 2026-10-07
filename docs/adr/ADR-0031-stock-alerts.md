@@ -219,3 +219,47 @@ addendum). Nothing about the routes changed.
   function**, and both they and the administrator read the low-stock notification
   **through the notifications function**, at the balance left and the minimum crossed;
   a second waste while low rings nothing; then clears it. A cashier reads and sets none.
+
+## Addendum — 2026-10-07: the screens (module 7, step 3)
+
+The console reads and changes minimums through the `stock-alerts` function, at the
+warehouse or factory being worked at, as the stock screens do (ADR-0029's step 3
+addendum). Nothing about the routes changed.
+
+- **The entry, "Stock alerts",** sits under Inventory beside Current stock. It is shown
+  only to someone who may read stock alerts, stock and items where none is hidden, since
+  the list asks all three (navigation.ts, `alsoReads`). A branch or an office is told, as
+  on the stock screens, that it holds no stock record.
+- **The list (`#stock_alerts`)** shows the low ones first (A2): each item's minimum in its
+  base unit and as entered, beside what is on hand, marked Low. Unticking "Low only" lists
+  every minimum. Where the person may set minimums, an item is found by code or name, among
+  active ones only, and opened.
+- **An item's page (`#stock_alerts/items/{id}`)** shows what is on hand, the minimum in
+  force as entered, and every decision about it, newest first. Set and Clear are offered
+  where 0022 would accept them: at a warehouse or factory that is not closed, to someone
+  holding write on stock alerts there. Set is offered for an active item only; Clear only
+  while a minimum is in force.
+- **The stamp is the history's,** never the list's (stock-alerts.ts, `stampOf`): the
+  decision in force, a clearing included, or none when the item never had a minimum
+  there. A cleared minimum is set again against its clearing, which the browser run
+  shows.
+- **A minimum is the decimal text typed,** checked by 0022's own pattern, and more than
+  nothing; none is cleared. Arabic-Indic digits and the Arabic decimal separator are read.
+- **Writes go through the shared lifecycle** (write.ts): built once when the button is
+  pressed, retried as first sent, `already_recorded` shown as saved, and a stale answer
+  shown as a change someone else made, with the page reloaded.
+- **The bell** words the second kind ("Stock fell to its minimum at" and the facility's code) and shows the
+  minimum each item crossed beside the balance left. It opens the stock decision, as a
+  below-zero notification does.
+- **The stock card** links to the item's minimum, for someone who may read it.
+- **Tested** by `apps/console/test/stock-alerts.test.ts` (Node) against the migration's own
+  pattern, kinds, gates and constraints, and by a browser run against the scratch database
+  and edge. In that run the warehouse manager:
+  - reads the low list, then every minimum;
+  - raises chicken's minimum to 12 cartons;
+  - is refused a minimum of none before sending;
+  - is told by the bell when a waste takes chicken past it, and opens the waste;
+  - clears chicken's minimum, and sets the seed's cleared rice again.
+
+  The page is also read in Arabic, right to left; the factory manager sees the factory's
+  two low items; and the accountant has no entry.

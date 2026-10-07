@@ -33,6 +33,8 @@ export type Route =
   | { readonly screen: 'stock_adjust' }
   | { readonly screen: 'stock_count' }
   | { readonly screen: 'notifications' }
+  | { readonly screen: 'stock_alerts' }
+  | { readonly screen: 'stock_alert_item'; readonly itemId: string }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,6 +90,15 @@ export function parseRoute(hash: string): Route {
     if (path[1] === 'decisions') return { screen: 'stock_decision', decisionId: id.toLowerCase() };
     return unknown;
   }
+  // Minimums are the facility worked at's too (ADR-0031 A1): no route names a facility.
+  if (path[0] === 'stock_alerts') {
+    if (path.length === 1) return { screen: 'stock_alerts' };
+    const id = path[2];
+    if (path.length === 3 && path[1] === 'items' && id !== undefined && UUID.test(id)) {
+      return { screen: 'stock_alert_item', itemId: id.toLowerCase() };
+    }
+    return unknown;
+  }
   // The bell's page: the person's own, from every facility they may open.
   if (path[0] === 'notifications') return path.length === 1 ? { screen: 'notifications' } : unknown;
   if (path[0] === 'transfer_prices') {
@@ -125,6 +136,8 @@ export function formatRoute(route: Route): string {
     case 'stock_adjust': return '#current_stock/adjust';
     case 'stock_count': return '#current_stock/count';
     case 'notifications': return '#notifications';
+    case 'stock_alerts': return '#stock_alerts';
+    case 'stock_alert_item': return `#stock_alerts/items/${route.itemId}`;
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -133,6 +146,8 @@ export function formatRoute(route: Route): string {
 export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
   if (route.screen === 'notifications') return 'notifications';
+  // Before stock's: both begin `stock_`.
+  if (route.screen === 'stock_alerts' || route.screen === 'stock_alert_item') return 'stock_alerts';
   if (route.screen === 'transfer_prices' || route.screen === 'item_prices') return 'transfer_prices';
   if (route.screen === 'facilities' || route.screen.startsWith('facility')) return 'facilities';
   if (route.screen === 'current_stock' || route.screen.startsWith('stock_')) return 'current_stock';

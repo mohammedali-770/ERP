@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019 or 0020 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019, 0020 or 0022 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -134,6 +134,14 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   stock_decision_reason_is_stated: 'rule_reason_required',
   stock_decision_exists: 'rule_no_stock_decision',
   item_unit_exists: 'rule_no_pack',
+  // 0022's, for minimums. Not stock_minimum_decision_pkey, for the reason given above.
+  stock_minimum_stale: 'rule_minimum_stale',
+  stock_minimum_unchanged: 'rule_minimum_unchanged',
+  stock_minimum_not_set: 'rule_minimum_not_set',
+  stock_minimum_pack_is_retired: 'rule_minimum_pack_retired',
+  stock_minimum_is_valid: 'rule_minimum_quantity',
+  stock_minimum_inexact: 'rule_minimum_inexact',
+  stock_minimum_reason_is_stated: 'rule_reason_required',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

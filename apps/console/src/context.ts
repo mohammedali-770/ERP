@@ -35,6 +35,10 @@ export interface Ctx {
   readonly stockOverride: boolean;
   /** Whether the person may read stock here: the stock entry asks for read on items too. */
   readonly seesStock: boolean;
+  /** Whether the stock-alert screens offer changes here: at a warehouse or a factory only, as stock's (stock.ts, stockWritable). */
+  readonly stockAlertsWritable: boolean;
+  /** Whether the person may read minimums here: the entry asks for read on stock and items too. */
+  readonly seesStockAlerts: boolean;
   /** Whether the person has a bell here (notifications.ts, bellVisible). */
   readonly seesBell: boolean;
   /** Reads the bell's unread count again, after the person has marked something read. */

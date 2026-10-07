@@ -27,6 +27,7 @@ import { StockList } from './screens/StockList.tsx';
 import { StockItem } from './screens/StockItem.tsx';
 import { StockDecisionPage } from './screens/StockDecision.tsx';
 import { StockAdjust, StockCount } from './screens/StockEntry.tsx';
+import { StockAlertItem, StockAlertsList } from './screens/StockAlerts.tsx';
 import { holdsOverride, stockWritable, workingFacility } from './stock.ts';
 import { badge, bellVisible } from './notifications.ts';
 import { Notifications } from './screens/Notifications.tsx';
@@ -46,6 +47,7 @@ const SUPPLIERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id =
 const TRANSFER_PRICES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'transfer_prices')!;
 const FACILITIES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'facilities')!;
 const STOCK: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'current_stock')!;
+const STOCK_ALERTS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'stock_alerts')!;
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -260,6 +262,11 @@ export function App() {
     stockWritable: stockWritable(workingFacility(data.facilities, facilityId), viewer, (v) => itemIsWritable(STOCK, v)),
     stockOverride: holdsOverride(viewer),
     seesStock: itemIsVisible(STOCK, viewer),
+    // As stock: minimums change only AT a warehouse or a factory, where 0022 asks, and only
+    // for one who may also read the list the change is made from.
+    stockAlertsWritable: itemIsVisible(STOCK_ALERTS, viewer)
+      && stockWritable(workingFacility(data.facilities, facilityId), viewer, (v) => itemIsWritable(STOCK_ALERTS, v)),
+    seesStockAlerts: itemIsVisible(STOCK_ALERTS, viewer),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       // A form's own way out after a save asks nothing; only a real change of hash uses the pass.
@@ -387,6 +394,13 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
       case 'facility_new': return <FacilityCreate ctx={ctx} />;
       case 'facility': return <FacilityDetail ctx={ctx} targetId={route.targetId} />;
       case 'facility_edit': return <FacilityEdit ctx={ctx} targetId={route.targetId} />;
+    }
+  }
+  if (navIdOf(route) === 'stock_alerts') {
+    if (!ctx.seesStockAlerts) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'stock_alerts': return <StockAlertsList ctx={ctx} />;
+      case 'stock_alert_item': return <StockAlertItem ctx={ctx} itemId={route.itemId} />;
     }
   }
   if (navIdOf(route) === 'current_stock') {
