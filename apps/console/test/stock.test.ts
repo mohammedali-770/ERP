@@ -217,11 +217,12 @@ test('the kinds are 0020\'s, a write-off form offers only what its route records
   for (const kind of known) assert.notEqual(asKey(`stock_kind_${kind}`), null, kind);
 });
 
-test('every constraint the console words for stock is one 0020 raises, and the commonest refusals are worded', () => {
+test('every constraint the console words for stock is one 0020 or 0022 raises, and the commonest refusals are worded', () => {
   const messages = read('apps/console/src/messages.ts');
   const worded = [...messages.matchAll(/^\s+(stock_\w+): '/gm)].map((m) => m[1]!);
   assert.ok(worded.length >= 15);
-  for (const c of worded) assert.match(STOCK_MIGRATION, new RegExp(`constraint = '${c}'`), c);
+  const raised = `${STOCK_MIGRATION}\n${read('supabase/migrations/20261007000200_stock_minimums.sql')}`;
+  for (const c of worded) assert.match(raised, new RegExp(`constraint = '${c}'`), c);
   assert.doesNotMatch(messages, /stock_decision_pkey:/, 'a native collision is no "already saved"');
   for (const c of ['stock_would_go_negative', 'stock_backdated_before_count', 'stock_reversal_counted_since', 'stock_already_reversed']) {
     const m = failureMessage('en', { ok: false, http: 422, status: 'refused', message: 'm', constraint: c, detail: null, field: null });

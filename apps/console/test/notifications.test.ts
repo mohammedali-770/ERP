@@ -11,6 +11,8 @@ import { toViewer } from '../src/viewer.ts';
 const root = new URL('../../../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
 const MIGRATION = read('supabase/migrations/20261006000200_notifications.sql');
+// 0022 widens 0021's kinds (module 7): the latest check is the authority.
+const MINIMUMS = read('supabase/migrations/20261007000200_stock_minimums.sql');
 const EDGE = read('supabase/functions/_shared/notifications.ts');
 const APP = read('apps/console/src/App.tsx');
 const SCREEN = read('apps/console/src/screens/Notifications.tsx');
@@ -183,9 +185,10 @@ test('the bell\'s door is 0021\'s capability, asked as its routes ask it: hidden
   assert.match(APP, /route\.screen === 'notifications'\) \{\n\s+return ctx\.seesBell \?/, 'a typed URL meets the same answer');
 });
 
-test('every kind 0021 knows has words, and the bell\'s route parses and formats both ways', () => {
-  const known = /constraint notification_kind_is_known check \(kind in \(([^)]*)\)\)/.exec(MIGRATION);
-  assert.ok(known !== null);
+test('every kind the database knows has words, and the bell\'s route parses and formats both ways', () => {
+  const checks = [...`${MIGRATION}\n${MINIMUMS}`.matchAll(/constraint notification_kind_is_known\s+check \(kind in \(([^)]*)\)\)/g)];
+  assert.equal(checks.length, 2, '0021 declares it, 0022 widens it');
+  const known = checks[checks.length - 1]!;
   const kinds = [...known[1]!.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
   assert.deepEqual(kinds, [...NOTIFICATION_KINDS]);
   for (const k of kinds) assert.notEqual(asKey(`notif_${k}`), null, k);

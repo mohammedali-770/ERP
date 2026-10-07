@@ -22,7 +22,11 @@
  * an unattended console signed in for good, past the 30 minutes idle that should end it
  * (found designing this step; ADR-0030 question 2).
  *
- * Requirements: SUP-006 · SUP-007 · SUP-P01 · SUP-P02 · SUP-P03 · PRG-014
+ * A LOW-STOCK NOTIFICATION (0022, module 7) opens as a below-zero one does: the stock
+ * decision that took the item across, at the facility it happened at. Its items carry the
+ * minimum they crossed, shown beside the balance left.
+ *
+ * Requirements: SUP-006 · SUP-007 · SUP-P01 · SUP-P02 · SUP-P03 · SUP-P04 · PRG-014
  */
 import type { MarkRead, Notification, ViewerFacility } from './api.ts';
 import { asKey, type Key } from './i18n.ts';
@@ -84,7 +88,7 @@ export type Target =
   | { readonly kind: 'none'; readonly reason: 'elsewhere' | 'unsupported' };
 
 export function openTarget(n: Notification, workingAt: string | null, facilities: readonly ViewerFacility[]): Target {
-  if (n.kind !== 'stock_below_zero' || n.stock_decision_id === null) return { kind: 'none', reason: 'unsupported' };
+  if (!STOCK_DECISION_KINDS.has(n.kind) || n.stock_decision_id === null) return { kind: 'none', reason: 'unsupported' };
   const route: Route = { screen: 'stock_decision', decisionId: n.stock_decision_id };
   if (n.facility_id === workingAt) return { kind: 'here', route };
   const facility = facilities.find((f) => f.facility_id === n.facility_id);
@@ -92,7 +96,10 @@ export function openTarget(n: Notification, workingAt: string | null, facilities
 }
 
 /** The kinds the console has words for; another kind is shown by its key, not hidden. */
-export const NOTIFICATION_KINDS = ['stock_below_zero'] as const;
+export const NOTIFICATION_KINDS = ['stock_below_zero', 'stock_low'] as const;
+
+/** The kinds about a stock decision, which open it (0021, 0022): both name one, by notification_names_its_source. */
+const STOCK_DECISION_KINDS: ReadonlySet<string> = new Set(['stock_below_zero', 'stock_low']);
 
 /**
  * The words for a kind, only for a kind the console knows: a kind named like another
