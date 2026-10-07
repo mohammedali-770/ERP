@@ -592,7 +592,7 @@ three warns, records nothing and still counts as applied, so it never runs again
 hosted project's migrations applied before module 4 has made the warehouse would lose
 every held pilot with only a warning (ADR-0031's step 6 addendum).
 
-Module 8's switch-on (2026-10-07, ADR-0032's step 6 addendum) is a fourth, for purchase
+Module 8's switch-on (2026-10-07, closed PR #63, ADR-0032's step 6 addendum) is a fourth, for purchase
 orders and their approval limit at the same warehouse, after stock's: dated after 0023, it
 too needs a later timestamp than stock's when that comes back. It makes the warehouse's
 existence a precondition of its own, and refuses in words a state already recorded there.

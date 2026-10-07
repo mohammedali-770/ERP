@@ -388,6 +388,10 @@ a count, and the two races.
 
 ## Addendum — 2026-10-07: the switch-on, drafted and held (module 8, step 6)
 
+**Not on `main`.** The migration was drafted in pull request #63, which the owner closed
+for now (2026-10-07); it is kept there, at commit `4ba55a5`, and comes back as a new pull
+request once the preconditions below hold.
+
 The migration, `20261007000500_purchase_orders_pilot_at_central_warehouse.sql`, records two
 capability decisions: `procurement.purchase_orders` and `procurement.purchase_limits`, each
 at `pilot` at the central warehouse, and nowhere else. It is drafted and held unmerged, as
