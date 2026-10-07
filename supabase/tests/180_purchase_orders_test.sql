@@ -20,7 +20,7 @@
 -- Fixture ids are …0e23NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(111);
+select plan(115);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -313,6 +313,15 @@ select is(pg_temp.refusal($$ select pg_temp.large('e2321', 'e2301', '900') $$,
 select is(pg_temp.after($$ select pg_temp.state('e2301') $$, $$ select pg_temp.large('e2321', 'e2301', '900') $$,
                         $$ select pg_temp.decide('e2331', 'e2301', 'order_cancelled', '900') $$),
   'cancelled', 'whoever raised an order may cancel it');
+select is(pg_temp.after($$ select pg_temp.state('e2301') $$,
+  $$ select pg_temp.set_limit('e2371', '404', 300000, null, '900') $$,
+  $$ select pg_temp.raise('e2321', 'e2301', jsonb_build_array(pg_temp.line('4201', '1', 100)), '900', '404') $$),
+  'pending', 'CONTROL: a limit set by whoever raises the order does not approve it, or they would approve their own (PRC-004)');
+select is(pg_temp.refusal($$ select erp.change_supplier_status(pg_temp.u('e2381'), pg_temp.u('5101'),
+                               (select s.as_of_decision_id from erp.supplier s where s.supplier_id = pg_temp.u('5101')),
+                               'retired', 'testing', pg_temp.u('900'), now()) $$,
+                          $$ select pg_temp.decide('e2331', '5901', 'order_approved') $$),
+  '23001 supplier_admits_no_new_work', 'an order from a supplier retired since is not approved: that commits to buy from it');
 select is(pg_temp.refusal($$ select pg_temp.decide('e2331', '5903', 'order_approved') $$),
   '23001 purchase_order_not_pending', 'an order already approved is not approved again');
 select is(pg_temp.refusal($$ select pg_temp.decide('e2331', '5904', 'order_cancelled', '904') $$),
@@ -346,8 +355,12 @@ select is(pg_temp.after(
        join erp.stock_ledger e on e.decision_id = d.decision_id
       where d.decision_id = pg_temp.u('e2341') $$,
   $$ select pg_temp.receive('e2341', '5902', jsonb_build_array(pg_temp.rl(1, '5')), '904', '403', null, 'DN-1001') $$),
-  'receipt Received against WH-001-PO-20260930-0002, delivery note DN-1001 DN-1001 in',
-  'a receipt is a stock decision of kind receipt, inward, naming the order and the delivery note');
+  'receipt Received against a purchase order DN-1001 in',
+  'a receipt is a stock decision of kind receipt, inward; its reason names no order, which a stock reader need not read');
+select is(pg_temp.after(
+  $$ select (r.order_decision_id = pg_temp.u('6006'))::text from erp.purchase_receipt r where r.decision_id = pg_temp.u('e2341') $$,
+  $$ select pg_temp.receive('e2341', '5903', jsonb_build_array(pg_temp.rl(1, '1'))) $$),
+  'true', 'a receipt names the order''s decision in force when it arrived: the approval');
 select is(pg_temp.after($$ select pg_temp.shown('5902') $$,
   $$ select pg_temp.receive('e2341', '5902', jsonb_build_array(pg_temp.rl(1, '20'), pg_temp.rl(2, '10'))) $$),
   'approved full 20/0,10/0', 'every line in full: received in full, still approved');
@@ -375,7 +388,7 @@ select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902', jsonb_build
   '23514 stock_quantity_is_valid', 'nothing does not arrive');
 select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902',
                                jsonb_build_array(pg_temp.rl(1, '1') || jsonb_build_object('item_unit_id', pg_temp.u('4225')))) $$),
-  '23514 purchase_receipt_lines_are_stated', 'CONTROL: a receipt line cannot name another pack: it arrives in the one ordered');
+  '23514 purchase_receipt_lines_are_stated', 'a receipt line carries no pack: it arrives in the one ordered');
 select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902', jsonb_build_array(jsonb_build_object('line_no', '1', 'quantity', '1'))) $$),
   '23514 purchase_receipt_lines_are_stated', 'a line number is a number');
 select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902', jsonb_build_array(pg_temp.rl(1, '1')), '907') $$),
@@ -457,6 +470,11 @@ select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902', jsonb_build
 select is(pg_temp.refusal($$ select pg_temp.receive('e2341', '5902', jsonb_build_array(pg_temp.rl(1, '5'))) $$,
                           $$ select pg_temp.decide('e2331', '5902', 'order_cancelled', '904') $$),
   '23001 purchase_order_has_receipts', 'CONTROL: an order with goods received is not cancelled');
+select is(pg_temp.after($$ select pg_temp.shown('5902') $$,
+  $$ select pg_temp.receive('e2341', '5902', jsonb_build_array(pg_temp.rl(1, '5'))) $$,
+  $$ select pg_temp.reverse('e2351', 'e2341') $$,
+  $$ select pg_temp.decide('e2331', '5902', 'order_cancelled', '904') $$),
+  'cancelled none 0/20,0/10', 'once its receipts are reversed, it is');
 
 -- ---------------------------------------------------------------------------
 -- Guards — they bind the owner too

@@ -891,7 +891,8 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
       'order approved when raised was within a limit set at its facility, before VAT; every other ' +
       'approval or rejection was by someone other than whoever raised it (PRC-004), of an order then ' +
       'pending. Approved by a limit or a person, an order\'s amounts are a commitment others read, so ' +
-      'one that drifted from its record would be a commitment nobody made.',
+      'one that drifted from its record would be a commitment nobody made. A limit set by whoever ' +
+      'raised the order does not approve it, and the log moves only forward, as the projection\'s guard does.',
     sql: `select 'order ' || o.number || ' does not equal its raise' as violation
           from erp.purchase_order o
           join erp.purchase_order_decision r on r.decision_id = o.raised_decision_id
@@ -938,7 +939,16 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           left join erp.purchase_limit_decision m on m.decision_id = r.limit_decision_id
           where r.state = 'approved'
             and (m.decision_id is null or m.kind <> 'limit_set' or m.facility_id <> o.facility_id
-                 or o.subtotal_minor > m.limit_minor)
+                 or o.subtotal_minor > m.limit_minor or m.actor_id = o.raised_by)
+          union all
+          select 'order ' || o.number || ' went from ' || coalesce(p.state, 'nothing') || ' to ' || d.state
+          from erp.purchase_order o
+          join erp.purchase_order_decision d on d.purchase_order_id = o.purchase_order_id and d.kind <> 'order_raised'
+          left join lateral (select x.state from erp.purchase_order_decision x
+                              where x.purchase_order_id = d.purchase_order_id and x.seq < d.seq
+                              order by x.seq desc limit 1) p on true
+          where not ((p.state = 'pending' and d.state in ('approved', 'rejected', 'cancelled'))
+                     or (p.state = 'approved' and d.state in ('cancelled', 'closed')))
           union all
           select 'order ' || o.number || ' was ' || d.state || ' by whoever raised it, or when it was not pending'
           from erp.purchase_order o
@@ -957,8 +967,10 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
       'reversed, so it is only as true as the binding between a receipt and the stock it posted. Keys ' +
       'bind each receipt line to its ledger line and its order line; these are the rules no key can ' +
       'state: every receipt decision has its receipt and every ledger line of one its receipt line, ' +
-      'nothing arrives against an order that was not approved, and no order line has received more ' +
-      'than it ordered. Asked again after the two-session probes, where two receipts raced one line.',
+      'every receipt arrived while its order was approved — the decision in force it names, read under ' +
+      'the order\'s lock — and none still stands against an order since cancelled or rejected, and no ' +
+      'order line has received more than it ordered. Asked again after the two-session probes, where ' +
+      'two receipts raced one line.',
     sql: `select 'stock decision ' || d.decision_id || ' is a receipt against no order' as violation
           from erp.stock_decision d
           where d.kind = 'receipt' and not exists (select 1 from erp.purchase_receipt r where r.decision_id = d.decision_id)
@@ -968,12 +980,16 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           where e.kind = 'receipt'
             and not exists (select 1 from erp.purchase_receipt_line r where r.decision_id = e.decision_id and r.line_no = e.line_no)
           union all
-          select 'receipt ' || r.decision_id || ' is against ' || o.number || ', which is ' || o.state
+          select 'receipt ' || r.decision_id || ' still stands against ' || o.number || ', which is ' || o.state
           from erp.purchase_receipt r join erp.purchase_order o on o.purchase_order_id = r.purchase_order_id
           where o.state not in ('approved', 'closed')
-             or exists (select 1 from erp.purchase_order_decision c
-                         where c.purchase_order_id = o.purchase_order_id and c.kind = 'order_closed'
-                           and c.recorded_at < (select sd.recorded_at from erp.stock_decision sd where sd.decision_id = r.decision_id))
+            and not exists (select 1 from erp.stock_decision v where v.reverses_decision_id = r.decision_id)
+          union all
+          select 'receipt ' || r.decision_id || ' arrived while ' || o.number || ' was ' || d.state
+          from erp.purchase_receipt r
+          join erp.purchase_order o on o.purchase_order_id = r.purchase_order_id
+          join erp.purchase_order_decision d on d.decision_id = r.order_decision_id
+          where d.state <> 'approved'
           union all
           select 'order ' || o.number || ' line ' || l.line_no || ' has received more than it ordered'
           from erp.purchase_order o

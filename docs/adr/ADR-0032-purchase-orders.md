@@ -82,7 +82,10 @@ facility's time zone, of the moment the order is raised: Q-22's answer for stock
 facility, as 0022's minimums are: set or cleared, with who, when and why, against the stamp
 the person read. A limit is more than nothing; to have none, so that every order waits,
 it is cleared. It is its own capability, **`procurement.purchase_limits`**, because whoever
-approves orders must not be able to raise the limit that approves without them.
+approves orders must not be able to raise the limit that approves without them. **A limit
+does not approve an order raised by the person who set it** (found in review): whoever holds
+both, as a real database's administrator does, would otherwise set a limit and raise within
+it, approving their own order. Such an order waits for an approver.
 
 ### 5. Four order routes and two limit routes
 
@@ -104,8 +107,10 @@ a retry first, on its log's primary key.
 - **`erp.decide_purchase_order()`** approves or rejects (asking approve) or cancels or
   closes (asking write). It locks the order. Approving or rejecting needs a pending order
   and someone other than whoever raised it. Cancelling needs nothing received; closing
-  needs something received and something still to come. Only approving is new work at the
-  facility, so only it waits on the facility being open.
+  needs something received and something still to come; once every receipt is reversed, an
+  order is cancelled again. Only approving is new work, so only it waits on the facility
+  being open and asks that the supplier is still active (found in review): approving
+  commits the company to buy from it.
 - **`erp.receive_purchase_order()`** asks write on orders **and on stock**, since it moves
   stock. It locks the order, then posts through 0020's `erp.post_stock()` as a stock
   decision of kind **receipt**, so D1 to D4 hold for it unchanged: the facility's calendar
@@ -113,12 +118,18 @@ a retry first, on its log's primary key.
   Lines are `{line_no, quantity}`, in the order line's own pack, never more than is still
   to come, read under the order's lock (db:check races two). Goods are received after the
   order was raised. `erp.purchase_receipt` and its lines bind each receipt line by key to
-  the ledger line it posted and to the order line it fills.
+  the ledger line it posted and to the order line it fills, and the receipt names the
+  order's decision in force when it arrived, read under the order's lock, so db-check can
+  hold that every receipt arrived while its order was approved. Its stock reason is fixed,
+  "Received against a purchase order", and names no order: a stock reader need not read
+  orders; the order and the delivery note are on the receipt.
 - **`erp.reverse_purchase_receipt()`** asks the same, locks the order, and posts 0020's
-  reversal. A closed order's receipt is reversed too, and the order stays closed.
+  reversal. A closed order's receipt is reversed too, and the order stays closed, so a
+  closed order can come to show nothing received, which the close route would not make.
 - **`erp.set_purchase_limit()` and `erp.clear_purchase_limit()`** ask write on limits.
 
-Lock order is the order's row, then the seam's locks, on every path, so none deadlocks.
+Lock order is the decision id's lock, the order's row, then the seam's locks, on every path,
+so none deadlocks.
 
 ### 6. 0020's seam, widened
 
@@ -126,14 +137,17 @@ The receipt is the kind 0020 named to come (I-10). `stock_decision`'s kind check
 and the ledger a check that a receipt is inward. `erp.post_stock()` is replaced whole with
 two changes: a receipt's lines are inward, and a receipt may be reversed.
 `erp.reverse_stock_decision()` is replaced to refuse a receipt: it is reversed through its
-order, which asks purchasing's permission too and keeps the order's knowledge true.
+order, which asks purchasing's permission too and keeps the order's knowledge true. It asks
+again after the seam has read its target, so a receipt that committed while it waited is
+refused too (found in review).
 
 ### 7. Three reads
 
 `erp.purchase_orders()` lists one facility's orders, newest first, optionally in one state,
 each with how much has arrived: none, part or all. `erp.get_purchase_order()` gives one
 order whole: its lines with what each has received and has still to come, every decision,
-and every receipt with its reversal. `erp.purchase_limit_history()` gives a facility's
+and every receipt with who reversed it and when — not the reversal's reason, which is
+stock's, for readers of stock. `erp.purchase_limit_history()` gives a facility's
 limits, newest first, marking the one in force. Each names one facility, as stock's do.
 
 ### 8. Hidden, as every module ships
@@ -163,7 +177,8 @@ and adding one would change who every stock bell rings for.
 
 1. **Who raises, approves and receives orders, and who sets limits, in a real database?**
    The seed's answer is the managers where they hold stock, and an approver who raises
-   nothing. With only the administrator, nobody can approve their orders.
+   nothing. With only the administrator, nobody can approve their orders, by hand or by a
+   limit they set. Orders split to stay under a limit are not caught: should they be?
 2. **Should a pending order be editable,** against the stamp read, or is cancelling and
    raising again enough? The warehouse let raw-material orders be edited, warehouse orders
    never.
@@ -176,13 +191,15 @@ and adding one would change who every stock bell rings for.
 8. **Who is told,** and of what: an order waiting for approval, a decision, a receipt?
 9. **Where do the daily sheet's cash purchases go?** The default is module 15, as receipts
    with no order.
-10. **Should a receipt dated before its order was raised be refused,** as it is now?
+10. **Should a receipt dated before its order was raised be refused,** as it is now? And one
+    dated before the order was approved, which is taken now: goods sometimes arrive on a
+    phoned approval before it is recorded.
 
 ## Consequences
 
 - **One kind of order** serves the warehouse and the factory, for any item kind.
-- **Approval cannot be dodged** by the VAT rate, and is always someone else's, or the
-  limit's, recorded either way.
+- **Approval cannot be dodged** by the VAT rate, and is always someone else's, or a limit
+  someone else set, recorded either way.
 - **A receipt is a stock movement,** so everything stock guarantees holds for it, and the
   stock card shows it.
 - **A mistaken receipt is undone,** whole, and the order knows.

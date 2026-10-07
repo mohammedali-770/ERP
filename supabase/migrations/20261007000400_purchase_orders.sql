@@ -341,6 +341,10 @@ create table erp.purchase_receipt (
   occurred_at       timestamptz not null,
   business_date     date        not null,
   purchase_order_id uuid        not null,
+  -- The order's decision in force when the goods were received, read under its row lock: an
+  -- approval, or the raise that the limit approved. db-check holds that it put the order in
+  -- the approved state, so no receipt is ever against an order then closed or cancelled.
+  order_decision_id uuid        not null,
   -- The supplier's delivery note number, as printed. Optional.
   delivery_note     text
     constraint purchase_receipt_delivery_note_is_canonical check (
@@ -349,7 +353,9 @@ create table erp.purchase_receipt (
     references erp.stock_decision (decision_id, kind, facility_id, occurred_at, business_date),
   constraint purchase_receipt_is_for_an_order_here foreign key (purchase_order_id, facility_id)
     references erp.purchase_order (purchase_order_id, facility_id),
-  constraint purchase_receipt_of_order unique (decision_id, purchase_order_id)
+  constraint purchase_receipt_of_order unique (decision_id, purchase_order_id),
+  constraint purchase_receipt_while_approved foreign key (order_decision_id, purchase_order_id)
+    references erp.purchase_order_decision (decision_id, purchase_order_id)
 );
 
 comment on table erp.purchase_receipt is
@@ -458,9 +464,9 @@ create trigger purchase_limit_never_truncated
 -- 0020's seam, widened to receipts — and the stock route, kept from reversing one
 -- ---------------------------------------------------------------------------
 
--- Replaced whole, as 0022 replaced 0021's functions; 0020 itself is unchanged. Two changes,
--- marked RECEIPT: a receipt's lines are inward, and a receipt may be reversed. Every rule a
--- receipt meets is 0020's, in 0020's order and words.
+-- Replaced whole, as 0022 replaced 0021's functions; 0020 itself is unchanged. Three changes,
+-- marked RECEIPT: the kind, a receipt's lines inward, and a receipt reversible. Every rule a
+-- receipt meets is 0020's, in 0020's order and words; 0020 explains each step.
 create or replace function erp.post_stock(
   p_decision_id     uuid,
   p_kind            text,
@@ -849,6 +855,13 @@ begin
   end if;
   perform erp.post_stock(p_decision_id, 'reversal', p_facility_id, null, null, p_target_decision_id,
                          p_reason, p_override_reason, p_actor_id, p_decided_at);
+  -- Asked again once the seam has read its target: a receipt that committed after the check
+  -- above, while this waited, is not reversed here either (found in review).
+  if exists (select 1 from erp.stock_decision d where d.decision_id = p_target_decision_id and d.kind = 'receipt') then
+    raise exception 'a receipt is reversed from its purchase order'
+      using errcode = 'restrict_violation', constraint = 'stock_receipt_reversed_through_its_order',
+            hint = 'Open the purchase order and reverse the receipt there, so the order knows the goods are not in.';
+  end if;
 end;
 $$;
 
@@ -1162,14 +1175,17 @@ begin
   end if;
   v_vat := round(v_subtotal * p_vat_rate_bp / 10000)::bigint;
 
-  -- P3: the limit in force here, held while the order is judged against it.
+  -- P3: the limit in force here, held while the order is judged against it. A limit set by
+  -- the person raising the order does not approve it: else whoever holds both would set a
+  -- limit and raise within it, approving their own order (PRC-004; found in review).
   select * into lim from erp.purchase_limit x where x.facility_id = f.facility_id for share;
-  if lim.limit_minor is not null and v_subtotal <= lim.limit_minor then
+  if lim.limit_minor is not null and v_subtotal <= lim.limit_minor
+     and (select d.actor_id from erp.purchase_limit_decision d where d.decision_id = lim.as_of_decision_id) <> p_actor_id then
     v_state := 'approved';
     v_limit_id := lim.as_of_decision_id;
   end if;
 
-  -- The number: the facility's next of its business day, under a lock per facility and day,
+  -- The number: the facility's next of its business day, under a lock per facility,
   -- so two orders raised at once take consecutive numbers rather than one. The day is read
   -- once the lock is held, so an order that waited past midnight is numbered in its own day.
   perform pg_advisory_xact_lock(hashtextextended('erp.purchase_order_number:' || f.facility_id::text, 0));
@@ -1250,8 +1266,11 @@ begin
   o := erp.lock_purchase_order(p_purchase_order_id, p_facility_id);
   -- Approving is new work at the facility; stopping an order is not, so it is never kept
   -- waiting on a facility's closure.
+  -- and on its supplier being active: approving commits the company to buy from it
+  -- (ADR-0026; found in review). Rejecting, cancelling and closing never wait on either.
   if p_kind = 'order_approved' then
     perform erp.assert_facility_open(p_facility_id);
+    perform erp.assert_supplier_active(o.supplier_id);
   end if;
 
   v_state := case p_kind when 'order_approved' then 'approved' when 'order_rejected' then 'rejected'
@@ -1417,12 +1436,15 @@ begin
   end loop;
 
   perform erp.post_stock(p_decision_id, 'receipt', p_facility_id, p_received_at, v_stock, null,
-                         'Received against ' || o.number || coalesce(', delivery note ' || v_note, ''),
+                         -- Fixed, and naming no order: a stock reader need not read orders. The
+                         -- order and the delivery note are on erp.purchase_receipt.
+                         'Received against a purchase order',
                          null, p_actor_id, p_decided_at);
   select * into d from erp.stock_decision x where x.decision_id = p_decision_id;
 
-  insert into erp.purchase_receipt (decision_id, facility_id, occurred_at, business_date, purchase_order_id, delivery_note)
-  values (d.decision_id, d.facility_id, d.occurred_at, d.business_date, o.purchase_order_id, v_note);
+  insert into erp.purchase_receipt (decision_id, facility_id, occurred_at, business_date, purchase_order_id,
+                                    order_decision_id, delivery_note)
+  values (d.decision_id, d.facility_id, d.occurred_at, d.business_date, o.purchase_order_id, o.as_of_decision_id, v_note);
   -- post_stock numbers its ledger lines in the order given, which is this order.
   insert into erp.purchase_receipt_line (decision_id, line_no, purchase_order_id, order_line_no, item_unit_id, quantity)
   select d.decision_id, x.n, o.purchase_order_id, x.ln, x.unit, x.qty
@@ -1433,7 +1455,8 @@ $$;
 -- A receipt recorded by mistake, undone whole, once, before any count has covered it (P4,
 -- ADR-0029 §5): its stock goes back out — by an override with a reason, where the goods have
 -- since been used — and the order's lines are open again. Allowed on a closed order too: the
--- goods did not come, and the rest still will not.
+-- goods did not come, and the rest still will not; reversing every receipt leaves a closed
+-- order with nothing received, which the close route itself would refuse to make.
 create or replace function erp.reverse_purchase_receipt(
   p_decision_id         uuid,
   p_facility_id         uuid,
@@ -1689,7 +1712,7 @@ begin
                    'decision_id', pr.decision_id, 'occurred_at', sd.occurred_at, 'business_date', sd.business_date,
                    'delivery_note', pr.delivery_note, 'actor_id', sd.actor_id, 'decided_at', sd.decided_at,
                    'recorded_at', sd.recorded_at, 'reversed_by_decision_id', rv.decision_id,
-                   'reversal_reason', rv.reason, 'reversed_by', rv.actor_id,
+                   'reversed_by', rv.actor_id, 'reversed_at', rv.decided_at,
                    'lines', (select jsonb_agg(jsonb_build_object('order_line_no', rl.order_line_no,
                                                                  'quantity', trim_scale(rl.quantity)::text)
                                               order by rl.line_no)
