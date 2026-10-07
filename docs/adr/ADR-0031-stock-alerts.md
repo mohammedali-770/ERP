@@ -285,7 +285,7 @@ the refusals of none and of the minimum already in force, a minimum raised to wh
 hand ringing nothing, only an item's current packs offered, the bell for the person who
 moved the stock and for the administrator, once per drop, both kinds for one override,
 one notification naming both items one entry took low, the factory manager told only of
-the factory, Retry after a lost connection recording once, the accountant and the cashier
+the factory, the form locking after a cut connection and Retry recording once, the accountant and the cashier
 told nothing, and the Arabic page. The participant's part ran in a browser; the second
 computer's entries, and the participant's own movements, were posted through the same
 database routes the screens call. A separate run worked every person's part through the
@@ -294,7 +294,10 @@ screens, both languages included, and found the same figures.
 Two clauses are not shown, and the pack says so: nobody in the test data reads stock and
 items without stock alerts, so the alerts permission's part in who is told is held by
 pgTAP 170 alone; and a history names only the person signed in, so who made another's
-change is held there too.
+change is held there too. A third the pack names under Part 9: the connection is cut
+before a change is sent, so a retry of a change already saved, whose answer alone was
+lost, is held by `db:check`'s two-session retry probes and the edge's tests, not by the
+session.
 
 A count past a minimum is not in the session: the database's own tests hold it, and it
 is question C.

@@ -233,6 +233,13 @@ the session's staff will meet.
 | 9.1 | The participant, working at the central warehouse, opens the chicken breast. The observer cuts the participant's network, and the participant sets a minimum of 13 cartons, with a reason | Told the server did not answer, so the change may or may not have been saved, with Retry and Start over; the form is locked |
 | 9.2 | The observer restores the network, and the participant presses Retry | Saved: "Minimum: 130 Kilogram · 13 Carton". The history shows it once |
 
+Cut before the change is sent, the first attempt never reaches the server, so this part
+shows the form locking while the answer is in doubt and Retry sending the change, not a
+retry of a change already saved. That case, where the server records the change and only
+its answer is lost, cannot be timed by hand: `db:check` holds it with two real sessions
+sending one decision, and the edge's tests hold that the second is answered as already
+recorded.
+
 ## Part 10 · Never told (accountant, cashier)
 
 | # | Task | Passes when |
