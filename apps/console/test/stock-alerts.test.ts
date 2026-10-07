@@ -187,6 +187,8 @@ test('the screens read and write only at the facility worked at, and every write
   assert.match(SCREEN, /if \(unitId !== '' && !packs\.some\(\(u\) => u\.item_unit_id === unitId\)\) setUnitId\(''\);/,
     'a pack retired since the form opened is never left chosen');
   assert.match(SCREEN, /setReloading\(true\);\s+void load\(\);/, 'after a write the forms wait for the reload');
+  assert.match(SCREEN, /\{reloading && failure !== null\s+\? <button type="button" onClick=\{\(\) => \{ setFailure\(null\); void load\(\); \}\}>/,
+    'and a reload that failed can be asked again, the forms still withdrawn');
   assert.match(SCREEN, /if \(mine !== generation\.current\) return;/, 'an older page asked before a reload is dropped');
   assert.match(EDGE, /POST  \/stock-alerts\/minimums/);
 });

@@ -345,7 +345,11 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         )}
       </p>
 
-      {reloading ? <Loading lang={lang} /> : null}
+      {/* A reload that failed keeps the forms withdrawn, their stamp being unknown, and offers
+          the reload again: without it they stayed away until the page was left (found in review). */}
+      {reloading && failure !== null
+        ? <button type="button" onClick={() => { setFailure(null); void load(); }}>{t(lang, 'reload')}</button>
+        : reloading ? <Loading lang={lang} /> : null}
       {writable && !reloading && item.status === 'active'
         ? <SetMinimum ctx={ctx} item={item} facilityId={place.facility.facility_id} stamp={stamp} onDone={afterWrite} /> : null}
       {writable && !reloading && current !== null && stamp !== null
