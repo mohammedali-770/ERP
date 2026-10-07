@@ -563,6 +563,44 @@ export const ASSERTIONS: readonly Assertion[] = [
               and t.tgnewtable = 'new_rows' and t.tgoldtable = 'old_rows')`,
   },
   {
+    id: 'purchase-guard-triggers-exist',
+    title: 'erp.purchase_order and erp.purchase_limit carry their guards, and an order\'s lines and receipts refuse every change',
+    because:
+      'I-8, B-11, ADR-0032: an order is fixed as raised and its state moves only forward, a limit stays ' +
+      'its facility\'s and is cleared, never deleted, and an order\'s lines, its receipts and their lines ' +
+      'are written once — only because 0023\'s triggers say so, binding the owner too. The two logs are ' +
+      'covered by every-decision-log-is-append-only; these four tables are not logs by name, so they are ' +
+      'named here. A consistent seed passes with any of them gone.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.purchase_order'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.purchase_order_is_fixed()'::regprocedure),
+                  ('erp.purchase_order'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.purchase_order_is_fixed()'::regprocedure),
+                  ('erp.purchase_limit'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.purchase_limit_is_fixed()'::regprocedure),
+                  ('erp.purchase_limit'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.purchase_limit_is_fixed()'::regprocedure),
+                  ('erp.purchase_order_line'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure),
+                  ('erp.purchase_order_line'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure),
+                  ('erp.purchase_receipt'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure),
+                  ('erp.purchase_receipt'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure),
+                  ('erp.purchase_receipt_line'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure),
+                  ('erp.purchase_receipt_line'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger',
+                   'erp.purchase_record_is_fixed()'::regprocedure)
+               ) as x(rel, mask, row_bit, what, fn)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = x.fn
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -770,7 +808,7 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           union all
           select 'reversal ' || d.decision_id || ' reverses a ' || t.kind
           from erp.stock_decision d join erp.stock_decision t on t.decision_id = d.reverses_decision_id
-          where t.kind not in ('adjustment', 'waste', 'damage', 'expiry')
+          where t.kind not in ('adjustment', 'waste', 'damage', 'expiry', 'receipt')
           union all
           select 'reversal ' || d.decision_id || ' does not mirror ' || d.reverses_decision_id || ' whole'
           from erp.stock_decision d
@@ -841,6 +879,126 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
                                        or (cd.moment_stated
                                            and e.occurred_at >= date_trunc('minute', c.occurred_at)
                                            and e.occurred_at < date_trunc('minute', c.occurred_at) + interval '1 minute'))`,
+  },
+  {
+    id: 'purchase-orders-match-their-decisions',
+    title: 'every purchase order is what its raise recorded, in the state its latest decision put in force, decided by the rules',
+    because:
+      'I-8, ADR-0032: an order\'s facts must EQUAL its raise — supplier, number, day, VAT rate and ' +
+      'amounts — and its state and stamp its latest decision. Its subtotal is its lines\' amounts, its ' +
+      'VAT the rate on the subtotal rounded to the halala, its number its facility\'s code and business ' +
+      'day, which is the date it was raised there. Each line orders a pack its supplier supplies. P3: an ' +
+      'order approved when raised was within a limit set at its facility, before VAT; every other ' +
+      'approval or rejection was by someone other than whoever raised it (PRC-004), of an order then ' +
+      'pending. Approved by a limit or a person, an order\'s amounts are a commitment others read, so ' +
+      'one that drifted from its record would be a commitment nobody made.',
+    sql: `select 'order ' || o.number || ' does not equal its raise' as violation
+          from erp.purchase_order o
+          join erp.purchase_order_decision r on r.decision_id = o.raised_decision_id
+          where (r.kind, r.purchase_order_id, r.facility_id, r.supplier_id, r.number, r.business_date, r.day_seq,
+                 r.currency, r.vat_rate_bp, r.subtotal_minor, r.vat_minor, r.total_minor, r.actor_id)
+                is distinct from
+                ('order_raised', o.purchase_order_id, o.facility_id, o.supplier_id, o.number, o.business_date, o.day_seq,
+                 o.currency, o.vat_rate_bp, o.subtotal_minor, o.vat_minor, o.total_minor, o.raised_by)
+          union all
+          select 'order ' || o.number || ' is not in the state of its latest decision'
+          from erp.purchase_order o
+          join erp.purchase_order_decision d on d.decision_id = o.as_of_decision_id
+          where d.state <> o.state
+             or exists (select 1 from erp.purchase_order_decision l
+                         where l.purchase_order_id = o.purchase_order_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' is about no order at its facility'
+          from erp.purchase_order_decision d
+          where not exists (select 1 from erp.purchase_order o
+                             where o.purchase_order_id = d.purchase_order_id and o.facility_id = d.facility_id)
+          union all
+          select 'order ' || o.number || '''s amounts are not its lines'''
+          from erp.purchase_order o
+          where o.subtotal_minor <> (select coalesce(sum(l.amount_minor), -1) from erp.purchase_order_line l
+                                      where l.purchase_order_id = o.purchase_order_id)
+             or o.vat_minor <> round(o.subtotal_minor::numeric * o.vat_rate_bp / 10000)
+             or o.total_minor <> o.subtotal_minor + o.vat_minor
+          union all
+          select 'order ' || o.number || ' is not numbered by its facility and day'
+          from erp.purchase_order o join erp.facility f on f.facility_id = o.facility_id
+          where o.business_date <> (o.raised_at at time zone f.tz_name)::date
+             or o.number <> f.code || '-PO-' || to_char(o.business_date, 'YYYYMMDD') || '-'
+                             || lpad(o.day_seq::text, greatest(4, length(o.day_seq::text)), '0')
+          union all
+          select 'order ' || o.number || ' line ' || l.line_no || ' orders a pack its supplier does not supply'
+          from erp.purchase_order o
+          join erp.purchase_order_line l on l.purchase_order_id = o.purchase_order_id
+          join erp.supplier_item si on si.supplier_item_id = l.supplier_item_id
+          where si.supplier_id <> o.supplier_id or si.item_unit_id <> l.item_unit_id
+          union all
+          select 'order ' || o.number || ' was approved when raised without a limit that allowed it'
+          from erp.purchase_order o
+          join erp.purchase_order_decision r on r.decision_id = o.raised_decision_id
+          left join erp.purchase_limit_decision m on m.decision_id = r.limit_decision_id
+          where r.state = 'approved'
+            and (m.decision_id is null or m.kind <> 'limit_set' or m.facility_id <> o.facility_id
+                 or o.subtotal_minor > m.limit_minor)
+          union all
+          select 'order ' || o.number || ' was ' || d.state || ' by whoever raised it, or when it was not pending'
+          from erp.purchase_order o
+          join erp.purchase_order_decision d on d.purchase_order_id = o.purchase_order_id
+          where d.kind in ('order_approved', 'order_rejected')
+            and (d.actor_id = o.raised_by
+                 or (select p.state from erp.purchase_order_decision p
+                      where p.purchase_order_id = d.purchase_order_id and p.seq < d.seq
+                      order by p.seq desc limit 1) is distinct from 'pending')`,
+  },
+  {
+    id: 'purchase-receipts-match-their-orders',
+    title: 'every receipt is a stock receipt against an approved order, line for ledger line, and never more than was ordered',
+    because:
+      'ADR-0032 P4: what an order has received is never stored, it is the sum of its receipts not ' +
+      'reversed, so it is only as true as the binding between a receipt and the stock it posted. Keys ' +
+      'bind each receipt line to its ledger line and its order line; these are the rules no key can ' +
+      'state: every receipt decision has its receipt and every ledger line of one its receipt line, ' +
+      'nothing arrives against an order that was not approved, and no order line has received more ' +
+      'than it ordered. Asked again after the two-session probes, where two receipts raced one line.',
+    sql: `select 'stock decision ' || d.decision_id || ' is a receipt against no order' as violation
+          from erp.stock_decision d
+          where d.kind = 'receipt' and not exists (select 1 from erp.purchase_receipt r where r.decision_id = d.decision_id)
+          union all
+          select 'receipt ' || e.decision_id || ' posted line ' || e.line_no || ' against no order line'
+          from erp.stock_ledger e
+          where e.kind = 'receipt'
+            and not exists (select 1 from erp.purchase_receipt_line r where r.decision_id = e.decision_id and r.line_no = e.line_no)
+          union all
+          select 'receipt ' || r.decision_id || ' is against ' || o.number || ', which is ' || o.state
+          from erp.purchase_receipt r join erp.purchase_order o on o.purchase_order_id = r.purchase_order_id
+          where o.state not in ('approved', 'closed')
+             or exists (select 1 from erp.purchase_order_decision c
+                         where c.purchase_order_id = o.purchase_order_id and c.kind = 'order_closed'
+                           and c.recorded_at < (select sd.recorded_at from erp.stock_decision sd where sd.decision_id = r.decision_id))
+          union all
+          select 'order ' || o.number || ' line ' || l.line_no || ' has received more than it ordered'
+          from erp.purchase_order o
+          join erp.purchase_order_line l on l.purchase_order_id = o.purchase_order_id
+          where l.quantity < (select coalesce(sum(r.quantity), 0) from erp.purchase_receipt_line r
+                               where r.purchase_order_id = l.purchase_order_id and r.order_line_no = l.line_no
+                                 and not exists (select 1 from erp.stock_decision v where v.reverses_decision_id = r.decision_id))`,
+  },
+  {
+    id: 'purchase-limits-match-their-decisions',
+    title: 'every approval limit equals the latest decision about it',
+    because:
+      'I-8, as stock-minimums-match-their-decisions holds it for 0022: an order is approved when raised ' +
+      'by reading the projection, not the log (ADR-0032 P3), so a limit that drifted from its decision ' +
+      'would approve orders against a figure nobody set.',
+    sql: `select 'limit at ' || m.facility_id as violation
+          from erp.purchase_limit m
+          left join erp.purchase_limit_decision d on d.decision_id = m.as_of_decision_id
+          where d.decision_id is null
+             or (d.facility_id, d.limit_minor, d.currency) is distinct from (m.facility_id, m.limit_minor, m.currency)
+             or exists (select 1 from erp.purchase_limit_decision l where l.facility_id = m.facility_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no limit'
+          from erp.purchase_limit_decision d
+          where not exists (select 1 from erp.purchase_limit m where m.facility_id = d.facility_id)`,
   },
 ];
 

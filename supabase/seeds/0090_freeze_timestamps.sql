@@ -28,7 +28,9 @@
 -- erp.facility_decision (0019) the seventh, and 0020's three stock logs — stock_decision,
 -- stock_ledger and stock_count_log — the eighth to tenth.
 --
--- erp.stock_minimum_decision (0022) is the eleventh.
+-- erp.stock_minimum_decision (0022) is the eleventh, and 0023's purchase_limit_decision and
+-- purchase_order_decision the twelfth and thirteenth. 0023's order lines, receipts and receipt
+-- lines are written once and refuse any update; none has a column this statement sets.
 --
 -- erp.notification (0021) is not a log, but its guard lets a row change only from unread
 -- to read, so it refuses this statement too. The seed holds none (0070).
@@ -55,7 +57,8 @@ begin
       and ty.typname = 'timestamptz'
       and c.relname not in ('event_log', 'capability_decision', 'identity_decision', 'item_decision', 'supplier_decision',
                             'transfer_price_decision', 'facility_decision', 'stock_decision', 'stock_ledger',
-                            'stock_count_log', 'stock_minimum_decision', 'notification')
+                            'stock_count_log', 'stock_minimum_decision', 'purchase_limit_decision',
+                            'purchase_order_decision', 'notification')
       and a.attname in ('created_at', 'enrolled_at', 'ingested_at', 'applied_at', 'updated_at')
   loop
     execute format('update erp.%I set %I = $1 where %I is not null', t.relname, t.attname, t.attname)

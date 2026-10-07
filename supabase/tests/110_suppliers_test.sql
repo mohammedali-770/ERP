@@ -352,7 +352,7 @@ select throws_ok(
   'nor brings a retired supply back'
 );
 select throws_ok(
-  $$ truncate erp.supplier_item $$,
+  $$ truncate erp.supplier_item cascade $$,
   '23001', 'supplier_item is retired, never deleted (B-11): TRUNCATE denied',
   'nor truncates the supplies'
 );
