@@ -631,7 +631,8 @@ requirements:
   # Owner decisions, 2026-10-07 (ADR-0031 A1, A2). INV-013 (F3) asks for minimum,
   # maximum, safety-stock and reorder values by location; the owner chose a minimum
   # alone for now, recorded as a decision with who, when and why, which INV-013 does not
-  # ask. pgTAP 170 and db-check exercise it; the staff testing pack follows in step 5.
+  # ask. pgTAP 170 and db-check exercise it; the staff testing pack (UAT-stock-alerts)
+  # evidences it and SUP-P04 whole.
   # ---------------------------------------------------------------------------
 
   - id: "INV-P03"
@@ -642,6 +643,8 @@ requirements:
     status: "proposed"
     text_en: "A permitted person shall be able to set or clear a minimum for an item at a warehouse or a factory, entered in a current pack of the item and recorded with who set it, when and why; every item at or below its minimum there shall be listed, an item never moved there counting as none on hand."
     text_ar: "يجب أن يتمكن الشخص المخوَّل من تحديد حد أدنى لصنف في مستودع أو مصنع أو إلغائه، مُدخلاً بعبوة سارية للصنف ومُسجلاً مع من حدده ومتى ولماذا؛ ويجب إدراج كل صنف رصيده عند حده الأدنى أو دونه هناك، ويُعد الصنف الذي لم يتحرك هناك قط بلا رصيد."
+    test_refs:
+      - UAT-stock-alerts
     relates_to:
       - INV-013
       - INV-008
@@ -712,6 +715,8 @@ requirements:
     status: "proposed"
     text_en: "When a stock movement takes an item at a facility from above its minimum to at or below it, the people who may read that facility's stock alerts, stock and items, including the person who recorded the movement, shall be notified in the application, naming each item it took across, the balance it left and the minimum; nobody shall be notified again for that item until its balance has gone back above its minimum, and setting or raising a minimum shall notify nobody."
     text_ar: "عندما تنقل حركة مخزون رصيد صنف في منشأة من فوق حده الأدنى إلى عنده أو دونه، يجب إشعار الأشخاص المخوَّلين بقراءة تنبيهات المخزون والمخزون والأصناف في تلك المنشأة داخل التطبيق، بمن فيهم من سجّل الحركة، مع ذكر كل صنف تجاوزته والرصيد الذي تركته والحد الأدنى؛ ولا يُشعَر أحد مرة أخرى بذلك الصنف حتى يعود رصيده فوق حده الأدنى، ولا يُصدر تحديد الحد الأدنى أو رفعه أي إشعار."
+    test_refs:
+      - UAT-stock-alerts
     relates_to:
       - INV-P03
       - SUP-005
