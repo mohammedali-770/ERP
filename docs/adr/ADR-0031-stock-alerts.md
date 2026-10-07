@@ -301,3 +301,39 @@ session.
 
 A count past a minimum is not in the session: the database's own tests hold it, and it
 is question C.
+
+## Addendum — 2026-10-07: the switch-on, drafted and held (module 7, step 6)
+
+The migration, `20261007000300_stock_alerts_pilot_at_central_warehouse.sql`, records one
+capability decision: `inventory.stock_alerts` at `pilot` at the central warehouse, and
+nowhere else. It is drafted and held unmerged, as modules 5's and 6's were (closed pull
+requests #48 and #53).
+
+**What it opens.** Organisation-wide stock alerts stay hidden: 0022 registers the
+capability with no state, and no state reads as hidden. `capability_state_for()` reads a
+facility's own state before the organisation's, so Stock alerts shows only to a person
+working at the warehouse, and its routes refuse anywhere else. The factory, where A1 also
+lets minimums be held, stays shut: stock's pilot is the warehouse alone, and every
+stock-alerts route asks read on stock there too.
+
+**It finds the warehouse by its code when applied,** as the other two do. Where none has
+that code, which is every local rebuild, it records nothing and warns, and the seed opens
+stock alerts for the suites (0030, c010). A code naming anything but an open warehouse is
+an error. All three were run on a scratch database: the rebuild warned and recorded
+nothing; with the organisation set hidden, the warehouse read `pilot`, the factory and the
+organisation `hidden`, and the administrator's list answered at the warehouse and was
+refused at the factory, as was a set; pointed at the factory, it was refused.
+
+**It is held** until five things hold, named in the migration's header:
+1. the stock-alerts pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. items, stock and the bell are switched on at the same warehouse first, in that order.
+   Opened alone, stock alerts would answer nobody, since every route asks read on stock
+   and items; and a low-stock notification shows only where the bell is open. The two
+   held files are dated before 0022, and this one after it, so when they come back each
+   takes a fresh timestamp, and this one a later one still (Q-23);
+4. the owner has answered the pack's seven questions, A and G among them. A real database
+   grants minimums to the administrator alone (0022), and granting them to the warehouse
+   manager is a permission change, owner-approved and made on its own;
+5. the real warehouse code replaces the synthetic seed's.
