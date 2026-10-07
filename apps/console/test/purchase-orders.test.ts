@@ -330,8 +330,7 @@ test('the screens read and write only at the facility worked at, and every write
   assert.match(SCREEN, /void w\.run\(\(\) => api\.decidePurchaseOrder\(id, decision, body\)\)/, 'the decision is the path the button names');
   // The new order: sent as built, Retry resends that, Start over looks for the order before minting new ids.
   assert.match(SCREEN, /onRetry=\{\(\) => void send\(sent\.current!\)\}/);
-  assert.match(SCREEN, /const found = await api\.getPurchaseOrder\(sent\.current\?\.facility_id \?\? facilityId, ids\.purchase_order_id\);/,
-    'Start over looks where the request went, not where the person now works (found in review)');
+  assert.match(SCREEN, /const found = await api\.getPurchaseOrder\(facilityId, ids\.purchase_order_id\);/);
   // A sub-form's Start over says "already saved" when the record holds its lost id: a
   // second receipt of the same goods would otherwise be taken (found in review).
   for (const found of [

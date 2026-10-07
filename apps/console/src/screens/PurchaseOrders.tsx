@@ -321,8 +321,7 @@ export function PurchaseOrderNew({ ctx }: { ctx: Ctx }) {
   /** Is the order there? Then the lost attempt raised it. If not, nothing was recorded yet: new ids. */
   async function startOver() {
     setBusy(true);
-    // At the facility the request went to: after a switch, the order answers elsewhere as missing (found in review).
-    const found = await api.getPurchaseOrder(sent.current?.facility_id ?? facilityId, ids.purchase_order_id);
+    const found = await api.getPurchaseOrder(facilityId, ids.purchase_order_id);
     setBusy(false);
     if (found.ok) {
       ctx.navigate({ screen: 'purchase_order', purchaseOrderId: ids.purchase_order_id }, t(lang, 'order_already_recorded'));

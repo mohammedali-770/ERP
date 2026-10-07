@@ -369,7 +369,11 @@ a count, and the two races.
 - **What is no longer offered.** Approve is not offered while the order's supplier has
   stopped. A receipt's reversal is not offered at a closed facility. Both are refusals
   0023 makes, and the supplier's is now worded.
-- **A facility switch.** The raise form's Start over looks for the order at the facility
-  the request went to.
+- **A facility switch is not covered.** Switching facility, or leaving the page, unmounts a
+  form in doubt, as every full-page form in the console does, and its request is lost: the
+  leave prompt is all that stands between the person and raising it twice. A first fix
+  looked up the order at the facility the request went to, but the form never survives
+  the switch to make that lookup (found in review, Codex), so it was taken out. Keeping an
+  in-doubt request across navigation is a console-wide change, put to the owner as Q-26.
 - **Checks before sending.** A price past 0023's cap per pack is caught before sending,
   and the Arabic percent sign is read.

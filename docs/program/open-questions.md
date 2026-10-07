@@ -659,6 +659,31 @@ Related: SEC-006, ADR-0005, ADR-0025.
 
 ---
 
+## Q-26 — Should a write in doubt survive leaving its page?
+
+**Decides:** Product Owner, with Operations · **Expected decision:** before the stock or
+purchasing modules are switched on
+
+Found 2026-10-07 in review of the purchase-order screens (ADR-0032's step 5 addendum).
+When a write's answer is lost, the console offers Retry, which sends the same request, or
+Start over, which reads the record first (ADR-0024's addendum of 2026-10-05). Both live in
+the page's own state. Leaving the page — another menu entry, the back button, or a switch
+of facility, which reloads the session — unmounts the form, and the request in doubt goes
+with it. The leave prompt asks first, but a person who confirms and comes back gets a fresh
+form with new ids, and may record the same thing again: a stock movement, a count, a new
+purchase order or a receipt. Every full-page form behaves this way today.
+
+Options:
+- Keep it as it is: the leave prompt names the risk.
+- Keep a request in doubt for the session, by facility, and offer Retry or Start over when
+  its page is opened again.
+- Refuse to leave a page while a request is in doubt, until Retry or Start over has
+  settled it.
+
+Related: INV-002, ADR-0005, ADR-0024, PRC-P01, INV-P04.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate
