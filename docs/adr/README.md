@@ -60,3 +60,4 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0028](./ADR-0028-facilities-and-branch-areas.md) | Facilities: branches made a master, and the area a branch worker orders from |
 | [ADR-0029](./ADR-0029-stock-ledger.md) | Stock: a ledger at each warehouse and factory, posted through one seam |
 | [ADR-0030](./ADR-0030-notifications.md) | Notifications: an in-app bell, rung by the records people can open |
+| [ADR-0031](./ADR-0031-stock-alerts.md) | Stock alerts: a minimum per item at a facility, and the bell when stock falls to it |

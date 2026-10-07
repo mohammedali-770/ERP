@@ -314,6 +314,13 @@ try {
        'db-check retry probe', ${admin}, now())`, 'stock_decision_pkey'],
     ['reverse_stock_decision', (d) => `select erp.reverse_stock_decision(${d}, ${id('000000000403')}, ${id('000000005703')},
        'db-check retry probe', null, ${admin}, now())`, 'stock_decision_pkey'],
+    // 0022's two write routes, against 0075's seed: the same lock, under its own log.
+    // WH-001's chicken minimum lowered to 80 kg, and FA-001's strips' cleared, each from
+    // the decision the seed stamped it with.
+    ['set_stock_minimum', (d) => `select erp.set_stock_minimum(${d}, ${id('000000000403')}, ${id('000000004201')}, '80',
+       ${id('000000005801')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
+    ['clear_stock_minimum', (d) => `select erp.clear_stock_minimum(${d}, ${id('000000000404')}, ${id('000000004102')},
+       ${id('000000005805')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>

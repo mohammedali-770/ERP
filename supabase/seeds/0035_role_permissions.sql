@@ -83,4 +83,14 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('warehouse_manager', 'platform.notifications', 'read'),
   ('factory_manager',   'platform.notifications', 'read'),
   ('general_manager',   'platform.notifications', 'read'),
-  ('accountant',        'platform.notifications', 'read');
+  ('accountant',        'platform.notifications', 'read'),
+  -- inventory.stock_alerts (0022). In the warehouse the administrator set minimums and the
+  -- managers watched the low-stock lists. Here the two managers set them where they hold
+  -- stock — the factory manager at FA-001 alone, by their scope — and the general manager
+  -- reads them; 0022 grants the administrator. A branch worker, who reads stock, holds
+  -- nothing here, so is never told stock is low: the control in 170.
+  ('warehouse_manager', 'inventory.stock_alerts', 'read'),
+  ('warehouse_manager', 'inventory.stock_alerts', 'write'),
+  ('factory_manager',   'inventory.stock_alerts', 'read'),
+  ('factory_manager',   'inventory.stock_alerts', 'write'),
+  ('general_manager',   'inventory.stock_alerts', 'read');

@@ -390,9 +390,9 @@ the warehouse's.
    the merging PR);
 3. stock is switched on at the same warehouse first. That is module 5's held migration,
    closed PR #48, with module 1 before it. The bell rings only where stock and items are
-   both open (§4), so opened alone it would ring for nobody. Module 5's file is dated
-   before 0021 and needs a new timestamp, earlier than this one's, when it comes back
-   (Q-23);
+   both open (§4), so opened alone it would ring for nobody. Both held files are dated
+   before 0022 (module 7, merged after them), so each needs a fresh timestamp when it
+   comes back, later than every merged migration, stock's before the bell's (Q-23);
 4. the owner has answered the pack's questions, J among them. A real database grants the
    bell to the administrator alone (0021), and granting it to other roles is a permission
    change, owner-approved and made on its own;
@@ -459,3 +459,12 @@ made at run time.
   migration to add one call, and the balance triggers bind every writer of a balance,
   which is the seam alone.
 - **Keeping notifications for good.** Rejected by N3.
+
+## Addendum — 2026-10-07: a second kind (module 7)
+
+[ADR-0031](./ADR-0031-stock-alerts.md) adds `stock_low`: stock falling to its minimum,
+once per drop. It widens 0021's two checks on a row's kind and source, and replaces
+`erp.notification_is_open_to()` and `erp.list_notifications()` with `create or replace` in
+0022; 0021 is unchanged. By the owner's decision A3 its actor **is** told, so §4's "the
+person who acted is not told of their own act" is now the rule of the below-zero kind,
+and SUP-P01 says each kind's own rule decides.
