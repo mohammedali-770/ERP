@@ -321,6 +321,25 @@ try {
        ${id('000000005801')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
     ['clear_stock_minimum', (d) => `select erp.clear_stock_minimum(${d}, ${id('000000000404')}, ${id('000000004102')},
        ${id('000000005805')}, 'db-check retry probe', ${admin}, now())`, 'stock_minimum_decision_pkey'],
+    // 0023's six write routes, against 0080's seed: the same lock, under each one's log. An
+    // order for 10 kg of loose chicken at WH-001, within its limit so approved when raised
+    // (index 25, …d0026, order …d0801); the seeded pending chicken order approved by the
+    // accountant; 4 kg received against the new order (…d0028), then that receipt
+    // reversed; a limit set at FA-001, which has none, then cleared from it (…d0030). A
+    // receipt and its reversal are stock decisions, so they answer on stock_decision_pkey.
+    ['raise_purchase_order', (d) => `select erp.raise_purchase_order(${d}, ${id('0000000d0801')}, ${id('000000000403')},
+       ${id('000000005101')}, 1500, '[{"item_unit_id": "01936f00-0000-7000-8000-000000004201", "quantity": "10",
+       "price_minor": 1300}]'::jsonb, 'db-check retry probe', ${id('000000000904')}, now())`, 'purchase_order_decision_pkey'],
+    ['decide_purchase_order', (d) => `select erp.decide_purchase_order(${d}, ${id('000000000403')}, ${id('000000005901')},
+       'order_approved', 'db-check retry probe', ${id('000000000907')}, now())`, 'purchase_order_decision_pkey'],
+    ['receive_purchase_order', (d) => `select erp.receive_purchase_order(${d}, ${id('000000000403')}, ${id('0000000d0801')},
+       null, '[{"line_no": 1, "quantity": "4"}]'::jsonb, 'DN-RETRY', ${id('000000000904')}, now())`, 'stock_decision_pkey'],
+    ['reverse_purchase_receipt', (d) => `select erp.reverse_purchase_receipt(${d}, ${id('000000000403')}, ${id('0000000d0028')},
+       'db-check retry probe', null, ${id('000000000904')}, now())`, 'stock_decision_pkey'],
+    ['set_purchase_limit', (d) => `select erp.set_purchase_limit(${d}, ${id('000000000404')}, 200000, 'SAR', null,
+       'db-check retry probe', ${admin}, now())`, 'purchase_limit_decision_pkey'],
+    ['clear_purchase_limit', (d) => `select erp.clear_purchase_limit(${d}, ${id('000000000404')}, ${id('0000000d0030')},
+       'db-check retry probe', ${admin}, now())`, 'purchase_limit_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
@@ -644,6 +663,56 @@ try {
       'post_stock: a movement made "now" that waited behind a count is dated after it, and recorded',
       `post_stock: a "now" movement that waited behind a count was answered "${errorOf(wasted)}"` +
         (counted.status === 0 ? '' : `; the count failed too: ${errorOf(counted)}`));
+  }
+
+  // PURCHASING (0023). Each race is two real sessions, as above.
+  {
+    // Two receipts against one order line, each within what is still to come, together beyond
+    // it: the 10 kg order the retry probes raised, whose 4 kg receipt was reversed, so all 10
+    // are to come. Each takes the order's row lock before it reads what has arrived, so the
+    // second waits, sees the first, and is refused; read before the first committed, both
+    // took 6 kg and the line received 12 of 10.
+    const receive = (d: string) => `select erp.receive_purchase_order(${id(d)}, ${warehouse}, ${id('0000000d0801')}, null,
+      '[{"line_no": 1, "quantity": "6"}]'::jsonb, null, ${manager}, now())`;
+    const [first, second] = await overlap(receive('0000000d0802'), receive('0000000d0803'), 'purchase_receipt');
+    report(first.status === 0 && raisedAs(second.stderr, '23001', 'purchase_receipt_exceeds_order'),
+      'receive_purchase_order: two receipts that together exceed an order line — the second waits, and is refused',
+      `receive_purchase_order: the second of two receipts exceeding an order line was answered "${errorOf(second)}"` +
+        (first.status === 0 ? '' : `; the first failed too: ${errorOf(first)}`));
+  }
+  {
+    // Two orders raised at one facility at once: each takes the next number of the day under
+    // the facility's lock, so both are raised, numbered one after the other. Without the lock
+    // both read the same last number and the second was refused by the key, a bare conflict.
+    const raise = (d: string, order: string) => `select erp.raise_purchase_order(${id(d)}, ${id(order)}, ${warehouse},
+      ${id('000000005103')}, 0, '[{"item_unit_id": "01936f00-0000-7000-8000-000000004226", "quantity": "2",
+      "price_minor": 4500}]'::jsonb, 'db-check purchase probe', ${manager}, now())`;
+    const [first, second] = await overlap(raise('0000000d0804', '0000000d0805'), raise('0000000d0806', '0000000d0807'),
+      'purchase_number');
+    const numbers = cluster.sql(`select string_agg(day_seq::text, ',' order by day_seq) from erp.purchase_order
+                                  where purchase_order_id in (${id('0000000d0805')}, ${id('0000000d0807')})`).trim();
+    const consecutive = /^(\d+),(\d+)$/.exec(numbers);
+    report(first.status === 0 && second.status === 0 && !!consecutive && Number(consecutive[2]) === Number(consecutive[1]) + 1,
+      'raise_purchase_order: two orders raised at once at one facility are both raised, numbered one after the other',
+      `raise_purchase_order: two orders raised at once were answered "${errorOf(first)}" and "${errorOf(second)}", numbered ${numbers}`);
+  }
+  {
+    // An order raised for a pack while the supplier's supply of it is retired must wait for
+    // the retirement and then be refused. A retirement takes its supplier's row for update
+    // first, and the raise holds that row under erp.assert_supplier_active()'s share lock, so
+    // the two serialise there; the supply is then read, and held, under its own share lock as
+    // well. Read with neither, the order named a supply that no longer existed (a control
+    // removing both fails this). The poultry supplier's loose kilograms, which no later probe
+    // orders.
+    const [retired, raised] = await overlap(
+      `select erp.retire_supplier_item(${id('0000000d0808')}, ${id('000000005202')}, 'db-check purchase probe', ${admin}, now())`,
+      `select erp.raise_purchase_order(${id('0000000d0809')}, ${id('0000000d0810')}, ${warehouse}, ${id('000000005101')}, 1500,
+        '[{"item_unit_id": "01936f00-0000-7000-8000-000000004201", "quantity": "1", "price_minor": 1300}]'::jsonb,
+        'db-check purchase probe', ${manager}, now())`, 'purchase_supply');
+    report(retired.status === 0 && raisedAs(raised.stderr, '23001', 'purchase_order_line_not_supplied'),
+      'raise_purchase_order: an order raised while its supply is retired waits, and is refused',
+      `raise_purchase_order: an order raised while its supply was retired was answered "${errorOf(raised)}"` +
+        (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
   }
 
   // And the ledger's rules again, over everything the probes above posted through the

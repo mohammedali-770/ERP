@@ -508,7 +508,10 @@ warehouse and factory stock only:
 - **Branches are not covered.** A branch's business day opens with its shift (Q-06), so
   no branch holds a stock record until Q-06 is answered.
 - **Orders, purchase orders, batches and the daily sheet** are asked again when their
-  modules are built, with this answer as the default to confirm.
+  modules are built, with this answer as the default to confirm. **Purchase orders took
+  it (2026-10-07):** an order's business day, and the day its number counts in, is the
+  calendar date at its facility of the moment it is raised, and a receipt is a stock
+  movement, dated by D3. ADR-0032's question 4 asks the owner to confirm it.
 
 The original question is kept below.
 
@@ -579,6 +582,15 @@ for the bell at the same warehouse, and depends on module 5's being merged first
 held migrations that must land in order are the pattern this question warns of. And both held files are dated before migrations merged since (0021, and module 7's 0022),
 so when they come back each needs a fresh timestamp, later than every merged migration,
 stock's before the bell's, or a hosted project would refuse it as out of order.
+
+Module 7's switch-on (2026-10-07, closed PR #58, ADR-0031's step 6 addendum) is a third, for stock alerts
+at the same warehouse, after both: it is dated after 0022, and when the other two come
+back with fresh timestamps it needs a later one still. Three held migrations in a fixed
+order, each re-dated by hand, strengthen the case for a reviewed run-time decision.
+Its review found a sharper reason: where the warehouse does not yet exist, each of the
+three warns, records nothing and still counts as applied, so it never runs again. A
+hosted project's migrations applied before module 4 has made the warehouse would lose
+every held pilot with only a warning (ADR-0031's step 6 addendum).
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.

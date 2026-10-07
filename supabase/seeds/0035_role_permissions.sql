@@ -93,4 +93,22 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('warehouse_manager', 'inventory.stock_alerts', 'write'),
   ('factory_manager',   'inventory.stock_alerts', 'read'),
   ('factory_manager',   'inventory.stock_alerts', 'write'),
-  ('general_manager',   'inventory.stock_alerts', 'read');
+  ('general_manager',   'inventory.stock_alerts', 'read'),
+  -- procurement.purchase_orders and procurement.purchase_limits (0023). As in the warehouse,
+  -- the warehouse manager raises and receives orders everywhere, the factory manager at
+  -- FA-001 alone, by their scope. The general manager approved there, and holds approve
+  -- here; but the test data has no general manager, and adding one would change who every
+  -- stock bell rings for, so the accountant approves too (0080). Both read the limits, which
+  -- only the administrator sets (0023 grants them). Nobody here both raises and approves, so
+  -- self-approval (PRC-004) is the administrator's case in 180. A branch worker holds
+  -- nothing here: the IAM-003 control.
+  ('warehouse_manager', 'procurement.purchase_orders', 'read'),
+  ('warehouse_manager', 'procurement.purchase_orders', 'write'),
+  ('factory_manager',   'procurement.purchase_orders', 'read'),
+  ('factory_manager',   'procurement.purchase_orders', 'write'),
+  ('general_manager',   'procurement.purchase_orders', 'read'),
+  ('general_manager',   'procurement.purchase_orders', 'approve'),
+  ('general_manager',   'procurement.purchase_limits', 'read'),
+  ('accountant',        'procurement.purchase_orders', 'read'),
+  ('accountant',        'procurement.purchase_orders', 'approve'),
+  ('accountant',        'procurement.purchase_limits', 'read');

@@ -631,3 +631,25 @@ Recorded rather than guessed. Each is decided before the module that needs it.
   correction twice.
 - **Let stock go negative silently,** as the warehouse did. The owner chose D1.
 - **A second person approves each adjustment.** The owner chose D2, for now.
+
+## Addendum — 2026-10-07: the receipt, the first kind a later module adds (module 8)
+
+0023 adds the kind this ADR named to come (I-10): **receipt**, posted by purchasing
+(ADR-0032). It is the first time a later module widens the seam, so how it was done is
+recorded here:
+
+- **`stock_decision_kind_is_known` gains `receipt`,** and the ledger a check that a receipt's
+  entries are inward. 0020 itself is unchanged.
+- **`erp.post_stock()` is replaced whole** with `create or replace`, as 0022 replaced
+  0021's functions, with two marked changes: a receipt's lines are inward, and a receipt
+  may be reversed. Every other rule, its order and its words are 0020's, so a receipt meets
+  D1 to D4 as every movement does.
+- **`erp.reverse_stock_decision()` refuses a receipt.** It is reversed through its order
+  (`erp.reverse_purchase_receipt()`), which asks purchasing's permission too and keeps
+  what the order shows as received true. The reversal itself is still 0020's: whole, once,
+  at its target's moment, refused once a count has covered it.
+- **A receipt line is bound by key to its ledger line** — the decision, the line number, the
+  pack and the quantity — through a new unique constraint on the ledger.
+- **db-check's `stock-ledger-matches-its-decisions`** lets a reversal undo a receipt. The
+  console's stock screens name each kind from 0020's list, so until module 8's screens add
+  a label they show a receipt by its kind.
