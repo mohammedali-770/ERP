@@ -508,12 +508,12 @@ const EN = {
   kind_minimum_cleared: 'Minimum cleared',
   stock_minimum_link: 'Minimum',
   notif_stock_low: 'Stock fell to its minimum at {code}',
-  notif_minimum: 'minimum {q}',
+  notif_minimum: 'minimum',
   rule_minimum_stale: 'Someone changed this minimum after you opened it. It is shown as it is now; make your change again.',
   rule_minimum_unchanged: 'That is already the minimum.',
   rule_minimum_not_set: 'There is no minimum to clear.',
   rule_minimum_pack_retired: 'That pack is retired: enter the minimum in a current one.',
-  rule_minimum_quantity: 'A minimum has up to twelve digits and six decimals, and is more than nothing. To have none, clear it.',
+  rule_minimum_quantity: 'A minimum is more than nothing, has up to twelve digits and six decimals, and is less than a million million in the base unit. To have none, clear it.',
   rule_minimum_inexact: 'That minimum is past six decimals in the base unit: enter it in a larger pack, or in the base unit.',
 } as const;
 
@@ -1001,12 +1001,12 @@ const AR: Readonly<Record<Key, string>> = {
   kind_minimum_cleared: 'مسح الحد الأدنى',
   stock_minimum_link: 'الحد الأدنى',
   notif_stock_low: 'وصل المخزون إلى حده الأدنى في {code}',
-  notif_minimum: 'الحد الأدنى {q}',
+  notif_minimum: 'الحد الأدنى',
   rule_minimum_stale: 'غيّر أحدهم هذا الحد الأدنى بعد أن فتحته. يُعرض كما هو الآن؛ أعد تغييرك.',
   rule_minimum_unchanged: 'هذا هو الحد الأدنى أصلاً.',
   rule_minimum_not_set: 'لا يوجد حد أدنى لمسحه.',
   rule_minimum_pack_retired: 'هذه العبوة موقوفة: أدخل الحد الأدنى بعبوة سارية.',
-  rule_minimum_quantity: 'الحد الأدنى حتى اثني عشر رقماً وست خانات عشرية، وأكثر من الصفر. لإلغائه، امسحه.',
+  rule_minimum_quantity: 'الحد الأدنى أكثر من الصفر، حتى اثني عشر رقماً وست خانات عشرية، وأقل من مليون مليون بالوحدة الأساسية. لإلغائه، امسحه.',
   rule_minimum_inexact: 'يتجاوز هذا الحد الأدنى ست خانات عشرية بالوحدة الأساسية: أدخله بعبوة أكبر أو بالوحدة الأساسية.',
 };
 

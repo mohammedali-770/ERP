@@ -164,9 +164,10 @@ test('CONTROL: no screen rebuilds a request on Retry', () => {
 });
 
 test('CONTROL: every detail page\'s sub-forms share one write lifecycle, and lock while a request is out', () => {
-  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx', 'StockDecision.tsx'];
+  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx', 'StockDecision.tsx', 'StockAlerts.tsx'];
   const forms: Record<string, number> = {
     'ItemDetail.tsx': 3, 'SupplierDetail.tsx': 3, 'FacilityDetail.tsx': 2, 'ItemPrices.tsx': 2, 'StockDecision.tsx': 1,
+    'StockAlerts.tsx': 2,
   };
   for (const name of screens.filter((f) => f !== 'useWrite.tsx')) {
     assert.doesNotMatch(source(name), /function useWrite\(/, `${name} keeps no copy of its own`);

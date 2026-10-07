@@ -19,8 +19,8 @@ type Banner = { tone: 'ok' | 'info'; text: string } | null;
 
 /**
  * The minimums at the facility worked at (erp.stock_minimums(), 0022), by item code: each
- * as entered and in the base unit, beside what is on hand, low ones marked. The low ones
- * are listed first by default (A2: always listed); every minimum is a click away. A
+ * as entered and in the base unit, beside what is on hand, low ones marked. It lists the
+ * low ones alone by default (A2: always listed); unticked, every minimum, by code. A
  * minimum is set from an item's own page, found here by code or name.
  */
 export function StockAlertsList({ ctx }: { ctx: Ctx }) {
@@ -214,11 +214,19 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   const [failure, setFailure] = useState<Failure | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  // True from a write's answer until the page has read what it left: the forms are not
+  // offered meanwhile, as their stamp would be the one before the write (found in review).
+  const [reloading, setReloading] = useState(false);
+  // Only the newest load may draw; an older page is kept only if no load began after it
+  // was asked, as its cursor is that load's (found in review).
   const seq = useRef(0);
+  const generation = useRef(0);
 
   const load = useCallback(async () => {
     if (facilityId === null) return;
     const mine = ++seq.current;
+    generation.current++;
+    setLoadingMore(false);
     const i = await api.getItem(facilityId, itemId);
     if (mine !== seq.current) return;
     if (!i.ok) {
@@ -243,6 +251,7 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       setHistory(h.value.decisions);
       setNext(h.value.next_before);
       setFailure(null);
+      setReloading(false);
     }
   }, [api, onFailure, facilityId, itemId]);
 
@@ -259,11 +268,11 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   }, [load]);
 
   async function older() {
-    if (next === null || facilityId === null) return;
-    const mine = ++seq.current;
+    if (next === null || facilityId === null || reloading) return;
+    const mine = generation.current;
     setLoadingMore(true);
     const answer = await api.stockMinimumHistory(facilityId, itemId, next);
-    if (mine !== seq.current) return;
+    if (mine !== generation.current) return;
     setLoadingMore(false);
     if (answer.ok) {
       setHistory((current) => [...(current ?? []), ...answer.value.decisions]);
@@ -277,6 +286,7 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     setBanner(outcome === 'checked' ? null : outcome === 'saved' ? { tone: 'ok', text: t(lang, 'saved') }
       : outcome === 'already' ? { tone: 'info', text: t(lang, 'minimum_already_recorded') }
         : { tone: 'info', text: t(lang, 'minimum_changed') });
+    setReloading(true);
     void load();
   };
 
@@ -300,7 +310,10 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     ? (localName(lang, { name_en: data.person.full_name_en, name_ar: data.person.full_name_ar }) || shortId(id))
     : shortId(id));
   const asEntered = (d: MinimumDecision) => (d.unit_key === null || d.quantity === null || d.factor === null ? null : (
-    <><bdi dir="ltr">{formatQuantity(d.quantity)}</bdi> {unitName(lang, data.units, d.unit_key)} (<bdi dir="ltr">{formatFactor(d.factor)}</bdi> {base})</>
+    <>
+      <bdi dir="ltr">{formatQuantity(d.quantity)}</bdi> {unitName(lang, data.units, d.unit_key)}{' '}
+      ({unitName(lang, data.units, d.unit_key)} = <bdi dir="ltr">{formatFactor(d.factor)}</bdi> {base})
+    </>
   ));
 
   return (
@@ -332,9 +345,10 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         )}
       </p>
 
-      {writable && item.status === 'active'
+      {reloading ? <Loading lang={lang} /> : null}
+      {writable && !reloading && item.status === 'active'
         ? <SetMinimum ctx={ctx} item={item} facilityId={place.facility.facility_id} stamp={stamp} onDone={afterWrite} /> : null}
-      {writable && current !== null && stamp !== null
+      {writable && !reloading && current !== null && stamp !== null
         ? <ClearMinimum ctx={ctx} item={item} facilityId={place.facility.facility_id} stamp={stamp} onDone={afterWrite} /> : null}
 
       <h2>{t(lang, 'minimum_history')}</h2>
@@ -360,7 +374,7 @@ export function StockAlertItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         </table>
       )}
       {next !== null ? (
-        <button type="button" onClick={() => void older()} disabled={loadingMore}>
+        <button type="button" onClick={() => void older()} disabled={loadingMore || reloading}>
           {loadingMore ? t(lang, 'loading') : t(lang, 'older')}
         </button>
       ) : null}

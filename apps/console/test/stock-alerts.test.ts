@@ -112,7 +112,10 @@ test('CONTROL: the stamp is the decision in force, a clearing included; null onl
   assert.equal(stampOf([decision({ is_current: false, decision_id: CLEARED }), decision({ is_current: false })]), CLEARED,
     'the history is newest first: without a mark, its first row is in force');
   assert.match(SCREEN, /const stamp = stampOf\(history\)/, 'the page reads the stamp from the history, never the list');
-  assert.doesNotMatch(SCREEN, /expectedDecisionId: r\.as_of_decision_id/);
+  assert.match(SCREEN, /<SetMinimum ctx=\{ctx\} item=\{item\} facilityId=\{place\.facility\.facility_id\} stamp=\{stamp\}/);
+  assert.match(SCREEN, /<ClearMinimum ctx=\{ctx\} item=\{item\} facilityId=\{place\.facility\.facility_id\} stamp=\{stamp\}/);
+  assert.equal([...SCREEN.matchAll(/expectedDecisionId: stamp[,\s}]/g)].length, 2, 'set and clear each send the stamp they were handed');
+  assert.doesNotMatch(SCREEN, /expectedDecisionId: (null|r\.|current|undefined)/);
 });
 
 test('a minimum is entered only in a current pack', () => {
@@ -178,6 +181,13 @@ test('the screens read and write only at the facility worked at, and every write
     'each built once and handed to run(), so Retry sends it as first sent');
   assert.match(SCREEN, /writableHere\(ctx\.stockAlertsWritable, status\)/, 'a closed facility offers no change');
   assert.match(SCREEN, /status: 'active', search: q/, 'only an active item is offered a minimum');
+  assert.match(SCREEN, /\{writable && !reloading && item\.status === 'active'\s+\? <SetMinimum/, 'Set: an active item, once the page has read what the last write left');
+  assert.match(SCREEN, /\{writable && !reloading && current !== null && stamp !== null\s+\? <ClearMinimum/, 'Clear: only while a minimum is in force');
+  assert.match(SCREEN, /const packs = minimumPacks\(item\.units\);/, 'only current packs are offered');
+  assert.match(SCREEN, /if \(unitId !== '' && !packs\.some\(\(u\) => u\.item_unit_id === unitId\)\) setUnitId\(''\);/,
+    'a pack retired since the form opened is never left chosen');
+  assert.match(SCREEN, /setReloading\(true\);\s+void load\(\);/, 'after a write the forms wait for the reload');
+  assert.match(SCREEN, /if \(mine !== generation\.current\) return;/, 'an older page asked before a reload is dropped');
   assert.match(EDGE, /POST  \/stock-alerts\/minimums/);
 });
 

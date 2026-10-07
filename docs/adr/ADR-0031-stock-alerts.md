@@ -230,9 +230,9 @@ addendum). Nothing about the routes changed.
   only to someone who may read stock alerts, stock and items where none is hidden, since
   the list asks all three (navigation.ts, `alsoReads`). A branch or an office is told, as
   on the stock screens, that it holds no stock record.
-- **The list (`#stock_alerts`)** shows the low ones first (A2): each item's minimum in its
-  base unit and as entered, beside what is on hand, marked Low. Unticking "Low only" lists
-  every minimum. Where the person may set minimums, an item is found by code or name, among
+- **The list (`#stock_alerts`)** lists the low ones alone by default (A2): each item's
+  minimum in its base unit and as entered, beside what is on hand, marked Low. Unticking
+  "Low only" lists every minimum, by code. Where the person may set minimums, an item is found by code or name, among
   active ones only, and opened.
 - **An item's page (`#stock_alerts/items/{id}`)** shows what is on hand, the minimum in
   force as entered, and every decision about it, newest first. Set and Clear are offered
@@ -247,7 +247,13 @@ addendum). Nothing about the routes changed.
   nothing; none is cleared. Arabic-Indic digits and the Arabic decimal separator are read.
 - **Writes go through the shared lifecycle** (write.ts): built once when the button is
   pressed, retried as first sent, `already_recorded` shown as saved, and a stale answer
-  shown as a change someone else made, with the page reloaded.
+  shown as a change someone else made, with the page reloaded. After any answer the forms
+  are withdrawn until the page has read what the write left, since their stamp would be the
+  one before it, and an older page of the history asked before that reload is dropped
+  (found in review).
+- **A low-stock notification opens the stock decision** that took the item across, as a
+  below-zero one does, not the low-stock list 0022's comment names. Its recipients may
+  read stock and items there, which the decision asks; the list is a menu entry away.
 - **The bell** words the second kind ("Stock fell to its minimum at" and the facility's code) and shows the
   minimum each item crossed beside the balance left. It opens the stock decision, as a
   below-zero notification does.

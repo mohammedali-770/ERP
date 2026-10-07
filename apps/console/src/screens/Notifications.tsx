@@ -132,7 +132,7 @@ export function Notifications({ ctx }: { ctx: Ctx }) {
                         {/* A low-stock item names the minimum it crossed (0022); a below-zero one has none. */}
                         {i.minimum !== undefined ? (
                           <span className="muted">
-                            {' '}· {t(lang, 'notif_minimum', { q: '' })}<bdi dir="ltr">{formatQuantity(i.minimum)}</bdi>{' '}
+                            {' '}· {t(lang, 'notif_minimum')} <bdi dir="ltr">{formatQuantity(i.minimum)}</bdi>{' '}
                             {unitName(lang, data.units, i.base_unit_key)}
                           </span>
                         ) : null}
