@@ -190,14 +190,21 @@ addendum). Nothing about the routes changed.
   module's own:
   - **A quantity is decimal text,** as stock's is: "2.5", never the number 2.5. That it
     is more than nothing, exact in the base unit and within range is 0022's to refuse.
-  - **The stamp is stated.** A set must carry `expected_decision_id`: the stamp the form
-    read, or `null` when the item had no minimum there. Left out, it is a 400, never read
-    as "none", since a form that never read the minimum must not pass for one that read
-    its absence. A clear carries a stamp, always, since there is a minimum to clear.
+  - **The stamp is stated.** A set must carry `expected_decision_id`: the stamp of the
+    decision in force, which the item's history marks, or `null` when the item has
+    **never** had a minimum there. A cleared minimum keeps its row and its stamp (§2), so
+    it is set again against the decision that cleared it; `null` there is stale, and the
+    list, which leaves cleared items out, does not carry that stamp (found in review).
+    Left out or empty, the stamp is a 400, never read as "none", since a form that never
+    read the minimum must not pass for one that read its absence. A clear carries a stamp,
+    always; an item that never had a minimum can only answer stale, so the console offers
+    Clear only on a listed one.
 - **Refusals** map through `_shared/refusal.ts`, which now knows
   `stock_minimum_decision_pkey`: raised by 0022's retry check it is `already_recorded`
-  (409), and the console confirms the retry through the item's history at the same
-  facility; raised natively it is a conflict. `stock_minimum_stale` is `stale` (409).
+  (409), and the console confirms the retry by finding the decision in the item's
+  history at the same facility, paging back as it must. 0022 checks an id against every
+  facility and item, so an id the history does not hold was used for another: a
+  collision, never a retry. Raised natively it is a conflict. `stock_minimum_stale` is `stale` (409).
   The rest are 0022's own words: `refused` for an unchanged minimum, one not set, a
   retired pack or item, a branch or a closed facility; `invalid` for none, an inexact
   quantity or no reason; `not_found` for another brand's pack or item.
@@ -206,7 +213,9 @@ addendum). Nothing about the routes changed.
 - **Tested** by `_shared/test/stock-alerts.test.ts` (Node: the actor, every shape rule,
   every refusal, paging) and `_deno/test/stock-alerts.test.ts` (Deno, end to end, as
   `erp_edge`, rolled back): the warehouse manager raises chicken's minimum in cartons,
-  retries, is refused a stale and an unchanged one; wastes past it **through the stock
+  retries, is refused a stale and an unchanged one; sets rice's again from the decision
+  that cleared it, after `null` is refused as stale; sees an id used at the factory
+  answered as recorded and absent from the history; wastes past it **through the stock
   function**, and both they and the administrator read the low-stock notification
   **through the notifications function**, at the balance left and the minimum crossed;
   a second waste while low rings nothing; then clears it. A cashier reads and sets none.

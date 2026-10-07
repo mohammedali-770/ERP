@@ -35,6 +35,7 @@ const KG = '01936f00-0000-7000-8000-000000004201';
 const CARTON = '01936f00-0000-7000-8000-000000004203';
 /** Rice: a minimum set, then cleared. */
 const RICE = '01936f00-0000-7000-8000-000000004111';
+const RICE_BAG = '01936f00-0000-7000-8000-000000004226';
 /** The second brand's meal box, in pieces: a conversion no facility of the first brand holds. */
 const OTHER_BRAND_PIECE = '01936f00-0000-7000-8000-000000004227';
 /** The seed's decision behind chicken's minimum at WH-001. */
@@ -233,6 +234,34 @@ Deno.test('every stock-alerts route, as erp_edge, through the router and the dri
         equal([branch.http, branch.body.constraint], [422, 'stock_branch_business_day_undecided'], 'a branch holds no minimum (Q-06)');
         const elsewhere = await send('POST', '/minimums', { ...base, decision_id: id(), quantity: '80' }, factory.token);
         equal([elsewhere.http, elsewhere.body.status], [403, 'forbidden'], 'the factory manager sets none at the warehouse');
+      });
+
+      await t.step('a cleared minimum is set again against the decision that cleared it, not as none', async () => {
+        const history = await send('GET', `/items/${RICE}?facility_id=${WAREHOUSE}`);
+        const current = (history.body.decisions as Row[]).find((d) => d.is_current);
+        equal(current?.kind, 'minimum_cleared', 'rice\'s decision in force is its clearing');
+        const asNone = await send('POST', '/minimums', {
+          decision_id: id(), facility_id: WAREHOUSE, item_unit_id: RICE_BAG, quantity: '10', expected_decision_id: null, reason,
+        });
+        equal([asNone.http, asNone.body.constraint], [409, 'stock_minimum_stale'], 'null says it never had one, and it had');
+        const again = id();
+        const set = await send('POST', '/minimums', {
+          decision_id: again, facility_id: WAREHOUSE, item_unit_id: RICE_BAG, quantity: '10',
+          expected_decision_id: current?.decision_id, reason,
+        });
+        equal(set, { http: 200, body: { status: 'ok', decision_id: again } }, 'set again from its clearing');
+        equal((await minimumOf(RICE))?.minimum, '50', '10 bags of 5 kg');
+      });
+
+      await t.step('a decision id used elsewhere is answered as recorded, and the item\'s history shows it was not a retry', async () => {
+        const fromFactory = '01936f00-0000-7000-8000-000000005805';
+        const r = await send('POST', '/minimums', {
+          decision_id: fromFactory, facility_id: WAREHOUSE, item_unit_id: KG, quantity: '1', expected_decision_id: null, reason,
+        }, admin.token);
+        equal([r.http, r.body.status], [409, 'already_recorded'], 'an id is checked against every facility and item');
+        const history = await send('GET', `/items/${CHICKEN}?facility_id=${WAREHOUSE}`);
+        equal((history.body.decisions as Row[]).some((d) => d.decision_id === fromFactory), false,
+          'and the history the console confirms against does not hold it: a collision');
       });
 
       await t.step('a minimum cleared is no longer listed, and clearing it twice is refused', async () => {

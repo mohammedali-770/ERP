@@ -21,20 +21,26 @@
  *
  *   THE DECISION IDS are minted by the console (I-1). A retried write is answered 409
  *   already_recorded, and the console confirms it through the item's history at the same
- *   facility.
+ *   facility, paging back until it finds the decision. 0022 checks an id against every
+ *   facility and item, so one the history does not hold was used for another: a
+ *   collision, never a retry.
  *
  * ONE THING OF ITS OWN:
  *
- *   THE STAMP IS STATED. A set names `expected_decision_id`: the minimum's stamp the person
- *   read, or null when the item had none there. Left out, it is a 400, not read as "none":
- *   a form that never read the minimum must not pass for one that read its absence. A clear
- *   names a stamp, always, since there is a minimum to clear. An item cleared is named in
+ *   THE STAMP IS STATED. A set names `expected_decision_id`: the stamp of the decision in
+ *   force — the history's current one, a clearing included — or null when the item has
+ *   NEVER had a minimum there. A cleared minimum keeps its row and its stamp (0022), so it
+ *   is re-set against the decision that cleared it; null there is stale. Left out, or
+ *   empty, it is a 400, not read as "none": a form that never read the minimum must not
+ *   pass for one that read its absence (found in review). A clear names a stamp, always,
+ *   since there is a minimum to clear; the console offers Clear only on a listed one, as an
+ *   item that never had one answers stale. An item cleared is named in
  *   the path, as a reversal's target is, so the body cannot name another.
  */
 import { endpoint, type Deps, type Reply } from './http.ts';
 import type { Session } from './handlers.ts';
 import {
-  facilityOf, form, listLimit, Malformed, noSuchRoute, ok, optionalText, optionalUuid, routeOf, shaped, text, uuid,
+  facilityOf, form, listLimit, Malformed, noSuchRoute, ok, optionalText, routeOf, shaped, text, uuid,
   type Source,
 } from './fields.ts';
 
@@ -47,10 +53,10 @@ function quantity(source: Source): string {
   return v;
 }
 
-/** A stamp the form read: present, and a UUID or null. Absent is malformed, never "none". */
+/** A stamp the form read: present, and a UUID or null. Absent or empty is malformed, never "none". */
 function statedStamp(source: Source): string | null {
-  if (!Object.hasOwn(source, 'expected_decision_id')) throw new Malformed('expected_decision_id');
-  return optionalUuid(source, 'expected_decision_id');
+  // Only null is none: absent and empty fail uuid(), and are malformed.
+  return source['expected_decision_id'] === null ? null : uuid(source, 'expected_decision_id');
 }
 
 /** A history page ends before a seq: decimal text of a positive int8. */

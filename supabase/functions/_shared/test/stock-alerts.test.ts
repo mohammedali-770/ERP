@@ -275,6 +275,9 @@ test('a malformed stock-alerts field is a 400 naming it, and nothing reaches the
     [post('/minimums', without(SET, 'item_unit_id')), 'item_unit_id'],
     [post('/minimums', { ...SET, item_unit_id: 'carton' }), 'item_unit_id'],
     [post('/minimums', { ...SET, expected_decision_id: 'x' }), 'expected_decision_id'],
+    // Empty is not none: a stamp field never filled must not pass for a read absence.
+    [post('/minimums', { ...SET, expected_decision_id: '' }), 'expected_decision_id'],
+    [post(`/items/${ITEM}/clear`, { ...CLEAR, expected_decision_id: '' }), 'expected_decision_id'],
     [post(`/items/${ITEM}/clear`, without(CLEAR, 'expected_decision_id')), 'expected_decision_id'],
     [post(`/items/${ITEM}/clear`, { ...CLEAR, expected_decision_id: null }), 'expected_decision_id'],
     [post('/minimums', without(SET, 'reason')), 'reason'],

@@ -25,7 +25,7 @@ export interface StockMinimum {
   readonly item_status: 'active' | 'retired';
   /** Decimal text, in the item's base unit. */
   readonly minimum: string;
-  /** Decimal text, in the item's base unit: none for an item never moved here. */
+  /** Decimal text, in the item's base unit: "0" for an item never moved here. */
   readonly on_hand: string;
   /** At or below its minimum (A2). */
   readonly is_low: boolean;
@@ -62,7 +62,10 @@ export interface SetStockMinimum {
   readonly itemUnitId: string;
   /** Decimal text. That it is above nothing, exact and within range is 0022's rule. */
   readonly quantity: string;
-  /** The stamp the person read, or null when the item has never had a minimum here. */
+  /**
+   * The stamp of the decision in force, a clearing included, or null when the item has
+   * never had a minimum here: a cleared minimum keeps its stamp, so null there is stale.
+   */
   readonly expectedDecisionId: string | null;
   readonly reason: string;
 }
