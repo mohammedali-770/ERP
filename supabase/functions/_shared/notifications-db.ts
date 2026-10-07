@@ -20,6 +20,8 @@ export interface NotificationItem {
   readonly base_unit_key: string;
   /** Decimal text: the balance the decision left, in the item's base unit. */
   readonly on_hand: string;
+  /** Decimal text: on a stock_low notification only, the minimum it crossed (0022). */
+  readonly minimum?: string;
 }
 
 /** One notification, as erp.list_notifications() returns it. */
@@ -27,7 +29,7 @@ export interface Notification {
   readonly notification_id: string;
   /** The page cursor, as decimal text of an int8: a whole number no client can round. */
   readonly seq: string;
-  /** 'stock_below_zero' today; each later module adds its own. */
+  /** 'stock_below_zero' or 'stock_low' (0022); each later module adds its own. */
   readonly kind: string;
   readonly facility_id: string;
   readonly facility_code: string;

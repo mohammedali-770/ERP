@@ -8,6 +8,7 @@ import type { TransferPricesDb } from '../transfer-prices-db.ts';
 import type { FacilitiesDb } from '../facilities-db.ts';
 import type { StockDb } from '../stock-db.ts';
 import type { Notification, NotificationsDb } from '../notifications-db.ts';
+import type { StockAlertsDb } from '../stock-alerts-db.ts';
 import { notifications } from '../notifications.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
@@ -53,6 +54,9 @@ const stockNotUsed = notUsed<StockDb>('stock', {
   stockOnHand: true, stockHistory: true, getStockDecision: true, recordStockAdjustment: true,
   recordStockCount: true, reverseStockDecision: true,
 });
+const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
+  stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
+});
 
 /** A notifications database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<NotificationsDb> = {}): Db & { calls: Call[] } {
@@ -78,6 +82,7 @@ function fakeDb(person: string | null, override: Partial<NotificationsDb> = {}):
     ...transferPricesNotUsed,
     ...facilitiesNotUsed,
     ...stockNotUsed,
+    ...stockAlertsNotUsed,
     listNotifications: record('listNotifications') as NotificationsDb['listNotifications'],
     countUnreadNotifications: record('countUnreadNotifications') as NotificationsDb['countUnreadNotifications'],
     markNotificationsRead: record('markNotificationsRead') as NotificationsDb['markNotificationsRead'],
