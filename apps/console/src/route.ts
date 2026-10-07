@@ -35,6 +35,10 @@ export type Route =
   | { readonly screen: 'notifications' }
   | { readonly screen: 'stock_alerts' }
   | { readonly screen: 'stock_alert_item'; readonly itemId: string }
+  | { readonly screen: 'purchase_orders' }
+  | { readonly screen: 'purchase_order_new' }
+  | { readonly screen: 'purchase_limits' }
+  | { readonly screen: 'purchase_order'; readonly purchaseOrderId: string }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -99,6 +103,16 @@ export function parseRoute(hash: string): Route {
     }
     return unknown;
   }
+  // An order goes to the facility worked at (ADR-0032 P1): no route names a facility.
+  if (path[0] === 'purchase_orders') {
+    if (path.length === 1) return { screen: 'purchase_orders' };
+    if (path.length === 2 && path[1] === 'new') return { screen: 'purchase_order_new' };
+    const id = path[1]!;
+    if (path.length === 2 && UUID.test(id)) return { screen: 'purchase_order', purchaseOrderId: id.toLowerCase() };
+    return unknown;
+  }
+  // A facility's approval limit: its own entry, read without orders (0023).
+  if (path[0] === 'purchase_limits') return path.length === 1 ? { screen: 'purchase_limits' } : unknown;
   // The bell's page: the person's own, from every facility they may open.
   if (path[0] === 'notifications') return path.length === 1 ? { screen: 'notifications' } : unknown;
   if (path[0] === 'transfer_prices') {
@@ -138,6 +152,10 @@ export function formatRoute(route: Route): string {
     case 'notifications': return '#notifications';
     case 'stock_alerts': return '#stock_alerts';
     case 'stock_alert_item': return `#stock_alerts/items/${route.itemId}`;
+    case 'purchase_orders': return '#purchase_orders';
+    case 'purchase_order_new': return '#purchase_orders/new';
+    case 'purchase_limits': return '#purchase_limits';
+    case 'purchase_order': return `#purchase_orders/${route.purchaseOrderId}`;
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -146,6 +164,8 @@ export function formatRoute(route: Route): string {
 export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
   if (route.screen === 'notifications') return 'notifications';
+  if (route.screen === 'purchase_limits') return 'purchase_limits';
+  if (route.screen.startsWith('purchase_')) return 'purchase_orders';
   // Before stock's: both begin `stock_`.
   if (route.screen === 'stock_alerts' || route.screen === 'stock_alert_item') return 'stock_alerts';
   if (route.screen === 'transfer_prices' || route.screen === 'item_prices') return 'transfer_prices';

@@ -28,6 +28,8 @@ import { StockItem } from './screens/StockItem.tsx';
 import { StockDecisionPage } from './screens/StockDecision.tsx';
 import { StockAdjust, StockCount } from './screens/StockEntry.tsx';
 import { StockAlertItem, StockAlertsList } from './screens/StockAlerts.tsx';
+import { PurchaseLimits, PurchaseOrderNew, PurchaseOrderPage, PurchaseOrdersList } from './screens/PurchaseOrders.tsx';
+import { purchaseRights } from './purchase-orders.ts';
 import { holdsOverride, stockWritable, workingFacility } from './stock.ts';
 import { badge, bellVisible } from './notifications.ts';
 import { Notifications } from './screens/Notifications.tsx';
@@ -48,6 +50,8 @@ const TRANSFER_PRICES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => 
 const FACILITIES: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'facilities')!;
 const STOCK: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'current_stock')!;
 const STOCK_ALERTS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'stock_alerts')!;
+const PURCHASE_ORDERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'purchase_orders')!;
+const PURCHASE_LIMITS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'purchase_limits')!;
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -267,6 +271,10 @@ export function App() {
     stockAlertsWritable: itemIsVisible(STOCK_ALERTS, viewer)
       && stockWritable(workingFacility(data.facilities, facilityId), viewer, (v) => itemIsWritable(STOCK_ALERTS, v)),
     seesStockAlerts: itemIsVisible(STOCK_ALERTS, viewer),
+    // As stock: orders are read and changed only AT a warehouse or a factory, where 0023 asks.
+    seesPurchaseOrders: itemIsVisible(PURCHASE_ORDERS, viewer),
+    seesPurchaseLimits: itemIsVisible(PURCHASE_LIMITS, viewer),
+    purchase: purchaseRights(workingFacility(data.facilities, facilityId), viewer, PURCHASE_ORDERS, itemIsVisible),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       // A form's own way out after a save asks nothing; only a real change of hash uses the pass.
@@ -401,6 +409,17 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
     switch (route.screen) {
       case 'stock_alerts': return <StockAlertsList ctx={ctx} />;
       case 'stock_alert_item': return <StockAlertItem ctx={ctx} itemId={route.itemId} />;
+    }
+  }
+  if (navIdOf(route) === 'purchase_limits') {
+    return ctx.seesPurchaseLimits ? <PurchaseLimits ctx={ctx} /> : <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+  }
+  if (navIdOf(route) === 'purchase_orders') {
+    if (!ctx.seesPurchaseOrders) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'purchase_orders': return <PurchaseOrdersList ctx={ctx} />;
+      case 'purchase_order_new': return <PurchaseOrderNew ctx={ctx} />;
+      case 'purchase_order': return <PurchaseOrderPage ctx={ctx} purchaseOrderId={route.purchaseOrderId} />;
     }
   }
   if (navIdOf(route) === 'current_stock') {

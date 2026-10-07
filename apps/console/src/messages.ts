@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019, 0020 or 0022 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019, 0020, 0022 or 0023 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -142,6 +142,42 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   stock_minimum_is_valid: 'rule_minimum_quantity',
   stock_minimum_inexact: 'rule_minimum_inexact',
   stock_minimum_reason_is_stated: 'rule_reason_required',
+  // 0023's, for purchase orders, receipts and limits. Not purchase_order_decision_pkey or
+  // purchase_limit_decision_pkey, for the reason given above for supplier_decision_pkey.
+  purchase_order_self_approval: 'rule_po_self_approval',
+  purchase_order_not_pending: 'rule_po_not_pending',
+  purchase_order_is_finished: 'rule_po_finished',
+  purchase_order_has_receipts: 'rule_po_has_receipts',
+  purchase_order_not_approved: 'rule_po_not_approved',
+  purchase_order_nothing_received: 'rule_po_nothing_received',
+  purchase_order_received_in_full: 'rule_po_received_in_full',
+  purchase_order_line_not_supplied: 'rule_po_not_supplied',
+  purchase_order_line_pack_is_retired: 'rule_po_pack_retired',
+  purchase_order_line_pack_once: 'rule_po_pack_once',
+  purchase_order_line_quantity_is_exact: 'rule_po_quantity',
+  purchase_order_line_base_is_exact: 'rule_po_base_inexact',
+  purchase_order_line_price_is_minor_units: 'rule_po_price',
+  purchase_order_line_amount_is_minor_units: 'rule_po_line_amount',
+  purchase_order_subtotal_is_minor_units: 'rule_po_subtotal',
+  purchase_order_vat_rate_is_known: 'rule_po_vat',
+  purchase_order_lines_are_stated: 'rule_po_lines',
+  purchase_order_reason_is_stated: 'rule_reason_required',
+  purchase_order_raised_once: 'rule_po_raised_once',
+  purchase_order_exists: 'rule_no_order',
+  purchase_order_line_exists: 'rule_no_order_line',
+  purchase_receipt_exists: 'rule_no_receipt',
+  purchase_receipt_exceeds_order: 'rule_receipt_exceeds',
+  purchase_receipt_before_order: 'rule_receipt_before_order',
+  purchase_receipt_delivery_note_is_canonical: 'rule_delivery_note',
+  purchase_receipt_line_once: 'rule_receipt_line_once',
+  purchase_receipt_lines_are_stated: 'rule_receipt_lines',
+  stock_receipt_reversed_through_its_order: 'rule_stock_receipt_through_order',
+  purchase_limit_stale: 'rule_limit_stale',
+  purchase_limit_unchanged: 'rule_limit_unchanged',
+  purchase_limit_not_set: 'rule_limit_not_set',
+  purchase_limit_is_minor_units: 'rule_limit_amount',
+  purchase_limit_currency_is_known: 'rule_price_currency',
+  purchase_limit_reason_is_stated: 'rule_reason_required',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

@@ -5,6 +5,7 @@
 import type { Api, Failure, ViewerData } from './api.ts';
 import type { Lang } from './i18n.ts';
 import type { Viewer } from './navigation.ts';
+import type { PurchaseRights } from './purchase-orders.ts';
 import type { Route } from './route.ts';
 
 export interface Ctx {
@@ -39,6 +40,12 @@ export interface Ctx {
   readonly stockAlertsWritable: boolean;
   /** Whether the person may read minimums here: the entry asks for read on stock and items too. */
   readonly seesStockAlerts: boolean;
+  /** Whether the person may read orders here: the entry asks for read on suppliers and items too. Organisation-wide, the page asks for a facility. */
+  readonly seesPurchaseOrders: boolean;
+  /** Whether the person may read approval limits here: their own entry, as 0023's limit read asks limits alone. */
+  readonly seesPurchaseLimits: boolean;
+  /** What the person may do with orders at the facility worked at, by 0023's gates (purchase-orders.ts, purchaseRights). */
+  readonly purchase: PurchaseRights;
   /** Whether the person has a bell here (notifications.ts, bellVisible). */
   readonly seesBell: boolean;
   /** Reads the bell's unread count again, after the person has marked something read. */

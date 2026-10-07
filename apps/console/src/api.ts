@@ -599,7 +599,7 @@ export interface StockQuery {
   readonly negativeOnly?: boolean;
 }
 
-export type StockKind = 'count' | 'adjustment' | 'waste' | 'damage' | 'expiry' | 'reversal';
+export type StockKind = 'count' | 'adjustment' | 'waste' | 'damage' | 'expiry' | 'reversal' | 'receipt';
 
 /**
  * One decision on an item's stock card, as erp.stock_history() returns it: what it moved
@@ -829,6 +829,190 @@ export interface NotificationPage {
 /** The ids marked read, 1 to 100, or every unread one, said: never an empty list. */
 export type MarkRead = { readonly notificationIds: readonly string[] } | { readonly all: true };
 
+/**
+ * One order at a facility, as erp.purchase_orders() lists it (0023). Amounts are whole
+ * HALALAS as JSON numbers; a seq is decimal text, the page's bookmark; a business date is
+ * the facility's day as text.
+ */
+export interface PurchaseOrderRow {
+  readonly purchase_order_id: string;
+  readonly seq: string;
+  readonly number: string;
+  readonly business_date: string;
+  readonly state: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'closed';
+  readonly progress: 'none' | 'partial' | 'full';
+  readonly supplier_id: string;
+  readonly supplier_code: string;
+  readonly supplier_name_en: string;
+  readonly supplier_name_ar: string;
+  readonly currency: string;
+  readonly vat_rate_bp: number;
+  readonly subtotal_minor: number;
+  readonly vat_minor: number;
+  readonly total_minor: number;
+  readonly line_count: number;
+  readonly raised_by: string;
+  readonly raised_at: string;
+  readonly as_of_decision_id: string;
+}
+
+export interface OrderList {
+  readonly orders: readonly PurchaseOrderRow[];
+  readonly next_before: string | null;
+}
+
+/** An order goes to one facility (P1): every read names it, as stock's do. */
+export interface OrderQuery {
+  readonly facilityId: string;
+  readonly state?: PurchaseOrderRow['state'] | null;
+  readonly before?: string | null;
+  readonly limit?: number;
+}
+
+/** One line of an order, with what has arrived and what is still to come, in its own pack. Quantities are TEXT. */
+export interface PurchaseOrderLine {
+  readonly line_no: number;
+  readonly item_id: string;
+  readonly code: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly base_unit_key: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: string;
+  readonly supplier_item_id: string;
+  readonly quantity: string;
+  readonly price_minor: number;
+  readonly amount_minor: number;
+  readonly received: string;
+  readonly remaining: string;
+}
+
+/**
+ * One decision about an order, oldest first. Built by 0023 as jsonb: its seq is a JSON
+ * number and its moments PostgreSQL's text, unlike the list's (purchase-orders-db.ts).
+ */
+export interface OrderDecisionRow {
+  readonly decision_id: string;
+  readonly seq: number;
+  readonly kind: 'order_raised' | 'order_approved' | 'order_rejected' | 'order_cancelled' | 'order_closed';
+  readonly state: PurchaseOrderRow['state'];
+  /** On a raise approved by the limit: the limit's decision. */
+  readonly limit_decision_id: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+}
+
+/** One receipt against an order: a stock decision, with the order lines it received and its reversal, if any. */
+export interface ReceiptRow {
+  readonly decision_id: string;
+  readonly occurred_at: string;
+  readonly business_date: string;
+  readonly delivery_note: string | null;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly reversed_by_decision_id: string | null;
+  readonly reversed_by: string | null;
+  readonly reversed_at: string | null;
+  readonly lines: readonly { readonly order_line_no: number; readonly quantity: string }[];
+}
+
+/** erp.get_purchase_order(): the order whole. */
+export interface PurchaseOrder extends Omit<PurchaseOrderRow, 'seq' | 'line_count'> {
+  readonly supplier_status: 'active' | 'retired';
+  readonly lines: readonly PurchaseOrderLine[];
+  readonly decisions: readonly OrderDecisionRow[];
+  readonly receipts: readonly ReceiptRow[];
+}
+
+/** One decision about a facility's approval limit, newest first; `is_current` marks the stamp. */
+export interface LimitDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: 'limit_set' | 'limit_cleared';
+  /** Whole halalas before VAT, or null on a clearing. */
+  readonly limit_minor: number | null;
+  readonly currency: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly is_current: boolean;
+}
+
+export interface LimitHistory {
+  readonly decisions: readonly LimitDecision[];
+  readonly next_before: string | null;
+}
+
+/** A line as the edge takes it: a pack the supplier sells, a quantity as decimal text, a price in halalas. */
+export interface OrderLineInput {
+  readonly item_unit_id: string;
+  readonly quantity: string;
+  readonly price_minor: number;
+}
+
+export interface RaiseOrderInput {
+  readonly decision_id: string;
+  readonly purchase_order_id: string;
+  readonly facility_id: string;
+  readonly supplier_id: string;
+  readonly vat_rate_bp: number;
+  readonly lines: readonly OrderLineInput[];
+  readonly reason: string;
+}
+
+/** Approve, reject, cancel or close: which one is the path, never the body. */
+export type OrderDecisionPath = 'approve' | 'reject' | 'cancel' | 'close';
+
+export interface DecideOrderInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly reason: string;
+}
+
+/** A receipt line names its order line by number: it arrives in the pack ordered. */
+export interface ReceiptLineInput {
+  readonly line_no: number;
+  readonly quantity: string;
+}
+
+export interface ReceiveInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  /** When the goods arrived, with its offset, or null for now. */
+  readonly received_at: string | null;
+  readonly lines: readonly ReceiptLineInput[];
+  readonly delivery_note: string | null;
+}
+
+/** A receipt's reversal names the receipt in the path only. */
+export interface ReceiptReversalInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly reason: string;
+  readonly override_reason: string | null;
+}
+
+export interface SetLimitInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly limit_minor: number;
+  readonly currency: string;
+  readonly expected_decision_id: string | null;
+  readonly reason: string;
+}
+
+export interface ClearLimitInput {
+  readonly decision_id: string;
+  readonly facility_id: string;
+  readonly expected_decision_id: string;
+  readonly reason: string;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -894,6 +1078,17 @@ export interface Api {
   setStockMinimum(input: SetMinimumInput): Promise<Answer<{ decision_id: string }>>;
   /** The item cleared is the one the path names; the body names the facility and the stamp. */
   clearStockMinimum(itemId: string, input: ClearMinimumInput): Promise<Answer<{ decision_id: string }>>;
+  purchaseOrders(query: OrderQuery): Promise<Answer<OrderList>>;
+  getPurchaseOrder(facilityId: string, purchaseOrderId: string): Promise<Answer<PurchaseOrder>>;
+  purchaseLimitHistory(facilityId: string, before?: string | null): Promise<Answer<LimitHistory>>;
+  raisePurchaseOrder(input: RaiseOrderInput): Promise<Answer<{ decision_id: string }>>;
+  /** The order and the decision are named in the path; the body carries neither. */
+  decidePurchaseOrder(purchaseOrderId: string, decision: OrderDecisionPath, input: DecideOrderInput): Promise<Answer<{ decision_id: string }>>;
+  receivePurchaseOrder(purchaseOrderId: string, input: ReceiveInput): Promise<Answer<{ decision_id: string }>>;
+  /** The receipt reversed is named in the path. */
+  reversePurchaseReceipt(receiptId: string, input: ReceiptReversalInput): Promise<Answer<{ decision_id: string }>>;
+  setPurchaseLimit(input: SetLimitInput): Promise<Answer<{ decision_id: string }>>;
+  clearPurchaseLimit(input: ClearLimitInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -1092,5 +1287,24 @@ export function createApi(config: ApiConfig): Api {
     setStockMinimum: (input) => call('POST', '/stock-alerts/minimums', input, decision),
     clearStockMinimum: (itemId, input) =>
       call('POST', `/stock-alerts/items/${encodeURIComponent(itemId)}/clear`, input, decision),
+
+    purchaseOrders: (q) =>
+      call('GET', `/purchase-orders${query({ facility_id: q.facilityId, state: q.state, before: q.before, limit: q.limit })}`,
+        undefined, (b) => ({ orders: b['orders'] as PurchaseOrderRow[], next_before: text(b['next_before']) })),
+    getPurchaseOrder: (facilityId, purchaseOrderId) =>
+      call('GET', `/purchase-orders/${encodeURIComponent(purchaseOrderId)}${query({ facility_id: facilityId })}`, undefined,
+        (b) => b['order'] as PurchaseOrder),
+    purchaseLimitHistory: (facilityId, before = null) =>
+      call('GET', `/purchase-orders/limits${query({ facility_id: facilityId, before })}`, undefined,
+        (b) => ({ decisions: b['decisions'] as LimitDecision[], next_before: text(b['next_before']) })),
+    raisePurchaseOrder: (input) => call('POST', '/purchase-orders', input, decision),
+    decidePurchaseOrder: (purchaseOrderId, path, input) =>
+      call('POST', `/purchase-orders/${encodeURIComponent(purchaseOrderId)}/${path}`, input, decision),
+    receivePurchaseOrder: (purchaseOrderId, input) =>
+      call('POST', `/purchase-orders/${encodeURIComponent(purchaseOrderId)}/receipts`, input, decision),
+    reversePurchaseReceipt: (receiptId, input) =>
+      call('POST', `/purchase-orders/receipts/${encodeURIComponent(receiptId)}/reverse`, input, decision),
+    setPurchaseLimit: (input) => call('POST', '/purchase-orders/limits', input, decision),
+    clearPurchaseLimit: (input) => call('POST', '/purchase-orders/limits/clear', input, decision),
   };
 }

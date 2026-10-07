@@ -87,12 +87,22 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         one would be answered 403 too: name the constraint.
  *   422 refused           23001 naming a rule: the request breaks one (a retired item, a
  *                         fixed base unit, a final retirement, a price already in effect,
- *                         stock that would go below zero, a movement dated before a count).
+ *                         stock that would go below zero, a movement dated before a count,
+ *                         an order approved by its raiser, a receipt past what is still to
+ *                         come, a limit set to what it already is).
  *   422 invalid           22xxx, 23502, 23503, 23514: the request is malformed or names
  *                         something that does not exist in a way a form can correct.
  *   404 not_found         P0002: no such item, conversion, facility or stock decision — or
  *                         one of another brand, or a stock decision at another facility,
- *                         which the routes answer exactly as a missing one.
+ *                         which the routes answer exactly as a missing one. Also no such
+ *                         purchase order or receipt at the facility asked
+ *                         (purchase_order_exists, purchase_receipt_exists), and no such line
+ *                         on an order that does exist (purchase_order_line_exists): the
+ *                         console reads `constraint` to tell the two apart.
+ *
+ * A retry's hint names the read its route's author meant. A purchase receipt or its
+ * reversal is a stock decision, so its hint names erp.get_stock_decision(); the console
+ * confirms it through the order instead, whose receipts carry both ids (ADR-0032).
  */
 const GENERIC: Readonly<Record<string, string>> = {
   conflict: 'a value that must be unique is already in use',

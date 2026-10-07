@@ -79,6 +79,17 @@ function whole(source: Source, field: string): number {
   return v;
 }
 
+/**
+ * A whole number the driver casts to `integer`: a VAT rate. Past int4, PostgreSQL's own
+ * cast fails with a 22003 that names no field, so the edge says which (found in review).
+ * That it is 0 to 10000 is still 0023's rule.
+ */
+function int4(source: Source, field: string): number {
+  const v = whole(source, field);
+  if (v < -2147483648 || v > 2147483647) throw new Malformed(field);
+  return v;
+}
+
 function lineArray(source: Source): Source[] {
   const v = source['lines'];
   if (!Array.isArray(v) || v.length < 1 || v.length > 200) throw new Malformed('lines');
@@ -178,7 +189,7 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
       purchaseOrderId,
       facilityId: uuid(b, 'facility_id'),
       supplierId: uuid(b, 'supplier_id'),
-      vatRateBp: whole(b, 'vat_rate_bp'),
+      vatRateBp: int4(b, 'vat_rate_bp'),
       lines: orderLines(b),
       reason: text(b, 'reason', 500),
     });
@@ -251,7 +262,9 @@ async function dispatch(request: Request, s: Session, deps: Deps): Promise<Reply
       purchaseOrderId,
       receivedAt: moment(b, 'received_at'),
       lines: receiptLines(b),
-      deliveryNote: optionalText(b, 'delivery_note', 64),
+      // 0023 trims a note, then holds it to 64 characters; the edge only bounds its size,
+      // so a padded note is not refused here that 0023 would take (found in review).
+      deliveryNote: optionalText(b, 'delivery_note', 500),
     });
     return ok({ decision_id: decisionId });
   }
