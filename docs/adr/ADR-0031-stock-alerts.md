@@ -279,12 +279,22 @@ SUP-P04, and exercises INV-013, SUP-P01 and SUP-005 without evidencing them. The
 seven questions it opens with are this ADR's four, the 0 that meant none in the warehouse,
 a minimum raised above stock ringing nothing, and where the module is switched on.
 
-Every figure, word and count it quotes was run end to end in a browser against the
-scratch database before it was written: the low list, minimums in cartons, buckets,
-bottles and packs, the refusals of none and of the minimum already in force, the bell for
-the person who moved the stock and for the administrator, once per drop, both kinds for
-one override, the factory manager told only of the factory, Retry after a lost
-connection recording once, and the Arabic page.
+Every figure, word and count it quotes was checked against the scratch database before
+it was signed off: the low list, minimums in cartons, buckets, bottles, packs and cans,
+the refusals of none and of the minimum already in force, a minimum raised to what is on
+hand ringing nothing, only an item's current packs offered, the bell for the person who
+moved the stock and for the administrator, once per drop, both kinds for one override,
+one notification naming both items one entry took low, the factory manager told only of
+the factory, Retry after a lost connection recording once, the accountant and the cashier
+told nothing, and the Arabic page. The participant's part ran in a browser; the second
+computer's entries, and the participant's own movements, were posted through the same
+database routes the screens call. A separate run worked every person's part through the
+screens, both languages included, and found the same figures.
+
+Two clauses are not shown, and the pack says so: nobody in the test data reads stock and
+items without stock alerts, so the alerts permission's part in who is told is held by
+pgTAP 170 alone; and a history names only the person signed in, so who made another's
+change is held there too.
 
 A count past a minimum is not in the session: the database's own tests hold it, and it
 is question C.
