@@ -23,9 +23,9 @@ here:
   and one ledger per warehouse or factory (ADR-0029).
 - **No record.** Nothing said who changed a minimum, when or why.
 - **0 meant none,** and the form offered 0 by default.
-- **"Once" depended on reading.** The bell skipped anyone who still had that item's alert
-  unread. A manager who read it was told again by the next movement while stock stayed
-  low; one who never read it was never told again.
+- **"Once" depended on reading.** The bell rang on a crossing, as here, but skipped anyone
+  who still had that item's alert unread. So a manager who had not read the last one was
+  not told when stock went back above its minimum and fell again.
 
 INV-013 asks for minimum, maximum, safety-stock and reorder values by location, in F3.
 
@@ -47,8 +47,8 @@ Every master in the ERP is a log and a projection (I-8), and so is this:
 
 - **`erp.stock_minimum_decision`** is append-only. Each row sets or clears one item's
   minimum at one facility, with who, when and why. A minimum set records the pack it was
-  entered in — its conversion copied whole through 0012's seam (I-7) — the quantity in
-  that pack, and the base quantity.
+  entered in — its conversion copied whole, under a composite key to `erp.item_unit` as
+  0012's seam lays out (I-7) — the quantity in that pack, and the base quantity.
 - **`erp.stock_minimum`** holds the minimum in force per facility and item, stamped with
   the latest decision about it. A cleared minimum keeps its row, empty, so the stamp still
   names the decision that cleared it. Triggers keep a row on its facility and item and
@@ -58,9 +58,11 @@ Every master in the ERP is a log and a projection (I-8), and so is this:
 
 ### 3. Two write routes, at one facility
 
-`erp.set_stock_minimum()` and `erp.clear_stock_minimum()` ask **write on stock alerts and
-read on items, at the facility**, so a factory manager sets minimums at the factory alone
-(IAM-006). Then, in order:
+`erp.set_stock_minimum()` and `erp.clear_stock_minimum()` ask **write on stock alerts, at
+the facility**, so a factory manager sets minimums at the factory alone (IAM-006). They
+also ask the three reads `erp.stock_minimum_history()` asks — stock alerts, stock and
+items — so whoever sets a minimum can read it back to confirm a retry (found in review).
+Then, in order:
 
 1. **A retry is answered as one:** the decision id, locked and checked first, answers
    23505 on `stock_minimum_decision_pkey`, as every log here does.
@@ -69,7 +71,10 @@ read on items, at the facility**, so a factory manager sets minimums at the fact
    holds no minimum either; both refusals are 0020's, in 0020's words.
 3. **The pack** is found through the facility's brand, so another brand's answers as a
    missing one (ADR-0012). Setting a minimum is new work on the item, so the item and the
-   pack must be active. Clearing is not, so a retired item's minimum can be cleared.
+   pack must be active: the item through 0012's `erp.assert_item_active()`, under its share
+   lock, and the pack read again under that lock and held. Read only before the wait, a
+   pack retired meanwhile was taken as current (found in review; db:check races it).
+   Clearing is not new work, so a retired item's minimum can be cleared.
 4. **The quantity** is decimal text, up to twelve digits and six places, exact to six
    places in the base unit, as stock's are.
 5. **The balance lock.** The route takes 0020's key lock for that facility and item, so a
@@ -141,9 +146,13 @@ holds nothing here.
 - **The bell rings once per drop for everyone,** whatever they did with the last alert.
 - **A person told can always open it:** the same three reads choose the recipient and
   gate the list it opens.
-- **0022 changes two of 0021's functions** with `create or replace` (the rule of who may
-  open a kind, and the bell's page) and widens two of its checks. 0021 itself is
-  unchanged.
+- **0022 changes three of 0021's functions** with `create or replace` — the rule of who
+  may open a kind, the bell's page, and the below-zero producer — and widens two of its
+  checks. 0021 itself is unchanged. The producer asked whether a decision had been told
+  anything, and an `INSERT … ON CONFLICT DO UPDATE` fires its update triggers before its
+  insert's. So an override that took a new item below zero and another item past its
+  minimum wrote the low-stock notification first, and the below-zero one was never made
+  (found in review). It now asks whether the decision was told it went below zero.
 - **The edge function, screens and staff testing follow,** as for every module.
 
 ## Questions for the owner

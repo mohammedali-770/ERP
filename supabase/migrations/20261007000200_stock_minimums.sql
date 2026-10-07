@@ -48,8 +48,9 @@ create table erp.stock_minimum_decision (
                               references erp.facility (facility_id) on delete no action,
   item_id       uuid        not null constraint stock_minimum_decision_item_exists
                               references erp.item (item_id) on delete no action,
-  -- As entered, for a minimum set: the conversion it was entered in, copied whole through
-  -- 0012's seam (I-7), and the quantity in that pack. Empty when cleared.
+  -- As entered, for a minimum set: the conversion it was entered in, copied whole under a
+  -- composite key to it, as 0012's seam lays out (I-7), and the quantity in that pack.
+  -- Empty when cleared.
   item_unit_id  uuid,
   unit_key      text,
   factor        numeric,
@@ -114,7 +115,8 @@ create table erp.stock_minimum (
                                   references erp.item (item_id) on delete no action,
   -- In the item's base unit; empty once cleared. The row stays, so its stamp still names
   -- the decision that cleared it.
-  minimum           numeric,
+  minimum           numeric
+    constraint stock_minimum_is_more_than_nothing check (minimum > 0),
   as_of_decision_id uuid        not null constraint stock_minimum_as_of_decision_id_fkey
                                   references erp.stock_minimum_decision (decision_id),
   updated_at        timestamptz not null default now(),
@@ -274,11 +276,12 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- Each is scoped to the facility, as stock's are: a factory manager sets minimums at the
--- factory and nowhere else. Each asks write on stock alerts and read on items there, then
--- answers a retry, then applies.
+-- factory and nowhere else. Each asks write on stock alerts there, and the three reads
+-- erp.stock_minimum_history() asks, so whoever sets a minimum can confirm their own retry
+-- (found in review); then answers a retry, then applies.
 
 -- A minimum, entered in a pack of the item (I-7): "4 cartons" is kept as entered and as its
--- base quantity. New work on an item, so the item and the pack must be active (0012's seam);
+-- base quantity. New work on an item, so the item and the pack must be active;
 -- another brand's pack answers as a missing one (ADR-0012). p_expected_decision_id is the
 -- stamp the person read, or NULL when the item has never had a minimum here.
 create or replace function erp.set_stock_minimum(
@@ -304,6 +307,8 @@ declare
   v_base numeric;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.stock_alerts', 'write', p_facility_id);
+  perform erp.assert_permitted(p_actor_id, 'inventory.stock_alerts', 'read', p_facility_id);
+  perform erp.assert_permitted(p_actor_id, 'inventory.stock', 'read', p_facility_id);
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'read', p_facility_id);
   perform erp.assert_stock_minimum_decision_is_new(p_decision_id);
   f := erp.assert_stock_minimum_facility(p_facility_id);
@@ -317,7 +322,11 @@ begin
   if not found then
     raise exception 'no conversion %', p_item_unit_id using errcode = 'no_data_found', constraint = 'item_unit_exists';
   end if;
+  -- Under the item's share lock, which erp.retire_item_unit() takes for update, the pack is
+  -- read again, and held: read only before, a pack retired while this waited was taken as
+  -- current (found in review, as 0018's pricing was).
   v_item := erp.assert_item_active(u.item_id);
+  select x.* into u from erp.item_unit x where x.item_unit_id = u.item_unit_id for share;
   if u.status <> 'active' then
     raise exception 'the % pack of % is retired: enter the minimum in a current one', u.unit_key, v_item.code
       using errcode = 'restrict_violation', constraint = 'stock_minimum_pack_is_retired';
@@ -371,6 +380,8 @@ declare
   v_item erp.item;
 begin
   perform erp.assert_permitted(p_actor_id, 'inventory.stock_alerts', 'write', p_facility_id);
+  perform erp.assert_permitted(p_actor_id, 'inventory.stock_alerts', 'read', p_facility_id);
+  perform erp.assert_permitted(p_actor_id, 'inventory.stock', 'read', p_facility_id);
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'read', p_facility_id);
   perform erp.assert_stock_minimum_decision_is_new(p_decision_id);
   f := erp.assert_stock_minimum_facility(p_facility_id);
@@ -579,6 +590,67 @@ begin
       from erp.person p
      where p.status = 'active'
        and erp.notification_is_open_to(p.person_id, 'stock_low', v_crossed.facility_id)
+    on conflict on constraint notification_once_per_person do nothing;
+  end loop;
+  return null;
+end;
+$$;
+
+-- 0021's producer, asking only whether a decision was told THAT it went below zero. It
+-- asked whether any notification named the decision, and an INSERT … ON CONFLICT DO UPDATE
+-- fires its update triggers before its insert's: so an override that took a new item below
+-- zero and another item across its minimum wrote the low-stock row first, and the
+-- below-zero producer then told nobody (found in review). Otherwise as 0021 wrote it.
+create or replace function erp.notify_stock_below_zero()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  v_decision_ids uuid[];
+  v_decision     erp.stock_decision;
+  v_items        jsonb;
+begin
+  if tg_op = 'INSERT' then
+    select array_agg(distinct n.as_of_decision_id) into v_decision_ids
+      from new_rows n where n.on_hand < 0;
+  else
+    select array_agg(distinct n.as_of_decision_id) into v_decision_ids
+      from new_rows n
+      join old_rows o on o.facility_id = n.facility_id and o.item_id = n.item_id
+     where n.on_hand < 0 and n.as_of_decision_id is distinct from o.as_of_decision_id;
+  end if;
+  if v_decision_ids is null then
+    return null;
+  end if;
+
+  for v_decision in
+    select d.* from erp.stock_decision d
+     where d.decision_id = any (v_decision_ids)
+       and d.override_reason is not null
+       and not exists (select 1 from erp.notification x
+                        where x.stock_decision_id = d.decision_id and x.kind = 'stock_below_zero')
+     order by d.decision_id
+  loop
+    select jsonb_agg(jsonb_build_object('item_id', b.item_id, 'on_hand', trim_scale(b.on_hand)::text)
+                     order by i.code collate "C")
+      into v_items
+      from (select distinct e.item_id from erp.stock_ledger e
+             where e.decision_id = v_decision.decision_id and e.direction = 'out') x
+      join erp.stock_balance b on b.facility_id = v_decision.facility_id and b.item_id = x.item_id
+      join erp.item i on i.item_id = b.item_id
+     where b.as_of_decision_id = v_decision.decision_id
+       and b.on_hand < 0;
+    continue when v_items is null;
+
+    insert into erp.notification (kind, recipient_id, facility_id, stock_decision_id, data)
+    select 'stock_below_zero', p.person_id, v_decision.facility_id, v_decision.decision_id,
+           jsonb_build_object('items', v_items)
+      from erp.person p
+     where p.status = 'active'
+       and p.person_id <> v_decision.actor_id
+       and erp.notification_is_open_to(p.person_id, 'stock_below_zero', v_decision.facility_id)
     on conflict on constraint notification_once_per_person do nothing;
   end loop;
   return null;

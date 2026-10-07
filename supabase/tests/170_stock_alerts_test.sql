@@ -21,7 +21,7 @@
 -- Fixture ids are …0e22NN, a range no seed row and no other suite uses.
 
 begin;
-select plan(65);
+select plan(72);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -171,6 +171,10 @@ select is(pg_temp.after($$select (select trim_scale(on_hand) || ':' || is_low fr
   '0:true', 'an item never moved here has none on hand, so a minimum makes it low at once');
 select is(pg_temp.refusal($$select * from erp.stock_minimums(pg_temp.u('907'), pg_temp.u('403'))$$), '23001 -',
   'CONTROL: the accountant, who reads no stock, reads no minimums');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'warehouse_manager'
+                              and capability_key = 'inventory.stock' and action = 'read'$$,
+                          $$select * from erp.stock_minimums(pg_temp.u('904'), pg_temp.u('403'))$$), '23001 -',
+  'CONTROL: the list shows stock on hand, so one who reads alerts but not stock reads no list');
 select is(pg_temp.refusal($$select * from erp.stock_minimums(pg_temp.u('900'), null)$$), '22023 stock_facility_required',
   'CONTROL: the list is for one facility, even to the administrator');
 
@@ -232,6 +236,10 @@ select is(pg_temp.refusal($$select pg_temp.set_min('e2217', '403', '4201', '80',
   'CONTROL: the factory manager sets minimums at the factory, not at the warehouse (IAM-006)');
 select is(pg_temp.refusal($$select pg_temp.set_min('e2218', '401', '4201', '80', null, '901')$$), '23001 -',
   'a branch worker, who reads stock, sets no minimum');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'warehouse_manager'
+                              and capability_key = 'inventory.stock' and action = 'read'$$,
+                          $$select pg_temp.set_min('e2224', '403', '4201', '80', '5801')$$), '23001 -',
+  'one who could not read the minimum back cannot set it: the write asks the reads its retry is confirmed by');
 select is(pg_temp.after($$select pg_temp.minimum('404', '4102')$$, $$select pg_temp.set_min('e2219', '404', '4207', '4', '5805', '908')$$),
   '160', 'the factory manager sets one at the factory: 4 trays of 40');
 
@@ -318,10 +326,25 @@ select is(pg_temp.after($$select pg_temp.told('e2252')$$,
                             and capability_key = 'inventory.stock_alerts' and action = 'read'$$,
                         $$select pg_temp.waste('e2252', '4203', '3')$$),
   '900', 'CONTROL: the warehouse manager, still reading stock but not its alerts, is not told');
+select is(pg_temp.after($$select pg_temp.told('e2260')$$,
+                        $$delete from erp.role_permission where role_key = 'warehouse_manager'
+                            and capability_key = 'inventory.stock' and action = 'read'$$,
+                        $$select pg_temp.waste('e2260', '4203', '3')$$),
+  '900', 'CONTROL: nor one who reads alerts but not stock');
+select is(pg_temp.after($$select pg_temp.told('e2261')$$,
+                        $$delete from erp.role_permission where role_key = 'warehouse_manager'
+                            and capability_key = 'inventory.items' and action = 'read'$$,
+                        $$select pg_temp.waste('e2261', '4203', '3')$$),
+  '900', 'CONTROL: nor one who reads alerts and stock but not items');
 select is(pg_temp.after($$select pg_temp.low_count()::text$$,
                         $$select pg_temp.set_state('inventory.stock_alerts', '403', 'hidden', 'e2253')$$,
                         $$select pg_temp.waste('e2254', '4203', '3')$$),
   '0', 'stock alerts hidden at the warehouse: nobody is told');
+select is(pg_temp.after($$select pg_temp.told('e2259') || ' / ' || pg_temp.told('e2259', 'stock_below_zero')$$,
+                        $$select pg_temp.adjust('e2259', 'waste', jsonb_build_array(pg_temp.l('4217', '1'), pg_temp.l('4203', '3')),
+                                                '900', '403', 'Delivery not entered.')$$),
+  '900,904 / 904',
+  'CONTROL: one override taking a new item below zero and another past its minimum raises both kinds — the update triggers fire before the insert''s');
 select is(pg_temp.after($$select pg_temp.told('e2255')$$,
                         $$select pg_temp.adjust('e2255', 'waste', jsonb_build_array(pg_temp.l('4207', '1')), '908', '404')$$),
   '', 'the factory''s strips are already low: a further drop tells nobody');
@@ -347,6 +370,14 @@ select is(pg_temp.after(
   $$delete from erp.role_permission where role_key = 'warehouse_manager'
       and capability_key = 'inventory.stock_alerts' and action = 'read'$$),
   '0 0', 'one who can no longer read stock alerts is no longer shown or counted it (SUP-007)');
+select is(pg_temp.after($$select erp.count_unread_notifications(pg_temp.u('904'), pg_temp.u('403'))::text$$,
+                        $$select pg_temp.waste('e2262', '4203', '3')$$,
+                        $$select pg_temp.set_state('inventory.stock', '403', 'hidden', 'e2263')$$),
+  '0', 'stock hidden at the warehouse since: its low-stock notification is no longer counted');
+select is(pg_temp.after($$select erp.count_unread_notifications(pg_temp.u('904'), pg_temp.u('403'))::text$$,
+                        $$select pg_temp.waste('e2264', '4203', '3')$$,
+                        $$select pg_temp.set_state('inventory.items', '403', 'hidden', 'e2265')$$),
+  '0', 'nor with items hidden there since');
 select is(pg_temp.refusal($$insert into erp.notification (kind, recipient_id, facility_id, data)
                             values ('stock_low', pg_temp.u('904'), pg_temp.u('403'), '{}')$$),
   '23514 notification_names_its_source', 'a low-stock notification names the decision it is about');

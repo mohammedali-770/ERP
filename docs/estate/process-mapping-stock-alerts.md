@@ -66,7 +66,7 @@ name. Since its October fixes it also reached the manager whose own action cause
 | | Warehouse | ERP |
 |---|---|---|
 | When | a value crosses from above its minimum to at or below it | the same (A2): the balance before a posting against the balance after |
-| Again | not while the recipient has that alert unread | not until the balance has gone back above and falls again (A2) |
+| Again | on the next crossing, but not to a recipient who still has that alert unread | on the next crossing, to everyone: once the balance has gone back above and falls again (A2) |
 | Who | every active manager of the stock's kind, organisation-wide | whoever may read stock alerts, stock and items **at that facility** (0021's rule, N2) |
 | The actor | told | told (A3) |
 | A minimum raised above stock | no alert | no alert; the item is listed low at once |
@@ -84,9 +84,9 @@ name. Since its October fixes it also reached the manager whose own action cause
 - **One minimum per item per facility,** not three columns for three kinds of stock.
 - **A minimum is a decision**, with who, when and why, and its history kept.
 - **No minimum of 0.** None is cleared.
-- **"Once" is a fact about the posting,** not about who has read what. The warehouse's
-  rule meant a manager who had read an alert was told again by the next movement while
-  stock stayed low; one who never read it was never told again, however far it fell.
+- **"Once" is a fact about the posting,** not about who has read what. The warehouse rang
+  on a crossing too, but skipped a manager who still had the last alert unread, so stock
+  that went back above its minimum and fell again told only those who had read it.
 - **Recipients are scoped to the facility,** not organisation-wide by role.
 - **Who sets a minimum is a permission,** at a facility, not the administrator alone. The
   synthetic seed gives it to the two managers where they hold stock; who holds it in a

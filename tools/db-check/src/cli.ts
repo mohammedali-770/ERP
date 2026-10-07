@@ -403,6 +403,44 @@ try {
     }
   }
 
+  // A minimum set in a pack while the pack is being retired must wait for the retirement
+  // and then be refused: erp.set_stock_minimum() reads the pack again under the item's share
+  // lock, which retire_item_unit() takes for update. Read only before it waited, a pack
+  // retired meanwhile was taken as current, and the minimum named a retired carton (found
+  // in review). The gloves' carton of 10 at WH-001, which nothing else here uses.
+  {
+    const retirement = cluster.sqlConcurrently(`begin;
+      select erp.retire_item_unit(${id('0000000d0402')}, ${id('000000004218')}, 'db-check minimum probe', ${admin}, now());
+      do $wait$ begin
+        for i in 1..400 loop
+          perform pg_stat_clear_snapshot();
+          exit when exists (select 1 from pg_stat_activity
+                            where application_name = 'erp_minimum_set' and wait_event_type = 'Lock');
+          perform pg_sleep(0.025);
+        end loop;
+      end $wait$;
+      commit;`, 'erp_minimum_retirement');
+    for (let i = 0; i < 400; i++) {
+      const written = cluster.sql(`select exists (select 1 from pg_stat_activity a join pg_locks l on l.pid = a.pid
+                                    where a.application_name = 'erp_minimum_retirement'
+                                      and l.locktype = 'transactionid' and l.granted)`).trim() === 't';
+      if (written) break;
+      await pause(25);
+    }
+    const set = cluster.sqlConcurrently(`select erp.set_stock_minimum(${id('0000000d0701')}, ${id('000000000403')},
+      ${id('000000004218')}, '2', null, 'db-check minimum probe', ${admin}, now())`, 'erp_minimum_set');
+    const [retired, minimum] = await Promise.all([retirement, set]);
+    const refused = /ERROR:\s+23001:/.test(minimum.stderr)
+      && /CONSTRAINT NAME:\s+stock_minimum_pack_is_retired(\s|$)/m.test(minimum.stderr);
+    if (retired.status === 0 && refused) {
+      console.log('  pass  set_stock_minimum: a minimum set while its pack is retired waits, and is refused');
+    } else {
+      failures++;
+      console.log(`  FAIL  set_stock_minimum: a minimum set while its pack was retired was answered "${errorOf(minimum)}"` +
+        (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+    }
+  }
+
   // An order checked against a branch's area while the branch is being closed must wait
   // for the closure and then be refused: erp.assert_at_facility() reads the facility under
   // its share lock, which every facility route takes for update. Without it, the order
