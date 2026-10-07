@@ -584,6 +584,10 @@ Module 7's switch-on (2026-10-07, closed PR #58, ADR-0031's step 6 addendum) is 
 at the same warehouse, after both: it is dated after 0022, and when the other two come
 back with fresh timestamps it needs a later one still. Three held migrations in a fixed
 order, each re-dated by hand, strengthen the case for a reviewed run-time decision.
+Its review found a sharper reason: where the warehouse does not yet exist, each of the
+three warns, records nothing and still counts as applied, so it never runs again. A
+hosted project's migrations applied before module 4 has made the warehouse would lose
+every held pilot with only a warning (ADR-0031's step 6 addendum).
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.

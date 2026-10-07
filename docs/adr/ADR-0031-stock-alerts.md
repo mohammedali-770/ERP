@@ -332,7 +332,8 @@ refused at the factory, as was a set; pointed at the factory, it was refused.
 1. the stock-alerts pack is signed by staff;
 2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
    the merging PR);
-3. items, stock and the bell are switched on at the same warehouse first, in that order.
+3. items are switched on organisation-wide, where every item is made, then stock and the
+   bell at the same warehouse, in that order.
    Opened alone, stock alerts would answer nobody, since every route asks read on stock
    and items; and a low-stock notification shows only where the bell is open. The two
    held files are dated before 0022, and this one after it, so when they come back each
@@ -341,3 +342,23 @@ refused at the factory, as was a set; pointed at the factory, it was refused.
    grants minimums to the administrator alone (0022), and granting them to the warehouse
    manager is a permission change, owner-approved and made on its own;
 5. the real warehouse code replaces the synthetic seed's.
+
+**Found in review (2026-10-07), to fix when it comes back.** The draft at `e39bb15` was
+reviewed after it was closed. Its SQL is correct; these are gaps in what it says:
+- **The warehouse must exist where it is applied.** Where it does not, the migration warns,
+  records nothing, and still counts as applied, so it never runs again. A facility is made
+  only through module 4, organisation-wide, so a hosted project whose migrations are
+  applied before the warehouse is made loses all three held pilots silently. That is a
+  sixth precondition, for modules 5's and 6's files too (Q-23).
+- **Its header says items are switched on "at the same warehouse".** Items are made only
+  organisation-wide, so module 1 must be open there; corrected above.
+- **A low-stock notification is recorded while the bell is closed,** and only its showing
+  waits on the bell: opened before the bell, stock alerts would store up to 90 days of
+  notifications that appear at once when it opens. The order above prevents it; the header
+  gives only half the reason.
+- **The factory stays shut because nothing is recorded there** and the organisation-wide
+  default is hidden, not only because stock is shut there. Opening stock at the factory
+  later would not open stock alerts.
+- **A facility decision already made at run time** for stock alerts at the warehouse makes
+  the migration fail on the state row's key. It fails closed, but unworded; modules 5's and
+  6's files share it.
