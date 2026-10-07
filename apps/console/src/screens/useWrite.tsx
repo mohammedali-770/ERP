@@ -13,12 +13,13 @@ import { writeLifecycle, type Done, type WriteHooks } from '../write.ts';
  * while a request was out, and the in-doubt form then showed values its Retry would not
  * send (found in review).
  */
-export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: Done, after: () => void) {
+export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: Done, after: () => void,
+                         recorded?: (seen: unknown) => boolean) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [inDoubt, setInDoubt] = useState(false);
-  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone });
-  hooks.current = { onFailure: ctx.onFailure, see, after, onDone };
+  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded });
+  hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded };
   const [life] = useState(() => writeLifecycle({ setBusy, setFailure, setInDoubt }, () => hooks.current));
   return {
     busy,

@@ -583,7 +583,7 @@ const EN = {
   po_close_hint: 'Part has arrived and the rest will not. Closing is final.',
   po_receipts: 'Receipts',
   po_no_receipts: 'Nothing has been received against this order.',
-  po_received_at: 'Received',
+  po_received_at: 'Received at',
   po_delivery_note: 'Delivery note',
   po_delivery_note_hint: 'The supplier\'s delivery note number, if there is one. Up to 64 characters.',
   po_arrived: 'Arrived now',

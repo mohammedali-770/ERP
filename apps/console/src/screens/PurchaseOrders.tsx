@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type {
-  Failure, LimitDecision, PurchaseOrder, PurchaseOrderRow, RaiseOrderInput, ReceiptRow, Supplier, SupplierDetail, Supply,
+  Failure, LimitDecision, LimitHistory, PurchaseOrder, PurchaseOrderRow, RaiseOrderInput, ReceiptRow, Supplier, SupplierDetail, Supply,
 } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { formatFactor, shortId } from '../format.ts';
@@ -114,7 +114,8 @@ export function PurchaseOrdersList({ ctx }: { ctx: Ctx }) {
         </div>
       </header>
       {status === 'closed' ? <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />
-        : !ctx.purchase.raises ? <Notice tone="info" text={t(lang, 'read_only_orders')} /> : null}
+        : !ctx.purchase.raises && !ctx.purchase.approves && !ctx.purchase.receives
+          ? <Notice tone="info" text={t(lang, 'read_only_orders')} /> : null}
 
       <div className="filters">
         <select aria-label={t(lang, 'status')} value={state} onChange={(e) => setState(e.target.value as PurchaseOrderRow['state'] | '')}>
@@ -265,9 +266,9 @@ export function PurchaseOrderNew({ ctx }: { ctx: Ctx }) {
   // A supplier chosen and lines typed are work: every way out of the page asks first (leave.ts).
   const { setLeaveGuard } = ctx;
   useEffect(() => {
-    setLeaveGuard(() => lines.length > 0);
+    setLeaveGuard(() => lines.length > 0 || supplier !== null);
     return () => setLeaveGuard(null);
-  }, [setLeaveGuard, lines.length]);
+  }, [setLeaveGuard, lines.length, supplier]);
 
   if (place.facility === null) return <section><a href="#purchase_orders">{t(lang, 'back')}</a>{place.notice}</section>;
   if (status === 'closed') return <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />;
@@ -320,7 +321,8 @@ export function PurchaseOrderNew({ ctx }: { ctx: Ctx }) {
   /** Is the order there? Then the lost attempt raised it. If not, nothing was recorded yet: new ids. */
   async function startOver() {
     setBusy(true);
-    const found = await api.getPurchaseOrder(facilityId, ids.purchase_order_id);
+    // At the facility the request went to: after a switch, the order answers elsewhere as missing (found in review).
+    const found = await api.getPurchaseOrder(sent.current?.facility_id ?? facilityId, ids.purchase_order_id);
     setBusy(false);
     if (found.ok) {
       ctx.navigate({ screen: 'purchase_order', purchaseOrderId: ids.purchase_order_id }, t(lang, 'order_already_recorded'));
@@ -613,7 +615,7 @@ export function PurchaseOrderPage({ ctx, purchaseOrderId }: { ctx: Ctx; purchase
                       {t(lang, 'po_receipt_reversed')}
                       {r.reversed_at !== null ? <> · {formatRiyadh(lang, r.reversed_at)}</> : null}
                     </em>
-                  ) : !reloading && receiptReversible(r, ctx.purchase) ? (
+                  ) : !reloading && receiptReversible(r, ctx.purchase, status !== 'closed') ? (
                     <ReverseReceipt key={r.decision_id} ctx={ctx} order={order} receipt={r} facilityId={facility}
                       onDone={afterWrite(t(lang, 'saved'), t(lang, 'receipt_already_recorded'))} />
                   ) : null}
@@ -668,7 +670,7 @@ function DecideOrder({ ctx, order, facilityId, decision, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  });
+  }, (seen) => (seen as PurchaseOrder).decisions.some((d) => d.decision_id === ids.decision_id));
   const keys = DECISION_KEYS[decision];
   const tone = decision === 'approve' ? 'primary' : decision === 'reject' || decision === 'cancel' ? 'danger' : undefined;
 
@@ -690,7 +692,7 @@ function DecideOrder({ ctx, order, facilityId, decision, onDone }: {
       <fieldset className="plain" disabled={w.locked}>
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <button type="submit" className={tone} disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, keys.button)}</button>
-        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>
+        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'back')}</button>
       </fieldset>
     </form>
   );
@@ -720,11 +722,13 @@ function ReceiveForm({ ctx, order, facilityId, onDone }: { ctx: Ctx; order: Purc
   const timeRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  // A receipt recorded under a lost answer looks like any other on the page: Start over
+  // says it was saved, so the same goods are not received twice (found in review).
   const w = useWrite(ctx, () => ctx.api.getPurchaseOrder(facilityId, order.purchase_order_id), onDone, () => {
     setIds(formIds(['decision_id'] as const));
     setTyped({});
     setNote('');
-  });
+  }, (seen) => (seen as PurchaseOrder).receipts.some((r) => r.decision_id === ids.decision_id));
   // Quantities typed are work: every way out of the page asks first (leave.ts).
   const { setLeaveGuard } = ctx;
   const dirty = Object.values(typed).some((v) => v.trim() !== '');
@@ -802,7 +806,7 @@ function ReverseReceipt({ ctx, order, receipt, facilityId, onDone }: {
     setOpen(false);
     setReason('');
     setOverride('');
-  });
+  }, (seen) => (seen as PurchaseOrder).receipts.some((r) => r.reversed_by_decision_id === ids.decision_id));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -829,7 +833,7 @@ function ReverseReceipt({ ctx, order, receipt, facilityId, onDone }: {
           </Field>
         ) : null}
         <button type="submit" className="danger" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'po_reverse_receipt')}</button>
-        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>
+        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'back')}</button>
       </fieldset>
     </form>
   );
@@ -992,7 +996,7 @@ function SetLimit({ ctx, facilityId, stamp, onDone }: { ctx: Ctx; facilityId: st
     setIds(formIds(['decision_id'] as const));
     setAmount('');
     setReason('');
-  });
+  }, (seen) => (seen as LimitHistory).decisions.some((d) => d.decision_id === ids.decision_id));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -1031,7 +1035,7 @@ function ClearLimit({ ctx, facilityId, stamp, onDone }: { ctx: Ctx; facilityId: 
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  });
+  }, (seen) => (seen as LimitHistory).decisions.some((d) => d.decision_id === ids.decision_id));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -1050,7 +1054,7 @@ function ClearLimit({ ctx, facilityId, stamp, onDone }: { ctx: Ctx; facilityId: 
       <fieldset className="plain" disabled={w.locked}>
         <ReasonField lang={lang} value={reason} onChange={setReason} />
         <button type="submit" className="danger" disabled={w.busy}>{w.busy ? t(lang, 'saving') : t(lang, 'clear_limit')}</button>
-        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'cancel')}</button>
+        <button type="button" onClick={() => setOpen(false)}>{t(lang, 'back')}</button>
       </fieldset>
     </form>
   );

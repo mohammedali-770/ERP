@@ -114,6 +114,24 @@ test('CONTROL: Start over reads the record before anything unlocks; a failed rea
   assert.equal(h.life.pending, null, 'and the lost request can no longer be retried');
 });
 
+test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {
+  // A receipt recorded under a lost answer looks like any other: without this, the person
+  // was told nothing and could receive the same goods twice (found in review).
+  for (const [held, outcome] of [[true, 'already'], [false, 'checked']] as const) {
+    const h = harness({ ok: true, value: { receipts: ['r'] } });
+    const seen: unknown[] = [];
+    h.hooks.recorded = (v) => {
+      seen.push(v);
+      return held;
+    };
+    await h.life.run(request({}, [LOST]).send);
+    await h.life.startOver();
+    assert.deepEqual(h.log, ['see', 'after', `done:${outcome}`], `held: ${held}`);
+    assert.deepEqual(seen, [{ receipts: ['r'] }], 'asked of what was read');
+    assert.equal(h.state.inDoubt, false);
+  }
+});
+
 test('one request at a time: a second Save while one is out sends nothing', async () => {
   const h = harness();
   let release!: (a: Answer<unknown>) => void;
