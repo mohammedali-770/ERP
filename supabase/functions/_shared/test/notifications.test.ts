@@ -10,6 +10,7 @@ import type { StockDb } from '../stock-db.ts';
 import type { Notification, NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
 import type { PurchaseOrdersDb } from '../purchase-orders-db.ts';
+import type { OrderingSetupDb } from '../ordering-setup-db.ts';
 import { notifications } from '../notifications.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
@@ -63,6 +64,11 @@ const purchaseOrdersNotUsed = notUsed<PurchaseOrdersDb>('purchase orders', {
   decidePurchaseOrder: true, receivePurchaseOrder: true, reversePurchaseReceipt: true, setPurchaseLimit: true,
   clearPurchaseLimit: true,
 });
+const orderingSetupNotUsed = notUsed<OrderingSetupDb>('ordering setup', {
+  replenishmentSources: true, replenishmentSourceHistory: true, orderCutoffs: true, orderCutoffHistory: true,
+  parLevels: true, parLevelHistory: true, setReplenishmentSource: true, clearReplenishmentSource: true,
+  setOrderCutoff: true, clearOrderCutoff: true, setParLevel: true, clearParLevel: true,
+});
 
 /** A notifications database that records every call, signed in as `person`. */
 function fakeDb(person: string | null, override: Partial<NotificationsDb> = {}): Db & { calls: Call[] } {
@@ -90,6 +96,7 @@ function fakeDb(person: string | null, override: Partial<NotificationsDb> = {}):
     ...stockNotUsed,
     ...stockAlertsNotUsed,
     ...purchaseOrdersNotUsed,
+    ...orderingSetupNotUsed,
     listNotifications: record('listNotifications') as NotificationsDb['listNotifications'],
     countUnreadNotifications: record('countUnreadNotifications') as NotificationsDb['countUnreadNotifications'],
     markNotificationsRead: record('markNotificationsRead') as NotificationsDb['markNotificationsRead'],

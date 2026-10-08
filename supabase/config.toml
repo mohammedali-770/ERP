@@ -108,3 +108,7 @@ import_map = "./functions/deno.json"
 [functions.purchase-orders]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.ordering-setup]
+verify_jwt = false
+import_map = "./functions/deno.json"

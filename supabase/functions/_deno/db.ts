@@ -36,6 +36,7 @@ import type { StockBalance } from '../_shared/stock-db.ts';
 import type { Notification } from '../_shared/notifications-db.ts';
 import type { StockMinimum } from '../_shared/stock-alerts-db.ts';
 import type { PurchaseOrderRow } from '../_shared/purchase-orders-db.ts';
+import type { OrderCutoff, ParLevel, ReplenishmentSource } from '../_shared/ordering-setup-db.ts';
 import { asRefusal } from '../_shared/refusal.ts';
 
 export interface Connection extends Db {
@@ -364,6 +365,65 @@ export function makeDb(sql: Sql): Db {
       await sql`select erp.clear_purchase_limit(
         ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid, ${i.reason}::text,
         ${actor}::uuid, now())`;
+    }),
+
+    // 0024. A par and its pack's figures are numerics, which postgres.js answers as text
+    // and which stay text; a cut-off is 'HH:MM' text already; a seq is cast to text. The
+    // moments come back as Dates, which reach the console as ISO moments.
+    replenishmentSources: (actor, q) => run(async () => (await sql`
+      select * from erp.replenishment_sources(${actor}::uuid, ${q.facilityId}::uuid, ${q.suppliedBy}::uuid,
+                                              ${q.afterCode}::text, ${q.limit}::integer)`
+    ) as unknown as ReplenishmentSource[]),
+    replenishmentSourceHistory: (actor, q) => run(async () =>
+      [...await sql`
+        select decision_id, seq::text as seq, kind, facility_id, facility_code, reason, actor_id, decided_at, recorded_at,
+               is_current
+          from erp.replenishment_source_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.itemId}::uuid,
+                                                ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+    orderCutoffs: (actor, q) => run(async () => (await sql`
+      select * from erp.order_cutoffs(${actor}::uuid, ${q.facilityId}::uuid, ${q.afterCode}::text, ${q.limit}::integer)`
+    ) as unknown as OrderCutoff[]),
+    orderCutoffHistory: (actor, q) => run(async () =>
+      [...await sql`
+        select decision_id, seq::text as seq, kind, cutoff, reason, actor_id, decided_at, recorded_at, is_current
+          from erp.order_cutoff_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+    parLevels: (actor, q) => run(async () => (await sql`
+      select * from erp.par_levels(${actor}::uuid, ${q.facilityId}::uuid, ${q.branchId}::uuid, ${q.afterCode}::text,
+                                   ${q.limit}::integer)`
+    ) as unknown as ParLevel[]),
+    parLevelHistory: (actor, q) => run(async () =>
+      [...await sql`
+        select decision_id, seq::text as seq, kind, item_unit_id, unit_key, factor, quantity, par, reason, actor_id,
+               decided_at, recorded_at, is_current
+          from erp.par_level_history(${actor}::uuid, ${q.facilityId}::uuid, ${q.branchId}::uuid, ${q.itemId}::uuid,
+                                     ${q.beforeSeq}::bigint, ${q.limit}::integer)`]),
+    setReplenishmentSource: (actor, i) => run(async () => {
+      await sql`select erp.set_replenishment_source(
+        ${i.decisionId}::uuid, ${i.itemId}::uuid, ${i.suppliedBy}::uuid, ${i.expectedDecisionId}::uuid, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    clearReplenishmentSource: (actor, i) => run(async () => {
+      await sql`select erp.clear_replenishment_source(
+        ${i.decisionId}::uuid, ${i.itemId}::uuid, ${i.expectedDecisionId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    setOrderCutoff: (actor, i) => run(async () => {
+      await sql`select erp.set_order_cutoff(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.cutoff}::text, ${i.expectedDecisionId}::uuid, ${i.reason}::text,
+        ${actor}::uuid, now())`;
+    }),
+    clearOrderCutoff: (actor, i) => run(async () => {
+      await sql`select erp.clear_order_cutoff(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.expectedDecisionId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    setParLevel: (actor, i) => run(async () => {
+      await sql`select erp.set_par_level(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.branchId}::uuid, ${i.itemUnitId}::uuid, ${i.quantity}::text,
+        ${i.expectedDecisionId}::uuid, ${i.reason}::text, ${actor}::uuid, now())`;
+    }),
+    clearParLevel: (actor, i) => run(async () => {
+      await sql`select erp.clear_par_level(
+        ${i.decisionId}::uuid, ${i.facilityId}::uuid, ${i.branchId}::uuid, ${i.itemId}::uuid, ${i.expectedDecisionId}::uuid,
+        ${i.reason}::text, ${actor}::uuid, now())`;
     }),
   };
 }

@@ -10,6 +10,7 @@ import type { StockDb } from '../stock-db.ts';
 import type { NotificationsDb } from '../notifications-db.ts';
 import type { StockAlertsDb } from '../stock-alerts-db.ts';
 import type { PurchaseOrderRow, PurchaseOrdersDb } from '../purchase-orders-db.ts';
+import type { OrderingSetupDb } from '../ordering-setup-db.ts';
 import { purchaseOrders } from '../purchase-orders.ts';
 import { Refusal } from '../refusal.ts';
 import { notUsed } from './not-used.ts';
@@ -61,6 +62,11 @@ const notificationsNotUsed = notUsed<NotificationsDb>('notifications', {
 const stockAlertsNotUsed = notUsed<StockAlertsDb>('stock alerts', {
   stockMinimums: true, stockMinimumHistory: true, setStockMinimum: true, clearStockMinimum: true,
 });
+const orderingSetupNotUsed = notUsed<OrderingSetupDb>('ordering setup', {
+  replenishmentSources: true, replenishmentSourceHistory: true, orderCutoffs: true, orderCutoffHistory: true,
+  parLevels: true, parLevelHistory: true, setReplenishmentSource: true, clearReplenishmentSource: true,
+  setOrderCutoff: true, clearOrderCutoff: true, setParLevel: true, clearParLevel: true,
+});
 
 const METHODS: readonly (keyof PurchaseOrdersDb)[] = [
   'purchaseOrders', 'getPurchaseOrder', 'purchaseLimitHistory', 'raisePurchaseOrder', 'decidePurchaseOrder',
@@ -94,6 +100,7 @@ function fakeDb(person: string | null, override: Partial<PurchaseOrdersDb> = {})
     ...stockNotUsed,
     ...notificationsNotUsed,
     ...stockAlertsNotUsed,
+    ...orderingSetupNotUsed,
     ...Object.fromEntries(METHODS.map((m) => [m, record(m)])) as unknown as PurchaseOrdersDb,
   };
 }
