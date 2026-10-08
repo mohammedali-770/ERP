@@ -14,12 +14,12 @@ import { writeLifecycle, type Done, type WriteHooks } from '../write.ts';
  * send (found in review).
  */
 export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: Done, after: () => void,
-                         recorded?: (seen: unknown) => boolean) {
+                         recorded?: (seen: unknown) => boolean, settled?: (failure: Failure) => boolean) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [inDoubt, setInDoubt] = useState(false);
-  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded });
-  hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded };
+  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded, settled });
+  hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded, settled };
   const [life] = useState(() => writeLifecycle({ setBusy, setFailure, setInDoubt }, () => hooks.current));
   return {
     busy,

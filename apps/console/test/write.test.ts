@@ -125,9 +125,43 @@ test('CONTROL: a record of an unexpected shape is "not seen there": the form sti
   assert.equal(h.state.inDoubt, false);
 });
 
-test('the hook carries recorded to the lifecycle, every render', () => {
+test('the hook carries recorded and settled to the lifecycle, every render', () => {
   const hook = readFileSync(new URL('../src/screens/useWrite.tsx', import.meta.url), 'utf8');
-  assert.match(hook, /hooks\.current = \{[^}]*\brecorded \};/, 'without it, Start over never asks');
+  assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled \};/, 'without it, Start over never asks');
+});
+
+test('CONTROL: a refused read settles the doubt only where the form says it does, and as nothing seen', async () => {
+  // A par set from a facility whose item's source moved away while its write was in doubt:
+  // Start over's read is answered missing, and Retry is refused for where it is set from, so
+  // both ways out failed and the form stayed locked (found in review). The form says when a
+  // refusal settles it; any other refusal still keeps the doubt.
+  const missing = failure(404, 'not_found');
+  for (const [settles, refusal, outcome] of [
+    [true, missing, ['see', 'after', 'done:checked']],
+    [false, missing, ['see']],
+    [true, failure(500, 'error'), ['see']],
+  ] as const) {
+    const h = harness(refusal);
+    const asked: Failure[] = [];
+    h.hooks.settled = (f) => {
+      asked.push(f);
+      return settles && f.status === 'not_found';
+    };
+    await h.life.run(request({}, [LOST]).send);
+    await h.life.startOver();
+    assert.deepEqual(h.log, outcome, `${settles} ${refusal.status}`);
+    assert.equal(h.state.inDoubt, outcome.length === 1, 'kept in doubt unless settled');
+    assert.equal(h.state.failure, outcome.length === 1 ? refusal : null, 'a kept doubt says why');
+    assert.equal(h.life.pending === null, outcome.length > 1, 'settled, nothing is left to Retry');
+    assert.deepEqual(asked, [refusal]);
+  }
+  // A session that has ended is the session's, whatever the form says.
+  const ended = harness(failure(401, 'idle'));
+  ended.hooks.settled = () => true;
+  await ended.life.run(request({}, [LOST]).send);
+  await ended.life.startOver();
+  assert.deepEqual(ended.log, ['see'], 'signed out, not settled');
+  assert.equal(ended.state.inDoubt, true);
 });
 
 test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {

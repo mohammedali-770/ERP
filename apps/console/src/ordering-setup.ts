@@ -33,7 +33,7 @@ import type {
   SetSourceInput, ViewerFacility,
 } from './api.ts';
 import { latinDigits } from './format.ts';
-import type { NavItem, Viewer } from './navigation.ts';
+import type { CapabilityState, NavItem, Viewer } from './navigation.ts';
 import { quantityInput } from './stock.ts';
 
 /** The facility types that supply branches (0024: ordering_facility_supplies_nothing). */
@@ -74,12 +74,13 @@ export const CUTOFF_PATTERN = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 
 /**
  * A cut-off as typed, on the 24-hour clock: '14:00', or '9:30', with Arabic-Indic digits
- * read. Sent as 'HH:MM', the hour padded, and checked by 0024's own rule, so '24:00' is
- * refused here as it is there. Never a number, and never a moment: it is a time of day at
- * the facility, read in its own time zone.
+ * read. Three or four digits alone read the same, '1400' or '930': a phone's number pad has
+ * no colon (found in review). Sent as 'HH:MM', the hour padded, and checked by 0024's own
+ * rule, so '24:00' is refused here as it is there. Never a number, and never a moment: it is
+ * a time of day at the facility, read in its own time zone.
  */
 export function cutoffInput(raw: string): { ok: true; value: string } | { ok: false } {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(latinDigits(raw).trim());
+  const m = /^(\d{1,2}):?(\d{2})$/.exec(latinDigits(raw).trim());
   if (m === null) return { ok: false };
   const value = `${m[1]!.padStart(2, '0')}:${m[2]!}`;
   return CUTOFF_PATTERN.test(value) ? { ok: true, value } : { ok: false };
@@ -163,6 +164,12 @@ export interface OrderingRights {
   readonly seesCutoffs: boolean;
   /** Set and clear the cut-off of the facility worked at, a warehouse or a factory. */
   readonly setsCutoffs: boolean;
+  /**
+   * Holds write on the setup here, so changes a cut-off while working at its facility: told
+   * so where they cannot change one. Anyone else is told only that they cannot (found in
+   * review: a manager at their own facility was told to work there to change it).
+   */
+  readonly writesCutoffs: boolean;
   /** Read on pars and on items here: every par read asks both. */
   readonly seesPars: boolean;
   /** Set and clear pars, from the facility worked at (a warehouse or factory) or organisation-wide. */
@@ -172,7 +179,8 @@ export interface OrderingRights {
 }
 
 export const NO_ORDERING_RIGHTS: OrderingRights = {
-  seesSources: false, setsSources: false, seesCutoffs: false, setsCutoffs: false, seesPars: false, setsPars: false, parFrom: null,
+  seesSources: false, setsSources: false, seesCutoffs: false, setsCutoffs: false, writesCutoffs: false, seesPars: false,
+  setsPars: false, parFrom: null,
 };
 
 /** The menu entries the rights are read from: their visibility is the read every route asks. */
@@ -203,11 +211,13 @@ export function orderingRights(facilityId: string | null, facility: ViewerFacili
   const seesSources = itemIsVisible(entries.sources, viewer);
   const seesCutoffs = itemIsVisible(entries.cutoffs, viewer);
   const seesPars = itemIsVisible(entries.pars, viewer);
+  const writesCutoffs = seesCutoffs && itemIsWritable(entries.cutoffs, viewer);
   return {
     seesSources,
     setsSources: orgWide && seesSources && itemIsWritable(entries.sources, viewer),
     seesCutoffs,
-    setsCutoffs: supplying && seesCutoffs && itemIsWritable(entries.cutoffs, viewer),
+    setsCutoffs: supplying && writesCutoffs,
+    writesCutoffs,
     seesPars,
     setsPars: (orgWide || supplying) && seesPars && itemIsWritable(entries.pars, viewer),
     parFrom: supplying ? facilityId : null,
@@ -236,9 +246,17 @@ export function parPlace(facilityId: string | null, facility: ViewerFacility | u
   return { kind: 'none' };
 }
 
-/** The branches a par page offers to choose from, by code. */
-export function branchesOf<F extends { readonly facility_type: string; readonly code: string }>(facilities: readonly F[]): F[] {
-  return facilities.filter((f) => f.facility_type === 'branch').sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+/**
+ * The branches a par page offers to choose from, by code: of `brandId`'s brand when one is
+ * given, as 0024 reads a branch from a warehouse or factory only of its own brand. The
+ * session's facilities, which a chooser falls back to, are every brand's to someone
+ * organisation-wide (found in review).
+ */
+export function branchesOf<F extends { readonly facility_type: string; readonly code: string; readonly brand_id: string }>(
+  facilities: readonly F[], brandId: string | null = null,
+): F[] {
+  return facilities.filter((f) => f.facility_type === 'branch' && (brandId === null || f.brand_id === brandId))
+    .sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 }
 
 /**
@@ -260,11 +278,31 @@ export function sourceActions(f: { setsSources: boolean; itemActive: boolean; in
 }
 
 /**
- * Whether a cut-off's own page can be read: 0024 asks its history AT the facility, so only
- * organisation-wide or while working there. A branch reads the cut-offs in the list.
+ * Whether the list links a cut-off's own page: 0024 asks its history AT the facility, so the
+ * list links it only organisation-wide or while working there. A branch reads the cut-offs
+ * in the list. An address typed by hand is answered by 0024, which reads the history to an
+ * organisation-wide role wherever it works.
  */
 export function cutoffReadable(facilityId: string | null, shown: string): boolean {
   return facilityId === null || facilityId === shown;
+}
+
+/** What the cut-off list says about changing one: here, where the person works; at its facility; or not at all. */
+export function cutoffsListNotice(rights: Pick<OrderingRights, 'setsCutoffs' | 'writesCutoffs'>):
+  'cutoff_change_here' | 'cutoffs_change_at_facility' | 'read_only_cutoffs' {
+  return rights.setsCutoffs ? 'cutoff_change_here' : rights.writesCutoffs ? 'cutoffs_change_at_facility' : 'read_only_cutoffs';
+}
+
+/**
+ * What a cut-off's page says when it offers no change, or null when it offers one: closed;
+ * changed while working at it, to one who holds write; or read only.
+ */
+export function cutoffPageNotice(f: {
+  rights: Pick<OrderingRights, 'setsCutoffs' | 'writesCutoffs'>; facilityId: string | null; shown: string; status: 'open' | 'closed';
+}): 'rule_facility_no_new_work' | 'cutoff_elsewhere' | 'read_only_cutoffs' | null {
+  if (f.status === 'closed') return 'rule_facility_no_new_work';
+  if (f.facilityId !== f.shown && (f.rights.setsCutoffs || f.rights.writesCutoffs)) return 'cutoff_elsewhere';
+  return f.rights.setsCutoffs ? null : 'read_only_cutoffs';
 }
 
 /**
@@ -280,29 +318,85 @@ export function cutoffActions(f: {
 }
 
 /**
+ * Whether par levels take new work at a branch, by their state there: 0024 asks it again at
+ * the branch a par is for (erp.assert_par_branch(): assert_capability_admits), so a pilot
+ * can name the branches it covers. Null, unread, is left to 0024.
+ */
+export function branchAdmits(state: CapabilityState | null): boolean | null {
+  return state === null ? null : state === 'enabled' || state === 'pilot';
+}
+
+/**
  * What a par's page offers, as 0024 would take it:
  *
- *   both    to one who sets pars from here, at a branch not known to be closed (0024 asks
- *           it open for both), and, set from a supplying facility, for an item it supplies
- *           (par_level_not_its_source): the source unknown is left to 0024
+ *   both    to one who sets pars from here, at a branch not known to be closed, nor known to
+ *           take no new par (0024 asks the branch open, and par levels open there, for
+ *           both), and, set from a supplying facility, for an item it supplies
+ *           (par_level_not_its_source): what is unread is left to 0024
  *   set     an active item with a source, at a source not known to be closed
  *   clear   a par in force: organisation-wide even with no source, as 0024 allows
  */
 export function parActions(f: {
   rights: Pick<OrderingRights, 'setsPars' | 'parFrom'>;
   branchStatus: 'open' | 'closed' | null;
+  /** Par levels' state at the branch (branchAdmits), or null when unread. */
+  branchState: CapabilityState | null;
   itemActive: boolean;
   inForce: boolean;
   /** The item's source: a facility, null for none, undefined when it could not be read. */
   source: string | null | undefined;
   sourceStatus: 'open' | 'closed' | null;
 }): { set: boolean; clear: boolean } {
-  const may = f.rights.setsPars && f.branchStatus !== 'closed'
+  const may = f.rights.setsPars && f.branchStatus !== 'closed' && branchAdmits(f.branchState) !== false
     && (f.rights.parFrom === null || f.source === undefined || f.source === f.rights.parFrom);
   return {
     set: may && f.itemActive && f.source !== null && f.sourceStatus !== 'closed',
     clear: may && f.inForce,
   };
+}
+
+export type ParNotice =
+  | 'par_branch_hidden' | 'par_branch_closed' | 'par_branch_not_open' | 'read_only_pars'
+  | 'par_set_elsewhere' | 'par_no_source' | 'par_item_retired' | 'par_source_closed';
+
+/**
+ * Why a par page offers less than it might, first reason first, or null. Every form a page
+ * withholds has a stated reason (found in review: a closed source and a retired item hid Set
+ * without a word).
+ *
+ *   par_branch_hidden     par levels are not switched on at the branch: 0024 reads none
+ *   par_branch_closed     the branch is closed: 0024 sets and clears nothing there
+ *   par_branch_not_open   par levels are read only or withdrawn at the branch
+ *   read_only_pars        the person sets no par from here
+ *   par_set_elsewhere     another facility supplies the item: its par is set there
+ *   par_no_source         nothing supplies the item: no new par
+ *   par_item_retired      the item takes no new par
+ *   par_source_closed     the facility that supplies the item is closed
+ *
+ * An item's own reasons are given only on its page (`item` present); a branch's page gives
+ * the branch's.
+ */
+export function parNotice(f: {
+  rights: Pick<OrderingRights, 'setsPars' | 'parFrom'>;
+  branchStatus: 'open' | 'closed' | null;
+  branchState: CapabilityState | null;
+  item?: {
+    readonly active: boolean;
+    readonly source: string | null | undefined;
+    readonly sourceStatus: 'open' | 'closed' | null;
+  };
+}): ParNotice | null {
+  if (f.branchState === 'hidden') return 'par_branch_hidden';
+  if (f.branchStatus === 'closed') return 'par_branch_closed';
+  if (branchAdmits(f.branchState) === false) return 'par_branch_not_open';
+  if (!f.rights.setsPars) return 'read_only_pars';
+  const i = f.item;
+  if (i === undefined) return null;
+  if (f.rights.parFrom !== null && i.source !== undefined && i.source !== null && i.source !== f.rights.parFrom) return 'par_set_elsewhere';
+  if (i.source === null) return 'par_no_source';
+  if (!i.active) return 'par_item_retired';
+  if (i.sourceStatus === 'closed') return 'par_source_closed';
+  return null;
 }
 
 /**

@@ -6,11 +6,12 @@ import {
 } from '../src/api.ts';
 import { asKey } from '../src/i18n.ts';
 import { failureMessage } from '../src/messages.ts';
-import { NAVIGATION, itemIsVisible, itemIsWritable } from '../src/navigation.ts';
+import { NAVIGATION, itemIsVisible, itemIsWritable, type CapabilityState } from '../src/navigation.ts';
 import {
-  branchesOf, clearCutoffBody, clearParBody, clearSourceBody, CUTOFF_KINDS, CUTOFF_PATTERN, cutoffActions, cutoffInput,
-  cutoffReadable, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS, orderingRights, PAR_KINDS, parActions, parInput, parPacks,
-  parPlace, readAll, setCutoffBody, setParBody, setSourceBody, SOURCE_KINDS, sourceActions, sourceOptions, stampOf, SUPPLYING_TYPES,
+  branchAdmits, branchesOf, clearCutoffBody, clearParBody, clearSourceBody, CUTOFF_KINDS, CUTOFF_PATTERN, cutoffActions, cutoffInput,
+  cutoffPageNotice, cutoffReadable, cutoffsListNotice, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS, orderingRights, PAR_KINDS,
+  parActions, parInput, parNotice, parPacks, parPlace, readAll, setCutoffBody, setParBody, setSourceBody, SOURCE_KINDS, sourceActions,
+  sourceOptions, stampOf, SUPPLYING_TYPES,
 } from '../src/ordering-setup.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
 import { toViewer } from '../src/viewer.ts';
@@ -25,6 +26,12 @@ const CUTOFFS = read('apps/console/src/screens/OrderCutoffs.tsx');
 const PARS = read('apps/console/src/screens/ParLevels.tsx');
 const SCREENS = { 'ReplenishmentSources.tsx': SOURCES, 'OrderCutoffs.tsx': CUTOFFS, 'ParLevels.tsx': PARS };
 const APP = read('apps/console/src/App.tsx');
+/** One function of 0024, from its `create` to the end of its body: never the next one's. */
+const fn = (name: string) => {
+  const at = MIGRATION.indexOf(`create or replace function erp.${name}(`);
+  assert.ok(at >= 0, `0024 defines erp.${name}()`);
+  return MIGRATION.slice(at).split('$$;')[0]!;
+};
 
 const BRANCH = '01936f00-0000-7000-8000-000000000401';
 const WAREHOUSE = '01936f00-0000-7000-8000-000000000403';
@@ -119,16 +126,19 @@ test('CONTROL: a cut-off is sent as \'HH:MM\', by 0024\'s own rule, and never as
   assert.ok(MIGRATION.includes(`p_cutoff !~ '${CUTOFF_PATTERN.source}'`), '0024\'s pattern, which the console holds');
   const edge = /const CUTOFF = (\/.*\/);/.exec(EDGE)?.[1];
   assert.equal(edge, '/^\\d{2}:\\d{2}$/', 'the edge\'s shape');
+  // Three or four digits alone read the same: a phone's number pad has no colon (found in review).
   for (const [typed, sent] of [['14:00', '14:00'], ['9:30', '09:30'], [' 00:00 ', '00:00'], ['23:59', '23:59'], ['٠٩:٣٠', '09:30'],
-    ['۱۴:۰۰', '14:00']]) {
+    ['۱۴:۰۰', '14:00'], ['1400', '14:00'], ['930', '09:30'], ['140', '01:40'], ['0000', '00:00'], ['١٤٠٠', '14:00']]) {
     assert.deepEqual(cutoffInput(typed!), { ok: true, value: sent }, typed);
     assert.match(sent!, /^\d{2}:\d{2}$/, 'and passes the edge');
   }
-  for (const typed of ['24:00', '12:60', '1400', '14', '14:0', '', '14:00:00', '-1:00', '14.00', '2:5', '123:00', '14 : 00', '1e1:00']) {
+  for (const typed of ['24:00', '2400', '12:60', '1260', '14', '960', '0960', '12345', '14:0', '', '14:00:00', '-1:00', '14.00', '2:5', '123:00',
+    '14 : 00', '1e1:00', ':1400']) {
     assert.equal(cutoffInput(typed).ok, false, typed);
   }
   assert.doesNotMatch(CUTOFFS, /type="time"|Number\(|parseInt|parseFloat|new Date\(/, 'a cut-off is text from the field to the request');
   assert.match(CUTOFFS, /const c = cutoffInput\(cutoff\);/);
+  assert.match(CUTOFFS, /<input dir="ltr" inputMode="numeric"/, 'a number pad, which the digits alone fill');
   assert.match(CUTOFFS, /setCutoffBody\(ids, \{ cutoff: c\.value, /, 'the set sends the text cutoffInput checked');
 });
 
@@ -172,6 +182,9 @@ test('CONTROL: the stamp is the decision in force, a clearing included; null onl
   }
   for (const [name, src] of Object.entries(SCREENS)) {
     assert.match(src, /const stamp = stampOf\(history\);/, `${name}: the stamp is read from the history`);
+    // ...and handed to both forms as it was read: after a clearing, the clearing's id (found in review).
+    const handed = [...src.matchAll(/ stamp=\{([^}]*)\}/g)].map((m) => m[1]);
+    assert.deepEqual(handed, ['stamp', 'stamp'], `${name}: both forms are handed the history's stamp`);
     assert.equal([...src.matchAll(/expectedDecisionId: stamp[,\s}]/g)].length, 2, `${name}: set and clear each send the stamp they were handed`);
     assert.doesNotMatch(src, /expectedDecisionId: (null|r\.|current|undefined)|as_of_decision_id/, `${name}: never a list's stamp`);
   }
@@ -204,35 +217,34 @@ const BRANCH_STAFF = ['ordering.setup:read', 'ordering.par_levels:read', 'invent
 
 test('CONTROL: sources change organisation-wide, a cut-off at its own facility, and a par from where it is supplied or the organisation', () => {
   // 0024's gates, which the rights mirror.
+  // Each route's own body, the gates first and then the retry key: never the next route's,
+  // which repeats them (found in review: the set routes were read through their clears).
   for (const route of ['set_replenishment_source', 'clear_replenishment_source']) {
-    const body = MIGRATION.slice(MIGRATION.indexOf(`create or replace function erp.${route}(`));
-    assert.match(body, /^[^$]*\$\$[\s\S]*?begin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'write', null\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'read', null\);\s+perform erp\.assert_permitted\(p_actor_id, 'inventory\.items', 'read', null\);/, route);
+    assert.match(fn(route), /\bbegin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'write', null\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'read', null\);\s+perform erp\.assert_permitted\(p_actor_id, 'inventory\.items', 'read', null\);\s+perform erp\.assert_replenishment_source_decision_is_new\(p_decision_id\);/, route);
   }
   for (const route of ['set_order_cutoff', 'clear_order_cutoff']) {
-    const body = MIGRATION.slice(MIGRATION.indexOf(`create or replace function erp.${route}(`));
-    assert.match(body, /^[^$]*\$\$[\s\S]*?begin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'write', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'read', p_facility_id\);/, route);
+    assert.match(fn(route), /\bbegin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'write', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'read', p_facility_id\);\s+perform erp\.assert_order_cutoff_decision_is_new\(p_decision_id\);/, route);
   }
   for (const route of ['set_par_level', 'clear_par_level']) {
-    const body = MIGRATION.slice(MIGRATION.indexOf(`create or replace function erp.${route}(`));
-    assert.match(body, /^[^$]*\$\$[\s\S]*?begin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.par_levels', 'write', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.par_levels', 'read', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'inventory\.items', 'read', p_facility_id\);/, route);
+    assert.match(fn(route), /\bbegin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.par_levels', 'write', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.par_levels', 'read', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'inventory\.items', 'read', p_facility_id\);\s+perform erp\.assert_par_level_decision_is_new\(p_decision_id\);/, route);
   }
 
   const admin = viewerWith(ADMIN);
   const wh = place(WAREHOUSE, 'warehouse');
   const fa = place(FACTORY, 'factory');
   assert.deepEqual(rights(null, undefined, admin), {
-    seesSources: true, setsSources: true, seesCutoffs: true, setsCutoffs: false, seesPars: true, setsPars: true, parFrom: null,
+    seesSources: true, setsSources: true, seesCutoffs: true, setsCutoffs: false, writesCutoffs: true, seesPars: true, setsPars: true, parFrom: null,
   }, 'organisation-wide: sources, and pars from the organisation; no cut-off, which is asked at its facility');
   assert.deepEqual(rights(WAREHOUSE, wh, admin), {
-    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: true, seesPars: true, setsPars: true, parFrom: WAREHOUSE,
+    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: true, writesCutoffs: true, seesPars: true, setsPars: true, parFrom: WAREHOUSE,
   }, 'at the warehouse: its cut-off, and pars set from it');
   const manager = viewerWith(MANAGER);
   assert.deepEqual(rights(FACTORY, fa, manager), {
-    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: false, seesPars: true, setsPars: true, parFrom: FACTORY,
+    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: false, writesCutoffs: false, seesPars: true, setsPars: true, parFrom: FACTORY,
   }, 'the factory\'s manager sets the factory\'s pars, at any branch, and no cut-off (O5)');
   const staff = viewerWith(BRANCH_STAFF);
   assert.deepEqual(rights(BRANCH, place(BRANCH, 'branch'), staff), {
-    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: false, seesPars: true, setsPars: false, parFrom: null,
+    seesSources: true, setsSources: false, seesCutoffs: true, setsCutoffs: false, writesCutoffs: false, seesPars: true, setsPars: false, parFrom: null,
   }, 'a branch\'s staff read their pars and their suppliers\' cut-offs, and set nothing');
   for (const [where, f] of [[BRANCH, place(BRANCH, 'branch')], ['of', place('of', 'office')]] as const) {
     const r = rights(where, f, admin);
@@ -263,7 +275,6 @@ test('the entries open only to one who holds every read their lists ask, where n
   assert.deepEqual([ENTRIES.sources.capability, ENTRIES.sources.alsoReads], ['ordering.setup', ['inventory.items']]);
   assert.deepEqual([ENTRIES.cutoffs.capability, ENTRIES.cutoffs.alsoReads], ['ordering.setup', undefined]);
   assert.deepEqual([ENTRIES.pars.capability, ENTRIES.pars.alsoReads], ['ordering.par_levels', ['inventory.items']]);
-  const fn = (name: string) => MIGRATION.slice(MIGRATION.indexOf(`create or replace function erp.${name}(`)).split('$$;')[0]!;
   for (const name of ['replenishment_sources', 'replenishment_source_history']) {
     assert.match(fn(name), /begin\s+perform erp\.assert_permitted\(p_actor_id, 'ordering\.setup', 'read', p_facility_id\);\s+perform erp\.assert_permitted\(p_actor_id, 'inventory\.items', 'read', p_facility_id\);\s+if p_limit/, name);
   }
@@ -297,11 +308,36 @@ test('pars are read at a branch, a facility that supplies it, or the organisatio
   assert.match(MIGRATION, /if f\.facility_type not in \('warehouse', 'factory'\) then\s+raise exception 'facility % is a %, and supplies no branch'/);
   assert.match(PARS, /if \(place\.kind === 'branch'\) return <ParBranch ctx=\{ctx\} branchId=\{place\.facility\.facility_id\} \/>;/,
     'at a branch, the entry is its own pars: no other branch is offered');
-  // Every read is asked where the person works, which the gate checks: never at the branch shown.
+  // Every read is asked where the person works, which the gate checks: never at the branch
+  // shown, and never organisation-wide for someone who is not (found in review).
+  assert.match(PARS, /return parPlace\(ctx\.facilityId, workingFacility\(ctx\.data\.facilities, ctx\.facilityId\)\);/);
   assert.match(PARS, /api\.parLevels\(\{ facilityId, branchId \}\)/);
-  assert.match(PARS, /api\.parLevelHistory\(facilityId, branchId, itemId\)/);
+  assert.match(PARS, /api\.parLevels\(\{ facilityId, branchId, after: next \}\)/);
+  assert.match(PARS, /api\.parLevelHistory\(facilityId, branchId, itemId\),/);
+  assert.match(PARS, /api\.parLevelHistory\(facilityId, branchId, itemId, next\)/);
+  assert.match(PARS, /seesSources \? api\.replenishmentSourceHistory\(facilityId, itemId\) : Promise\.resolve\(null\)/);
+  assert.match(PARS, /api\.getItem\(facilityId, itemId\)/);
+  assert.match(PARS, /api\.getFacility\(facilityId, branchId\)/);
+  assert.match(PARS, /api\.listFacilities\(\{ facilityId, status: 'all', after, limit: 500 \}\)/);
+  assert.match(SOURCES, /api\.replenishmentSources\(\{ facilityId, suppliedBy: suppliedBy === '' \? null : suppliedBy \}\)/);
+  assert.match(SOURCES, /api\.replenishmentSources\(\{ facilityId, suppliedBy: suppliedBy === '' \? null : suppliedBy, after: next \}\)/);
+  assert.match(SOURCES, /api\.getItem\(facilityId, itemId\), api\.replenishmentSourceHistory\(facilityId, itemId\)/);
+  assert.match(SOURCES, /api\.replenishmentSourceHistory\(facilityId, itemId, next\)/);
+  assert.match(SOURCES, /api\.orderCutoffs\(\{ facilityId, after, limit: 500 \}\)/);
+  assert.match(CUTOFFS, /api\.orderCutoffs\(\{ facilityId \}\)/);
+  assert.match(CUTOFFS, /api\.orderCutoffs\(\{ facilityId, after: next \}\)/);
+  assert.match(CUTOFFS, /readAll<CutoffRow>\(\(after\) => api\.orderCutoffs\(\{ facilityId, after, limit: 500 \}\)/);
+  for (const [name, src] of Object.entries(SCREENS)) {
+    assert.doesNotMatch(src, /facilityId: null|\(null, (item|branch)/, `${name}: no read asked organisation-wide by itself`);
+    assert.match(src, /const \{[^}]*\bfacilityId\b[^}]*\} = ctx;/, `${name}: facilityId is the context's`);
+  }
   assert.deepEqual(branchesOf([place('b2', 'branch'), place(WAREHOUSE, 'warehouse'), { ...place('b1', 'branch'), code: 'A' }])
     .map((b) => b.facility_id), ['b1', 'b2']);
+  assert.deepEqual(branchesOf([place('b2', 'branch'), { ...place('b3', 'branch'), brand_id: 'other' }], 'b').map((b) => b.facility_id), ['b2'],
+    'at a warehouse or factory, its own brand\'s branches: 0024 reads no other brand\'s from there (found in review)');
+  assert.match(PARS, /setBranches\(branchesOf\(data\.facilities, brandId\)\);/);
+  assert.match(PARS, /const brandId = place\.kind === 'source' \? place\.facility\.brand_id : null;/);
+  assert.match(PARS, /t\(lang, seesFacilities \? 'par_no_branches' : 'par_needs_facilities'\)/, 'an empty fallback says what is missing');
 });
 
 test('a source is offered only among the open warehouses and factories of the item\'s brand, never the one in force', () => {
@@ -343,12 +379,33 @@ test('a cut-off\'s page is read organisation-wide or at its facility, and change
   assert.deepEqual(at({ setsCutoffs: false }), { set: false, clear: false });
   assert.match(CUTOFFS, /cutoffReadable\(facilityId, r\.facility_id\)/, 'the list links only to a page that can be read');
   assert.match(CUTOFFS, /api\.orderCutoffHistory\(targetId\)/);
+  // The page asks the logic, with the facility shown and where the person works (found in review).
+  assert.match(CUTOFFS, /const actions = cutoffActions\(\{\s+setsCutoffs: ctx\.ordering\.setsCutoffs, facilityId, shown: facility\.facility_id, status: facility\.status, inForce: current !== null,\s+\}\);/);
+  assert.match(CUTOFFS, /const notice = cutoffPageNotice\(\{ rights: ctx\.ordering, facilityId, shown: facility\.facility_id, status: facility\.status \}\);/);
+  assert.match(CUTOFFS, /<Notice tone="info" text=\{t\(lang, cutoffsListNotice\(ctx\.ordering\)\)\} \/>/);
+  // Who is told what: a reason, never an invitation that leads nowhere (found in review).
+  const sets = { setsCutoffs: true, writesCutoffs: true };
+  const writes = { setsCutoffs: false, writesCutoffs: true };
+  const reads = { setsCutoffs: false, writesCutoffs: false };
+  assert.equal(cutoffsListNotice(sets), 'cutoff_change_here');
+  assert.equal(cutoffsListNotice(writes), 'cutoffs_change_at_facility', 'the administrator, elsewhere: change it at its facility');
+  assert.equal(cutoffsListNotice(reads), 'read_only_cutoffs', 'a manager at their own facility is not told to work there');
+  const page = (rights: typeof sets, facilityId: string | null, status: 'open' | 'closed' = 'open') =>
+    cutoffPageNotice({ rights, facilityId, shown: WAREHOUSE, status });
+  assert.equal(page(sets, WAREHOUSE), null, 'its own page, to one who sets it: the forms say it all');
+  assert.equal(page(sets, WAREHOUSE, 'closed'), 'rule_facility_no_new_work');
+  assert.equal(page(writes, null), 'cutoff_elsewhere');
+  assert.equal(page(sets, FACTORY), 'cutoff_elsewhere');
+  assert.equal(page(reads, WAREHOUSE), 'read_only_cutoffs');
+  assert.equal(page(reads, null), 'read_only_cutoffs');
+  for (const k of ['cutoff_change_here', 'cutoffs_change_at_facility', 'read_only_cutoffs', 'cutoff_elsewhere']) assert.notEqual(asKey(k), null, k);
 });
 
 test('a par\'s page offers set and clear as 0024 would take them', () => {
   const org = { setsPars: true, parFrom: null };
   const fa = { setsPars: true, parFrom: FACTORY };
-  const base = { branchStatus: 'open' as const, itemActive: true, inForce: true, source: FACTORY as string | null | undefined, sourceStatus: 'open' as const };
+  const base = { branchStatus: 'open' as const, branchState: 'pilot' as CapabilityState | null, itemActive: true, inForce: true,
+    source: FACTORY as string | null | undefined, sourceStatus: 'open' as const };
   assert.deepEqual(parActions({ rights: org, ...base }), { set: true, clear: true });
   assert.deepEqual(parActions({ rights: fa, ...base }), { set: true, clear: true });
   assert.deepEqual(parActions({ rights: fa, ...base, source: WAREHOUSE }), { set: false, clear: false },
@@ -363,8 +420,25 @@ test('a par\'s page offers set and clear as 0024 would take them', () => {
   assert.deepEqual(parActions({ rights: org, ...base, itemActive: false }), { set: false, clear: true });
   assert.deepEqual(parActions({ rights: org, ...base, inForce: false }), { set: true, clear: false });
   assert.deepEqual(parActions({ rights: { setsPars: false, parFrom: null }, ...base }), { set: false, clear: false });
+  // Par levels' state at the branch, which 0024 asks again there (found in review).
+  for (const state of ['hidden', 'read_only', 'withdrawn'] as const) {
+    assert.deepEqual(parActions({ rights: fa, ...base, branchState: state }), { set: false, clear: false }, `par levels ${state} at the branch`);
+  }
+  assert.deepEqual(parActions({ rights: fa, ...base, branchState: 'enabled' }), { set: true, clear: true });
+  assert.deepEqual(parActions({ rights: fa, ...base, branchState: null }), { set: true, clear: true }, 'a state unread is left to 0024');
+  assert.deepEqual([branchAdmits('pilot'), branchAdmits('enabled'), branchAdmits('read_only'), branchAdmits('withdrawn'), branchAdmits('hidden'),
+    branchAdmits(null)], [true, true, false, false, false, null]);
+  assert.match(fn('assert_par_branch'), /perform erp\.assert_capability_admits\('ordering\.par_levels', f\.facility_id\);/);
+  assert.match(fn('assert_par_read'), /if erp\.capability_state_for\('ordering\.par_levels', b\.facility_id\) = 'hidden' then/);
   assert.match(MIGRATION, /perform erp\.assert_facility_open\(v_source\);/);
   assert.match(MIGRATION, /f := erp\.assert_facility_open\(p_branch_id\);/);
+  // The page asks the logic with what it read, the branch's state included (found in review).
+  assert.match(PARS, /const actions = parActions\(\{\s+rights: ctx\.ordering, branchStatus: branch\?\.status \?\? null, branchState, itemActive: item\.status === 'active',\s+inForce: current !== null, source: source === undefined \? undefined : source\.id, sourceStatus,\s+\}\);/);
+  assert.match(PARS, /const sets = ctx\.ordering\.setsPars && branch\?\.status !== 'closed' && branchAdmits\(branchState\) !== false;/);
+  assert.match(SOURCES, /const actions = sourceActions\(\{ setsSources: ctx\.ordering\.setsSources, itemActive: item\.status === 'active', inForce: current !== null \}\);/);
+  assert.equal([...PARS.matchAll(/const branchState = useBranchState\(ctx, place, branchId\);/g)].length, 2, 'both par pages read the branch\'s state');
+  assert.match(PARS, /void api\.session\(branchId\)\.then/, 'read as the viewer reads it, at the branch');
+  assert.match(PARS, /return own \? stateOf\(viewer, 'ordering\.par_levels'\) : state;/, 'the session\'s own at the branch worked at');
   // Where a par is set from is the rights', and stated on both writes.
   assert.equal([...PARS.matchAll(/from: ctx\.ordering\.parFrom,/g)].length, 2);
   assert.doesNotMatch(PARS, /from: (facilityId|ctx\.facilityId|null|here)/);
@@ -378,8 +452,15 @@ test('every constraint 0024 raises for a person to act on is worded, and its ret
     .filter((c) => !c.endsWith('_decision_pkey') && !['ordering_setting_never_deleted', 'ordering_setting_fixed', 'ordering_page_size'].includes(c));
   assert.ok(raised.length >= 20, raised.join(', '));
   const generic = (status: string) => failureMessage('en', { ok: false, http: 422, status, message: 'm', constraint: null, detail: null, field: null }).text;
-  // And the shared ones 0024 raises, other than item_exists, whose words are the generic not-found's own.
-  for (const c of [...raised, 'item_unit_exists', 'facility_exists', 'facility_is_closed']) {
+  // And the shared ones 0024 raises through the helpers it calls, other than item_exists,
+  // whose words are the generic not-found's own (found in review: facility_is_closed is not
+  // among them; a closed facility is facility_admits_no_new_work).
+  for (const [helper, constraint] of [['assert_facility_open', 'facility_admits_no_new_work'], ['assert_item_active', 'item_admits_no_new_work']]) {
+    assert.ok(MIGRATION.includes(`erp.${helper}(`), `0024 calls erp.${helper}()`);
+    assert.ok(read('supabase/migrations/' + (helper === 'assert_item_active' ? '20261002000200_items_and_units.sql' : '20261005000100_facilities.sql'))
+      .includes(`constraint = '${constraint}'`), `${helper} raises ${constraint}`);
+  }
+  for (const c of [...raised, 'item_unit_exists', 'facility_exists', 'facility_admits_no_new_work', 'item_admits_no_new_work']) {
     for (const status of ['refused', 'invalid', 'stale', 'not_found']) {
       const m = failureMessage('en', { ok: false, http: 422, status, message: 'm', constraint: c, detail: null, field: null });
       assert.notEqual(m.text, generic(status), `${c} as ${status}`);
@@ -426,7 +507,7 @@ test('every write goes through the shared lifecycle, and Start over looks for th
   for (const [name, src] of Object.entries(SCREENS)) {
     assert.equal([...src.matchAll(/= useWrite\(ctx, /g)].length, 2, `${name}: set and clear`);
     // A write lost in doubt: Start over reads the history, and says "already saved" when the request is there.
-    assert.equal([...src.matchAll(/\(seen\) => \(seen as (Source|Cutoff|Par)History\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)\);/g)].length, 2,
+    assert.equal([...src.matchAll(/\(seen\) => \(seen as (Source|Cutoff|Par)History\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)(, notSuppliedHere\(ctx\))?\);/g)].length, 2,
       `${name}: both forms ask whether what Start over read holds the lost request`);
     assert.match(src, /setReloading\(true\);\s+void load\(\);/, `${name}: after a write the forms wait for the reload`);
     assert.match(src, /\{reloading && failure !== null\s+\? <button type="button" onClick=\{\(\) => \{ setFailure\(null\); void load\(\); \}\}>/,
@@ -445,7 +526,7 @@ test('every write goes through the shared lifecycle, and Start over looks for th
   assert.equal([...CUTOFFS.matchAll(/useWrite\(ctx, \(\) => ctx\.api\.orderCutoffHistory\(facility\.facility_id\), onDone,/g)].length, 2);
   assert.equal([...PARS.matchAll(/useWrite\(ctx, \(\) => ctx\.api\.parLevelHistory\(ctx\.facilityId, branchId, item\.item_id\), onDone,/g)].length, 2);
   // What each page offers is the logic's, tested above.
-  assert.match(SOURCES, /\{actions\.set && !reloading\s+\? <SetSource /);
+  assert.match(SOURCES, /\{actions\.set && !reloading && supplying\.failure === null\s+\? <SetSource /);
   assert.match(SOURCES, /\{actions\.clear && !reloading && stamp !== null\s+\? <ClearSource /);
   assert.match(CUTOFFS, /\{actions\.set && !reloading \? <SetCutoff /);
   assert.match(CUTOFFS, /\{actions\.clear && !reloading && stamp !== null \? <ClearCutoff /);
@@ -456,7 +537,7 @@ test('every write goes through the shared lifecycle, and Start over looks for th
 test('from a supplying facility, the items offered a par are those it supplies', async () => {
   assert.match(PARS, /api\.replenishmentSources\(\{ facilityId: here, suppliedBy: here, after, limit: 500 \}\)/);
   assert.match(PARS, /matchItems\(rows\.filter\(\(r\) => r\.item_status === 'active'\), q\)/, 'an active item only: a par is new work');
-  assert.match(PARS, /api\.listItems\(\{ facilityId: null, brandId, status: 'active', search: q, limit: 20 \}\)/,
+  assert.match(PARS, /api\.listItems\(\{ facilityId, brandId, status: 'active', search: q, limit: 20 \}\)/,
     'organisation-wide, any active item of the branch\'s brand');
   const rows = [
     { code: 'RM-CHK-BREAST', name_en: 'Chicken breast', name_ar: 'صدر دجاج' },
@@ -464,6 +545,8 @@ test('from a supplying facility, the items offered a par are those it supplies',
   ];
   assert.deepEqual(matchItems(rows, 'rm-chk').map((r) => r.code), ['RM-CHK-BREAST'], 'a code from its start, case aside');
   assert.deepEqual(matchItems(rows, 'BOX').map((r) => r.code), ['PK-BOX'], 'any part of a name');
+  assert.deepEqual(matchItems(rows, 'chicken').map((r) => r.code), ['RM-CHK-BREAST'], 'a name, whatever its case (found in review)');
+  assert.deepEqual(matchItems(rows, 'MEAL').map((r) => r.code), ['PK-BOX']);
   assert.deepEqual(matchItems(rows, 'دجاج').map((r) => r.code), ['RM-CHK-BREAST'], 'in Arabic too');
   assert.deepEqual(matchItems(rows, 'CHK'), [], 'a code is matched from its start');
   assert.deepEqual(matchItems(rows, '  '), []);
@@ -498,4 +581,67 @@ test('a cut-off is shown at its own facility\'s time, and the history reads 0024
   const s: SourceDecision = { decision_id: SET, seq: '1', kind: 'source_set', facility_id: WAREHOUSE, facility_code: 'WH-001', reason: 'r',
     actor_id: ME, decided_at: '2026-10-08T06:00:00.000Z', recorded_at: '2026-10-08T06:00:00.000Z', is_current: true };
   assert.equal(inForce([s])?.facility_code, 'WH-001');
+});
+
+test('every form a par page withholds has a stated reason, first reason first', () => {
+  const fa = { setsPars: true, parFrom: FACTORY };
+  const org = { setsPars: true, parFrom: null };
+  const item = (over: Partial<{ active: boolean; source: string | null | undefined; sourceStatus: 'open' | 'closed' | null }> = {}) =>
+    ({ active: true, source: FACTORY as string | null | undefined, sourceStatus: 'open' as 'open' | 'closed' | null, ...over });
+  const at = (over: Partial<Parameters<typeof parNotice>[0]> = {}) =>
+    parNotice({ rights: fa, branchStatus: 'open', branchState: 'pilot', item: item(), ...over });
+  assert.equal(at(), null);
+  assert.equal(at({ branchState: 'hidden', branchStatus: 'closed' }), 'par_branch_hidden', 'not switched on at the branch: 0024 reads none');
+  assert.equal(at({ branchStatus: 'closed' }), 'par_branch_closed');
+  assert.equal(at({ branchState: 'read_only' }), 'par_branch_not_open');
+  assert.equal(at({ branchState: 'withdrawn' }), 'par_branch_not_open');
+  assert.equal(at({ rights: { setsPars: false, parFrom: null } }), 'read_only_pars');
+  assert.equal(at({ item: item({ source: WAREHOUSE }) }), 'par_set_elsewhere');
+  assert.equal(at({ rights: org, item: item({ source: WAREHOUSE }) }), null, 'organisation-wide sets any source\'s item');
+  assert.equal(at({ rights: org, item: item({ source: null }) }), 'par_no_source');
+  assert.equal(at({ item: item({ active: false }) }), 'par_item_retired', 'found in review: Set went without a word');
+  assert.equal(at({ item: item({ sourceStatus: 'closed' }) }), 'par_source_closed', 'found in review: Set went without a word');
+  assert.equal(at({ item: item({ source: undefined }) }), null, 'a source unread is left to 0024');
+  assert.equal(parNotice({ rights: fa, branchStatus: 'open', branchState: 'pilot' }), null, 'a branch\'s page gives only the branch\'s reasons');
+  // Every reason parActions has for withholding Set is one parNotice says.
+  for (const over of [{ branchState: 'hidden' as const }, { branchStatus: 'closed' as const }, { branchState: 'read_only' as const },
+    { item: item({ source: WAREHOUSE }) }, { item: item({ active: false }) }, { item: item({ sourceStatus: 'closed' }) }]) {
+    const f = { rights: fa, branchStatus: 'open' as const, branchState: 'pilot' as const, item: item(), ...over };
+    const a = parActions({ rights: f.rights, branchStatus: f.branchStatus, branchState: f.branchState, itemActive: f.item.active,
+      inForce: true, source: f.item.source, sourceStatus: f.item.sourceStatus });
+    assert.equal(a.set, false, JSON.stringify(over));
+    assert.notEqual(parNotice(f), null, JSON.stringify(over));
+  }
+  for (const k of ['par_branch_hidden', 'par_branch_closed', 'par_branch_not_open', 'read_only_pars', 'par_set_elsewhere', 'par_no_source',
+    'par_item_retired', 'par_source_closed', 'par_needs_facilities']) {
+    assert.notEqual(asKey(k), null, k);
+  }
+  assert.match(PARS, /const notice = parNotice\(\{\s+rights: ctx\.ordering, branchStatus: branch\?\.status \?\? null, branchState,\s+item: \{ active: item\.status === 'active', source: source === undefined \? undefined : source\.id, sourceStatus \},\s+\}\);/);
+  assert.match(PARS, /const notice = parNotice\(\{ rights: ctx\.ordering, branchStatus: branch\?\.status \?\? null, branchState \}\);/);
+  assert.equal([...PARS.matchAll(/\{notice !== null \? <Notice tone="info" text=\{t\(lang, notice/g)].length, 2, 'both pages say it');
+  assert.match(PARS, /\{failure && branchState === 'hidden' \? <Notice tone="info" text=\{t\(lang, 'par_branch_hidden'\)\} \/>/,
+    'hidden at the branch, the reason, not the refusal');
+});
+
+test('from a warehouse or factory, an item supplied elsewhere is said to be, and a par write in doubt there can settle', () => {
+  // 0024 answers a par's history as missing at a facility that does not supply the item...
+  assert.match(fn('par_level_history'), /p_facility_id is null or p_facility_id = b\.facility_id or s\.facility_id = p_facility_id\)\) then\s+raise exception 'no item %'/);
+  // ...so the page says where it is set, from the item's source history (found in review).
+  assert.match(PARS, /if \(fromSupplier !== null && !h\.ok && h\.status === 'not_found' && i\.ok && supplied !== undefined && supplied\.id !== fromSupplier\) \{/);
+  assert.match(PARS, /source\.id === null \? t\(lang, 'par_no_source'\) : t\(lang, 'par_set_elsewhere', \{ code: source\.code \?\? shortId\(source\.id\) \}\)/);
+  // A write in doubt whose Start over is answered "missing" there cannot be repeated from
+  // there, as 0024 takes no par of that item from there: it settles (write.ts, `settled`).
+  assert.match(PARS, /const notSuppliedHere = \(ctx: Ctx\) => \(f: Failure\): boolean => f\.status === 'not_found' && ctx\.ordering\.parFrom !== null;/);
+  assert.equal([...PARS.matchAll(/\(seen\) => \(seen as ParHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\), notSuppliedHere\(ctx\)\);/g)].length, 2,
+    'both par forms');
+  assert.match(fn('set_par_level'), /perform erp\.assert_par_level_decision_is_new\(p_decision_id\);[\s\S]*v_source := erp\.assert_par_set_from\(p_facility_id, v_item, b\);/,
+    'and 0024 checks a retry\'s id before where the par is set from');
+});
+
+test('a source page shows a failed read of the facilities, and promises a clear only where one is offered', () => {
+  assert.match(SOURCES, /\{supplying\.failure !== null \? \(\s+<>\s+<FailureNotice lang=\{lang\} failure=\{supplying\.failure\} \/>\s+<button type="button" onClick=\{supplying\.reload\}>/,
+    'found in review: the set form loaded for ever, saying nothing');
+  assert.match(SOURCES, /\{actions\.set && !reloading && supplying\.failure === null\s+\? <SetSource /);
+  assert.match(SOURCES, /\}, \[api, facilityId, seesCutoffs, onFailure, asked\]\);/, 'asked again on Reload');
+  assert.match(SOURCES, /actions\.clear\s+\? `\$\{t\(lang, 'source_item_retired'\)\} \$\{t\(lang, 'source_item_retired_clear'\)\}` : t\(lang, 'source_item_retired'\)/);
 });

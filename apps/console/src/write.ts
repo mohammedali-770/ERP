@@ -57,6 +57,15 @@ export interface WriteHooks {
    * would be taken (found in review). Absent, Start over says nothing either way.
    */
   recorded?: ((seen: unknown) => boolean) | undefined;
+  /**
+   * Whether a refusal of `see` itself settles the doubt: the record can no longer be read
+   * here because no decision of this form's kind can be made here any more, so a new one
+   * cannot repeat the lost request. Start over then reports 'checked' and the form resets,
+   * where it otherwise stayed locked with both ways out failing (found in review: a par set
+   * from a facility whose item's source moved away while the write was in doubt). Absent,
+   * every refusal keeps the doubt.
+   */
+  settled?: ((failure: Failure) => boolean) | undefined;
   /** The form's reset for its next decision: new ids, closed, fields cleared. */
   after(): void;
   onDone: Done;
@@ -119,8 +128,17 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
     }
     const h = hooks();
     if (!now.ok) {
+      if (h.onFailure(now)) return;
+      if (h.settled?.(now) === true) {
+        pending = null;
+        state.setInDoubt(false);
+        state.setFailure(null);
+        h.after();
+        h.onDone('checked');
+        return;
+      }
       // Still in doubt: nothing is unlocked until the record has been seen.
-      if (!h.onFailure(now)) state.setFailure(now);
+      state.setFailure(now);
       return;
     }
     // Asked before anything unlocks; a record of an unexpected shape is "not seen there", so

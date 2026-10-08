@@ -5,12 +5,14 @@ import { formatFactor, shortId } from '../format.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import { unitName } from '../items.ts';
+import { stateOf, type CapabilityState } from '../navigation.ts';
 import {
-  branchesOf, clearParBody, inForce, matchItems, parActions, parInput, parPacks, parPlace, readAll, setParBody, stampOf,
-  type ParPlace,
+  branchAdmits, branchesOf, clearParBody, inForce, matchItems, parActions, parInput, parNotice, parPacks, parPlace, readAll, setParBody,
+  stampOf, type ParPlace,
 } from '../ordering-setup.ts';
 import { formatQuantity, workingFacility } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
+import { toViewer } from '../viewer.ts';
 import type { Done } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 import { personLabel, useSupplyingFacilities } from './ReplenishmentSources.tsx';
@@ -59,6 +61,33 @@ function useBranch(ctx: Ctx, branchId: string): Branch | null {
   return branch;
 }
 
+/**
+ * Par levels' state at the branch a page is for, which 0024 asks again there (ordering-setup.ts,
+ * branchAdmits): read as the viewer reads it, erp.viewer() at the branch, which the session
+ * route answers for any facility. At the branch the person works at, the session's own. Null
+ * while unread, or where it cannot be read: then left to 0024. Not a control (CAP-P04): it
+ * decides what the page offers, and 0024 decides the rest.
+ */
+function useBranchState(ctx: Ctx, place: ParPlace, branchId: string): CapabilityState | null {
+  const { api, onFailure, viewer } = ctx;
+  const own = place.kind === 'branch' && place.facility.facility_id === branchId;
+  const [state, setState] = useState<CapabilityState | null>(null);
+  useEffect(() => {
+    setState(null);
+    if (own) return;
+    let live = true;
+    void api.session(branchId).then((answer) => {
+      if (!live) return;
+      if (answer.ok) setState(stateOf(toViewer(answer.value.viewer), 'ordering.par_levels'));
+      else onFailure(answer);
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, onFailure, own, branchId]);
+  return own ? stateOf(viewer, 'ordering.par_levels') : state;
+}
+
 const branchTitle = (ctx: Ctx, branch: Branch | null, branchId: string) =>
   branch === null ? shortId(branchId) : `${branch.code} — ${localName(ctx.lang, branch)}`;
 
@@ -91,12 +120,15 @@ function BranchChooser({ ctx, place }: { ctx: Ctx; place: Exclude<ParPlace, { ki
   const { api, lang, facilityId, seesFacilities, onFailure, data } = ctx;
   const [branches, setBranches] = useState<readonly (Facility | ViewerFacility)[] | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
+  const brandId = place.kind === 'source' ? place.facility.brand_id : null;
 
   useEffect(() => {
     setBranches(null);
     setFailure(null);
     if (!seesFacilities) {
-      setBranches(branchesOf(data.facilities));
+      // The session's own facilities: every brand's to someone organisation-wide, so at a
+      // warehouse or factory only its brand's, as 0024 reads a branch from there.
+      setBranches(branchesOf(data.facilities, brandId));
       return;
     }
     let live = true;
@@ -110,7 +142,7 @@ function BranchChooser({ ctx, place }: { ctx: Ctx; place: Exclude<ParPlace, { ki
     return () => {
       live = false;
     };
-  }, [api, facilityId, seesFacilities, onFailure, data]);
+  }, [api, facilityId, seesFacilities, onFailure, data, brandId]);
 
   return (
     <section>
@@ -118,7 +150,8 @@ function BranchChooser({ ctx, place }: { ctx: Ctx; place: Exclude<ParPlace, { ki
       <p className="muted">{place.kind === 'source' ? t(lang, 'pars_source_hint', { code: place.facility.code }) : t(lang, 'pars_org_hint')}</p>
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {branches === null && failure === null ? <Loading lang={lang} /> : null}
-      {branches !== null && branches.length === 0 ? <p className="muted">{t(lang, 'par_no_branches')}</p> : null}
+      {branches !== null && branches.length === 0
+        ? <p className="muted">{t(lang, seesFacilities ? 'par_no_branches' : 'par_needs_facilities')}</p> : null}
       {branches !== null && branches.length > 0 ? (
         <table className="table">
           <thead>
@@ -150,6 +183,7 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
   const { api, lang, data, facilityId } = ctx;
   const place = usePlace(ctx);
   const branch = useBranch(ctx, branchId);
+  const branchState = useBranchState(ctx, place, branchId);
   const supplying = useSupplyingFacilities(ctx);
   const [rows, setRows] = useState<readonly ParRow[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
@@ -198,7 +232,10 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
     const f = (supplying.rows ?? []).find((x) => x.facility_id === id);
     return <bdi dir="ltr">{f === undefined ? shortId(id) : f.code}</bdi>;
   };
-  const sets = ctx.ordering.setsPars && branch?.status !== 'closed';
+  const sets = ctx.ordering.setsPars && branch?.status !== 'closed' && branchAdmits(branchState) !== false;
+  const notice = parNotice({ rights: ctx.ordering, branchStatus: branch?.status ?? null, branchState });
+  // Hidden at the branch, 0024 reads none of its pars: the reason is said, not its refusal.
+  const hidden = branchState === 'hidden';
 
   return (
     <section>
@@ -209,10 +246,9 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
       <p className="muted">
         {t(lang, 'pars_hint')}{place.kind === 'source' ? <> {t(lang, 'pars_from_hint', { code: place.facility.code })}</> : null}
       </p>
-      {branch?.status === 'closed' ? <Notice tone="info" text={t(lang, 'par_branch_closed')} />
-        : !ctx.ordering.setsPars ? <Notice tone="info" text={t(lang, 'read_only_pars')} /> : null}
+      {notice !== null ? <Notice tone="info" text={t(lang, notice)} /> : null}
 
-      {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
+      {failure && !hidden ? <FailureNotice lang={lang} failure={failure} /> : null}
       {rows === null && failure === null ? <Loading lang={lang} /> : null}
       {rows !== null && rows.length === 0 ? <p className="muted">{t(lang, 'no_pars')}</p> : null}
       {rows !== null && rows.length > 0 ? (
@@ -265,7 +301,7 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
 function ParItemChooser({ ctx, place, branchId, brandId }: {
   ctx: Ctx; place: Exclude<ParPlace, { kind: 'branch' } | { kind: 'none' }>; branchId: string; brandId: string | null;
 }) {
-  const { api, lang } = ctx;
+  const { api, lang, facilityId } = ctx;
   const [search, setSearch] = useState('');
   const [found, setFound] = useState<readonly { item_id: string; code: string; name_en: string; name_ar: string }[] | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -296,7 +332,8 @@ function ParItemChooser({ ctx, place, branchId, brandId }: {
       setFailure(null);
       return;
     }
-    const answer = await api.listItems({ facilityId: null, brandId, status: 'active', search: q, limit: 20 });
+    // Organisation-wide, where the facility worked at is none.
+    const answer = await api.listItems({ facilityId, brandId, status: 'active', search: q, limit: 20 });
     if (mine !== seq.current) return;
     if (answer.ok) {
       setFound(answer.value.items);
@@ -342,10 +379,15 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   const { api, lang, data, onFailure, facilityId } = ctx;
   const place = usePlace(ctx);
   const branch = useBranch(ctx, branchId);
+  const branchState = useBranchState(ctx, place, branchId);
   const supplying = useSupplyingFacilities(ctx);
   const seesSources = ctx.ordering.seesSources;
+  const fromSupplier = place.kind === 'source' ? place.facility.facility_id : null;
   const [item, setItem] = useState<Item | null>(null);
   const [history, setHistory] = useState<readonly ParDecision[] | null>(null);
+  // Read from a warehouse or factory that does not supply the item: 0024 reads its par only
+  // where it is supplied from, and answers as missing here (found in review).
+  const [notHere, setNotHere] = useState(false);
   // The item's source: a facility, null for none, undefined where it cannot be read.
   const [source, setSource] = useState<{ id: string | null; code: string | null } | undefined>(undefined);
   const [next, setNext] = useState<string | null>(null);
@@ -368,6 +410,20 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
       seesSources ? api.replenishmentSourceHistory(facilityId, itemId) : Promise.resolve(null),
     ]);
     if (mine !== seq.current) return;
+    const now = s !== null && s.ok ? inForce(s.value.decisions) : undefined;
+    const supplied = now === undefined ? undefined : { id: now?.facility_id ?? null, code: now?.facility_code ?? null };
+    // Asked from a warehouse or factory, a par of an item it does not supply is no par of
+    // this place's: the page says where it is set, not that the item is missing.
+    if (fromSupplier !== null && !h.ok && h.status === 'not_found' && i.ok && supplied !== undefined && supplied.id !== fromSupplier) {
+      setItem(i.value);
+      setHistory(null);
+      setSource(supplied);
+      setNotHere(true);
+      setNext(null);
+      setFailure(null);
+      setReloading(false);
+      return;
+    }
     for (const a of [i, h, s]) {
       if (a !== null && !a.ok) {
         if (!onFailure(a)) setFailure(a);
@@ -375,20 +431,21 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
       }
     }
     if (i.ok && h.ok) {
-      const now = s !== null && s.ok ? inForce(s.value.decisions) : undefined;
       setItem(i.value);
       setHistory(h.value.decisions);
-      setSource(now === undefined ? undefined : { id: now?.facility_id ?? null, code: now?.facility_code ?? null });
+      setSource(supplied);
+      setNotHere(false);
       setNext(h.value.next_before);
       setFailure(null);
       setReloading(false);
     }
-  }, [api, onFailure, facilityId, branchId, itemId, seesSources]);
+  }, [api, onFailure, facilityId, branchId, itemId, seesSources, fromSupplier]);
 
   useEffect(() => {
     setItem(null);
     setHistory(null);
     setSource(undefined);
+    setNotHere(false);
     setNext(null);
     setLoadingMore(false);
     void load();
@@ -421,8 +478,25 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   };
 
   const back = <a href={place.kind === 'branch' ? '#par_levels' : `#par_levels/${branchId}`}>{t(lang, 'back')}</a>;
+  if (item !== null && notHere && source !== undefined) {
+    return (
+      <section>
+        {back}
+        <header className="page-header"><h1><bdi dir="ltr">{item.code}</bdi> — {localName(lang, item)}</h1></header>
+        <p className="muted">{t(lang, 'par_for_branch', { branch: branchTitle(ctx, branch, branchId) })}</p>
+        <Notice tone="info" text={source.id === null ? t(lang, 'par_no_source') : t(lang, 'par_set_elsewhere', { code: source.code ?? shortId(source.id) })} />
+      </section>
+    );
+  }
   if (item === null || history === null) {
-    return <section>{back}{failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />}</section>;
+    // Hidden at the branch, 0024 reads none of its pars: the reason is said, not its refusal.
+    return (
+      <section>
+        {back}
+        {failure && branchState === 'hidden' ? <Notice tone="info" text={t(lang, 'par_branch_hidden')} />
+          : failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />}
+      </section>
+    );
   }
 
   const base = unitName(lang, data.units, item.base_unit_key);
@@ -431,11 +505,13 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   const sourceStatus = source === undefined || source.id === null ? null
     : (supplying.rows ?? []).find((f) => f.facility_id === source.id)?.status ?? null;
   const actions = parActions({
-    rights: ctx.ordering, branchStatus: branch?.status ?? null, itemActive: item.status === 'active', inForce: current !== null,
-    source: source === undefined ? undefined : source.id, sourceStatus,
+    rights: ctx.ordering, branchStatus: branch?.status ?? null, branchState, itemActive: item.status === 'active',
+    inForce: current !== null, source: source === undefined ? undefined : source.id, sourceStatus,
   });
-  const elsewhere = ctx.ordering.setsPars && ctx.ordering.parFrom !== null && source !== undefined && source.id !== null
-    && source.id !== ctx.ordering.parFrom;
+  const notice = parNotice({
+    rights: ctx.ordering, branchStatus: branch?.status ?? null, branchState,
+    item: { active: item.status === 'active', source: source === undefined ? undefined : source.id, sourceStatus },
+  });
   const asEntered = (d: ParDecision) => (d.unit_key === null || d.quantity === null || d.factor === null ? null : (
     <>
       <bdi dir="ltr">{formatQuantity(d.quantity)}</bdi> {unitName(lang, data.units, d.unit_key)}{' '}
@@ -452,10 +528,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
       <p className="muted">{t(lang, 'par_for_branch', { branch: branchTitle(ctx, branch, branchId) })}</p>
       {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {branch?.status === 'closed' ? <Notice tone="info" text={t(lang, 'par_branch_closed')} />
-        : !ctx.ordering.setsPars ? <Notice tone="info" text={t(lang, 'read_only_pars')} />
-          : elsewhere ? <Notice tone="info" text={t(lang, 'par_set_elsewhere', { code: source?.code ?? '' })} />
-            : source?.id === null ? <Notice tone="info" text={t(lang, 'par_no_source')} /> : null}
+      {notice !== null ? <Notice tone="info" text={t(lang, notice, { code: source?.code ?? '' })} /> : null}
 
       <p>
         {t(lang, 'par_level')}:{' '}
@@ -470,6 +543,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
         <p>
           {t(lang, 'supplied_by')}:{' '}
           {source.id === null ? <em>{t(lang, 'no_source')}</em> : <bdi dir="ltr">{source.code ?? shortId(source.id)}</bdi>}
+          {sourceStatus === 'closed' ? <> · <em>{t(lang, 'status_closed')}</em></> : null}
         </p>
       ) : null}
 
@@ -512,6 +586,14 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
 }
 
 /**
+ * Whether Start over's refused read settles a par write in doubt (write.ts, `settled`): set
+ * from a warehouse or factory, 0024 answers a par's history as missing once the item is no
+ * longer supplied from there, and then takes no par of it from there either, so a new
+ * decision cannot repeat the lost one. Organisation-wide the history is always read.
+ */
+const notSuppliedHere = (ctx: Ctx) => (f: Failure): boolean => f.status === 'not_found' && ctx.ordering.parFrom !== null;
+
+/**
  * A par, in a current pack of the item, typed as decimal text and sent as typed, set from
  * where the person works (OrderingRights.parFrom), against the stamp the page read when the
  * button was pressed (write.ts: built once, retried as sent).
@@ -535,7 +617,7 @@ function SetPar({ ctx, item, branchId, stamp, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setQuantity('');
     setReason('');
-  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -590,7 +672,7 @@ function ClearPar({ ctx, item, branchId, stamp, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx));
 
   function submit(e: FormEvent) {
     e.preventDefault();

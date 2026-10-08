@@ -27,11 +27,13 @@ export function personLabel(ctx: Ctx, id: string): string {
  * the person works (erp.order_cutoffs(), 0024): each one's code, names, state and time zone.
  * Organisation-wide, every brand's. Null until read.
  */
-export function useSupplyingFacilities(ctx: Ctx): { rows: readonly CutoffRow[] | null; failure: Failure | null } {
+export function useSupplyingFacilities(ctx: Ctx): { rows: readonly CutoffRow[] | null; failure: Failure | null; reload: () => void } {
   const { api, facilityId, onFailure } = ctx;
   const seesCutoffs = ctx.ordering.seesCutoffs;
   const [rows, setRows] = useState<readonly CutoffRow[] | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
+  // Asked again on the person's doing, after a read that failed.
+  const [asked, setAsked] = useState(0);
   useEffect(() => {
     setRows(null);
     setFailure(null);
@@ -47,8 +49,8 @@ export function useSupplyingFacilities(ctx: Ctx): { rows: readonly CutoffRow[] |
     return () => {
       live = false;
     };
-  }, [api, facilityId, seesCutoffs, onFailure]);
-  return { rows, failure };
+  }, [api, facilityId, seesCutoffs, onFailure, asked]);
+  return { rows, failure, reload: () => setAsked((n) => n + 1) };
 }
 
 /**
@@ -262,7 +264,17 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {!ctx.ordering.setsSources ? <Notice tone="info" text={t(lang, 'read_only_sources')} /> : null}
-      {item.status === 'retired' ? <Notice tone="info" text={t(lang, 'source_item_retired')} /> : null}
+      {/* "Can still be cleared" only where a clear is offered (found in review). */}
+      {item.status === 'retired' ? <Notice tone="info" text={actions.clear
+        ? `${t(lang, 'source_item_retired')} ${t(lang, 'source_item_retired_clear')}` : t(lang, 'source_item_retired')} /> : null}
+      {/* The facilities a source may be set to are the cut-off list's: a failed read is shown and
+          asked again, never left as a form that is always loading (found in review). */}
+      {supplying.failure !== null ? (
+        <>
+          <FailureNotice lang={lang} failure={supplying.failure} />
+          <button type="button" onClick={supplying.reload}>{t(lang, 'reload')}</button>
+        </>
+      ) : null}
 
       <p>
         {t(lang, 'supplied_by')}:{' '}
@@ -272,7 +284,7 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
       {reloading && failure !== null
         ? <button type="button" onClick={() => { setFailure(null); void load(); }}>{t(lang, 'reload')}</button>
         : reloading ? <Loading lang={lang} /> : null}
-      {actions.set && !reloading
+      {actions.set && !reloading && supplying.failure === null
         ? <SetSource ctx={ctx} item={item} options={supplying.rows === null ? null
           : sourceOptions(supplying.rows, ctx.data.facilities, item.brand_id, current?.facility_id ?? null)} stamp={stamp} onDone={afterWrite} />
         : null}

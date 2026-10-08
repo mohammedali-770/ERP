@@ -4,7 +4,8 @@ import type { Ctx } from '../context.ts';
 import { formIds } from '../ids.ts';
 import { label, localName, t } from '../i18n.ts';
 import {
-  clearCutoffBody, cutoffActions, cutoffInput, cutoffReadable, inForce, readAll, setCutoffBody, stampOf,
+  clearCutoffBody, cutoffActions, cutoffInput, cutoffPageNotice, cutoffReadable, cutoffsListNotice, inForce, readAll, setCutoffBody,
+  stampOf,
 } from '../ordering-setup.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import type { Done } from '../write.ts';
@@ -68,8 +69,7 @@ export function CutoffsList({ ctx }: { ctx: Ctx }) {
     <section>
       <header className="page-header"><h1>{t(lang, 'order_cutoffs')}</h1></header>
       <p className="muted">{t(lang, 'cutoffs_hint')}</p>
-      {ctx.ordering.setsCutoffs ? <Notice tone="info" text={t(lang, 'cutoff_change_here')} />
-        : <Notice tone="info" text={t(lang, 'read_only_cutoffs')} />}
+      <Notice tone="info" text={t(lang, cutoffsListNotice(ctx.ordering))} />
 
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {rows === null && failure === null ? <Loading lang={lang} /> : null}
@@ -207,6 +207,7 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
   const actions = cutoffActions({
     setsCutoffs: ctx.ordering.setsCutoffs, facilityId, shown: facility.facility_id, status: facility.status, inForce: current !== null,
   });
+  const notice = cutoffPageNotice({ rights: ctx.ordering, facilityId, shown: facility.facility_id, status: facility.status });
 
   return (
     <section>
@@ -216,9 +217,7 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
       </header>
       {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
-      {facility.status === 'closed' ? <Notice tone="info" text={t(lang, 'rule_facility_no_new_work')} />
-        : ctx.ordering.setsCutoffs && facilityId !== facility.facility_id ? <Notice tone="info" text={t(lang, 'cutoff_elsewhere', { code: facility.code })} />
-          : !ctx.ordering.setsCutoffs ? <Notice tone="info" text={t(lang, 'read_only_cutoffs')} /> : null}
+      {notice !== null ? <Notice tone="info" text={t(lang, notice, { code: facility.code })} /> : null}
       <p className="muted">{t(lang, 'cutoff_rule')}</p>
 
       <p>
