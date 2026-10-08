@@ -32,6 +32,9 @@
 -- purchase_order_decision the twelfth and thirteenth. 0023's order lines, receipts and receipt
 -- lines are written once and refuse any update; none has a column this statement sets.
 --
+-- 0024's three logs — replenishment_source_decision, order_cutoff_decision and
+-- par_level_decision — are the fourteenth to sixteenth.
+--
 -- erp.notification (0021) is not a log, but its guard lets a row change only from unread
 -- to read, so it refuses this statement too. The seed holds none (0070).
 
@@ -58,7 +61,8 @@ begin
       and c.relname not in ('event_log', 'capability_decision', 'identity_decision', 'item_decision', 'supplier_decision',
                             'transfer_price_decision', 'facility_decision', 'stock_decision', 'stock_ledger',
                             'stock_count_log', 'stock_minimum_decision', 'purchase_limit_decision',
-                            'purchase_order_decision', 'notification')
+                            'purchase_order_decision', 'replenishment_source_decision', 'order_cutoff_decision',
+                            'par_level_decision', 'notification')
       and a.attname in ('created_at', 'enrolled_at', 'ingested_at', 'applied_at', 'updated_at')
   loop
     execute format('update erp.%I set %I = $1 where %I is not null', t.relname, t.attname, t.attname)

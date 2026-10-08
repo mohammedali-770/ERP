@@ -228,8 +228,8 @@ try {
   // edge reads back through the module's history read.
   // Checked by SQLSTATE, constraint and the server routine that raised it, which is what
   // the edge matches, not by wording.
-  // Two sessions, one decision id, for every item, supplier and transfer price write route
-  // and both imports. The original commits only
+  // Two sessions, one decision id, for every write route from items (0012) to ordering setup
+  // (0024) and both imports. The original commits only
   // once the retry is seen waiting on a lock, so the overlap is arranged rather than
   // hoped for. Without erp.assert_item_decision_is_new()'s
   // lock, both passed its check before either committed, and the retry came back "has
@@ -340,6 +340,23 @@ try {
        'db-check retry probe', ${admin}, now())`, 'purchase_limit_decision_pkey'],
     ['clear_purchase_limit', (d) => `select erp.clear_purchase_limit(${d}, ${id('000000000404')}, ${id('0000000d0030')},
        'db-check retry probe', ${admin}, now())`, 'purchase_limit_decision_pkey'],
+    // 0024's six write routes, against 0085's seed: the same lock, under each one's log. The
+    // frying oil, which has no source, given WH-001, then cleared from it (index 31, …d0032);
+    // WH-001's cut-off moved to 15:00 (…d0034) and FA-001's cleared, each from the seed's
+    // stamp; the factory manager, at the factory, giving BR-002 a par of a tray of strips
+    // (…d0036); the warehouse manager, at the warehouse, clearing BR-001's cola.
+    ['set_replenishment_source', (d) => `select erp.set_replenishment_source(${d}, ${id('000000004110')}, ${id('000000000403')},
+       null, 'db-check retry probe', ${admin}, now())`, 'replenishment_source_decision_pkey'],
+    ['clear_replenishment_source', (d) => `select erp.clear_replenishment_source(${d}, ${id('000000004110')}, ${id('0000000d0032')},
+       'db-check retry probe', ${admin}, now())`, 'replenishment_source_decision_pkey'],
+    ['set_order_cutoff', (d) => `select erp.set_order_cutoff(${d}, ${id('000000000403')}, '15:00', ${id('000000006211')},
+       'db-check retry probe', ${admin}, now())`, 'order_cutoff_decision_pkey'],
+    ['clear_order_cutoff', (d) => `select erp.clear_order_cutoff(${d}, ${id('000000000404')}, ${id('000000006213')},
+       'db-check retry probe', ${admin}, now())`, 'order_cutoff_decision_pkey'],
+    ['set_par_level', (d) => `select erp.set_par_level(${d}, ${id('000000000404')}, ${id('000000000402')}, ${id('000000004207')},
+       '1', null, 'db-check retry probe', ${id('000000000908')}, now())`, 'par_level_decision_pkey'],
+    ['clear_par_level', (d) => `select erp.clear_par_level(${d}, ${id('000000000403')}, ${id('000000000401')}, ${id('000000004103')},
+       ${id('000000006223')}, 'db-check retry probe', ${id('000000000904')}, now())`, 'par_level_decision_pkey'],
   ];
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const errorOf = (r: { status: number | null; stderr: string }) =>
@@ -713,6 +730,57 @@ try {
       'raise_purchase_order: an order raised while its supply is retired waits, and is refused',
       `raise_purchase_order: an order raised while its supply was retired was answered "${errorOf(raised)}"` +
         (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+  }
+
+  // ORDERING SETUP (0024). Each race is two real sessions, as above.
+  {
+    // A par set in a pack while the pack is being retired must wait for the retirement and
+    // then be refused: erp.set_par_level() reads the pack again under the item's share lock,
+    // which retire_item_unit() takes for update, as 0022's minimum does. The strips' kilogram
+    // pack, which nothing else here uses, at BR-002, organisation-wide.
+    const [retired, set] = await overlap(
+      `select erp.retire_item_unit(${id('0000000d0901')}, ${id('000000004206')}, 'db-check par probe', ${admin}, now())`,
+      `select erp.set_par_level(${id('0000000d0902')}, null, ${id('000000000402')}, ${id('000000004206')}, '2',
+        ${id('0000000d0036')}, 'db-check par probe', ${admin}, now())`, 'par_pack');
+    report(retired.status === 0 && raisedAs(set.stderr, '23001', 'par_level_pack_is_retired'),
+      'set_par_level: a par set while its pack is retired waits, and is refused',
+      `set_par_level: a par set while its pack was retired was answered "${errorOf(set)}"` +
+        (retired.status === 0 ? '' : `; the retirement failed too: ${errorOf(retired)}`));
+  }
+  {
+    // A par set at the facility that supplies the item, while the item's source moves away from
+    // it, must wait for the move and then be refused: the par takes the source's lock shared,
+    // which every source decision about the item takes exclusively. Read without it, the
+    // factory manager set a par for strips the warehouse had just been made to supply — a
+    // manager admitted by a source no longer in force (O5). The par the retry probes gave
+    // BR-002 (…d0036), raised from the factory.
+    const [moved, set] = await overlap(
+      `select erp.set_replenishment_source(${id('0000000d0903')}, ${id('000000004102')}, ${warehouse}, ${id('000000006202')},
+        'db-check par probe', ${admin}, now())`,
+      `select erp.set_par_level(${id('0000000d0904')}, ${id('000000000404')}, ${id('000000000402')}, ${id('000000004207')}, '3',
+        ${id('0000000d0036')}, 'db-check par probe', ${id('000000000908')}, now())`, 'par_source');
+    report(moved.status === 0 && raisedAs(set.stderr, '23001', 'par_level_not_its_source'),
+      'set_par_level: a par set while its item\'s source moves away waits, and is refused',
+      `set_par_level: a par set while its item's source moved away was answered "${errorOf(set)}"` +
+        (moved.status === 0 ? '' : `; the move failed too: ${errorOf(moved)}`));
+  }
+  {
+    // An order dated while the cut-off it is dated by is being changed must wait for the change
+    // and be dated by what it left, naming that decision: erp.order_day() takes the cut-off's
+    // lock shared, which every cut-off decision at the facility takes exclusively. Read without
+    // it, the order was dated by the cut-off being replaced and named a decision no longer in
+    // force. WH-001's cut-off, moved by the retry probes to 15:00 (…d0034), moved to 00:00, at
+    // which every order is for the next day.
+    const [changed, dated] = await overlap(
+      `select erp.set_order_cutoff(${id('0000000d0905')}, ${warehouse}, '00:00', ${id('0000000d0034')},
+        'db-check cut-off probe', ${admin}, now())`,
+      `select d.cutoff_decision_id::text || ' ' || (d.for_date = (now() at time zone 'Asia/Riyadh')::date + 1)
+         from erp.order_day(${warehouse}, now()) d`, 'order_day');
+    report(changed.status === 0 && dated.status === 0
+             && dated.stdout.includes('01936f00-0000-7000-8000-0000000d0905 t'),
+      'order_day: an order dated while its cut-off changes waits, and is dated by the new one',
+      `order_day: an order dated while its cut-off changed was answered "${dated.stdout.trim() || errorOf(dated)}"` +
+        (changed.status === 0 ? '' : `; the change failed too: ${errorOf(changed)}`));
   }
 
   // And the ledger's rules again, over everything the probes above posted through the

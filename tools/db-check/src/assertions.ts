@@ -601,6 +601,29 @@ export const ASSERTIONS: readonly Assertion[] = [
               and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
   },
   {
+    id: 'ordering-setup-guard-triggers-exist',
+    title: 'erp.replenishment_source, erp.order_cutoff and erp.par_level carry their enabled guard triggers, TRUNCATE included',
+    because:
+      'I-8, B-11, ADR-0033: a source stays its item\'s, a cut-off its facility\'s and a par its branch\'s and ' +
+      'item\'s, and each is cleared, never deleted, only because 0024\'s triggers say so, binding the owner ' +
+      'too. The three logs are covered by every-decision-log-is-append-only; these three projections are not ' +
+      'logs by name, so they are named here. A consistent seed passes with any of them gone.',
+    sql: `select x.rel::text || ': no enabled ' || x.what as violation
+          from (values
+                  ('erp.replenishment_source'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
+                  ('erp.replenishment_source'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger'),
+                  ('erp.order_cutoff'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
+                  ('erp.order_cutoff'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger'),
+                  ('erp.par_level'::regclass, 27, 1, 'BEFORE UPDATE OR DELETE row trigger'),
+                  ('erp.par_level'::regclass, 34, 0, 'BEFORE TRUNCATE statement trigger')
+               ) as x(rel, mask, row_bit, what)
+          where not exists (
+            select 1 from pg_trigger t
+            where t.tgrelid = x.rel and not t.tgisinternal and t.tgfoid = 'erp.ordering_setting_is_fixed()'::regprocedure
+              and t.tgenabled in ('O', 'A') and t.tgqual is null
+              and (t.tgtype & x.mask) = x.mask and (t.tgtype & 1) = x.row_bit)`,
+  },
+  {
     id: 'every-runtime-definer-route-is-gated',
     title: 'every SECURITY DEFINER function the runtime may call contains a call to erp.assert_permitted()',
     because:
@@ -699,9 +722,10 @@ export const ASSERTIONS: readonly Assertion[] = [
 ];
 
 /**
- * The stock ledger's invariants (0020, ADR-0029). Seed assertions, because they hold rows
- * to rules, and exported apart because cli.ts asks them again after its two-session
- * probes have posted through the routes: a race the routes lost would show here.
+ * The stock ledger's invariants (0020, ADR-0029), and those of the modules whose routes the
+ * probes race: purchasing (0023) and ordering setup (0024). Seed assertions, because they
+ * hold rows to rules, and exported apart because cli.ts asks them again after its
+ * two-session probes have posted through the routes: a race the routes lost would show here.
  */
 export const STOCK_ASSERTIONS: readonly Assertion[] = [
   {
@@ -1015,6 +1039,81 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           select 'decision ' || d.decision_id || ' names no limit'
           from erp.purchase_limit_decision d
           where not exists (select 1 from erp.purchase_limit m where m.facility_id = d.facility_id)`,
+  },
+  {
+    id: 'replenishment-sources-match-their-decisions',
+    title: 'every item\'s source equals the latest decision about it, a warehouse or factory of the item\'s brand',
+    because:
+      'I-8, as stock-minimums-match-their-decisions holds it for 0022: module 10 sends an order line to ' +
+      'the facility the projection names, and a par is set from it (ADR-0033 O1, O5), so a source that ' +
+      'drifted from its decision would route orders, and admit managers, nobody chose. A source of ' +
+      'another brand would send one brand\'s goods from another\'s site (ADR-0012). Asked again after ' +
+      'the probes, whose source changes race pars.',
+    sql: `select 'source of ' || s.item_id as violation
+          from erp.replenishment_source s
+          left join erp.replenishment_source_decision d on d.decision_id = s.as_of_decision_id
+          where d.decision_id is null
+             or (d.item_id, d.facility_id) is distinct from (s.item_id, s.facility_id)
+             or exists (select 1 from erp.replenishment_source_decision l where l.item_id = s.item_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no source'
+          from erp.replenishment_source_decision d
+          where not exists (select 1 from erp.replenishment_source s where s.item_id = d.item_id)
+          union all
+          select 'decision ' || d.decision_id || ' names a facility that is no warehouse or factory of the brand of its item'
+          from erp.replenishment_source_decision d
+          join erp.item i on i.item_id = d.item_id
+          join erp.facility f on f.facility_id = d.facility_id
+          join erp.operating_unit ou on ou.operating_unit_id = f.operating_unit_id
+          where f.facility_type not in ('warehouse', 'factory') or ou.brand_id is distinct from i.brand_id`,
+  },
+  {
+    id: 'order-cutoffs-match-their-decisions',
+    title: 'every cut-off equals the latest decision about it, at a warehouse or factory',
+    because:
+      'I-8: module 10 dates an order by the projection, through erp.order_day(), and copies the decision ' +
+      'that dated it (ADR-0033 O3), so a cut-off that drifted from its decision would date orders by a ' +
+      'time nobody set, and name a decision that did not set it.',
+    sql: `select 'cut-off at ' || c.facility_id as violation
+          from erp.order_cutoff c
+          left join erp.order_cutoff_decision d on d.decision_id = c.as_of_decision_id
+          where d.decision_id is null
+             or (d.facility_id, d.cutoff) is distinct from (c.facility_id, c.cutoff)
+             or exists (select 1 from erp.order_cutoff_decision l where l.facility_id = c.facility_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no cut-off'
+          from erp.order_cutoff_decision d
+          where not exists (select 1 from erp.order_cutoff c where c.facility_id = d.facility_id)
+          union all
+          select 'decision ' || d.decision_id || ' is at a facility that supplies no branch'
+          from erp.order_cutoff_decision d
+          join erp.facility f on f.facility_id = d.facility_id
+          where f.facility_type not in ('warehouse', 'factory')`,
+  },
+  {
+    id: 'par-levels-match-their-decisions',
+    title: 'every par equals the latest decision about it, at a branch',
+    because:
+      'I-8: module 10 suggests an order from the projection, not the log (ADR-0033 O4), so a par that ' +
+      'drifted from its decision would suggest a figure nobody set. A par is a branch\'s: one at a ' +
+      'warehouse or factory would be a stock setting nobody can read or order against. Asked again after ' +
+      'the probes, whose pars race retirements and source changes.',
+    sql: `select 'par of ' || m.item_id || ' at ' || m.facility_id as violation
+          from erp.par_level m
+          left join erp.par_level_decision d on d.decision_id = m.as_of_decision_id
+          where d.decision_id is null
+             or (d.facility_id, d.item_id, d.par) is distinct from (m.facility_id, m.item_id, m.par)
+             or exists (select 1 from erp.par_level_decision l
+                         where l.facility_id = m.facility_id and l.item_id = m.item_id and l.seq > d.seq)
+          union all
+          select 'decision ' || d.decision_id || ' names no par'
+          from erp.par_level_decision d
+          where not exists (select 1 from erp.par_level m where m.facility_id = d.facility_id and m.item_id = d.item_id)
+          union all
+          select 'decision ' || d.decision_id || ' is at a facility that is no branch'
+          from erp.par_level_decision d
+          join erp.facility f on f.facility_id = d.facility_id
+          where f.facility_type <> 'branch'`,
   },
 ];
 

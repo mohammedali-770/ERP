@@ -512,6 +512,11 @@ warehouse and factory stock only:
   it (2026-10-07):** an order's business day, and the day its number counts in, is the
   calendar date at its facility of the moment it is raised, and a receipt is a stock
   movement, dated by D3. ADR-0032's question 4 asks the owner to confirm it.
+- **The day a branch order is FOR is not its business day (2026-10-08).** Module 9's
+  `erp.order_day()` gives the day an order to a supplying facility is for: the date there,
+  plus one at or after its cut-off (ADR-0033 §6). That is the warehouse's `for_date`. The
+  order's own business day, and the day its number counts in, are still module 10's to
+  ask, with this answer as the default.
 
 The original question is kept below.
 
