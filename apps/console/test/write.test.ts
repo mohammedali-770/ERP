@@ -129,6 +129,11 @@ test('the hook carries recorded, settled and the page\'s hooks to the lifecycle,
   const hook = readFileSync(new URL('../src/screens/useWrite.tsx', import.meta.url), 'utf8');
   assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled, started: page\?\.started, refused: page\?\.refused \};/,
     'without it, Start over never asks, and the page is never told');
+  // A request in doubt is reported to the page until it is settled or the form goes, and a
+  // form the page holds is locked as one in doubt is (found in the second review).
+  assert.match(hook, /useEffect\(\(\) => \{\s+if \(!inDoubt\) return undefined;\s+doubt\.current\?\.\(true\);\s+return \(\) => doubt\.current\?\.\(false\);\s+\}, \[inDoubt\]\);/);
+  assert.match(hook, /doubt\.current = page\?\.doubt;/, 'the page\'s latest, every render');
+  assert.match(hook, /locked: busy \|\| inDoubt \|\| page\?\.held === true,/);
 });
 
 test('CONTROL: the page is told when a request goes out, and of a refusal the form shows, and of nothing else', async () => {
@@ -139,10 +144,21 @@ test('CONTROL: the page is told when a request goes out, and of a refusal the fo
     h.hooks.started = () => h.log.push('started');
     h.hooks.refused = (f) => h.log.push(`refused:${f.status}`);
   };
+  /** A request that writes to the log when it goes out. */
+  const sent = (h: ReturnType<typeof harness>, answer: Answer<unknown>): Send => async () => {
+    h.log.push('send');
+    return answer;
+  };
   const saved = harness();
   told(saved);
-  await saved.life.run(request({}, [SAVED]).send);
-  assert.deepEqual(saved.log, ['started', 'after', 'done:saved'], 'told as it goes out, before the answer');
+  await saved.life.run(sent(saved, SAVED));
+  assert.deepEqual(saved.log, ['started', 'send', 'after', 'done:saved'], 'told as it goes out, before the answer');
+  for (const [status, outcome] of [['already_recorded', 'already'], ['stale', 'stale']] as const) {
+    const h = harness();
+    told(h);
+    await h.life.run(sent(h, failure(409, status)));
+    assert.deepEqual(h.log, ['started', 'send', 'after', `done:${outcome}`], `${status} is an outcome, never a refusal`);
+  }
 
   const refused = harness();
   told(refused);
@@ -373,7 +389,7 @@ test('CONTROL: every detail page\'s sub-forms share one write lifecycle, and loc
       assert.ok(at >= 0 && before.slice(at).split(';').length === 2, `${page}: the body is a constant built just before it is sent`);
     }
   }
-  assert.match(source('useWrite.tsx'), /locked: busy \|\| inDoubt,/);
+  assert.match(source('useWrite.tsx'), /locked: busy \|\| inDoubt( \|\| page\?\.held === true)?,/);
 });
 
 test('CONTROL: every full-page form keeps the request it sent, locks while it is out, and Start over unlocks nothing it has not seen', () => {

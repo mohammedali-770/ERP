@@ -740,14 +740,16 @@ write succeeds:
 - **A later attempt refused.** Set again and refused, the page showed the earlier "Saved."
   at its top, and the refusal below it, by the form. A participant reads "Saved." first.
 - **Another record of the same kind.** A page opened directly from another page of its
-  own kind keeps the first one's word: a "Saved." from one item showed on the next. A
-  stock decision's page links to the decision it reverses, and to the one that reversed it,
-  in the same way. Moving through a list leaves the page between, and clears it.
+  own kind, by an address typed or pasted, keeps the first one's word: a "Saved." from one
+  item showed on the next. Moving through a list leaves the page between, and clears it.
 
 Module 9's pages (item sources, cut-offs and par levels) now clear it when a new write is
-sent and when another record opens (write.ts, `PageHooks`). Every other module's detail
-pages still behave as above: items, suppliers, transfer prices, facilities, stock
-decisions, stock alerts and purchase orders.
+sent or a value is refused before sending (write.ts, `PageHooks`), and when another record
+opens (each page's own load). The other modules' detail pages keep it in both cases:
+items, suppliers, transfer prices, facilities, stock alerts and purchase orders. A stock
+decision's page keeps it only for another decision's typed address: its one write, a
+reversal, leaves no form behind it, and its links go only to the decision it reverses and
+the one that reversed it.
 
 Options:
 - Keep it: the word describes the last write that succeeded.

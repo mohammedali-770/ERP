@@ -45,8 +45,8 @@ Some of their clauses are not shown here:
   no order is placed in this module: branch orders are module 10. The rule itself,
   `erp.order_day_for()`, is tested at stated moments in pgTAP 190. `erp.order_day()`, which
   dates an order placed now and which module 10 will call, is raced against a cut-off change
-  in flight in `db:check`. That an order keeps the day it was first placed is module 10's to
-  build, and nothing evidences it yet: module 10's own pack will.
+  in flight in `db:check`. That an order keeps the day it was dated for when first placed is
+  module 10's to build, and nothing evidences it yet: module 10's own pack will.
 - **a source of another brand is refused.** The test data has no warehouse or factory of
   its second brand, so the pack shows only that none is offered (2.7). pgTAP 190 refuses a
   request that names one.
@@ -133,10 +133,11 @@ ones the session's staff will meet.
 - A second computer, placed where the observer can see both screens and the participant
   cannot see the second. Its people take turns, each signing out before the next signs in.
   Where the participant acts once a change is saved, the observer tells them when.
-- In Part 11 the team changes the test database twice, between tasks, as a pilot would
-  by migration: par levels first take no changes at the second branch, and are then not
-  switched on there. The team prepares both statements beforehand, and the observer tells
-  the factory manager when each is done.
+- In Part 11 the team changes the test database three times, between tasks, as a pilot
+  would by migration: par levels first take no changes at the second branch, are then not
+  switched on there, and are switched back on before Part 12. The team prepares all three
+  statements beforehand, and the observer tells the factory manager when each of the first
+  two is done.
 - Who made each change: a history names the person signed in; anyone else is shown by a
   short code, and every person in the test data has the same one (Q-25).
 - Where a change is refused, the console's own sentence is what the participant is judged
@@ -247,9 +248,10 @@ ones the session's staff will meet.
 | # | Task | Passes when |
 |---|---|---|
 | 8.1 | The factory will portion chicken breast for the branches from now on. On the second computer, the administrator opens Item sources, then the chicken breast, and sets its source to FA-001, with a reason | "Saved." "Supplied by: FA-001 — Central Kitchen Factory (synthetic)". The observer tells the participant |
-| 8.2 | The participant, whose page still shows the chicken breast at BR-002 supplied by WH-001, sets 35 kilograms without reloading, with a reason | Refused: "Another facility supplies this item: its par level is set there, or organisation-wide." The page then says "This item is supplied by FA-001: its par level is set there, or organisation-wide.", with no form. Nothing is recorded |
-| 8.3 | Branches will buy frying oil locally. On the second computer, the administrator opens Item sources, then the frying oil, and clears its source, with a reason. Then they open Par levels, choose BR-001, and open the frying oil | At BR-001 the frying oil is still listed, 18 Litre (1 Bucket), with "No source". Its page: "Par level: 18 Litre · 1 Bucket (Bucket = 18 Litre)", "Supplied by: No source", and "No facility supplies this item: set its source first. A par level it has can still be cleared organisation-wide." Clear the par level is offered; Set the par level is not. The administrator leaves it, and signs out |
-| 8.4 | The participant goes back to the branches, chooses BR-001, and searches for chicken | One par level: rice 20 Kilogram (4 Bag). Neither the chicken breast nor the frying oil is listed from WH-001 any more, and the search finds "No items match." Neither par is lost: Part 10 shows the chicken breast's from the factory, and Part 12 the frying oil's at the branch (question F) |
+| 8.2 | The participant, whose page still shows the chicken breast at BR-002 supplied by WH-001, sets 35 kilograms without reloading, with a reason | Refused: "Another facility supplies this item: its par level is set there, or organisation-wide." The page then says "This item is supplied by FA-001: its par level is set there, or organisation-wide." It shows no form, and neither the par nor its history: from WH-001, the item's par is no longer read |
+| 8.3 | On the second computer, the administrator opens Par levels, chooses BR-002, and opens the chicken breast | "Par level: 30 Kilogram". The newest decision is the participant's 30, shown by a short code: nothing at 35 was recorded |
+| 8.4 | Branches will buy frying oil locally. On the second computer, the administrator opens Item sources, then the frying oil, and clears its source, with a reason. Then they open Par levels, choose BR-001, and open the frying oil | At BR-001 the frying oil is still listed, 18 Litre (1 Bucket), with "No source". Its page: "Par level: 18 Litre · 1 Bucket (Bucket = 18 Litre)", "Supplied by: No source", and "No facility supplies this item: set its source first. A par level it has can still be cleared organisation-wide." Clear the par level is offered; Set the par level is not. The administrator leaves it, and signs out |
+| 8.5 | The participant goes back to the branches, chooses BR-001, and searches for chicken | One par level: rice 20 Kilogram (4 Bag). Neither the chicken breast nor the frying oil is listed from WH-001 any more, and the search finds "No items match." Neither par is lost: Part 10 shows the chicken breast's from the factory, and Part 12 the frying oil's at the branch (question F) |
 
 ## Part 9 · When the connection drops
 

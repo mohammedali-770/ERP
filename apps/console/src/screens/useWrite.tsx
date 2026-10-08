@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Answer, Failure } from '../api.ts';
 import type { Ctx } from '../context.ts';
 import { writeLifecycle, type Done, type PageHooks, type WriteHooks } from '../write.ts';
@@ -21,11 +21,20 @@ export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: 
   const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused });
   hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused };
   const [life] = useState(() => writeLifecycle({ setBusy, setFailure, setInDoubt }, () => hooks.current));
+  // The page is told while this form's request is in doubt, until it is settled or the form
+  // goes, and holds its other forms meanwhile (write.ts, PageHooks).
+  const doubt = useRef(page?.doubt);
+  doubt.current = page?.doubt;
+  useEffect(() => {
+    if (!inDoubt) return undefined;
+    doubt.current?.(true);
+    return () => doubt.current?.(false);
+  }, [inDoubt]);
   return {
     busy,
     failure,
     inDoubt,
-    locked: busy || inDoubt,
+    locked: busy || inDoubt || page?.held === true,
     run: life.run,
     retry: life.retry,
     startOver: life.startOver,

@@ -124,7 +124,8 @@ and what those told can read; and one neither decides: where the bell is switche
   second computer's address and port if the participant opens the console from there. A console opened from another computer is served as a built page
   (`npm run build`, then `npm run preview -- --host`, in `apps/console`, with
   `VITE_ERP_FUNCTIONS_URL` set for the build), never by the development server. When the network
-  returns, the development server's page reloads itself, and loses the change in doubt and its Retry.
+  returns, the development server's page reloads itself, and Part 10's participant would be
+  back at the start, no longer working where they chose.
 - The console starts in Arabic in a browser that has never been switched, and each person
   works in their own language. The language button (العربية / English) sits at the corner
   of the sign-in card before sign-in, and in the top bar after it; the browser remembers

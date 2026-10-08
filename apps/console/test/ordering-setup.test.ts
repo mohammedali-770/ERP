@@ -722,13 +722,24 @@ test('a page\'s word on a write is about this record\'s latest write; a par refu
   // The par page: kept, it said "Supplied by" the facility it had read, and offered the form,
   // beneath a refusal saying another facility supplies the item (found writing the staff
   // testing pack). It reads the item again, and keeps the refusal on the page it lands on.
-  assert.match(PARS, /const page: PageHooks = \{\s+started: \(\) => \{\s+setOutcome\(null\);\s+setRefusal\(null\);\s+\},\s+refused: \(f\) => \{\s+if \(!sourceMoved\(f\)\) return;\s+setRefusal\(f\);\s+setReloading\(true\);\s+void load\(\);\s+\},\s+\};/);
+  assert.match(PARS, /const page: PageHooks = \{\s+started: \(\) => \{\s+setOutcome\(null\);\s+setRefusal\(null\);\s+\},\s+refused: \(f\) => \{\s+if \(!sourceMoved\(f\)\) return;\s+setRefusal\(f\);\s+setReloading\(true\);\s+void load\(\);\s+\},/);
   assert.equal([...PARS.matchAll(/onDone=\{afterWrite\} page=\{page\} \/>/g)].length, 2, 'both par forms tell the page');
   // A new record's page starts with no word on another's write.
   assert.match(PARS, /setLoadingMore\(false\);\s+\/\/ [^\n]+\n\s+setOutcome\(null\);\s+setRefusal\(null\);\s+void load\(\);/);
+  // A value refused before sending clears it too (found in the second review).
+  for (const [name, src, check] of [['cut-offs', CUTOFFS, 'const c = cutoffInput\\(cutoff\\);'], ['pars', PARS, 'const q = parInput\\(quantity\\);']] as const) {
+    assert.match(src, new RegExp(`function submit\\(e: FormEvent\\) \\{\\s+e\\.preventDefault\\(\\);\\s+// [^\\n]+\\n\\s+page\\.started\\?\\.\\(\\);\\s+${check}`), name);
+  }
+  // A form in doubt holds the page's other form, whose Clear button is locked too: a write
+  // there, or a refusal that reads the page again, unmounted the form in doubt.
+  assert.match(PARS, /doubt: \(on\) => setHeld\(\(n\) => n \+ \(on \? 1 : -1\)\),\s+held: held > 0,\s+\};/);
+  for (const [name, src] of [['sources', SOURCES], ['cut-offs', CUTOFFS], ['pars', PARS]] as const) {
+    assert.match(src, /const \[held, setHeld\] = useState\(0\);/, name);
+    assert.match(src, /<button type="button" className="danger" disabled=\{w\.locked\} onClick=/, `${name}: the Clear button is held too`);
+  }
   // The source and cut-off pages: a new write clears the word on the last.
   for (const [name, src] of [['sources', SOURCES], ['cut-offs', CUTOFFS]] as const) {
-    assert.match(src, /const page: PageHooks = \{ started: \(\) => setBanner\(null\) \};/, name);
+    assert.match(src, /const page: PageHooks = \{ started: \(\) => setBanner\(null\), doubt: \(on\) => setHeld\(\(n\) => n \+ \(on \? 1 : -1\)\), held: held > 0 \};/, name);
     assert.equal([...src.matchAll(/onDone=\{afterWrite\} page=\{page\} \/>/g)].length, 2, `${name}: both forms tell the page`);
     assert.equal([...src.matchAll(/ids\.decision_id\), undefined, page\);/g)].length, 2, `${name}: both forms pass it on`);
     assert.match(src, /setLoadingMore\(false\);\s+\/\/ [^\n]+\n\s+setBanner\(null\);\s+void load\(\);/, `${name}: a new record's page starts clear`);

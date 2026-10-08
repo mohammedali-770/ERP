@@ -124,6 +124,8 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
   const [next, setNext] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
+  // How many of the page's forms have a request in doubt.
+  const [held, setHeld] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not
   // offered meanwhile, as their stamp would be the one before the write.
@@ -191,8 +193,9 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
     setReloading(true);
     void load();
   };
-  // A new write: the word on the last one no longer describes the page (write.ts, PageHooks).
-  const page: PageHooks = { started: () => setBanner(null) };
+  // A new write: the word on the last one no longer describes the page; one in doubt holds
+  // the other form (write.ts, PageHooks).
+  const page: PageHooks = { started: () => setBanner(null), doubt: (on) => setHeld((n) => n + (on ? 1 : -1)), held: held > 0 };
 
   if (facility === undefined || history === null) {
     return (
@@ -287,6 +290,8 @@ function SetCutoff({ ctx, facility, stamp, onDone, page }: {
 
   function submit(e: FormEvent) {
     e.preventDefault();
+    // Refused here or by the route, the earlier word on the page is not this attempt's answer.
+    page.started?.();
     const c = cutoffInput(cutoff);
     if (!c.ok) return setProblem(true);
     setProblem(false);
@@ -336,7 +341,7 @@ function ClearCutoff({ ctx, facility, stamp, onDone, page }: {
   }
 
   if (!open) {
-    return <button type="button" className="danger" onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_cutoff')}</button>;
+    return <button type="button" className="danger" disabled={w.locked} onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_cutoff')}</button>;
   }
   return (
     <form className="inline-form compact" onSubmit={submit}>

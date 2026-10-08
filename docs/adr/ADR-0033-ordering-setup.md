@@ -545,9 +545,11 @@ covers:
 **Every figure in it was run first in a browser** against the scratch database and edge,
 rebuilt fresh, as the session scripts it. The run moves by the links a participant would
 follow, and checks each par as typed and in the base unit, each history, and each sentence
-the pack quotes. Every quotation in both versions was then checked against the text the
-screens showed. The Arabic version's searches are given as the stored words, «أرز», «معقم»,
-«شرائح» and «دجاج», which the run found.
+the pack quotes. The English quotations were then checked against the text the screens
+showed in that run. The Arabic ones were checked against the console's Arabic strings and
+the Arabic pages captured at the run's end. The Arabic version's searches are given as the
+stored words, «أرز», «معقم», «شرائح» and «دجاج», and a browser run of them found what the
+pack says.
 
 It holds ten questions for the owner: this ADR's five, and five that the session's staff
 will meet:
@@ -575,8 +577,13 @@ Three things are not shown, and the pack says which:
   page keeps the refusal and says where the par is set now.
 - **A "Saved." above a later refusal.** A refused attempt left the previous write's
   "Saved." at the top of the page. On module 9's three pages, the word on a write is now
-  cleared when the next is sent and when another record opens. That is two optional hooks
-  on the shared write lifecycle (write.ts, `PageHooks`), tested in `write.test.ts`.
+  cleared when the next is sent, when a value is refused before sending, and when another
+  record opens. That is optional hooks on the shared write lifecycle (write.ts,
+  `PageHooks`), tested in `write.test.ts`.
+- **A form in doubt lost to the page's other form.** A write on the other form, or a
+  refusal that reads the page again, unmounted the form whose request was in doubt, and its
+  Start over with it. A form in doubt now holds the page's other form until it is settled
+  (`PageHooks`, `doubt` and `held`).
 - **The Arabic named the organisation with a word the picker never shows.** Module 9's
   sentences said «على مستوى المنظمة». The facility picker offers «المؤسسة كاملة», and INV-P07's
   Arabic says «على مستوى المؤسسة». Every Arabic string now says «المؤسسة», module 4's one
@@ -584,7 +591,10 @@ Three things are not shown, and the pack says which:
   on the word's root (`logic.test.ts`).
 - **A built console for the network cut.** Served by Vite's development server, the page
   reloads itself when the network returns, and loses the change in doubt and its Retry. This
-  pack, and the three before it that cut the network, now serve the console as a built page.
+  pack and the two before it whose cut is followed by Retry (stock alerts, purchase orders)
+  now serve the console as a built page. So does the notifications pack, where a console is
+  opened from another computer, since a reload there loses where the participant works.
+  Five earlier packs also cut the network, and do not yet say where the console runs.
 - **req-lint read the test data's facility codes (BR-001, WH-001, FA-001) as requirement
   citations.** The pack quotes screens that name a facility by its code alone. No
   requirement module uses those prefixes, so they join req-lint's list of look-alikes.
@@ -593,5 +603,5 @@ Three things are not shown, and the pack says which:
 - **A search finds Arabic only as it is stored.** Neither «ارز» nor «الأرز» finds «أرز بسمتي»,
   in every module's search, the database's and the console's (Q-27).
 - **Every other module's detail pages** keep a page's word on a write until the next one
-  succeeds: above a later refusal, and on another record of the same kind opened directly,
-  as a stock decision's links to the decision it reverses do (Q-28).
+  succeeds: above a later refusal, and on another record of the same kind opened by an
+  address typed or pasted (Q-28).

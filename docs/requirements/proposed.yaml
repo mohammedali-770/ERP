@@ -794,8 +794,8 @@ requirements:
   # facility that supplies it. pgTAP 190 and db-check exercise them; neither is an artifact
   # type req-lint resolves. The staff testing pack (UAT-ordering-setup) evidences all three,
   # but for INV-P06's day an order is for: the rule dating it is pgTAP 190's and db-check's,
-  # and an order keeping the day it was first placed is module 10's to build, evidenced by
-  # nothing yet. The suggestion itself is module 10's too, and proposed with it.
+  # and an order keeping the day it was dated for when first placed is module 10's to build,
+  # evidenced by nothing yet. The suggestion itself is module 10's too, and proposed with it.
   # ---------------------------------------------------------------------------
 
   - id: "INV-P05"

@@ -399,6 +399,8 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   // A write refused because the item's source moved (sourceMoved): kept on the page that
   // the read it prompts lands on, where the form that showed it is gone.
   const [refusal, setRefusal] = useState<Failure | null>(null);
+  // How many of the page's forms have a request in doubt.
+  const [held, setHeld] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not
   // offered meanwhile, as their stamp would be the one before the write.
@@ -495,6 +497,8 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
       setReloading(true);
       void load();
     },
+    doubt: (on) => setHeld((n) => n + (on ? 1 : -1)),
+    held: held > 0,
   };
   const said = (shown: boolean): Banner => {
     const key = parWriteBanner(outcome, shown);
@@ -651,6 +655,8 @@ function SetPar({ ctx, item, branchId, stamp, onDone, page }: {
 
   function submit(e: FormEvent) {
     e.preventDefault();
+    // Refused here or by the route, the earlier word on the page is not this attempt's answer.
+    page.started?.();
     const q = parInput(quantity);
     if (!q.ok) return setProblem(true);
     setProblem(false);
@@ -712,7 +718,7 @@ function ClearPar({ ctx, item, branchId, stamp, onDone, page }: {
   }
 
   if (!open) {
-    return <button type="button" className="danger" onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_par')}</button>;
+    return <button type="button" className="danger" disabled={w.locked} onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_par')}</button>;
   }
   return (
     <form className="inline-form compact" onSubmit={submit}>

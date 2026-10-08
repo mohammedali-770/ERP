@@ -81,16 +81,23 @@ export interface WriteHooks {
 }
 
 /**
- * What the page a form sits on is told of the form's writes, beyond their outcome.
+ * What the page a form sits on is told of the form's writes, beyond their outcome, and
+ * what it tells its forms.
  * - `started`: a request is being sent. The page's word on an earlier write ("Saved.") no
  *   longer describes the page, and stood above a later refusal as if it were its answer
- *   (found writing module 9's staff testing pack).
+ *   (found writing module 9's staff testing pack). A form that refuses a value before
+ *   sending calls it too (found in its review).
  * - `refused`: the route refused the request, and the form shows why. A page whose facts
  *   the refusal shows to be out of date reads them again.
+ * - `doubt` and `held`: a form reports a request in doubt (useWrite), and while one is, the
+ *   page's other forms are held. A write on one, or a refusal that reads the page again,
+ *   unmounted the form in doubt, and Start over with it (found in the second review).
  */
 export interface PageHooks {
   readonly started?: () => void;
   readonly refused?: (failure: Failure) => void;
+  readonly doubt?: (inDoubt: boolean) => void;
+  readonly held?: boolean;
 }
 
 export interface WriteLifecycle {
