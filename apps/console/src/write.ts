@@ -60,10 +60,15 @@ export interface WriteHooks {
   /**
    * Whether a refusal of `see` itself settles the doubt: the record can no longer be read
    * here because no decision of this form's kind can be made here any more, so a new one
-   * cannot repeat the lost request. Start over then reports 'checked' and the form resets,
-   * where it otherwise stayed locked with both ways out failing (found in review: a par set
-   * from a facility whose item's source moved away while the write was in doubt). Absent,
-   * every refusal keeps the doubt.
+   * cannot repeat the lost request. Start over then sends the request in doubt once more,
+   * as Retry would — a route checks a decision's id before its rules, so a request recorded
+   * under the lost answer is answered already_recorded and the person is told — and ends
+   * the doubt with what that answer says: 'already', 'saved' or 'stale', or 'checked' for a
+   * refusal. Unanswered again, the doubt stays. Without this a par set from a facility
+   * whose item's source moved away while the write was in doubt stayed locked, Start over
+   * refused for ever (found in review); settling at once dropped the one request that
+   * could say it had been saved (found in the second review). Absent, every refusal keeps
+   * the doubt.
    */
   settled?: ((failure: Failure) => boolean) | undefined;
   /** The form's reset for its next decision: new ids, closed, fields cleared. */
@@ -130,11 +135,30 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
     if (!now.ok) {
       if (h.onFailure(now)) return;
       if (h.settled?.(now) === true) {
+        let outcome: Outcome = 'checked';
+        if (pending !== null) {
+          const send = pending;
+          out = true;
+          state.setBusy(true);
+          let again: Answer<unknown>;
+          try {
+            again = await send();
+          } finally {
+            out = false;
+            state.setBusy(false);
+          }
+          // Unanswered again: still in doubt, with the same two ways out.
+          if (isUnanswered(again)) return;
+          if (!again.ok && hooks().onFailure(again)) return;
+          const said = writeOutcome(again);
+          outcome = said === 'failed' ? 'checked' : said;
+        }
+        const settled = hooks();
         pending = null;
         state.setInDoubt(false);
         state.setFailure(null);
-        h.after();
-        h.onDone('checked');
+        settled.after();
+        settled.onDone(outcome);
         return;
       }
       // Still in doubt: nothing is unlocked until the record has been seen.

@@ -130,16 +130,22 @@ test('the hook carries recorded and settled to the lifecycle, every render', () 
   assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled \};/, 'without it, Start over never asks');
 });
 
-test('CONTROL: a refused read settles the doubt only where the form says it does, and as nothing seen', async () => {
+test('CONTROL: a refused read settles the doubt only where the form says it does, asking the request once more first', async () => {
   // A par set from a facility whose item's source moved away while its write was in doubt:
-  // Start over's read is answered missing, and Retry is refused for where it is set from, so
-  // both ways out failed and the form stayed locked (found in review). The form says when a
-  // refusal settles it; any other refusal still keeps the doubt.
+  // Start over's read is answered missing, and stayed so, and the form stayed locked (found in
+  // review). It now settles where the form says so, but first sends the request in doubt
+  // once more, as Retry would: a route checks a decision's id before its rules, so one
+  // recorded under the lost answer is answered already_recorded, and the person is told
+  // (found in the second review). Any other refusal of the read still keeps the doubt.
   const missing = failure(404, 'not_found');
-  for (const [settles, refusal, outcome] of [
-    [true, missing, ['see', 'after', 'done:checked']],
-    [false, missing, ['see']],
-    [true, failure(500, 'error'), ['see']],
+  for (const [settles, refusal, again, log, sends] of [
+    [true, missing, failure(409, 'already_recorded'), ['see', 'after', 'done:already'], 2],
+    [true, missing, failure(422, 'refused'), ['see', 'after', 'done:checked'], 2],
+    [true, missing, failure(409, 'stale'), ['see', 'after', 'done:stale'], 2],
+    [true, missing, SAVED, ['see', 'after', 'done:saved'], 2],
+    [true, missing, LOST, ['see'], 2],
+    [false, missing, SAVED, ['see'], 1],
+    [true, failure(500, 'error'), SAVED, ['see'], 1],
   ] as const) {
     const h = harness(refusal);
     const asked: Failure[] = [];
@@ -147,21 +153,33 @@ test('CONTROL: a refused read settles the doubt only where the form says it does
       asked.push(f);
       return settles && f.status === 'not_found';
     };
-    await h.life.run(request({}, [LOST]).send);
+    const r = request({ decision_id: 'd1' }, [LOST, again]);
+    await h.life.run(r.send);
     await h.life.startOver();
-    assert.deepEqual(h.log, outcome, `${settles} ${refusal.status}`);
-    assert.equal(h.state.inDoubt, outcome.length === 1, 'kept in doubt unless settled');
-    assert.equal(h.state.failure, outcome.length === 1 ? refusal : null, 'a kept doubt says why');
-    assert.equal(h.life.pending === null, outcome.length > 1, 'settled, nothing is left to Retry');
+    const label = `${settles} ${refusal.status} then ${again.ok ? 'saved' : again.status}`;
+    assert.deepEqual(h.log, log, label);
+    assert.equal(r.sent.length, sends, `${label}: sent once more only when settling`);
+    assert.deepEqual(r.sent, Array(sends).fill({ decision_id: 'd1' }), `${label}: the very request first sent`);
+    const kept = log.length === 1;
+    assert.equal(h.state.inDoubt, kept, `${label}: kept in doubt unless settled`);
+    assert.equal(h.life.pending === null, !kept, `${label}: settled, nothing is left to Retry`);
+    assert.equal(h.state.busy, false);
     assert.deepEqual(asked, [refusal]);
+    if (kept && sends === 1) assert.equal(h.state.failure, refusal, `${label}: a kept doubt says why`);
   }
-  // A session that has ended is the session's, whatever the form says.
+  // A session that has ended is the session's, on the read or on the request asked again.
   const ended = harness(failure(401, 'idle'));
   ended.hooks.settled = () => true;
   await ended.life.run(request({}, [LOST]).send);
   await ended.life.startOver();
   assert.deepEqual(ended.log, ['see'], 'signed out, not settled');
   assert.equal(ended.state.inDoubt, true);
+  const endedAgain = harness(missing);
+  endedAgain.hooks.settled = () => true;
+  await endedAgain.life.run(request({}, [LOST, failure(401, 'idle')]).send);
+  await endedAgain.life.startOver();
+  assert.deepEqual(endedAgain.log, ['see'], 'signed out on the request asked again, not settled');
+  assert.equal(endedAgain.state.inDoubt, true);
 });
 
 test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {

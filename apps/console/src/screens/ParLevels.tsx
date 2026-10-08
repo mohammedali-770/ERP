@@ -7,8 +7,8 @@ import { label, localName, t } from '../i18n.ts';
 import { unitName } from '../items.ts';
 import { stateOf, type CapabilityState } from '../navigation.ts';
 import {
-  branchAdmits, branchesOf, clearParBody, inForce, matchItems, parActions, parInput, parNotice, parPacks, parPlace, readAll, setParBody,
-  stampOf, type ParPlace,
+  branchAdmits, branchesOf, branchIsHere, clearParBody, hiddenRefusal, inForce, matchItems, PAR_CAPABILITY, parActions, parInput,
+  parNotice, parPacks, parPlace, readAll, setParBody, stampOf, suppliedElsewhere, type ParPlace,
 } from '../ordering-setup.ts';
 import { formatQuantity, workingFacility } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
@@ -70,7 +70,7 @@ function useBranch(ctx: Ctx, branchId: string): Branch | null {
  */
 function useBranchState(ctx: Ctx, place: ParPlace, branchId: string): CapabilityState | null {
   const { api, onFailure, viewer } = ctx;
-  const own = place.kind === 'branch' && place.facility.facility_id === branchId;
+  const own = branchIsHere(place, branchId);
   const [state, setState] = useState<CapabilityState | null>(null);
   useEffect(() => {
     setState(null);
@@ -78,14 +78,14 @@ function useBranchState(ctx: Ctx, place: ParPlace, branchId: string): Capability
     let live = true;
     void api.session(branchId).then((answer) => {
       if (!live) return;
-      if (answer.ok) setState(stateOf(toViewer(answer.value.viewer), 'ordering.par_levels'));
+      if (answer.ok) setState(stateOf(toViewer(answer.value.viewer), PAR_CAPABILITY));
       else onFailure(answer);
     });
     return () => {
       live = false;
     };
   }, [api, onFailure, own, branchId]);
-  return own ? stateOf(viewer, 'ordering.par_levels') : state;
+  return own ? stateOf(viewer, PAR_CAPABILITY) : state;
 }
 
 const branchTitle = (ctx: Ctx, branch: Branch | null, branchId: string) =>
@@ -234,8 +234,10 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
   };
   const sets = ctx.ordering.setsPars && branch?.status !== 'closed' && branchAdmits(branchState) !== false;
   const notice = parNotice({ rights: ctx.ordering, branchStatus: branch?.status ?? null, branchState });
-  // Hidden at the branch, 0024 reads none of its pars: the reason is said, not its refusal.
-  const hidden = branchState === 'hidden';
+  // Hidden at the branch, 0024 refuses its pars as "not permitted": the reason is said, not
+  // the refusal. Any other refusal is 0024's to say, and the state its id reads is not.
+  const hiddenSaid = hiddenRefusal(branchState, failure);
+  const showNotice = notice !== null && !(notice === 'par_branch_hidden' && failure !== null && !hiddenSaid);
 
   return (
     <section>
@@ -246,9 +248,9 @@ export function ParBranch({ ctx, branchId }: { ctx: Ctx; branchId: string }) {
       <p className="muted">
         {t(lang, 'pars_hint')}{place.kind === 'source' ? <> {t(lang, 'pars_from_hint', { code: place.facility.code })}</> : null}
       </p>
-      {notice !== null ? <Notice tone="info" text={t(lang, notice)} /> : null}
+      {showNotice && notice !== null ? <Notice tone="info" text={t(lang, notice)} /> : null}
 
-      {failure && !hidden ? <FailureNotice lang={lang} failure={failure} /> : null}
+      {failure && !hiddenSaid ? <FailureNotice lang={lang} failure={failure} /> : null}
       {rows === null && failure === null ? <Loading lang={lang} /> : null}
       {rows !== null && rows.length === 0 ? <p className="muted">{t(lang, 'no_pars')}</p> : null}
       {rows !== null && rows.length > 0 ? (
@@ -413,8 +415,9 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
     const now = s !== null && s.ok ? inForce(s.value.decisions) : undefined;
     const supplied = now === undefined ? undefined : { id: now?.facility_id ?? null, code: now?.facility_code ?? null };
     // Asked from a warehouse or factory, a par of an item it does not supply is no par of
-    // this place's: the page says where it is set, not that the item is missing.
-    if (fromSupplier !== null && !h.ok && h.status === 'not_found' && i.ok && supplied !== undefined && supplied.id !== fromSupplier) {
+    // this place's: the page says where it is set, not that the item is missing, and says so
+    // even where the item's source cannot be read (found in the second review).
+    if (!h.ok && i.ok && suppliedElsewhere(fromSupplier, h, supplied === undefined ? undefined : supplied.id)) {
       setItem(i.value);
       setHistory(null);
       setSource(supplied);
@@ -478,22 +481,26 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   };
 
   const back = <a href={place.kind === 'branch' ? '#par_levels' : `#par_levels/${branchId}`}>{t(lang, 'back')}</a>;
-  if (item !== null && notHere && source !== undefined) {
+  if (item !== null && notHere) {
+    const here = place.kind === 'source' ? place.facility.code : '';
     return (
       <section>
         {back}
         <header className="page-header"><h1><bdi dir="ltr">{item.code}</bdi> — {localName(lang, item)}</h1></header>
         <p className="muted">{t(lang, 'par_for_branch', { branch: branchTitle(ctx, branch, branchId) })}</p>
-        <Notice tone="info" text={source.id === null ? t(lang, 'par_no_source') : t(lang, 'par_set_elsewhere', { code: source.code ?? shortId(source.id) })} />
+        {/* A write's answer is said here too: the reload after it can land here (found in the second review). */}
+        {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
+        <Notice tone="info" text={source === undefined ? t(lang, 'par_not_supplied_here', { code: here })
+          : source.id === null ? t(lang, 'par_no_source') : t(lang, 'par_set_elsewhere', { code: source.code ?? shortId(source.id) })} />
       </section>
     );
   }
   if (item === null || history === null) {
-    // Hidden at the branch, 0024 reads none of its pars: the reason is said, not its refusal.
+    // Hidden at the branch, 0024 refuses its pars as "not permitted": the reason is said.
     return (
       <section>
         {back}
-        {failure && branchState === 'hidden' ? <Notice tone="info" text={t(lang, 'par_branch_hidden')} />
+        {hiddenRefusal(branchState, failure) ? <Notice tone="info" text={t(lang, 'par_branch_hidden')} />
           : failure ? <FailureNotice lang={lang} failure={failure} /> : <Loading lang={lang} />}
       </section>
     );
@@ -591,7 +598,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
  * longer supplied from there, and then takes no par of it from there either, so a new
  * decision cannot repeat the lost one. Organisation-wide the history is always read.
  */
-const notSuppliedHere = (ctx: Ctx) => (f: Failure): boolean => f.status === 'not_found' && ctx.ordering.parFrom !== null;
+const notSuppliedHere = (ctx: Ctx) => (f: Failure): boolean => suppliedElsewhere(ctx.ordering.parFrom, f, undefined);
 
 /**
  * A par, in a current pack of the item, typed as decimal text and sent as typed, set from

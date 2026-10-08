@@ -8,10 +8,10 @@ import { asKey } from '../src/i18n.ts';
 import { failureMessage } from '../src/messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, type CapabilityState } from '../src/navigation.ts';
 import {
-  branchAdmits, branchesOf, clearCutoffBody, clearParBody, clearSourceBody, CUTOFF_KINDS, CUTOFF_PATTERN, cutoffActions, cutoffInput,
-  cutoffPageNotice, cutoffReadable, cutoffsListNotice, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS, orderingRights, PAR_KINDS,
-  parActions, parInput, parNotice, parPacks, parPlace, readAll, setCutoffBody, setParBody, setSourceBody, SOURCE_KINDS, sourceActions,
-  sourceOptions, stampOf, SUPPLYING_TYPES,
+  branchAdmits, branchesOf, branchIsHere, clearCutoffBody, clearParBody, clearSourceBody, CUTOFF_KINDS, CUTOFF_PATTERN, cutoffActions,
+  cutoffInput, cutoffPageNotice, cutoffReadable, cutoffsListNotice, hiddenRefusal, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS,
+  orderingRights, PAR_CAPABILITY, PAR_KINDS, parActions, parInput, parNotice, parPacks, parPlace, readAll, setCutoffBody, setParBody,
+  setSourceBody, SOURCE_KINDS, sourceActions, sourceOptions, stampOf, suppliedElsewhere, SUPPLYING_TYPES,
 } from '../src/ordering-setup.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
 import { toViewer } from '../src/viewer.ts';
@@ -382,6 +382,7 @@ test('a cut-off\'s page is read organisation-wide or at its facility, and change
   // The page asks the logic, with the facility shown and where the person works (found in review).
   assert.match(CUTOFFS, /const actions = cutoffActions\(\{\s+setsCutoffs: ctx\.ordering\.setsCutoffs, facilityId, shown: facility\.facility_id, status: facility\.status, inForce: current !== null,\s+\}\);/);
   assert.match(CUTOFFS, /const notice = cutoffPageNotice\(\{ rights: ctx\.ordering, facilityId, shown: facility\.facility_id, status: facility\.status \}\);/);
+  assert.match(CUTOFFS, /\{notice !== null \? <Notice tone="info" text=\{t\(lang, notice, \{ code: facility\.code \}\)\} \/> : null\}/, 'said, with its facility named');
   assert.match(CUTOFFS, /<Notice tone="info" text=\{t\(lang, cutoffsListNotice\(ctx\.ordering\)\)\} \/>/);
   // Who is told what: a reason, never an invitation that leads nowhere (found in review).
   const sets = { setsCutoffs: true, writesCutoffs: true };
@@ -438,7 +439,19 @@ test('a par\'s page offers set and clear as 0024 would take them', () => {
   assert.match(SOURCES, /const actions = sourceActions\(\{ setsSources: ctx\.ordering\.setsSources, itemActive: item\.status === 'active', inForce: current !== null \}\);/);
   assert.equal([...PARS.matchAll(/const branchState = useBranchState\(ctx, place, branchId\);/g)].length, 2, 'both par pages read the branch\'s state');
   assert.match(PARS, /void api\.session\(branchId\)\.then/, 'read as the viewer reads it, at the branch');
-  assert.match(PARS, /return own \? stateOf\(viewer, 'ordering\.par_levels'\) : state;/, 'the session\'s own at the branch worked at');
+  // How the state is read, not only that it is (found in the second review).
+  assert.match(PARS, /const own = branchIsHere\(place, branchId\);/);
+  assert.match(PARS, /if \(answer\.ok\) setState\(stateOf\(toViewer\(answer\.value\.viewer\), PAR_CAPABILITY\)\);/);
+  assert.match(PARS, /return own \? stateOf\(viewer, PAR_CAPABILITY\) : state;/, 'the session\'s own at the branch worked at');
+  assert.equal(PAR_CAPABILITY, 'ordering.par_levels');
+  assert.ok(fn('assert_par_branch').includes(`erp.assert_capability_admits('${PAR_CAPABILITY}', f.facility_id)`), '0024 asks this capability at the branch');
+  const wh = place(WAREHOUSE, 'warehouse');
+  const br = place(BRANCH, 'branch');
+  assert.equal(branchIsHere({ kind: 'branch', facility: br }, BRANCH), true, 'its own branch: the session\'s state');
+  assert.equal(branchIsHere({ kind: 'branch', facility: br }, '01936f00-0000-7000-8000-000000000402'), false, 'another branch, typed: read there');
+  assert.equal(branchIsHere({ kind: 'source', facility: wh }, BRANCH), false, 'from a warehouse: read at the branch, never the warehouse\'s');
+  assert.equal(branchIsHere({ kind: 'org' }, BRANCH), false);
+  assert.match(PARS, /\{sets && place\.kind !== 'branch' && place\.kind !== 'none'\s+\? <ParItemChooser /, 'no item is offered where pars take no change');
   // Where a par is set from is the rights', and stated on both writes.
   assert.equal([...PARS.matchAll(/from: ctx\.ordering\.parFrom,/g)].length, 2);
   assert.doesNotMatch(PARS, /from: (facilityId|ctx\.facilityId|null|here)/);
@@ -618,20 +631,48 @@ test('every form a par page withholds has a stated reason, first reason first', 
   }
   assert.match(PARS, /const notice = parNotice\(\{\s+rights: ctx\.ordering, branchStatus: branch\?\.status \?\? null, branchState,\s+item: \{ active: item\.status === 'active', source: source === undefined \? undefined : source\.id, sourceStatus \},\s+\}\);/);
   assert.match(PARS, /const notice = parNotice\(\{ rights: ctx\.ordering, branchStatus: branch\?\.status \?\? null, branchState \}\);/);
-  assert.equal([...PARS.matchAll(/\{notice !== null \? <Notice tone="info" text=\{t\(lang, notice/g)].length, 2, 'both pages say it');
-  assert.match(PARS, /\{failure && branchState === 'hidden' \? <Notice tone="info" text=\{t\(lang, 'par_branch_hidden'\)\} \/>/,
-    'hidden at the branch, the reason, not the refusal');
+  assert.equal([...PARS.matchAll(/notice !== null \? <Notice tone="info" text=\{t\(lang, notice/g)].length, 2, 'both pages say it');
+  assert.match(PARS, /\{hiddenRefusal\(branchState, failure\) \? <Notice tone="info" text=\{t\(lang, 'par_branch_hidden'\)\} \/>/,
+    'hidden at the branch, the reason, not the refusal, on the item page');
+  assert.match(PARS, /const hiddenSaid = hiddenRefusal\(branchState, failure\);/);
+  assert.match(PARS, /const showNotice = notice !== null && !\(notice === 'par_branch_hidden' && failure !== null && !hiddenSaid\);/);
+  assert.match(PARS, /\{failure && !hiddenSaid \? <FailureNotice /, '...and on the branch page (found in the second review)');
+  assert.match(PARS, /\{showNotice && notice !== null \? <Notice tone="info" text=\{t\(lang, notice\)\} \/> : null\}/);
+  // Only 0024's own "hidden" refusal is said as such: a branch it does not know is its to say.
+  const forbidden = { status: 'forbidden' };
+  assert.equal(hiddenRefusal('hidden', forbidden), true);
+  assert.equal(hiddenRefusal('hidden', { status: 'not_found' }), false, 'another brand\'s branch, or none: missing, as 0024 says');
+  assert.equal(hiddenRefusal('hidden', { status: 'refused' }), false, 'a facility that is no branch');
+  assert.equal(hiddenRefusal('pilot', forbidden), false);
+  assert.equal(hiddenRefusal('hidden', null), false);
+  // A reason that names a facility is given it.
+  assert.match(PARS, /\{notice !== null \? <Notice tone="info" text=\{t\(lang, notice, \{ code: source\?\.code \?\? '' \}\)\} \/> : null\}/);
 });
 
 test('from a warehouse or factory, an item supplied elsewhere is said to be, and a par write in doubt there can settle', () => {
   // 0024 answers a par's history as missing at a facility that does not supply the item...
   assert.match(fn('par_level_history'), /p_facility_id is null or p_facility_id = b\.facility_id or s\.facility_id = p_facility_id\)\) then\s+raise exception 'no item %'/);
   // ...so the page says where it is set, from the item's source history (found in review).
-  assert.match(PARS, /if \(fromSupplier !== null && !h\.ok && h\.status === 'not_found' && i\.ok && supplied !== undefined && supplied\.id !== fromSupplier\) \{/);
+  assert.match(PARS, /const fromSupplier = place\.kind === 'source' \? place\.facility\.facility_id : null;/);
+  assert.match(PARS, /if \(!h\.ok && i\.ok && suppliedElsewhere\(fromSupplier, h, supplied === undefined \? undefined : supplied\.id\)\) \{\s+setItem\(i\.value\);\s+setHistory\(null\);\s+setSource\(supplied\);\s+setNotHere\(true\);/);
+  assert.match(PARS, /if \(item !== null && notHere\) \{/);
+  assert.match(PARS, /\{banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}\s+<Notice tone="info" text=\{source === undefined \? t\(lang, 'par_not_supplied_here', \{ code: here \}\)/,
+    'a write\'s answer is said there too (found in the second review)');
   assert.match(PARS, /source\.id === null \? t\(lang, 'par_no_source'\) : t\(lang, 'par_set_elsewhere', \{ code: source\.code \?\? shortId\(source\.id\) \}\)/);
+  // item_exists alone: a branch 0024 does not know is facility_exists, and its to say.
+  const missingItem = { status: 'not_found', constraint: 'item_exists' };
+  assert.equal(suppliedElsewhere(FACTORY, missingItem, WAREHOUSE), true);
+  assert.equal(suppliedElsewhere(FACTORY, missingItem, null), true, 'supplied by nothing');
+  assert.equal(suppliedElsewhere(FACTORY, missingItem, undefined), true, 'the source unread: still not known to be here');
+  assert.equal(suppliedElsewhere(FACTORY, missingItem, FACTORY), false);
+  assert.equal(suppliedElsewhere(FACTORY, { status: 'not_found', constraint: 'facility_exists' }, WAREHOUSE), false, 'a branch 0024 does not know');
+  assert.equal(suppliedElsewhere(FACTORY, { status: 'forbidden', constraint: null }, WAREHOUSE), false);
+  assert.equal(suppliedElsewhere(null, missingItem, WAREHOUSE), false, 'organisation-wide, every par is read');
+  assert.equal(suppliedElsewhere(FACTORY, null, WAREHOUSE), false);
+  assert.match(fn('par_level_history'), /raise exception 'no item %', p_item_id using errcode = 'no_data_found', constraint = 'item_exists';/);
   // A write in doubt whose Start over is answered "missing" there cannot be repeated from
   // there, as 0024 takes no par of that item from there: it settles (write.ts, `settled`).
-  assert.match(PARS, /const notSuppliedHere = \(ctx: Ctx\) => \(f: Failure\): boolean => f\.status === 'not_found' && ctx\.ordering\.parFrom !== null;/);
+  assert.match(PARS, /const notSuppliedHere = \(ctx: Ctx\) => \(f: Failure\): boolean => suppliedElsewhere\(ctx\.ordering\.parFrom, f, undefined\);/);
   assert.equal([...PARS.matchAll(/\(seen\) => \(seen as ParHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\), notSuppliedHere\(ctx\)\);/g)].length, 2,
     'both par forms');
   assert.match(fn('set_par_level'), /perform erp\.assert_par_level_decision_is_new\(p_decision_id\);[\s\S]*v_source := erp\.assert_par_set_from\(p_facility_id, v_item, b\);/,
@@ -643,5 +684,6 @@ test('a source page shows a failed read of the facilities, and promises a clear 
     'found in review: the set form loaded for ever, saying nothing');
   assert.match(SOURCES, /\{actions\.set && !reloading && supplying\.failure === null\s+\? <SetSource /);
   assert.match(SOURCES, /\}, \[api, facilityId, seesCutoffs, onFailure, asked\]\);/, 'asked again on Reload');
+  assert.match(SOURCES, /return \{ rows, failure, reload: \(\) => setAsked\(\(n\) => n \+ 1\) \};/, 'and Reload asks (found in the second review)');
   assert.match(SOURCES, /actions\.clear\s+\? `\$\{t\(lang, 'source_item_retired'\)\} \$\{t\(lang, 'source_item_retired_clear'\)\}` : t\(lang, 'source_item_retired'\)/);
 });

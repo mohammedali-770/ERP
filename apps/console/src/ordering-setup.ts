@@ -246,6 +246,39 @@ export function parPlace(facilityId: string | null, facility: ViewerFacility | u
   return { kind: 'none' };
 }
 
+/** The capability 0024 asks pars by, where they are set from and again at their branch. */
+export const PAR_CAPABILITY = 'ordering.par_levels';
+
+/**
+ * Whether a par page's branch is where the person works. Its state there is then the
+ * session's own; anywhere else it is read at the branch (screens/ParLevels.tsx, useBranchState).
+ */
+export function branchIsHere(place: ParPlace, branchId: string): boolean {
+  return place.kind === 'branch' && place.facility.facility_id === branchId;
+}
+
+/**
+ * Whether a par read refused from a warehouse or factory (`from`) means the item is not
+ * supplied from there: 0024 answers it item_exists, as missing, rather than say where it
+ * is supplied from. Only that refusal: a branch 0024 does not know there answers
+ * facility_exists, and is 0024's to say (found in the second review). The item's source,
+ * where read, must not be `from`; unread, it is not known to be.
+ */
+export function suppliedElsewhere(from: string | null, refusal: { readonly status: string; readonly constraint: string | null } | null,
+                                  source: string | null | undefined): boolean {
+  return from !== null && refusal !== null && refusal.status === 'not_found' && refusal.constraint === 'item_exists' && source !== from;
+}
+
+/**
+ * Whether a par read's refusal is par levels being hidden at the branch, which a page says
+ * as such: 0024 refuses it without naming a constraint, as "not permitted". Only a forbidden
+ * answer: a branch it does not know, or a facility that is no branch, is 0024's to say,
+ * whatever state the branch's id reads (found in the second review).
+ */
+export function hiddenRefusal(branchState: CapabilityState | null, failure: { readonly status: string } | null): boolean {
+  return branchState === 'hidden' && failure !== null && failure.status === 'forbidden';
+}
+
 /**
  * The branches a par page offers to choose from, by code: of `brandId`'s brand when one is
  * given, as 0024 reads a branch from a warehouse or factory only of its own brand. The

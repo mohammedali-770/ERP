@@ -371,7 +371,8 @@ Nothing about the routes changed.
     again there (`erp.assert_par_branch()`): a pilot names the branches it covers. The
     page reads the state at the branch as the viewer reads one, through the session route
     at the branch (`branchAdmits`). Hidden there, the page says par levels are not switched
-    on at the branch, where 0024 refuses every read; read only or withdrawn, it says they
+    on at the branch where 0024 refuses its read as "not permitted", and only then: a
+    branch 0024 does not know is 0024's to answer. Read only or withdrawn, it says they
     take no changes there, and offers none.
 - **Sources (`#replenishment_sources`)** lists every item, by code, with its source, read
   where the person works; one facility's items alone on asking. An item's page
@@ -418,8 +419,10 @@ Nothing about the routes changed.
     state, the branch closed, read only, set elsewhere, no source, the item retired, or
     its source closed.
   - **From a warehouse or factory, an item it does not supply** is answered as missing by
-    0024. The page then says where its par is set, from the item's source history, rather
-    than that the item does not exist.
+    0024 (`item_exists`). The page then says where its par is set, from the item's source
+    history, or, where that cannot be read, that the facility does not supply it, rather
+    than that the item does not exist. A branch 0024 does not know (`facility_exists`) is
+    answered as 0024 answers it.
 - **The stamp is the history's** for all three settings, a clearing included, and never a
   list's. It is `null` only for a setting never made.
 - **Every write goes through the shared lifecycle** (write.ts): built once, and retried as
@@ -427,7 +430,9 @@ Nothing about the routes changed.
   saved" when the history holds the lost request's id. A par form at a warehouse or
   factory also settles its doubt when that history is answered as missing: the item is no
   longer supplied from there, so 0024 takes no par of it from there, and a new decision
-  cannot repeat the lost one (write.ts, `settled`).
+  cannot repeat the lost one (write.ts, `settled`). It first sends the request once more,
+  as Retry would: 0024 checks a decision's id before its rules, so a request recorded under
+  the lost answer is answered "already saved", and the page says so.
 - **Every 0024 refusal a person can meet is worded** in both languages (messages.ts); the
   retry keys are not. The Arabic uses the warehouse's own words for a cut-off (موعد
   الإغلاق) and a par (المستوى المستهدف). It is marked for a native speaker's review with
@@ -450,8 +455,9 @@ Nothing about the routes changed.
     warehouse supplies it and its par is set there; sources and the factory's own cut-off
     are read only, and they are not told to work there to change it;
   - the factory manager clears the strips' par and the answer is cut off after the
-    database recorded it; the strips' source moves to the warehouse; Start over settles
-    the doubt and the page says where the par is set now;
+    database recorded it; the strips' source moves to the warehouse; Start over asks the
+    clear once more, settles the doubt, says it was already saved, and says where the par
+    is set now;
   - with par levels read only at the second branch, its page and the strips' say they
     take no changes there, and offer none; hidden there, both say par levels are not
     switched on at the branch, never "not permitted";
@@ -471,10 +477,26 @@ Nothing about the routes changed.
   while working there; a retired item with no source was promised a clear; a closed source
   or a retired item hid Set without a word. Each now says what is true.
 - **A par write that could stay locked.** In doubt at a warehouse or factory when its
-  item's source moved away, Start over and Retry both failed. Start over now settles it.
+  item's source moved away, Start over was refused for ever, and Retry answered only if
+  the lost write had been recorded. Start over now settles it.
 - **A cut-off on a phone.** The number pad has no colon; the digits alone are now read.
 - **Tests that could not fail.** The gate assertions on the set routes ran on into their
   clears, which repeat them; nothing pinned what each page passed to the logic deciding
   what it offers, the stamp handed to each form, or where most reads are asked; the
   shared refusals named one 0024 never raises; item search was never tried in another
   case. Each is pinned now, and each mutation the review found survives no longer.
+
+**Found in the second review, of those fixes, fixed before it:**
+- **A settled doubt that said nothing.** Settling at once dropped the one request that
+  could say the lost write had been saved. Start over now sends it once more first, and
+  the page that a settled write lands on shows the write's answer too.
+- **Answers that overruled 0024's.** The "not supplied here" page and the "not switched on"
+  notice each answered for any refusal of their kind of status: a branch 0024 does not
+  know, typed by hand, read as either. Each now answers only for the refusal it explains.
+- **A page left stale.** Where the item's source cannot be read, a settled par write left
+  the par it may have cleared on screen. The page now says the facility does not supply
+  the item.
+- **Tests that could still not fail:** how the branch's state is read, the "not supplied
+  here" page, the hidden branch page's refusal, Reload, and the words each notice names a
+  facility with. Each is pinned now, as `branchIsHere`, `suppliedElsewhere` and
+  `hiddenRefusal` in the logic, tested directly.
