@@ -177,13 +177,37 @@ test('CONTROL: every ordering-setup write acts as the signed-in person, whatever
 });
 
 test('every ordering-setup read asks as the signed-in person, at the facility asked', async () => {
+  const expected: Record<string, unknown> = {
+    replenishmentSources: { facilityId: WAREHOUSE, suppliedBy: null, afterCode: null, limit: 100 },
+    replenishmentSourceHistory: { facilityId: WAREHOUSE, itemId: ITEM, beforeSeq: null, limit: 100 },
+    orderCutoffs: { facilityId: WAREHOUSE, afterCode: null, limit: 100 },
+    // A cut-off's history is asked at the facility it is of, which its path names.
+    orderCutoffHistory: { facilityId: FACTORY, beforeSeq: null, limit: 100 },
+    parLevels: { facilityId: WAREHOUSE, branchId: BRANCH, afterCode: null, limit: 100 },
+    parLevelHistory: { facilityId: WAREHOUSE, branchId: BRANCH, itemId: ITEM, beforeSeq: null, limit: 100 },
+  };
   for (const [method, path] of READS) {
     const db = fakeDb(MANAGER);
     const response = await orderingSetup(get(`${path}?facility_id=${WAREHOUSE}&actor_id=${ADMIN}`), deps(db));
     assert.equal(response.status, 200, path);
     assert.equal(db.calls[0]!.method, method);
     assert.equal(db.calls[0]!.actor, MANAGER, path);
-    assert.doesNotMatch(JSON.stringify(db.calls[0]!.args), new RegExp(ADMIN), path);
+    assert.deepEqual(db.calls[0]!.args, [expected[method]], `${method} asks as the request says, and nothing more`);
+  }
+});
+
+test('CONTROL: a read with no facility asks organisation-wide, never at the path\'s branch or the filter\'s facility', async () => {
+  const cases: Array<[string, Record<string, unknown>]> = [
+    [`/sources?supplied_by=${FACTORY}`, { facilityId: null, suppliedBy: FACTORY, afterCode: null, limit: 100 }],
+    [`/sources/${ITEM}`, { facilityId: null, itemId: ITEM, beforeSeq: null, limit: 100 }],
+    ['/cutoffs', { facilityId: null, afterCode: null, limit: 100 }],
+    [`/pars/${BRANCH}`, { facilityId: null, branchId: BRANCH, afterCode: null, limit: 100 }],
+    [`/pars/${BRANCH}/items/${ITEM}`, { facilityId: null, branchId: BRANCH, itemId: ITEM, beforeSeq: null, limit: 100 }],
+  ];
+  for (const [path, args] of cases) {
+    const db = fakeDb(ADMIN);
+    assert.equal((await orderingSetup(get(path), deps(db))).status, 200, path);
+    assert.deepEqual(db.calls[0]!.args, [args], path);
   }
 });
 
@@ -224,8 +248,9 @@ test('each write calls its database route with the request\'s fields, each in it
   }
 });
 
-test('what a setting is about is the one its path names, whatever the body says', async () => {
+test('what a setting is about is the one its path names, whatever the body or the query says', async () => {
   const other = '01936f00-0000-7000-8000-000000000402';
+  const query = `?item_id=${TRAY}&facility_id=${WAREHOUSE}&branch_id=${other}`;
   const cases: Array<[string, Record<string, unknown>, string, string]> = [
     [`/sources/${ITEM}`, { ...SET_SOURCE, item_id: TRAY }, 'itemId', ITEM],
     [`/sources/${ITEM}/clear`, { ...CLEAR_SOURCE, item_id: TRAY }, 'itemId', ITEM],
@@ -236,11 +261,17 @@ test('what a setting is about is the one its path names, whatever the body says'
     [`/pars/${BRANCH}/items/${ITEM}/clear`, { ...CLEAR_PAR, item_id: TRAY }, 'itemId', ITEM],
   ];
   for (const [path, body, key, want] of cases) {
-    const db = fakeDb(ADMIN);
-    const response = await orderingSetup(post(path, body), deps(db));
-    assert.equal(response.status, 200, path);
-    assert.equal((db.calls[0]!.args[0] as Record<string, unknown>)[key], want, `${path}: ${key}`);
+    for (const asked of [path, `${path}${query}`]) {
+      const db = fakeDb(ADMIN);
+      const response = await orderingSetup(post(asked, body), deps(db));
+      assert.equal(response.status, 200, asked);
+      assert.equal((db.calls[0]!.args[0] as Record<string, unknown>)[key], want, `${asked}: ${key}`);
+    }
   }
+  // A par is set from where its body says, never from the query.
+  const db = fakeDb(ADMIN);
+  await orderingSetup(post(`/pars/${BRANCH}?facility_id=${WAREHOUSE}`, SET_PAR), deps(db));
+  assert.equal((db.calls[0]!.args[0] as { facilityId: string }).facilityId, FACTORY);
 });
 
 test('a first setting states that the form read none: null, sent as null', async () => {
@@ -274,6 +305,32 @@ test('CONTROL: a stamp, or where a par is set from, left out is malformed, never
     assert.deepEqual(await response.json(), { status: 'malformed', field: 'facility_id' },
       'a form that never chose must not pass for one that chose the organisation');
     assert.deepEqual(db.calls, []);
+  }
+});
+
+test('CONTROL: every write names its decision id and its reason, and every clear its stamp', async () => {
+  for (const [method, path, body] of WRITES) {
+    for (const [field, bad] of [['decision_id', undefined], ['decision_id', ''], ['reason', undefined],
+                                ['reason', 'x'.repeat(501)]] as const) {
+      const db = fakeDb(ADMIN);
+      const sent = bad === undefined ? without(body, field) : { ...body, [field]: bad };
+      const response = await orderingSetup(post(path, sent), deps(db));
+      assert.equal(response.status, 400, `${method}: ${field}`);
+      assert.deepEqual(await response.json(), { status: 'malformed', field }, `${method}: ${field}`);
+      assert.deepEqual(db.calls, [], `${method}: the edge never mints a decision id of its own`);
+    }
+  }
+  for (const [method, path, body] of WRITES.filter(([m]) => m.startsWith('clear'))) {
+    const db = fakeDb(ADMIN);
+    const response = await orderingSetup(post(path, { ...body, expected_decision_id: null }), deps(db));
+    assert.equal(response.status, 400, `${method}: there is something to clear, so a stamp`);
+    assert.deepEqual(await response.json(), { status: 'malformed', field: 'expected_decision_id' });
+  }
+  for (const [path, body] of [[`/pars/${BRANCH}`, SET_PAR], [`/pars/${BRANCH}/items/${ITEM}/clear`, CLEAR_PAR]] as const) {
+    const db = fakeDb(ADMIN);
+    const response = await orderingSetup(post(path, { ...body, facility_id: '' }), deps(db));
+    assert.equal(response.status, 400, `${path}: an empty place is not the organisation`);
+    assert.deepEqual(await response.json(), { status: 'malformed', field: 'facility_id' });
   }
 });
 
@@ -358,6 +415,9 @@ test('a path that is no route is 404 before any field is read, and nothing is de
     post(`/sources/${ITEM}/clear/x`, CLEAR_SOURCE), post('/cutoffs', SET_CUTOFF), post(`/cutoffs/${FACTORY}/x`, SET_CUTOFF),
     post('/pars', SET_PAR), post(`/pars/${BRANCH}/items/${ITEM}`, SET_PAR), post(`/pars/${BRANCH}/items`, SET_PAR),
     post(`/pars/${BRANCH}/clear`, CLEAR_PAR), post(`/pars/${BRANCH}/items/${ITEM}/clear/x`, CLEAR_PAR),
+    // A mistyped set must never be read as a clear: a set's body carries every field a clear needs.
+    post(`/pars/${BRANCH}/items/${ITEM}/set`, SET_PAR), post(`/pars/${BRANCH}/x/${ITEM}/clear`, CLEAR_PAR),
+    post(`/sources/${ITEM}/set`, SET_SOURCE), post(`/cutoffs/${FACTORY}/set`, SET_CUTOFF), get(`/pars/${BRANCH}/x/${ITEM}`),
   ]) {
     const db = fakeDb(ADMIN);
     const response = await orderingSetup(request, deps(db));

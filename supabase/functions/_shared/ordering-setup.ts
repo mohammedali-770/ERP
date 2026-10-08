@@ -20,11 +20,11 @@
  *   THE ACTOR is the person the caller's token resolves to, through withSession, passed
  *   as its own argument (ADR-0025). No field of any body or query is read as an actor.
  *
- *   SHAPE ONLY is checked here (./fields.ts). Who may set what, and where; that a source is
- *   an open warehouse or factory of the item's brand; that a cut-off is a time of day; that
- *   a par is above nothing, exact and in a current pack; that a par is set from the facility
- *   that supplies its item — every rule is 0024's, and its refusal comes back through
- *   ./refusal.ts.
+ *   SHAPE ONLY is checked here (./fields.ts). A par is decimal text, as a minimum is. Who
+ *   may set what, and where; that a source is an open warehouse or factory of the item's
+ *   brand; that a cut-off is a time of day; that a par is above nothing, exact and in a
+ *   current pack; that a par is set from the facility that supplies its item — every rule
+ *   is 0024's, and its refusal comes back through ./refusal.ts.
  *
  *   WHAT A SETTING IS ABOUT IS NAMED IN THE PATH: the item a source is of, the facility a
  *   cut-off is of, the branch a par is for and, for a clear, its item. So no body can name
@@ -39,7 +39,8 @@
  *   THE STAMP IS STATED, as a minimum's (ADR-0031's step 2 addendum). A set names
  *   `expected_decision_id`: the decision in force, a clearing included, or null when the
  *   setting has NEVER been made. Left out, or empty, it is a 400, never read as "none". A
- *   clear names a stamp, always.
+ *   clear names a stamp, always. The par list leaves cleared pars out, so a cleared par's
+ *   stamp is read from its history.
  *
  * THREE THINGS OF ITS OWN:
  *
@@ -47,8 +48,8 @@
  *   That it is a time of day, 00:00 to 23:59, is 0024's rule, so '24:00' reaches it and is
  *   refused there by name. To have none, the cut-off is cleared: an empty one is a 400.
  *
- *   A PAR IS DECIMAL TEXT, as a minimum is, and a par write STATES WHERE IT IS SET FROM:
- *   `facility_id`, the facility that supplies the item, or null for the organisation (O5).
+ *   A PAR WRITE STATES WHERE IT IS SET FROM: `facility_id`, the facility that supplies the
+ *   item, or null for the organisation (O5).
  *   Left out, it is a 400: a form that never chose must not pass for one that chose the
  *   organisation, which only an organisation-wide writer passes anyway.
  *

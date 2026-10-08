@@ -368,8 +368,8 @@ export function makeDb(sql: Sql): Db {
     }),
 
     // 0024. A par and its pack's figures are numerics, which postgres.js answers as text
-    // and which stay text; a cut-off is 'HH:MM' text already; a seq is cast to text, as
-    // every history's is.
+    // and which stay text; a cut-off is 'HH:MM' text already; a seq is cast to text. The
+    // moments come back as Dates, which reach the console as ISO moments.
     replenishmentSources: (actor, q) => run(async () => (await sql`
       select * from erp.replenishment_sources(${actor}::uuid, ${q.facilityId}::uuid, ${q.suppliedBy}::uuid,
                                               ${q.afterCode}::text, ${q.limit}::integer)`

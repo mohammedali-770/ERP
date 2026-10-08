@@ -10,7 +10,8 @@
  * holds 0085's sources, cut-offs and pars:
  *
  *   1. AS ERP_EDGE, over its own login: a signed-in cashier reads their own branch's pars
- *      and its suppliers' cut-offs, reads no other branch's, and sets nothing.
+ *      and the cut-offs of their brand's warehouses and factories, reads no other branch's
+ *      pars, and sets nothing.
  *
  *   2. EVERY ROUTE, AS ERP_EDGE, in one transaction on its own login that is ROLLED BACK,
  *      each request in its own savepoint, the rollback checked afterwards.
@@ -41,7 +42,7 @@ const OIL = '01936f00-0000-7000-8000-000000004110';
 const GLOVES = '01936f00-0000-7000-8000-000000004106';
 /** The second brand's meal box, in pieces: a conversion no branch of the first brand holds. */
 const OTHER_BRAND_PIECE = '01936f00-0000-7000-8000-000000004227';
-/** The seed's decisions: WH-001's cut-off, BR-002's chicken par. */
+/** The seed's decisions: WH-001's and FA-001's cut-offs, BR-002's chicken par. */
 const SEEDED_WAREHOUSE_CUTOFF = '01936f00-0000-7000-8000-000000006211';
 const SEEDED_FACTORY_CUTOFF = '01936f00-0000-7000-8000-000000006213';
 const SEEDED_BRANCH_TWO_CHICKEN = '01936f00-0000-7000-8000-000000006224';
@@ -87,7 +88,7 @@ async function asErpEdge<T>(run: (url: string) => Promise<T>): Promise<T> {
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;
 
-Deno.test('as erp_edge, a cashier reads their own branch\'s pars and its suppliers\' cut-offs, and sets nothing', () => asErpEdge(async (url) => {
+Deno.test('as erp_edge, a cashier reads their own branch\'s pars and their brand\'s cut-offs, and sets nothing', () => asErpEdge(async (url) => {
   const db = connect(url);
   try {
     const signedIn = await db.signIn('1001', '100001');
@@ -103,7 +104,12 @@ Deno.test('as erp_edge, a cashier reads their own branch\'s pars and its supplie
       'their branch\'s pars, as entered and in the base unit, as text');
     const cutoffs = await send('GET', `/cutoffs?facility_id=${BRANCH_ONE}`);
     equal((cutoffs.body.cutoffs as Row[]).map((c) => [c.code, c.cutoff]), [['FA-001', '11:00'], ['WH-001', '14:00']],
-      'the cut-offs of the facilities that supply them, as HH:MM');
+      'the cut-offs of every warehouse and factory of their brand, as HH:MM');
+    const first = await send('GET', `/pars/${BRANCH_ONE}?facility_id=${BRANCH_ONE}&limit=1`);
+    equal([(first.body.pars as Row[]).map((p) => p.code), first.body.next_after], [['FP-COLA-330'], 'FP-COLA-330'],
+      'a full page names where the next one starts');
+    const next = await send('GET', `/pars/${BRANCH_ONE}?facility_id=${BRANCH_ONE}&limit=1&after=${first.body.next_after}`);
+    equal((next.body.pars as Row[]).map((p) => p.code), ['RM-CHK-BREAST'], 'and the next page starts after it');
     const fromOwn = await send('GET', `/pars/${BRANCH_TWO}?facility_id=${BRANCH_ONE}`);
     equal([fromOwn.http, fromOwn.body.constraint], [422, 'par_level_read_scope'], 'no other branch\'s pars from their own');
     const atOther = await send('GET', `/pars/${BRANCH_TWO}?facility_id=${BRANCH_TWO}`);
@@ -162,6 +168,16 @@ Deno.test('every ordering-setup route, as erp_edge, through the router and the d
           ['FA-001', null, null], 'strips from the factory; gloves cleared; frying oil never had one');
         const narrowed = await send('GET', `/sources?supplied_by=${FACTORY}`, undefined, admin.token);
         equal((narrowed.body.sources as Row[]).map((s) => s.code), ['SF-CHK-STRIPS'], 'what the factory supplies');
+        const atFactory = await send('GET', `/sources?facility_id=${FACTORY}&supplied_by=${FACTORY}`, undefined, factory.token);
+        equal((atFactory.body.sources as Row[]).map((s) => s.code), ['SF-CHK-STRIPS'], 'read by its manager, at the factory');
+        const stripsHistory = await send('GET', `/sources/${STRIPS}?facility_id=${FACTORY}`, undefined, factory.token);
+        equal((stripsHistory.body.decisions as Row[]).map((d) => [d.kind, d.facility_code, d.is_current]),
+          [['source_set', 'FA-001', true]], 'and its history, at the factory');
+        const page = await send('GET', '/sources?limit=2', undefined, admin.token);
+        const after = await send('GET', `/sources?limit=2&after=${page.body.next_after}`, undefined, admin.token);
+        equal([(page.body.sources as Row[]).map((s) => s.code), page.body.next_after, (after.body.sources as Row[])[0]?.code],
+          [['B2-PKG-MEAL-BOX-M', 'CL-SANITISER'], 'CL-SANITISER', 'EQ-FRYER-BASKET'],
+          'the list pages by code: organisation-wide, the second brand\'s item among them');
 
         const set = id();
         const body = { decision_id: set, supplied_by: WAREHOUSE, expected_decision_id: null, reason };
@@ -202,8 +218,13 @@ Deno.test('every ordering-setup route, as erp_edge, through the router and the d
         const history = await send('GET', `/cutoffs/${WAREHOUSE}`, undefined, admin.token);
         equal((history.body.decisions as Row[]).map((d) => [d.cutoff, d.is_current]), [['15:30', true], ['14:00', false]],
           'its history, newest first');
+        const newest = await send('GET', `/cutoffs/${WAREHOUSE}?limit=1`, undefined, admin.token);
+        const older = await send('GET', `/cutoffs/${WAREHOUSE}?limit=1&before=${newest.body.next_before}`, undefined, admin.token);
+        equal([(newest.body.decisions as Row[]).map((d) => d.cutoff), (older.body.decisions as Row[]).map((d) => d.cutoff)],
+          [['15:30'], ['14:00']], 'paged by seq, sent back as text');
         const retry = await send('POST', `/cutoffs/${WAREHOUSE}`, body, admin.token);
-        equal([retry.http, retry.body.constraint], [409, 'order_cutoff_decision_pkey'], 'a retry is answered as one');
+        equal([retry.http, retry.body.status, retry.body.constraint], [409, 'already_recorded', 'order_cutoff_decision_pkey'],
+          'a retry is answered as one');
         const midnight = await send('POST', `/cutoffs/${WAREHOUSE}`,
           { ...body, decision_id: id(), cutoff: '24:00', expected_decision_id: set }, admin.token);
         equal([midnight.http, midnight.body.status, midnight.body.constraint], [422, 'invalid', 'order_cutoff_is_valid'],
