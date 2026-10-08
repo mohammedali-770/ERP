@@ -203,7 +203,7 @@ hidden in every real database until a migration promotes them. The administrator
 and writes both.
 
 The synthetic seed opens both at pilot. It gives the two managers par write and the
-setup read: the factory manager at FA-001 alone, so they set only the factory's items'
+setup read: the factory manager at the factory alone, so they set only the factory's items'
 pars; the warehouse manager organisation-wide, so they set any item's. Branch workers
 and the general manager read both.
 The accountant holds nothing here.
