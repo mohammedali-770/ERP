@@ -344,3 +344,175 @@ reachable: module 10 calls it from its own route (§6).
   at `'24:00'`, refused to the factory manager and cleared; and pars set by the factory
   manager from the factory, refused for the warehouse's items, set organisation-wide and
   cleared.
+
+## Addendum — 2026-10-08: the screens (module 9, step 3)
+
+The console reads and changes the three settings through the `ordering-setup` function.
+Nothing about the routes changed.
+
+- **Three entries, under a new Ordering group,** each shown only where every read its list
+  asks is held and nothing is hidden (navigation.ts, `alsoReads`); a typed URL meets the
+  same answer:
+  - "Item sources": read on the setup and on items;
+  - "Order cut-off times": read on the setup alone, so a branch's staff see the cut-offs
+    of the facilities that supply them;
+  - "Par levels": read on pars and on items.
+- **What is offered is 0024's gates, read where the person works** (ordering-setup.ts,
+  `orderingRights`). Nothing is offered in a preview, or where the capability admits no
+  new work.
+  - **Sources organisation-wide only,** as the masters are: 0024 asks at no facility.
+  - **A cut-off only at its own warehouse or factory, worked at,** as a purchase limit is:
+    0024 asks at the facility. Organisation-wide, the administrator reads every cut-off and
+    its history, and switches to the facility to change one.
+  - **Pars from the warehouse or factory worked at, or organisation-wide** (O5). A par
+    write states which: the facility's own id as `facility_id`, or `null`. Never at a
+    branch or an office, which supply nothing.
+  - **And only where par levels admit new work at the branch too,** which 0024 asks
+    again there (`erp.assert_par_branch()`): a pilot names the branches it covers. The
+    page reads the state at the branch as the viewer reads one, through the session route
+    at the branch (`branchAdmits`). Hidden there, the page says par levels are not switched
+    on at the branch where 0024 refuses its read as "not permitted", and only then: a
+    branch 0024 does not know is 0024's to answer. Read only or withdrawn, it says they
+    take no changes there, and offers none.
+- **Sources (`#replenishment_sources`)** lists every item, by code, with its source, read
+  where the person works; one facility's items alone on asking. An item's page
+  (`#replenishment_sources/{item_id}`) shows the source in force and every decision.
+  - A source is set to an open warehouse or factory of the item's brand, never the one in
+    force. The cut-off list gives each facility's state; the session's facilities give its
+    brand.
+  - A source is cleared, a retired item's included.
+- **Cut-offs (`#order_cutoffs`)** lists every warehouse and factory, by code, with its
+  cut-off as `HH:MM` and its time zone.
+  - The list links a cut-off's page (`#order_cutoffs/{facility_id}`) only
+    organisation-wide or at the facility itself, since 0024 reads its history there. From
+    a branch, the list is all there is. An address typed by hand is answered by 0024,
+    which reads the history to an organisation-wide role wherever it works.
+  - A cut-off is typed on the 24-hour clock, `9:30` or `14:00`, or as the digits alone,
+    `930` or `1400`, since a phone's number pad has no colon; Arabic-Indic digits are read.
+    It is sent as `HH:MM` and checked by 0024's own pattern, so `24:00` is named before
+    sending.
+  - Only someone who holds write on the setup is told that a cut-off is changed while
+    working at its facility; anyone else is told only that they cannot change it.
+  - It is never a time input and never a moment: it is a time of day at the facility, read
+    in its own time zone, which the form names.
+- **Pars (`#par_levels`).**
+  - **The entry, at a branch,** is the branch's own pars, and no other branch is offered
+    (IAM-006).
+  - **At a warehouse or factory, or organisation-wide,** a branch is chosen first: the
+    brand's branches where the person reads facilities, otherwise the session's own, of
+    the facility's brand at a warehouse or factory. A chooser left empty for want of
+    facility read says so.
+  - **A branch's page (`#par_levels/{branch_id}`)** lists its pars, each in the base unit
+    and as entered, with the facility that supplies the item. From a warehouse or factory,
+    it lists only the items that facility supplies.
+  - **An item is found to set a par for.** From a warehouse or factory, it is found among
+    the items that facility supplies (0024's source list, filtered to it). Organisation-wide,
+    it is any active item of the branch's brand.
+  - **An item's par page (`#par_levels/{branch_id}/items/{item_id}`)** shows the par in
+    force, the item's source and every decision. A par is typed in a current pack as
+    decimal text, more than nothing.
+  - **Set and clear are offered as 0024 would take them** (`parActions`): at a branch not
+    known to be closed, where par levels are not known to take no new work, and for an
+    item the facility worked at supplies. A set needs an active item with a source, at a
+    source not known to be closed. A clear is offered organisation-wide even when the item
+    has no source. **Every form withheld has its reason said** (`parNotice`): the branch's
+    state, the branch closed, read only, set elsewhere, no source, the item retired, or
+    its source closed.
+  - **From a warehouse or factory, an item it does not supply** is answered as missing by
+    0024 (`item_exists`). The page then says where its par is set, from the item's source
+    history, or, where that cannot be read, that the facility does not supply it, rather
+    than that the item does not exist. A branch 0024 does not know (`facility_exists`) is
+    answered as 0024 answers it.
+- **The stamp is the history's** for all three settings, a clearing included, and never a
+  list's. It is `null` only for a setting never made.
+- **Every write goes through the shared lifecycle** (write.ts): built once, and retried as
+  sent. Start over reads the setting's history, asked as the write was, and says "already
+  saved" when the history holds the lost request's id. A par form at a warehouse or
+  factory also settles its doubt when that history is answered as missing: the item is no
+  longer supplied from there, so 0024 takes no par of it from there, and a new decision
+  cannot repeat the lost one (write.ts, `settled`). It first sends the request once more,
+  as Retry would, the form locked meanwhile: 0024 checks a decision's id after its
+  permission gates and before its rules, so while the person may still set pars there, a
+  request recorded under the lost answer is answered "already saved", and the page says
+  so. Unanswered again, Retry and Start over stay as before.
+- **Every 0024 refusal a person can meet is worded** in both languages (messages.ts); the
+  retry keys are not. The Arabic uses the warehouse's own words for a cut-off (موعد
+  الإغلاق) and a par (المستوى المستهدف). It is marked for a native speaker's review with
+  the staff testing pack.
+- **Tested** by `apps/console/test/ordering-setup.test.ts` (Node), against the migration's
+  own patterns, kinds, gates, seed grants and constraints, and by a browser run against the
+  scratch database and edge. In that run:
+  - the administrator, organisation-wide, filters the sources to the factory's, sets
+    frying oil's source to the warehouse and clears it, sets the gloves' source again
+    against its clearing, and is told a clear is stale when the source moved behind the
+    page;
+  - the administrator reads both cut-offs and the factory's history, with no form; at the
+    warehouse, `24:00` is named before sending, `9:30` is kept as `09:30`, an answer cut
+    off after the database recorded `1515`, typed as a number pad types it, as `15:15`
+    is found by Start over and reported as already saved, and the cut-off is cleared;
+  - the administrator sets rice's par at the first branch, `0` named before sending, `12.5`
+    kept;
+  - the factory manager, at the factory, chooses the second branch, finds strips but not
+    chicken breast, and sets three trays, kept as 120 pieces; chicken's page says the
+    warehouse supplies it and its par is set there; sources and the factory's own cut-off
+    are read only, and they are not told to work there to change it;
+  - the factory manager clears the strips' par and the answer is cut off after the
+    database recorded it; the strips' source moves to the warehouse; Start over asks the
+    clear once more, settles the doubt, says it was already saved, and says where the par
+    is set now;
+  - with par levels read only at the second branch, its page and the strips' say they
+    take no changes there, and offer none; hidden there, both say par levels are not
+    switched on at the branch, never "not permitted";
+  - a cashier at the first branch reads its pars directly, read only, is refused the
+    second branch's in words, and opens no cut-off's page;
+  - the warehouse manager reads a branch's pars and the cut-offs in Arabic, right to left.
+
+**Found in review of step 3, fixed before it:**
+- **A par at a branch where par levels are not open.** 0024 asks the capability again at
+  the branch, and the planned pilot covers some branches only. The page offered set and
+  clear there, and every read of a hidden branch, all refused as "not permitted here". It
+  now reads the state at the branch, offers nothing where it admits no new work, and says
+  why.
+- **A source page that loaded for ever.** A failed read of the facilities left the set
+  form a spinner with no message. The failure is shown, with Reload.
+- **Words that led nowhere.** A manager at their own facility was told to change a cut-off
+  while working there; a retired item with no source was promised a clear; a closed source
+  or a retired item hid Set without a word. Each now says what is true.
+- **A par write that could stay locked.** In doubt at a warehouse or factory when its
+  item's source moved away, Start over was refused for ever, and Retry answered only if
+  the lost write had been recorded. Start over now settles it.
+- **A cut-off on a phone.** The number pad has no colon; the digits alone are now read.
+- **Tests that could not fail.** The gate assertions on the set routes ran on into their
+  clears, which repeat them; nothing pinned what each page passed to the logic deciding
+  what it offers, the stamp handed to each form, or where most reads are asked; the
+  shared refusals named one 0024 never raises; item search was never tried in another
+  case. Each is pinned now, and each mutation the review found survives no longer.
+
+**Found in the second review, of those fixes, fixed before it:**
+- **A settled doubt that said nothing.** Settling at once dropped the one request that
+  could say the lost write had been saved. Start over now sends it once more first, and
+  the page that a settled write lands on shows the write's answer too.
+- **Answers that overruled 0024's.** The "not supplied here" page and the "not switched on"
+  notice each answered for any refusal of their kind of status: a branch 0024 does not
+  know, typed by hand, read as either. Each now answers only for the refusal it explains.
+- **A page left stale.** Where the item's source cannot be read, a settled par write left
+  the par it may have cleared on screen. The page now says the facility does not supply
+  the item.
+- **Tests that could still not fail:** how the branch's state is read, the "not supplied
+  here" page, the hidden branch page's refusal, Reload, and the words each notice names a
+  facility with. Each is pinned now, as `branchIsHere`, `suppliedElsewhere` and
+  `hiddenRefusal` in the logic, tested directly.
+
+**Found in the third review, fixed before it:**
+- **"Shown as it is now" where nothing is shown.** A write settled onto an item no longer
+  supplied from here said the par was shown as it is now. That page shows no par, and now
+  says only what happened (`parWriteBanner`).
+- **A request asked again, untested.** The lock while it is out, and both ways out after it
+  goes unanswered, were held by the code alone. Both are tested now, and an earlier Start
+  over's failure is cleared when the request is asked again.
+- **A claim too wide.** "Already saved" is answered while the person may still set pars
+  there: 0024 asks its permission gates before the decision's id. The docs say so.
+
+**The fourth review, of those fixes,** found no fault in the code: the banner's table was
+tested for seven of its ten cases, and is now tested for all of them, with how the page
+builds and renders it.

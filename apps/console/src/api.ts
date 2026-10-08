@@ -5,8 +5,10 @@
  * (supabase/functions/_shared/transfer-prices.ts), module 4's facilities routes
  * (supabase/functions/_shared/facilities.ts), module 5's stock routes
  * (supabase/functions/_shared/stock.ts), module 6's notifications routes
- * (supabase/functions/_shared/notifications.ts) and module 7's stock-alerts routes
- * (supabase/functions/_shared/stock-alerts.ts).
+ * (supabase/functions/_shared/notifications.ts), module 7's stock-alerts routes
+ * (supabase/functions/_shared/stock-alerts.ts), module 8's purchase-orders routes
+ * (supabase/functions/_shared/purchase-orders.ts) and module 9's ordering-setup routes
+ * (supabase/functions/_shared/ordering-setup.ts).
  *
  * Plain TypeScript, and `fetch` is a parameter, so test/api.test.ts drives every call
  * against a fake without a browser or a server.
@@ -1013,6 +1015,219 @@ export interface ClearLimitInput {
   readonly reason: string;
 }
 
+/**
+ * An item and the warehouse or factory that supplies branches with it, as
+ * erp.replenishment_sources() returns it (0024, O1). `as_of_decision_id` is null only when
+ * the item has NEVER had a source; a cleared one keeps the clearing's stamp.
+ */
+export interface SourceRow {
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_kind: string;
+  readonly base_unit_key: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly item_status: 'active' | 'retired';
+  readonly facility_id: string | null;
+  readonly facility_code: string | null;
+  readonly facility_type: 'warehouse' | 'factory' | null;
+  readonly facility_name_en: string | null;
+  readonly facility_name_ar: string | null;
+  readonly as_of_decision_id: string | null;
+  readonly decided_at: string | null;
+}
+
+export interface SourceList {
+  readonly sources: readonly SourceRow[];
+  readonly next_after: string | null;
+}
+
+/** Sources are a master: read at the facility worked at, or organisation-wide (null). */
+export interface SourceQuery {
+  readonly facilityId: string | null;
+  /** Only the items this warehouse or factory supplies. */
+  readonly suppliedBy?: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+/** One decision about an item's source, newest first; `is_current` marks the stamp. */
+export interface SourceDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: 'source_set' | 'source_cleared';
+  readonly facility_id: string | null;
+  readonly facility_code: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly is_current: boolean;
+}
+
+export interface SourceHistory {
+  readonly decisions: readonly SourceDecision[];
+  readonly next_before: string | null;
+}
+
+/** The item is named in the path; the facility is `supplied_by`, never read as where the person works. */
+export interface SetSourceInput {
+  readonly decision_id: string;
+  readonly supplied_by: string;
+  readonly expected_decision_id: string | null;
+  readonly reason: string;
+}
+
+export interface ClearSourceInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly reason: string;
+}
+
+/**
+ * A warehouse or factory and its cut-off, as erp.order_cutoffs() returns it (0024, O2):
+ * 'HH:MM' at the facility, in its own time zone, or null when it has none.
+ */
+export interface CutoffRow {
+  readonly facility_id: string;
+  readonly code: string;
+  readonly facility_type: 'warehouse' | 'factory';
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly status: 'open' | 'closed';
+  readonly tz_name: string;
+  readonly cutoff: string | null;
+  readonly as_of_decision_id: string | null;
+  readonly decided_at: string | null;
+}
+
+export interface CutoffList {
+  readonly cutoffs: readonly CutoffRow[];
+  readonly next_after: string | null;
+}
+
+export interface CutoffQuery {
+  readonly facilityId: string | null;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+/** One decision about a facility's cut-off, newest first; `is_current` marks the stamp. */
+export interface CutoffDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: 'cutoff_set' | 'cutoff_cleared';
+  readonly cutoff: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly is_current: boolean;
+}
+
+export interface CutoffHistory {
+  readonly decisions: readonly CutoffDecision[];
+  readonly next_before: string | null;
+}
+
+/** The facility is named in the path; the cut-off is 'HH:MM' text. */
+export interface SetCutoffInput {
+  readonly decision_id: string;
+  readonly cutoff: string;
+  readonly expected_decision_id: string | null;
+  readonly reason: string;
+}
+
+export interface ClearCutoffInput {
+  readonly decision_id: string;
+  readonly expected_decision_id: string;
+  readonly reason: string;
+}
+
+/**
+ * A branch's par for an item, as erp.par_levels() returns it (0024, O4): in the base unit
+ * and as entered, with the facility that supplies the item now. Quantities are decimal TEXT.
+ */
+export interface ParRow {
+  readonly item_id: string;
+  readonly code: string;
+  readonly item_kind: string;
+  readonly base_unit_key: string;
+  readonly name_en: string;
+  readonly name_ar: string;
+  readonly item_status: 'active' | 'retired';
+  readonly par: string;
+  readonly source_facility_id: string | null;
+  readonly as_of_decision_id: string;
+  readonly item_unit_id: string;
+  readonly unit_key: string;
+  readonly factor: string;
+  readonly quantity: string;
+  readonly decided_at: string;
+}
+
+export interface ParList {
+  readonly pars: readonly ParRow[];
+  readonly next_after: string | null;
+}
+
+/** A branch's pars, read at the branch, at a facility that supplies it, or organisation-wide (null). */
+export interface ParQuery {
+  readonly facilityId: string | null;
+  readonly branchId: string;
+  readonly after?: string | null;
+  readonly limit?: number;
+}
+
+/** One decision about an item's par at a branch, newest first; `is_current` marks the stamp. */
+export interface ParDecision {
+  readonly decision_id: string;
+  readonly seq: string;
+  readonly kind: 'par_set' | 'par_cleared';
+  readonly item_unit_id: string | null;
+  readonly unit_key: string | null;
+  readonly factor: string | null;
+  readonly quantity: string | null;
+  readonly par: string | null;
+  readonly reason: string;
+  readonly actor_id: string;
+  readonly decided_at: string;
+  readonly recorded_at: string;
+  readonly is_current: boolean;
+}
+
+export interface ParHistory {
+  readonly decisions: readonly ParDecision[];
+  readonly next_before: string | null;
+}
+
+/**
+ * A par, in a pack, against the stamp read. The branch is named in the path; `facility_id`
+ * is where it is set from: the facility that supplies the item, or null for the organisation.
+ */
+export interface SetParInput {
+  readonly decision_id: string;
+  readonly facility_id: string | null;
+  readonly item_unit_id: string;
+  readonly quantity: string;
+  readonly expected_decision_id: string | null;
+  readonly reason: string;
+}
+
+/** The branch and the item are named in the path only. */
+export interface ClearParInput {
+  readonly decision_id: string;
+  readonly facility_id: string | null;
+  readonly expected_decision_id: string;
+  readonly reason: string;
+}
+
+/** What a par's clear names in its path: the branch it is for, and its item. */
+export interface ParPath {
+  readonly branchId: string;
+  readonly itemId: string;
+}
+
 export interface ApiConfig {
   /** The functions' base, e.g. `http://127.0.0.1:54321/functions/v1`. No trailing slash needed. */
   readonly base: string;
@@ -1089,6 +1304,23 @@ export interface Api {
   reversePurchaseReceipt(receiptId: string, input: ReceiptReversalInput): Promise<Answer<{ decision_id: string }>>;
   setPurchaseLimit(input: SetLimitInput): Promise<Answer<{ decision_id: string }>>;
   clearPurchaseLimit(input: ClearLimitInput): Promise<Answer<{ decision_id: string }>>;
+  replenishmentSources(query: SourceQuery): Promise<Answer<SourceList>>;
+  replenishmentSourceHistory(facilityId: string | null, itemId: string, before?: string | null): Promise<Answer<SourceHistory>>;
+  /** The item is the one the path names. */
+  setReplenishmentSource(itemId: string, input: SetSourceInput): Promise<Answer<{ decision_id: string }>>;
+  clearReplenishmentSource(itemId: string, input: ClearSourceInput): Promise<Answer<{ decision_id: string }>>;
+  orderCutoffs(query: CutoffQuery): Promise<Answer<CutoffList>>;
+  /** Asked at the facility the cut-off is of, which the path names: no other facility is sent. */
+  orderCutoffHistory(facilityId: string, before?: string | null): Promise<Answer<CutoffHistory>>;
+  /** The facility is the one the path names. */
+  setOrderCutoff(facilityId: string, input: SetCutoffInput): Promise<Answer<{ decision_id: string }>>;
+  clearOrderCutoff(facilityId: string, input: ClearCutoffInput): Promise<Answer<{ decision_id: string }>>;
+  parLevels(query: ParQuery): Promise<Answer<ParList>>;
+  parLevelHistory(facilityId: string | null, branchId: string, itemId: string, before?: string | null): Promise<Answer<ParHistory>>;
+  /** The branch is the one the path names. */
+  setParLevel(branchId: string, input: SetParInput): Promise<Answer<{ decision_id: string }>>;
+  /** The branch and the item are the ones the path names. */
+  clearParLevel(par: ParPath, input: ClearParInput): Promise<Answer<{ decision_id: string }>>;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -1306,5 +1538,40 @@ export function createApi(config: ApiConfig): Api {
       call('POST', `/purchase-orders/receipts/${encodeURIComponent(receiptId)}/reverse`, input, decision),
     setPurchaseLimit: (input) => call('POST', '/purchase-orders/limits', input, decision),
     clearPurchaseLimit: (input) => call('POST', '/purchase-orders/limits/clear', input, decision),
+
+    replenishmentSources: (q) =>
+      call('GET', `/ordering-setup/sources${query({
+        facility_id: q.facilityId, supplied_by: q.suppliedBy, after: q.after, limit: q.limit,
+      })}`, undefined, (b) => ({ sources: b['sources'] as SourceRow[], next_after: text(b['next_after']) })),
+    replenishmentSourceHistory: (facilityId, itemId, before = null) =>
+      call('GET', `/ordering-setup/sources/${encodeURIComponent(itemId)}${query({ facility_id: facilityId, before })}`, undefined,
+        (b) => ({ decisions: b['decisions'] as SourceDecision[], next_before: text(b['next_before']) })),
+    setReplenishmentSource: (itemId, input) =>
+      call('POST', `/ordering-setup/sources/${encodeURIComponent(itemId)}`, input, decision),
+    clearReplenishmentSource: (itemId, input) =>
+      call('POST', `/ordering-setup/sources/${encodeURIComponent(itemId)}/clear`, input, decision),
+    orderCutoffs: (q) =>
+      call('GET', `/ordering-setup/cutoffs${query({ facility_id: q.facilityId, after: q.after, limit: q.limit })}`, undefined,
+        (b) => ({ cutoffs: b['cutoffs'] as CutoffRow[], next_after: text(b['next_after']) })),
+    orderCutoffHistory: (facilityId, before = null) =>
+      call('GET', `/ordering-setup/cutoffs/${encodeURIComponent(facilityId)}${query({ before })}`, undefined,
+        (b) => ({ decisions: b['decisions'] as CutoffDecision[], next_before: text(b['next_before']) })),
+    setOrderCutoff: (facilityId, input) =>
+      call('POST', `/ordering-setup/cutoffs/${encodeURIComponent(facilityId)}`, input, decision),
+    clearOrderCutoff: (facilityId, input) =>
+      call('POST', `/ordering-setup/cutoffs/${encodeURIComponent(facilityId)}/clear`, input, decision),
+    parLevels: (q) =>
+      call('GET', `/ordering-setup/pars/${encodeURIComponent(q.branchId)}${query({
+        facility_id: q.facilityId, after: q.after, limit: q.limit,
+      })}`, undefined, (b) => ({ pars: b['pars'] as ParRow[], next_after: text(b['next_after']) })),
+    parLevelHistory: (facilityId, branchId, itemId, before = null) =>
+      call('GET', `/ordering-setup/pars/${encodeURIComponent(branchId)}/items/${encodeURIComponent(itemId)}${query({
+        facility_id: facilityId, before,
+      })}`, undefined, (b) => ({ decisions: b['decisions'] as ParDecision[], next_before: text(b['next_before']) })),
+    setParLevel: (branchId, input) =>
+      call('POST', `/ordering-setup/pars/${encodeURIComponent(branchId)}`, input, decision),
+    clearParLevel: (par, input) =>
+      call('POST', `/ordering-setup/pars/${encodeURIComponent(par.branchId)}/items/${encodeURIComponent(par.itemId)}/clear`,
+        input, decision),
   };
 }

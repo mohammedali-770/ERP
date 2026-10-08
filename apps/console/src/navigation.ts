@@ -112,9 +112,10 @@ export function visibleNavigation<P>(groups: readonly NavGroup<P>[], viewer: Vie
 
 /**
  * The capabilities the console knows about, as registered by 0010, 0011, 0012, 0016, 0018,
- * 0019, 0020, 0022 and 0023. The screens arrive in Phase 4, module by module, each behind its
- * capability: items (module 1), suppliers (module 2), transfer prices (module 3), facilities
- * (module 4), stock (module 5), stock alerts (module 7) and purchase orders (module 8) have screens; the rest are entries with nothing
+ * 0019, 0020, 0022, 0023 and 0024. The screens arrive in Phase 4, module by module, each
+ * behind its capability: items (module 1), suppliers (module 2), transfer prices (module 3),
+ * facilities (module 4), stock (module 5), stock alerts (module 7), purchase orders
+ * (module 8) and ordering setup (module 9) have screens; the rest are entries with nothing
  * behind them yet, and stay hidden until their capability is recorded open.
  */
 export const NAVIGATION: readonly NavGroup[] = [
@@ -146,6 +147,17 @@ export const NAVIGATION: readonly NavGroup[] = [
       { id: 'purchase_orders', labelKey: 'purchase_orders', capability: 'procurement.purchase_orders', action: 'read', alsoReads: ['procurement.suppliers', 'inventory.items'] },
       // Its own entry: 0023's limit read asks for limits alone, and a limit-setter need not read orders.
       { id: 'purchase_limits', labelKey: 'purchase_limits', capability: 'procurement.purchase_limits', action: 'read' },
+    ],
+  },
+  {
+    labelKey: 'nav_ordering',
+    items: [
+      // Every 0024 source read asks for read on items too: a source is an item's.
+      { id: 'replenishment_sources', labelKey: 'replenishment_sources', capability: 'ordering.setup', action: 'read', alsoReads: ['inventory.items'] },
+      // The cut-off list asks for the setup alone: a branch's staff read their suppliers' cut-offs.
+      { id: 'order_cutoffs', labelKey: 'order_cutoffs', capability: 'ordering.setup', action: 'read' },
+      // Its own capability: managers set pars, and only the administrator the setup (ADR-0033 O5).
+      { id: 'par_levels', labelKey: 'par_levels', capability: 'ordering.par_levels', action: 'read', alsoReads: ['inventory.items'] },
     ],
   },
   {

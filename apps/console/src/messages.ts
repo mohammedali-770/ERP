@@ -38,7 +38,7 @@ const REFUSAL_KEY: Readonly<Record<string, Key>> = {
 };
 
 /**
- * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019, 0020, 0022 or 0023 names for each. Some are
+ * The rules a person is likeliest to meet, by the constraint 0012, 0016, 0018, 0019, 0020, 0022, 0023 or 0024 names for each. Some are
  * PostgreSQL's own checks, whose words the edge withholds (refusal.ts), so without this a
  * missing Arabic description read only "a value is not valid" (found running the screens).
  */
@@ -180,6 +180,33 @@ const RULE_KEY: Readonly<Record<string, Key>> = {
   purchase_limit_reason_is_stated: 'rule_reason_required',
   // 0016's seam, which 0023's raise and approval call: a supplier stopped since it was chosen.
   supplier_admits_no_new_work: 'rule_supplier_retired',
+  // 0024's, for sources, cut-offs and pars. Not replenishment_source_decision_pkey,
+  // order_cutoff_decision_pkey or par_level_decision_pkey, for the reason given above for
+  // supplier_decision_pkey.
+  ordering_facility_required: 'rule_ordering_facility_required',
+  ordering_facility_supplies_nothing: 'rule_ordering_supplies_nothing',
+  replenishment_source_brand_differs: 'rule_source_brand',
+  replenishment_source_reason_is_stated: 'rule_reason_required',
+  replenishment_source_stale: 'rule_source_stale',
+  replenishment_source_unchanged: 'rule_source_unchanged',
+  replenishment_source_not_set: 'rule_source_not_set',
+  order_cutoff_is_valid: 'rule_cutoff_valid',
+  order_cutoff_reason_is_stated: 'rule_reason_required',
+  order_cutoff_stale: 'rule_cutoff_stale',
+  order_cutoff_unchanged: 'rule_cutoff_unchanged',
+  order_cutoff_not_set: 'rule_cutoff_not_set',
+  par_level_branch_required: 'rule_par_branch_required',
+  par_level_at_a_branch: 'rule_par_at_branch',
+  par_level_item_has_no_source: 'rule_par_no_source',
+  par_level_not_its_source: 'rule_par_not_its_source',
+  par_level_reason_is_stated: 'rule_reason_required',
+  par_level_stale: 'rule_par_stale',
+  par_level_not_set: 'rule_par_not_set',
+  par_level_unchanged: 'rule_par_unchanged',
+  par_level_pack_is_retired: 'rule_par_pack_retired',
+  par_level_is_valid: 'rule_par_quantity',
+  par_level_inexact: 'rule_par_inexact',
+  par_level_read_scope: 'rule_par_read_scope',
 };
 
 export function failureMessage(lang: Lang, f: Failure): Message {

@@ -30,6 +30,10 @@ import { StockAdjust, StockCount } from './screens/StockEntry.tsx';
 import { StockAlertItem, StockAlertsList } from './screens/StockAlerts.tsx';
 import { PurchaseLimits, PurchaseOrderNew, PurchaseOrderPage, PurchaseOrdersList } from './screens/PurchaseOrders.tsx';
 import { purchaseRights } from './purchase-orders.ts';
+import { orderingRights } from './ordering-setup.ts';
+import { SourceItem, SourcesList } from './screens/ReplenishmentSources.tsx';
+import { CutoffFacility, CutoffsList } from './screens/OrderCutoffs.tsx';
+import { ParBranch, ParItem, ParLevels } from './screens/ParLevels.tsx';
 import { holdsOverride, stockWritable, workingFacility } from './stock.ts';
 import { badge, bellVisible } from './notifications.ts';
 import { Notifications } from './screens/Notifications.tsx';
@@ -52,6 +56,11 @@ const STOCK: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === '
 const STOCK_ALERTS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'stock_alerts')!;
 const PURCHASE_ORDERS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'purchase_orders')!;
 const PURCHASE_LIMITS: NavItem = NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'purchase_limits')!;
+const ORDERING = {
+  sources: NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'replenishment_sources')!,
+  cutoffs: NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'order_cutoffs')!,
+  pars: NAVIGATION.flatMap((g) => g.items).find((i) => i.id === 'par_levels')!,
+};
 
 function storage(kind: 'sessionStorage' | 'localStorage'): StorageLike | null {
   try {
@@ -275,6 +284,9 @@ export function App() {
     seesPurchaseOrders: itemIsVisible(PURCHASE_ORDERS, viewer),
     seesPurchaseLimits: itemIsVisible(PURCHASE_LIMITS, viewer),
     purchase: purchaseRights(workingFacility(data.facilities, facilityId), viewer, PURCHASE_ORDERS, itemIsVisible),
+    // Sources organisation-wide, as the masters; a cut-off at its own facility, as a limit; a
+    // par from the facility that supplies it, or organisation-wide (0024, O5).
+    ordering: orderingRights(facilityId, workingFacility(data.facilities, facilityId), viewer, ORDERING, itemIsVisible, itemIsWritable),
     navigate: (r, notice) => {
       setArrival(notice === undefined ? null : { hash: formatRoute(r), text: notice });
       // A form's own way out after a save asks nothing; only a real change of hash uses the pass.
@@ -420,6 +432,28 @@ function Screen({ ctx, route, itemsVisible, anyVisible }: { ctx: Ctx; route: Rou
       case 'purchase_orders': return <PurchaseOrdersList ctx={ctx} />;
       case 'purchase_order_new': return <PurchaseOrderNew ctx={ctx} />;
       case 'purchase_order': return <PurchaseOrderPage ctx={ctx} purchaseOrderId={route.purchaseOrderId} />;
+    }
+  }
+  if (navIdOf(route) === 'replenishment_sources') {
+    if (!ctx.ordering.seesSources) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'replenishment_sources': return <SourcesList ctx={ctx} />;
+      case 'replenishment_source': return <SourceItem ctx={ctx} itemId={route.itemId} />;
+    }
+  }
+  if (navIdOf(route) === 'order_cutoffs') {
+    if (!ctx.ordering.seesCutoffs) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'order_cutoffs': return <CutoffsList ctx={ctx} />;
+      case 'order_cutoff': return <CutoffFacility ctx={ctx} targetId={route.targetId} />;
+    }
+  }
+  if (navIdOf(route) === 'par_levels') {
+    if (!ctx.ordering.seesPars) return <Notice tone="info" text={t(lang, 'refusal_forbidden')} />;
+    switch (route.screen) {
+      case 'par_levels': return <ParLevels ctx={ctx} />;
+      case 'par_branch': return <ParBranch ctx={ctx} branchId={route.branchId} />;
+      case 'par_item': return <ParItem ctx={ctx} branchId={route.branchId} itemId={route.itemId} />;
     }
   }
   if (navIdOf(route) === 'current_stock') {

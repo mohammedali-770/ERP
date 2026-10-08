@@ -125,9 +125,121 @@ test('CONTROL: a record of an unexpected shape is "not seen there": the form sti
   assert.equal(h.state.inDoubt, false);
 });
 
-test('the hook carries recorded to the lifecycle, every render', () => {
+test('the hook carries recorded and settled to the lifecycle, every render', () => {
   const hook = readFileSync(new URL('../src/screens/useWrite.tsx', import.meta.url), 'utf8');
-  assert.match(hook, /hooks\.current = \{[^}]*\brecorded \};/, 'without it, Start over never asks');
+  assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled \};/, 'without it, Start over never asks');
+});
+
+test('CONTROL: a refused read settles the doubt only where the form says it does, asking the request once more first', async () => {
+  // A par set from a facility whose item's source moved away while its write was in doubt:
+  // Start over's read is answered missing, and stayed so, and the form stayed locked (found in
+  // review). It now settles where the form says so, but first sends the request in doubt
+  // once more, as Retry would: a route checks a decision's id before its rules, so one
+  // recorded under the lost answer is answered already_recorded, and the person is told
+  // (found in the second review). Any other refusal of the read still keeps the doubt.
+  const missing = failure(404, 'not_found');
+  for (const [settles, refusal, again, log, sends] of [
+    [true, missing, failure(409, 'already_recorded'), ['see', 'after', 'done:already'], 2],
+    [true, missing, failure(422, 'refused'), ['see', 'after', 'done:checked'], 2],
+    [true, missing, failure(409, 'stale'), ['see', 'after', 'done:stale'], 2],
+    [true, missing, SAVED, ['see', 'after', 'done:saved'], 2],
+    [true, missing, LOST, ['see'], 2],
+    [false, missing, SAVED, ['see'], 1],
+    [true, failure(500, 'error'), SAVED, ['see'], 1],
+  ] as const) {
+    const h = harness(refusal);
+    const asked: Failure[] = [];
+    h.hooks.settled = (f) => {
+      asked.push(f);
+      return settles && f.status === 'not_found';
+    };
+    const r = request({ decision_id: 'd1' }, [LOST, again]);
+    await h.life.run(r.send);
+    await h.life.startOver();
+    const label = `${settles} ${refusal.status} then ${again.ok ? 'saved' : again.status}`;
+    assert.deepEqual(h.log, log, label);
+    assert.equal(r.sent.length, sends, `${label}: sent once more only when settling`);
+    assert.deepEqual(r.sent, Array(sends).fill({ decision_id: 'd1' }), `${label}: the very request first sent`);
+    const kept = log.length === 1;
+    assert.equal(h.state.inDoubt, kept, `${label}: kept in doubt unless settled`);
+    assert.equal(h.life.pending === null, !kept, `${label}: settled, nothing is left to Retry`);
+    assert.equal(h.state.busy, false);
+    assert.deepEqual(asked, [refusal]);
+    if (kept && sends === 1) assert.equal(h.state.failure, refusal, `${label}: a kept doubt says why`);
+  }
+  // A session that has ended is the session's, on the read or on the request asked again.
+  const ended = harness(failure(401, 'idle'));
+  ended.hooks.settled = () => true;
+  await ended.life.run(request({}, [LOST]).send);
+  await ended.life.startOver();
+  assert.deepEqual(ended.log, ['see'], 'signed out, not settled');
+  assert.equal(ended.state.inDoubt, true);
+  const endedAgain = harness(missing);
+  endedAgain.hooks.settled = () => true;
+  await endedAgain.life.run(request({}, [LOST, failure(401, 'idle')]).send);
+  await endedAgain.life.startOver();
+  assert.deepEqual(endedAgain.log, ['see'], 'signed out on the request asked again, not settled');
+  assert.equal(endedAgain.state.inDoubt, true);
+});
+
+test('CONTROL: while the request is asked again, the form stays locked and in doubt, and nothing else goes out', async () => {
+  // Without the lock, Retry stayed live while the request was asked again, sent a third copy
+  // and reported the outcome twice (found in the third review).
+  const h = harness(failure(404, 'not_found'));
+  h.hooks.settled = () => true;
+  let release!: (a: Answer<unknown>) => void;
+  let sends = 0;
+  const send: Send = () => {
+    sends++;
+    return sends === 1 ? Promise.resolve(LOST) : new Promise((resolve) => (release = resolve));
+  };
+  await h.life.run(send);
+  const over = h.life.startOver();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sends, 2, 'the request is out again');
+  assert.equal(h.state.busy, true, 'locked while it is out');
+  assert.equal(h.state.inDoubt, true, 'and still in doubt');
+  h.life.retry();
+  await h.life.startOver();
+  await h.life.run(send);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sends, 2, 'Retry, Start over and Save send nothing meanwhile');
+  release(failure(409, 'already_recorded'));
+  await over;
+  assert.deepEqual(h.log, ['see', 'after', 'done:already'], 'read once, settled once');
+  assert.equal(h.state.busy, false);
+});
+
+test('CONTROL: a second asking unanswered leaves both ways out, and clears an earlier Start over\'s failure', async () => {
+  // The same two ways out, live: without them the form was locked for ever (found in the third review).
+  for (const way of ['retry', 'startOver'] as const) {
+    const h = harness();
+    const reads: Answer<unknown>[] = [failure(503, 'error'), failure(404, 'not_found'), failure(404, 'not_found')];
+    h.hooks.see = async () => {
+      h.log.push('see');
+      return reads.shift()!;
+    };
+    h.hooks.settled = (f) => f.status === 'not_found';
+    const r = request({ decision_id: 'd1' }, [LOST, LOST, failure(409, 'already_recorded')]);
+    await h.life.run(r.send);
+    await h.life.startOver();
+    assert.equal(h.state.failure?.http, 503, 'a read that failed is said');
+    await h.life.startOver();
+    assert.equal(r.sent.length, 2, 'settled: asked once more');
+    assert.equal(h.state.inDoubt, true, 'unanswered again: still in doubt');
+    assert.equal(h.state.failure, null, 'and the earlier read\'s failure is not this one\'s');
+    assert.equal(h.state.busy, false);
+    if (way === 'retry') {
+      h.life.retry();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(h.log, ['see', 'see', 'after', 'done:already'], 'Retry still answers');
+    } else {
+      await h.life.startOver();
+      assert.deepEqual(h.log, ['see', 'see', 'see', 'after', 'done:already'], 'Start over still answers');
+    }
+    assert.equal(r.sent.length, 3);
+    assert.deepEqual(r.sent, [{ decision_id: 'd1' }, { decision_id: 'd1' }, { decision_id: 'd1' }]);
+  }
 });
 
 test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {
@@ -198,10 +310,11 @@ test('CONTROL: no screen rebuilds a request on Retry', () => {
 });
 
 test('CONTROL: every detail page\'s sub-forms share one write lifecycle, and lock while a request is out', () => {
-  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx', 'StockDecision.tsx', 'StockAlerts.tsx'];
+  const pages = ['ItemDetail.tsx', 'SupplierDetail.tsx', 'FacilityDetail.tsx', 'ItemPrices.tsx', 'StockDecision.tsx', 'StockAlerts.tsx',
+    'ReplenishmentSources.tsx', 'OrderCutoffs.tsx', 'ParLevels.tsx'];
   const forms: Record<string, number> = {
     'ItemDetail.tsx': 3, 'SupplierDetail.tsx': 3, 'FacilityDetail.tsx': 2, 'ItemPrices.tsx': 2, 'StockDecision.tsx': 1,
-    'StockAlerts.tsx': 2,
+    'StockAlerts.tsx': 2, 'ReplenishmentSources.tsx': 2, 'OrderCutoffs.tsx': 2, 'ParLevels.tsx': 2,
   };
   for (const name of screens.filter((f) => f !== 'useWrite.tsx')) {
     assert.doesNotMatch(source(name), /function useWrite\(/, `${name} keeps no copy of its own`);
