@@ -277,3 +277,62 @@ branch the pilot covers as well as at the supplying facilities.
 5. **Who sets pars in a real database,** and who reads them? The seed's answer is the
    managers — the factory manager from the factory alone, the warehouse manager
    organisation-wide — and the branch's own staff reading.
+
+## Addendum — 2026-10-08: the data layer (module 9, step 2)
+
+0024's six write routes and six reads are reachable over HTTP through one edge function,
+`ordering-setup` (`supabase/functions/_shared/ordering-setup.ts`), built as `stock-alerts`
+is (ADR-0031's step 2 addendum). Nothing about the routes changed. `erp.order_day()` is not
+reachable: module 10 calls it from its own route (§6).
+
+- **The routes:**
+  - `GET /sources` lists the items of the brand of the query's `facility_id`, or of every
+    brand without one, by code: 100 a page unless `limit` asks for 1 to 500, `supplied_by`
+    narrowing to one facility's. A full page answers `next_after`, its last code.
+  - `GET /sources/{item_id}` gives an item's source decisions, newest first, paged by a
+    `seq` sent as decimal text; `POST /sources/{item_id}` sets its source —
+    `decision_id`, `supplied_by`, `expected_decision_id` and `reason` — and
+    `POST /sources/{item_id}/clear` clears it, against a stamp always.
+  - `GET /cutoffs` lists the warehouses and factories of the facility's brand with their
+    cut-offs; `GET /cutoffs/{facility_id}` gives one's history, asked at that facility,
+    whatever the query names; `POST /cutoffs/{facility_id}` sets it — `decision_id`,
+    `cutoff`, `expected_decision_id` and `reason` — and `POST /cutoffs/{facility_id}/clear`
+    clears it.
+  - `GET /pars/{branch_id}` lists a branch's pars, asked at the query's `facility_id`: the
+    branch, a facility that supplies it, or the organisation without one.
+    `GET /pars/{branch_id}/items/{item_id}` gives one item's par decisions there.
+    `POST /pars/{branch_id}` sets one — `decision_id`, `facility_id`, `item_unit_id`,
+    `quantity`, `expected_decision_id` and `reason` — and
+    `POST /pars/{branch_id}/items/{item_id}/clear` clears one.
+- **What a setting is about is named in the path:** the item a source is of, the facility
+  a cut-off is of, the branch a par is for and, for a clear, its item. No body can name
+  another.
+- **The actor is the session's,** through `withSession` (ADR-0025); a Node control test
+  forges it in every way a body or header could, on all six writes.
+- **The edge checks shape, the database checks rules.** Four shape rules are this
+  module's own:
+  - **A cut-off is `'HH:MM'` text:** two digits, a colon, two digits. A number, a moment,
+    one digit or an empty string is a 400. That it is a time of day is 0024's rule, so
+    `'24:00'` reaches it and is refused there by name.
+  - **A par is decimal text,** as a minimum is.
+  - **A par write states where it is set from:** `facility_id`, the facility that supplies
+    the item, or `null` for the organisation (O5). Left out or empty, it is a 400, never
+    read as the organisation: a form that never chose must not pass for one that chose.
+  - **A source names its facility `supplied_by`,** as the list's filter does, so it is
+    never read as the facility the person works at.
+- **The stamp is stated,** as a minimum's is: a set carries `expected_decision_id`, `null`
+  only where the setting has never been made; left out or empty, it is a 400. A clear
+  carries one always.
+- **Retries.** `replenishment_source_decision_pkey`, `order_cutoff_decision_pkey` and
+  `par_level_decision_pkey` join the logs whose route-raised 23505 is answered 409
+  `already_recorded`, and `replenishment_source_stale`, `order_cutoff_stale` and
+  `par_level_stale` are 409 `stale`. The console confirms a write through the setting's
+  history, asked as the write was: a par from the facility it was set from.
+- **Tested** by the Node suite (`_shared/test/ordering-setup.test.ts`): the actor on every
+  write and read, the path's subject over the body's, a stated stamp and a stated place,
+  cut-offs and pars carried as text, every route's shape, paging, and each refusal's
+  answer; and end to end by the Deno test (`_deno/test/ordering-setup.test.ts`): a cashier
+  reading their own branch and nothing else, sources set, retried, confirmed and cleared by
+  the administrator alone, a cut-off moved, refused at `'24:00'` and cleared, and pars set
+  by the factory manager from the factory, refused for the warehouse's items, set
+  organisation-wide and cleared.

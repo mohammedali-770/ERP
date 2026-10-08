@@ -68,7 +68,8 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         supplier_decision_pkey, transfer_price_decision_pkey,
  *                         facility_decision_pkey, stock_decision_pkey,
  *                         stock_minimum_decision_pkey, purchase_order_decision_pkey,
- *                         purchase_limit_decision_pkey — RAISED by that log's
+ *                         purchase_limit_decision_pkey, replenishment_source_decision_pkey,
+ *                         order_cutoff_decision_pkey, par_level_decision_pkey — RAISED by that log's
  *                         assert_*_decision_is_new(), or re-raised whole by its import:
  *                         a retry of a write that already succeeded. The console reads the
  *                         record's history to confirm. The same constraint raised natively
@@ -79,7 +80,8 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         already raised under another decision (purchase_order_raised_once).
  *   409 stale             the form was loaded before someone else changed the record
  *                         (item_stale, supplier_stale, supplier_item_stale, facility_stale,
- *                         stock_minimum_stale, purchase_limit_stale).
+ *                         stock_minimum_stale, purchase_limit_stale, replenishment_source_stale,
+ *                         order_cutoff_stale, par_level_stale).
  *   403 forbidden         23001 with no constraint: erp.assert_permitted() refused — the
  *                         capability is hidden or closed, or the person may not act here.
  *                         Every other 23001 a route reachable here raises names a
@@ -89,7 +91,8 @@ export function asRefusal(error: unknown): Refusal | null {
  *                         fixed base unit, a final retirement, a price already in effect,
  *                         stock that would go below zero, a movement dated before a count,
  *                         an order approved by its raiser, a receipt past what is still to
- *                         come, a limit set to what it already is).
+ *                         come, a limit set to what it already is, a par set from a facility
+ *                         that does not supply its item).
  *   422 invalid           22xxx, 23502, 23503, 23514: the request is malformed or names
  *                         something that does not exist in a way a form can correct.
  *   404 not_found         P0002: no such item, conversion, facility or stock decision — or
@@ -118,11 +121,13 @@ const GENERIC: Readonly<Record<string, string>> = {
 const DECISION_LOGS: ReadonlySet<string> = new Set([
   'item_decision_pkey', 'supplier_decision_pkey', 'transfer_price_decision_pkey', 'facility_decision_pkey',
   'stock_decision_pkey', 'stock_minimum_decision_pkey', 'purchase_order_decision_pkey', 'purchase_limit_decision_pkey',
+  'replenishment_source_decision_pkey', 'order_cutoff_decision_pkey', 'par_level_decision_pkey',
 ]);
 
 /** The stamps an edit form sends back, whose 23001 means someone changed the record since. */
 const STALE: ReadonlySet<string> = new Set([
   'item_stale', 'supplier_stale', 'supplier_item_stale', 'facility_stale', 'stock_minimum_stale', 'purchase_limit_stale',
+  'replenishment_source_stale', 'order_cutoff_stale', 'par_level_stale',
 ]);
 
 export function refusalReply(r: Refusal): Reply {
