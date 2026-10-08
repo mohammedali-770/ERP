@@ -431,8 +431,10 @@ Nothing about the routes changed.
   factory also settles its doubt when that history is answered as missing: the item is no
   longer supplied from there, so 0024 takes no par of it from there, and a new decision
   cannot repeat the lost one (write.ts, `settled`). It first sends the request once more,
-  as Retry would: 0024 checks a decision's id before its rules, so a request recorded under
-  the lost answer is answered "already saved", and the page says so.
+  as Retry would, the form locked meanwhile: 0024 checks a decision's id after its
+  permission gates and before its rules, so while the person may still set pars there, a
+  request recorded under the lost answer is answered "already saved", and the page says
+  so. Unanswered again, Retry and Start over stay as before.
 - **Every 0024 refusal a person can meet is worded** in both languages (messages.ts); the
   retry keys are not. The Arabic uses the warehouse's own words for a cut-off (موعد
   الإغلاق) and a par (المستوى المستهدف). It is marked for a native speaker's review with
@@ -500,3 +502,13 @@ Nothing about the routes changed.
   here" page, the hidden branch page's refusal, Reload, and the words each notice names a
   facility with. Each is pinned now, as `branchIsHere`, `suppliedElsewhere` and
   `hiddenRefusal` in the logic, tested directly.
+
+**Found in the third review, fixed before it:**
+- **"Shown as it is now" where nothing is shown.** A write settled onto an item no longer
+  supplied from here said the par was shown as it is now. That page shows no par, and now
+  says only what happened (`parWriteBanner`).
+- **A request asked again, untested.** The lock while it is out, and both ways out after it
+  goes unanswered, were held by the code alone. Both are tested now, and an earlier Start
+  over's failure is cleared when the request is asked again.
+- **A claim too wide.** "Already saved" is answered while the person may still set pars
+  there: 0024 asks its permission gates before the decision's id. The docs say so.

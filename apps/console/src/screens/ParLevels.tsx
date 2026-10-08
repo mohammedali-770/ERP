@@ -8,12 +8,12 @@ import { unitName } from '../items.ts';
 import { stateOf, type CapabilityState } from '../navigation.ts';
 import {
   branchAdmits, branchesOf, branchIsHere, clearParBody, hiddenRefusal, inForce, matchItems, PAR_CAPABILITY, parActions, parInput,
-  parNotice, parPacks, parPlace, readAll, setParBody, stampOf, suppliedElsewhere, type ParPlace,
+  parNotice, parPacks, parPlace, parWriteBanner, readAll, setParBody, stampOf, suppliedElsewhere, type ParPlace,
 } from '../ordering-setup.ts';
 import { formatQuantity, workingFacility } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import { toViewer } from '../viewer.ts';
-import type { Done } from '../write.ts';
+import type { Done, Outcome } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 import { personLabel, useSupplyingFacilities } from './ReplenishmentSources.tsx';
 import { useWrite } from './useWrite.tsx';
@@ -394,7 +394,8 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   const [source, setSource] = useState<{ id: string | null; code: string | null } | undefined>(undefined);
   const [next, setNext] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const [banner, setBanner] = useState<Banner>(null);
+  // The last write's outcome, said as the page that follows can: with the par, or without.
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not
   // offered meanwhile, as their stamp would be the one before the write.
@@ -472,17 +473,20 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
     }
   }
 
-  const afterWrite: Done = (outcome) => {
-    setBanner(outcome === 'checked' ? null : outcome === 'saved' ? { tone: 'ok', text: t(lang, 'saved') }
-      : outcome === 'already' ? { tone: 'info', text: t(lang, 'par_already_recorded') }
-        : { tone: 'info', text: t(lang, 'par_changed') });
+  const afterWrite: Done = (done) => {
+    setOutcome(done);
     setReloading(true);
     void load();
+  };
+  const said = (shown: boolean): Banner => {
+    const key = parWriteBanner(outcome, shown);
+    return key === null ? null : { tone: key === 'saved' ? 'ok' : 'info', text: t(lang, key) };
   };
 
   const back = <a href={place.kind === 'branch' ? '#par_levels' : `#par_levels/${branchId}`}>{t(lang, 'back')}</a>;
   if (item !== null && notHere) {
     const here = place.kind === 'source' ? place.facility.code : '';
+    const banner = said(false);
     return (
       <section>
         {back}
@@ -507,6 +511,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   }
 
   const base = unitName(lang, data.units, item.base_unit_key);
+  const banner = said(true);
   const current = inForce(history);
   const stamp = stampOf(history);
   const sourceStatus = source === undefined || source.id === null ? null

@@ -35,6 +35,7 @@ import type {
 import { latinDigits } from './format.ts';
 import type { CapabilityState, NavItem, Viewer } from './navigation.ts';
 import { quantityInput } from './stock.ts';
+import type { Outcome } from './write.ts';
 
 /** The facility types that supply branches (0024: ordering_facility_supplies_nothing). */
 export const SUPPLYING_TYPES: ReadonlySet<string> = new Set(['warehouse', 'factory']);
@@ -244,6 +245,20 @@ export function parPlace(facilityId: string | null, facility: ViewerFacility | u
   if (SUPPLYING_TYPES.has(facility.facility_type)) return { kind: 'source', facility };
   if (facility.facility_type === 'branch') return { kind: 'branch', facility };
   return { kind: 'none' };
+}
+
+/**
+ * What a par page says of a write's outcome, by whether the page then shows the par
+ * (`shown`). The page a settled write lands on, an item no longer supplied from here, shows
+ * none, so it is never told "shown as it is now" (found in the third review). Null says
+ * nothing: Start over found the record as it was.
+ */
+export function parWriteBanner(outcome: Outcome | null, shown: boolean):
+  'saved' | 'par_already_recorded' | 'par_already_recorded_elsewhere' | 'par_changed' | 'par_changed_elsewhere' | null {
+  if (outcome === null || outcome === 'checked') return null;
+  if (outcome === 'saved') return 'saved';
+  if (outcome === 'already') return shown ? 'par_already_recorded' : 'par_already_recorded_elsewhere';
+  return shown ? 'par_changed' : 'par_changed_elsewhere';
 }
 
 /** The capability 0024 asks pars by, where they are set from and again at their branch. */

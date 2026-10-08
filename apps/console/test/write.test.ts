@@ -182,6 +182,66 @@ test('CONTROL: a refused read settles the doubt only where the form says it does
   assert.equal(endedAgain.state.inDoubt, true);
 });
 
+test('CONTROL: while the request is asked again, the form stays locked and in doubt, and nothing else goes out', async () => {
+  // Without the lock, Retry stayed live while the request was asked again, sent a third copy
+  // and reported the outcome twice (found in the third review).
+  const h = harness(failure(404, 'not_found'));
+  h.hooks.settled = () => true;
+  let release!: (a: Answer<unknown>) => void;
+  let sends = 0;
+  const send: Send = () => {
+    sends++;
+    return sends === 1 ? Promise.resolve(LOST) : new Promise((resolve) => (release = resolve));
+  };
+  await h.life.run(send);
+  const over = h.life.startOver();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sends, 2, 'the request is out again');
+  assert.equal(h.state.busy, true, 'locked while it is out');
+  assert.equal(h.state.inDoubt, true, 'and still in doubt');
+  h.life.retry();
+  await h.life.startOver();
+  await h.life.run(send);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sends, 2, 'Retry, Start over and Save send nothing meanwhile');
+  release(failure(409, 'already_recorded'));
+  await over;
+  assert.deepEqual(h.log, ['see', 'after', 'done:already'], 'read once, settled once');
+  assert.equal(h.state.busy, false);
+});
+
+test('CONTROL: a second asking unanswered leaves both ways out, and clears an earlier Start over\'s failure', async () => {
+  // The same two ways out, live: without them the form was locked for ever (found in the third review).
+  for (const way of ['retry', 'startOver'] as const) {
+    const h = harness();
+    const reads: Answer<unknown>[] = [failure(503, 'error'), failure(404, 'not_found'), failure(404, 'not_found')];
+    h.hooks.see = async () => {
+      h.log.push('see');
+      return reads.shift()!;
+    };
+    h.hooks.settled = (f) => f.status === 'not_found';
+    const r = request({ decision_id: 'd1' }, [LOST, LOST, failure(409, 'already_recorded')]);
+    await h.life.run(r.send);
+    await h.life.startOver();
+    assert.equal(h.state.failure?.http, 503, 'a read that failed is said');
+    await h.life.startOver();
+    assert.equal(r.sent.length, 2, 'settled: asked once more');
+    assert.equal(h.state.inDoubt, true, 'unanswered again: still in doubt');
+    assert.equal(h.state.failure, null, 'and the earlier read\'s failure is not this one\'s');
+    assert.equal(h.state.busy, false);
+    if (way === 'retry') {
+      h.life.retry();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(h.log, ['see', 'see', 'after', 'done:already'], 'Retry still answers');
+    } else {
+      await h.life.startOver();
+      assert.deepEqual(h.log, ['see', 'see', 'see', 'after', 'done:already'], 'Start over still answers');
+    }
+    assert.equal(r.sent.length, 3);
+    assert.deepEqual(r.sent, [{ decision_id: 'd1' }, { decision_id: 'd1' }, { decision_id: 'd1' }]);
+  }
+});
+
 test('CONTROL: Start over says "already saved" when the record it read holds the lost request', async () => {
   // A receipt recorded under a lost answer looks like any other: without this, the person
   // was told nothing and could receive the same goods twice (found in review).

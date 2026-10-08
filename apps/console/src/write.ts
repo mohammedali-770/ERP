@@ -61,10 +61,11 @@ export interface WriteHooks {
    * Whether a refusal of `see` itself settles the doubt: the record can no longer be read
    * here because no decision of this form's kind can be made here any more, so a new one
    * cannot repeat the lost request. Start over then sends the request in doubt once more,
-   * as Retry would — a route checks a decision's id before its rules, so a request recorded
-   * under the lost answer is answered already_recorded and the person is told — and ends
-   * the doubt with what that answer says: 'already', 'saved' or 'stale', or 'checked' for a
-   * refusal. Unanswered again, the doubt stays. Without this a par set from a facility
+   * as Retry would — a route checks a decision's id before its rules, after its permission
+   * gates, so while the person may still make it a request recorded under the lost answer
+   * is answered already_recorded and they are told — and ends the doubt with what that
+   * answer says: 'already', 'saved' or 'stale', or 'checked' for a refusal, a gate's
+   * included. Unanswered again, the doubt stays, with Retry and Start over as before. Without this a par set from a facility
    * whose item's source moved away while the write was in doubt stayed locked, Start over
    * refused for ever (found in review); settling at once dropped the one request that
    * could say it had been saved (found in the second review). Absent, every refusal keeps
@@ -140,6 +141,8 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
           const send = pending;
           out = true;
           state.setBusy(true);
+          // An earlier Start over's failure is not this one's.
+          state.setFailure(null);
           let again: Answer<unknown>;
           try {
             again = await send();

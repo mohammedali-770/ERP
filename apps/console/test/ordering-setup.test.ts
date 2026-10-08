@@ -4,13 +4,14 @@ import { readFileSync } from 'node:fs';
 import {
   createApi, type CutoffDecision, type CutoffRow, type Fetch, type ItemUnit, type ParDecision, type SourceDecision, type ViewerFacility,
 } from '../src/api.ts';
-import { asKey } from '../src/i18n.ts';
+import { asKey, STRINGS } from '../src/i18n.ts';
 import { failureMessage } from '../src/messages.ts';
 import { NAVIGATION, itemIsVisible, itemIsWritable, type CapabilityState } from '../src/navigation.ts';
 import {
   branchAdmits, branchesOf, branchIsHere, clearCutoffBody, clearParBody, clearSourceBody, CUTOFF_KINDS, CUTOFF_PATTERN, cutoffActions,
   cutoffInput, cutoffPageNotice, cutoffReadable, cutoffsListNotice, hiddenRefusal, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS,
-  orderingRights, PAR_CAPABILITY, PAR_KINDS, parActions, parInput, parNotice, parPacks, parPlace, readAll, setCutoffBody, setParBody,
+  orderingRights, PAR_CAPABILITY, PAR_KINDS, parActions, parInput, parNotice, parPacks, parPlace, parWriteBanner, readAll, setCutoffBody,
+  setParBody,
   setSourceBody, SOURCE_KINDS, sourceActions, sourceOptions, stampOf, suppliedElsewhere, SUPPLYING_TYPES,
 } from '../src/ordering-setup.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
@@ -659,6 +660,21 @@ test('from a warehouse or factory, an item supplied elsewhere is said to be, and
   assert.match(PARS, /\{banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}\s+<Notice tone="info" text=\{source === undefined \? t\(lang, 'par_not_supplied_here', \{ code: here \}\)/,
     'a write\'s answer is said there too (found in the second review)');
   assert.match(PARS, /source\.id === null \? t\(lang, 'par_no_source'\) : t\(lang, 'par_set_elsewhere', \{ code: source\.code \?\? shortId\(source\.id\) \}\)/);
+  assert.match(PARS, /const here = place\.kind === 'source' \? place\.facility\.code : '';/, 'the facility it names is where the person works');
+  // A write's outcome, said as the page that follows can: never "shown as it is now" where
+  // no par is shown (found in the third review).
+  assert.match(PARS, /if \(item !== null && notHere\) \{\s+const here = [^;]+;\s+const banner = said\(false\);/);
+  assert.match(PARS, /const banner = said\(true\);/);
+  assert.match(PARS, /const afterWrite: Done = \(done\) => \{\s+setOutcome\(done\);/);
+  assert.match(PARS, /const key = parWriteBanner\(outcome, shown\);/);
+  assert.deepEqual([parWriteBanner('already', true), parWriteBanner('already', false)], ['par_already_recorded', 'par_already_recorded_elsewhere']);
+  assert.deepEqual([parWriteBanner('stale', true), parWriteBanner('stale', false)], ['par_changed', 'par_changed_elsewhere']);
+  assert.deepEqual([parWriteBanner('saved', false), parWriteBanner('checked', false), parWriteBanner(null, true)], ['saved', null, null]);
+  for (const k of ['par_already_recorded_elsewhere', 'par_changed_elsewhere']) {
+    for (const lang of ['en', 'ar'] as const) {
+      assert.doesNotMatch(STRINGS[lang][k as 'par_changed_elsewhere'], /shown|يُعرض/, `${lang} ${k}: no par is shown there`);
+    }
+  }
   // item_exists alone: a branch 0024 does not know is facility_exists, and its to say.
   const missingItem = { status: 'not_found', constraint: 'item_exists' };
   assert.equal(suppliedElsewhere(FACTORY, missingItem, WAREHOUSE), true);
