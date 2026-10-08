@@ -698,6 +698,35 @@ Related: INV-002, ADR-0005, ADR-0024, PRC-P01, INV-P04.
 
 ---
 
+## Q-27 — Should a search find Arabic typed the way people type it?
+
+**Decides:** Product Owner, with Operations · **Expected decision:** before the first
+module is switched on
+
+Found 2026-10-08 writing the ordering-setup staff testing pack (ADR-0033's step 5
+addendum). Every search by name matches the Arabic exactly as typed. That covers the
+database's lists, through `strpos` in 0012 (items), 0016 (suppliers), 0018 (transfer
+prices), 0019 (facilities) and 0020 (stock), and the console's own item finder
+(`matchItems`, module 9).
+
+Arabic is often typed without its hamza, with a plain alef, or with «ه» for «ة» and «ي»
+for «ى». So «ارز» finds nothing where the item is «أرز بسمتي»: checked against the test
+data, in the database and in the console. Every staff testing pack asks someone to find an
+item, a supplier or a facility by name. A participant who types as they would on a phone
+meets "No items match", and the pack records a hesitation that belongs to the search, not
+to them.
+
+Options:
+- Keep it as it is: staff type the stored spelling, or search by code.
+- Fold the common variants on both sides of every search: «أ إ آ» to «ا», «ة» to «ه», «ى» to
+  «ي», and the short vowels dropped. This must be done in the database's searches and in
+  the console's alike.
+- Keep a folded search name beside each Arabic name, written whenever the name is.
+
+Related: PRG-014.
+
+---
+
 ## Q-12 — Who owns each requirement, really?
 
 **Decides:** Product Owner · **Expensive after:** F0 exit gate

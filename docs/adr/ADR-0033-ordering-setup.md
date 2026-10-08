@@ -516,3 +516,60 @@ Nothing about the routes changed.
 **The fourth review, of those fixes,** found no fault in the code: the banner's table was
 tested for seven of its ten cases, and is now tested for all of them, with how the page
 builds and renders it.
+
+## Addendum — 2026-10-08: the staff testing pack (module 9, step 5)
+
+[`docs/lab/uat/ordering-setup.md`](../lab/uat/ordering-setup.md), with its Arabic version
+in [`ar/`](../lab/uat/ar/ordering-setup.md), is run by the administrator and the warehouse
+manager in turn. On a second computer are the administrator again, the factory manager and a
+cashier. It evidences INV-P05, INV-P06 and INV-P07, which now name it. In thirteen parts it
+covers:
+- item sources: one set, one set again against its clearing, and one cleared;
+- cut-offs, read organisation-wide and changed at the warehouse: `24:00` named before
+  sending, `1330` kept as 13:30, the same time refused, then cleared and set again;
+- par levels at a branch, organisation-wide: one set in bags, `0` named before sending, one
+  set in 2.5 cartons, one cleared, one set again against its clearing, and none offered for
+  an item no facility supplies;
+- the warehouse setting only the pars of what it supplies;
+- two people changing one par, the second told so;
+- a source moved, and the par it leaves to the factory;
+- a lost answer retried;
+- the factory manager setting the factory's items' pars at any branch;
+- a branch the pilot leaves out, read only and then hidden;
+- a cashier reading their own branch's pars alone;
+- the other language.
+
+**Every figure in it was run first in a browser** against the scratch database and edge,
+rebuilt fresh, as the session scripts it. The run moves by the links a participant would
+follow. It checks each par as typed and in the base unit, each history, and each sentence
+the pack quotes.
+
+It holds ten questions for the owner: this ADR's five, and five that the session's staff
+will meet:
+- whether a moved source should keep its pars;
+- whether a cut-off change should be scheduled ahead;
+- whether a cut-off should be changed only at its facility;
+- whether a branch should read the cut-offs and sources of facilities that supply it
+  nothing;
+- where the module is switched on.
+
+Three things are left to the database's tests, and the pack says which: the day an order is
+for, since no order is placed until module 10; a source of another brand, since the test
+data has no warehouse or factory of its second brand; and the races.
+
+**Found writing it:**
+- **The Arabic named the organisation with a word the picker never shows.** Module 9's
+  sentences said «على مستوى المنظمة». The facility picker offers «المؤسسة كاملة», and INV-P07's
+  Arabic says «على مستوى المؤسسة». Every Arabic string now says «المؤسسة», module 4's one
+  refusal that used the other word included. A Node test holds every Arabic string to it
+  (`logic.test.ts`).
+- **A search finds Arabic only as it is stored.** «ارز» finds nothing where the item is
+  «أرز بسمتي», in every module's search, the database's and the console's. Changing that
+  crosses modules, so it is put to the owner as Q-27.
+- **Left as it is: a detail page opened from another page of its own kind keeps the first
+  page's banner.** A "Saved." from one item's source showed on the next item's page, opened
+  by its address. The bell opens a stock decision's page the same way, so one decision's
+  "Saved." can show on another's. That was read from the code, not run. A request in doubt
+  does not follow, since the form is unmounted while the next record loads (Q-26). A
+  participant moves by links, through a list, so the pack never meets it. Every module's
+  detail pages share it, so it is reported to the owner rather than changed here.
