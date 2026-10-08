@@ -97,7 +97,7 @@ export interface WriteHooks {
 export interface PageHooks {
   readonly started?: () => void;
   readonly refused?: (failure: Failure) => void;
-  readonly doubt?: (inDoubt: boolean) => void;
+  readonly doubt?: (active: boolean) => void;
   readonly held?: boolean;
 }
 

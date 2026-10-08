@@ -399,7 +399,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   // A write refused because the item's source moved (sourceMoved): kept on the page that
   // the read it prompts lands on, where the form that showed it is gone.
   const [refusal, setRefusal] = useState<Failure | null>(null);
-  // How many of the page's forms have a request in doubt.
+  // How many of the page's forms have a request out or in doubt.
   const [held, setHeld] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not

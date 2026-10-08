@@ -730,7 +730,7 @@ test('a page\'s word on a write is about this record\'s latest write; a par refu
   for (const [name, src, check] of [['cut-offs', CUTOFFS, 'const c = cutoffInput\\(cutoff\\);'], ['pars', PARS, 'const q = parInput\\(quantity\\);']] as const) {
     assert.match(src, new RegExp(`function submit\\(e: FormEvent\\) \\{\\s+e\\.preventDefault\\(\\);\\s+// [^\\n]+\\n\\s+page\\.started\\?\\.\\(\\);\\s+${check}`), name);
   }
-  // A form in doubt holds the page's other form, whose Clear button is locked too: a write
+  // A form whose request is out or in doubt holds the page's other form, whose Clear button is locked too: a write
   // there, or a refusal that reads the page again, unmounted the form in doubt.
   assert.match(PARS, /doubt: \(on\) => setHeld\(\(n\) => n \+ \(on \? 1 : -1\)\),\s+held: held > 0,\s+\};/);
   for (const [name, src] of [['sources', SOURCES], ['cut-offs', CUTOFFS], ['pars', PARS]] as const) {
