@@ -12,7 +12,7 @@ import {
   cutoffInput, cutoffPageNotice, cutoffReadable, cutoffsListNotice, hiddenRefusal, inForce, matchItems, MAX_PAGES, NO_ORDERING_RIGHTS,
   orderingRights, PAR_CAPABILITY, PAR_KINDS, parActions, parInput, parNotice, parPacks, parPlace, parWriteBanner, readAll, setCutoffBody,
   setParBody,
-  setSourceBody, SOURCE_KINDS, sourceActions, sourceOptions, stampOf, suppliedElsewhere, SUPPLYING_TYPES,
+  setSourceBody, SOURCE_KINDS, SOURCE_MOVED, sourceActions, sourceMoved, sourceOptions, stampOf, suppliedElsewhere, SUPPLYING_TYPES,
 } from '../src/ordering-setup.ts';
 import { formatRoute, navIdOf, parseRoute, type Route } from '../src/route.ts';
 import { toViewer } from '../src/viewer.ts';
@@ -521,7 +521,7 @@ test('every write goes through the shared lifecycle, and Start over looks for th
   for (const [name, src] of Object.entries(SCREENS)) {
     assert.equal([...src.matchAll(/= useWrite\(ctx, /g)].length, 2, `${name}: set and clear`);
     // A write lost in doubt: Start over reads the history, and says "already saved" when the request is there.
-    assert.equal([...src.matchAll(/\(seen\) => \(seen as (Source|Cutoff|Par)History\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\)(, notSuppliedHere\(ctx\))?\);/g)].length, 2,
+    assert.equal([...src.matchAll(/\(seen\) => \(seen as (Source|Cutoff|Par)History\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\), (notSuppliedHere\(ctx\)|undefined), page\);/g)].length, 2,
       `${name}: both forms ask whether what Start over read holds the lost request`);
     assert.match(src, /setReloading\(true\);\s+void load\(\);/, `${name}: after a write the forms wait for the reload`);
     assert.match(src, /\{reloading && failure !== null\s+\? <button type="button" onClick=\{\(\) => \{ setFailure\(null\); void load\(\); \}\}>/,
@@ -657,7 +657,7 @@ test('from a warehouse or factory, an item supplied elsewhere is said to be, and
   assert.match(PARS, /const fromSupplier = place\.kind === 'source' \? place\.facility\.facility_id : null;/);
   assert.match(PARS, /if \(!h\.ok && i\.ok && suppliedElsewhere\(fromSupplier, h, supplied === undefined \? undefined : supplied\.id\)\) \{\s+setItem\(i\.value\);\s+setHistory\(null\);\s+setSource\(supplied\);\s+setNotHere\(true\);/);
   assert.match(PARS, /if \(item !== null && notHere\) \{/);
-  assert.match(PARS, /\{banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}\s+<Notice tone="info" text=\{source === undefined \? t\(lang, 'par_not_supplied_here', \{ code: here \}\)/,
+  assert.match(PARS, /\{refusal \? <FailureNotice lang=\{lang\} failure=\{refusal\} \/> : banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}\s+<Notice tone="info" text=\{source === undefined \? t\(lang, 'par_not_supplied_here', \{ code: here \}\)/,
     'a write\'s answer is said there too (found in the second review)');
   assert.match(PARS, /source\.id === null \? t\(lang, 'par_no_source'\) : t\(lang, 'par_set_elsewhere', \{ code: source\.code \?\? shortId\(source\.id\) \}\)/);
   assert.match(PARS, /const here = place\.kind === 'source' \? place\.facility\.code : '';/, 'the facility it names is where the person works');
@@ -679,7 +679,8 @@ test('from a warehouse or factory, an item supplied elsewhere is said to be, and
   ]);
   // ...and the page says what it returns, on both views.
   assert.match(PARS, /const key = parWriteBanner\(outcome, shown\);\s+return key === null \? null : \{ tone: key === 'saved' \? 'ok' : 'info', text: t\(lang, key\) \};/);
-  assert.equal([...PARS.matchAll(/\{banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}/g)].length, 2, 'both views render it');
+  assert.equal([...PARS.matchAll(/\{refusal \? <FailureNotice lang=\{lang\} failure=\{refusal\} \/> : banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}/g)].length, 2,
+    'both views render it, and a refusal the source moved kept above it');
   for (const k of ['par_already_recorded_elsewhere', 'par_changed_elsewhere']) {
     for (const lang of ['en', 'ar'] as const) {
       assert.doesNotMatch(STRINGS[lang][k as 'par_changed_elsewhere'], /shown|يُعرض/, `${lang} ${k}: no par is shown there`);
@@ -699,10 +700,39 @@ test('from a warehouse or factory, an item supplied elsewhere is said to be, and
   // A write in doubt whose Start over is answered "missing" there cannot be repeated from
   // there, as 0024 takes no par of that item from there: it settles (write.ts, `settled`).
   assert.match(PARS, /const notSuppliedHere = \(ctx: Ctx\) => \(f: Failure\): boolean => suppliedElsewhere\(ctx\.ordering\.parFrom, f, undefined\);/);
-  assert.equal([...PARS.matchAll(/\(seen\) => \(seen as ParHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\), notSuppliedHere\(ctx\)\);/g)].length, 2,
+  assert.equal([...PARS.matchAll(/\(seen\) => \(seen as ParHistory\)\.decisions\.some\(\(d\) => d\.decision_id === ids\.decision_id\), notSuppliedHere\(ctx\), page\);/g)].length, 2,
     'both par forms');
   assert.match(fn('set_par_level'), /perform erp\.assert_par_level_decision_is_new\(p_decision_id\);[\s\S]*v_source := erp\.assert_par_set_from\(p_facility_id, v_item, b\);/,
     'and 0024 checks a retry\'s id before where the par is set from');
+});
+
+test('a page\'s word on a write is about this record\'s latest write; a par refused because its source moved reads the item again', () => {
+  // 0024 refuses a par set from where the item is no longer supplied, or for an item no
+  // longer supplied at all, in erp.assert_par_set_from(): these two, and only these.
+  const raised = [...fn('assert_par_set_from').matchAll(/constraint = '([a-z_]+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...SOURCE_MOVED].sort(), [...new Set(raised)].sort());
+  for (const c of SOURCE_MOVED) {
+    assert.equal(sourceMoved({ constraint: c }), true, c);
+    assert.notEqual(failureMessage('en', { ok: false, http: 409, status: 'refused', message: null, constraint: c, detail: null, field: null }).text,
+      STRINGS.en.refusal_refused, `${c} is worded`);
+  }
+  for (const c of ['par_level_stale', 'par_level_unchanged', 'item_exists', 'par_level_pack_is_retired', null]) {
+    assert.equal(sourceMoved({ constraint: c }), false, String(c));
+  }
+  // The par page: kept, it said "Supplied by" the facility it had read, and offered the form,
+  // beneath a refusal saying another facility supplies the item (found writing the staff
+  // testing pack). It reads the item again, and keeps the refusal on the page it lands on.
+  assert.match(PARS, /const page: PageHooks = \{\s+started: \(\) => \{\s+setOutcome\(null\);\s+setRefusal\(null\);\s+\},\s+refused: \(f\) => \{\s+if \(!sourceMoved\(f\)\) return;\s+setRefusal\(f\);\s+setReloading\(true\);\s+void load\(\);\s+\},\s+\};/);
+  assert.equal([...PARS.matchAll(/onDone=\{afterWrite\} page=\{page\} \/>/g)].length, 2, 'both par forms tell the page');
+  // A new record's page starts with no word on another's write.
+  assert.match(PARS, /setLoadingMore\(false\);\s+\/\/ [^\n]+\n\s+setOutcome\(null\);\s+setRefusal\(null\);\s+void load\(\);/);
+  // The source and cut-off pages: a new write clears the word on the last.
+  for (const [name, src] of [['sources', SOURCES], ['cut-offs', CUTOFFS]] as const) {
+    assert.match(src, /const page: PageHooks = \{ started: \(\) => setBanner\(null\) \};/, name);
+    assert.equal([...src.matchAll(/onDone=\{afterWrite\} page=\{page\} \/>/g)].length, 2, `${name}: both forms tell the page`);
+    assert.equal([...src.matchAll(/ids\.decision_id\), undefined, page\);/g)].length, 2, `${name}: both forms pass it on`);
+    assert.match(src, /setLoadingMore\(false\);\s+\/\/ [^\n]+\n\s+setBanner\(null\);\s+void load\(\);/, `${name}: a new record's page starts clear`);
+  }
 });
 
 test('a source page shows a failed read of the facilities, and promises a clear only where one is offered', () => {

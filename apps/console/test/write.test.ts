@@ -125,9 +125,43 @@ test('CONTROL: a record of an unexpected shape is "not seen there": the form sti
   assert.equal(h.state.inDoubt, false);
 });
 
-test('the hook carries recorded and settled to the lifecycle, every render', () => {
+test('the hook carries recorded, settled and the page\'s hooks to the lifecycle, every render', () => {
   const hook = readFileSync(new URL('../src/screens/useWrite.tsx', import.meta.url), 'utf8');
-  assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled \};/, 'without it, Start over never asks');
+  assert.match(hook, /hooks\.current = \{[^}]*\brecorded, settled, started: page\?\.started, refused: page\?\.refused \};/,
+    'without it, Start over never asks, and the page is never told');
+});
+
+test('CONTROL: the page is told when a request goes out, and of a refusal the form shows, and of nothing else', async () => {
+  // A page's "Saved." stood above a later refusal as if it were its answer, and a par page
+  // went on saying where an item was supplied from after a refusal said otherwise (found
+  // writing module 9's staff testing pack).
+  const told = (h: ReturnType<typeof harness>) => {
+    h.hooks.started = () => h.log.push('started');
+    h.hooks.refused = (f) => h.log.push(`refused:${f.status}`);
+  };
+  const saved = harness();
+  told(saved);
+  await saved.life.run(request({}, [SAVED]).send);
+  assert.deepEqual(saved.log, ['started', 'after', 'done:saved'], 'told as it goes out, before the answer');
+
+  const refused = harness();
+  told(refused);
+  await refused.life.run(request({}, [failure(422, 'refused')]).send);
+  assert.deepEqual(refused.log, ['started', 'refused:refused']);
+  assert.equal(refused.state.failure?.status, 'refused', 'the form still shows it');
+
+  const lost = harness();
+  told(lost);
+  await lost.life.run(request({}, [LOST, SAVED]).send);
+  assert.deepEqual(lost.log, ['started'], 'an unanswered request is no refusal');
+  lost.life.retry();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(lost.log, ['started', 'started', 'after', 'done:saved'], 'a Retry goes out too');
+
+  const ended = harness();
+  told(ended);
+  await ended.life.run(request({}, [failure(401, 'idle')]).send);
+  assert.deepEqual(ended.log, ['started'], 'an ended session is the console\'s to handle, not the page\'s');
 });
 
 test('CONTROL: a refused read settles the doubt only where the form says it does, asking the request once more first', async () => {

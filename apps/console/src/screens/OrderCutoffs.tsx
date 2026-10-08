@@ -8,7 +8,7 @@ import {
   stampOf,
 } from '../ordering-setup.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
-import type { Done } from '../write.ts';
+import type { Done, PageHooks } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 import { personLabel } from './ReplenishmentSources.tsx';
 import { useWrite } from './useWrite.tsx';
@@ -161,6 +161,8 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
     setHistory(null);
     setNext(null);
     setLoadingMore(false);
+    // Another facility's page: an earlier write's word is not about this one.
+    setBanner(null);
     void load();
     return () => {
       seq.current++;
@@ -189,6 +191,8 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
     setReloading(true);
     void load();
   };
+  // A new write: the word on the last one no longer describes the page (write.ts, PageHooks).
+  const page: PageHooks = { started: () => setBanner(null) };
 
   if (facility === undefined || history === null) {
     return (
@@ -230,8 +234,8 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
       {reloading && failure !== null
         ? <button type="button" onClick={() => { setFailure(null); void load(); }}>{t(lang, 'reload')}</button>
         : reloading ? <Loading lang={lang} /> : null}
-      {actions.set && !reloading ? <SetCutoff ctx={ctx} facility={facility} stamp={stamp} onDone={afterWrite} /> : null}
-      {actions.clear && !reloading && stamp !== null ? <ClearCutoff ctx={ctx} facility={facility} stamp={stamp} onDone={afterWrite} /> : null}
+      {actions.set && !reloading ? <SetCutoff ctx={ctx} facility={facility} stamp={stamp} onDone={afterWrite} page={page} /> : null}
+      {actions.clear && !reloading && stamp !== null ? <ClearCutoff ctx={ctx} facility={facility} stamp={stamp} onDone={afterWrite} page={page} /> : null}
 
       <h2>{t(lang, 'history')}</h2>
       {history.length === 0 ? <p className="muted">{t(lang, 'no_cutoff_history')}</p> : (
@@ -267,7 +271,9 @@ export function CutoffFacility({ ctx, targetId }: { ctx: Ctx; targetId: string }
  * A cut-off, typed on the 24-hour clock and sent as 'HH:MM', against the stamp the page read
  * when the button was pressed (write.ts: built once, retried as sent).
  */
-function SetCutoff({ ctx, facility, stamp, onDone }: { ctx: Ctx; facility: CutoffRow; stamp: string | null; onDone: Done }) {
+function SetCutoff({ ctx, facility, stamp, onDone, page }: {
+  ctx: Ctx; facility: CutoffRow; stamp: string | null; onDone: Done; page: PageHooks;
+}) {
   const { api, lang } = ctx;
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
   const [cutoff, setCutoff] = useState('');
@@ -277,7 +283,7 @@ function SetCutoff({ ctx, facility, stamp, onDone }: { ctx: Ctx; facility: Cutof
     setIds(formIds(['decision_id'] as const));
     setCutoff('');
     setReason('');
-  }, (seen) => (seen as CutoffHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as CutoffHistory).decisions.some((d) => d.decision_id === ids.decision_id), undefined, page);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -309,7 +315,9 @@ function SetCutoff({ ctx, facility, stamp, onDone }: { ctx: Ctx; facility: Cutof
 }
 
 /** No cut-off: every order to the facility is for the day it is placed. Against the stamp read, as a set is. */
-function ClearCutoff({ ctx, facility, stamp, onDone }: { ctx: Ctx; facility: CutoffRow; stamp: string; onDone: Done }) {
+function ClearCutoff({ ctx, facility, stamp, onDone, page }: {
+  ctx: Ctx; facility: CutoffRow; stamp: string; onDone: Done; page: PageHooks;
+}) {
   const { api, lang } = ctx;
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
@@ -318,7 +326,7 @@ function ClearCutoff({ ctx, facility, stamp, onDone }: { ctx: Ctx; facility: Cut
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  }, (seen) => (seen as CutoffHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as CutoffHistory).decisions.some((d) => d.decision_id === ids.decision_id), undefined, page);
 
   function submit(e: FormEvent) {
     e.preventDefault();

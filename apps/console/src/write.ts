@@ -72,9 +72,25 @@ export interface WriteHooks {
    * the doubt.
    */
   settled?: ((failure: Failure) => boolean) | undefined;
+  /** The page's own, when it has them (PageHooks). */
+  started?: (() => void) | undefined;
+  refused?: ((failure: Failure) => void) | undefined;
   /** The form's reset for its next decision: new ids, closed, fields cleared. */
   after(): void;
   onDone: Done;
+}
+
+/**
+ * What the page a form sits on is told of the form's writes, beyond their outcome.
+ * - `started`: a request is being sent. The page's word on an earlier write ("Saved.") no
+ *   longer describes the page, and stood above a later refusal as if it were its answer
+ *   (found writing module 9's staff testing pack).
+ * - `refused`: the route refused the request, and the form shows why. A page whose facts
+ *   the refusal shows to be out of date reads them again.
+ */
+export interface PageHooks {
+  readonly started?: () => void;
+  readonly refused?: (failure: Failure) => void;
 }
 
 export interface WriteLifecycle {
@@ -96,6 +112,7 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
     pending = send;
     state.setBusy(true);
     state.setFailure(null);
+    hooks().started?.();
     let answer: Answer<unknown>;
     try {
       answer = await send();
@@ -108,7 +125,10 @@ export function writeLifecycle(state: WriteState, hooks: () => WriteHooks): Writ
     if (outcome === 'failed') {
       // Kept: an unanswered request may have been recorded, and only it may be sent again.
       if (isUnanswered(answer)) state.setInDoubt(true);
-      else if (!answer.ok && !h.onFailure(answer)) state.setFailure(answer);
+      else if (!answer.ok && !h.onFailure(answer)) {
+        state.setFailure(answer);
+        h.refused?.(answer);
+      }
       return;
     }
     pending = null;

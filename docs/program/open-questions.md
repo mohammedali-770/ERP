@@ -710,8 +710,9 @@ prices), 0019 (facilities) and 0020 (stock), and the console's own item finder
 (`matchItems`, module 9).
 
 Arabic is often typed without its hamza, with a plain alef, or with «ه» for «ة» and «ي»
-for «ى». So «ارز» finds nothing where the item is «أرز بسمتي»: checked against the test
-data, in the database and in the console. Every staff testing pack asks someone to find an
+for «ى». And a word is often typed with its article, as it is said: «الأرز», not «أرز». So
+neither «ارز» nor «الأرز» finds anything where the item is «أرز بسمتي»: checked against the
+test data, in the database and in the console. Every staff testing pack asks someone to find an
 item, a supplier or a facility by name. A participant who types as they would on a phone
 meets "No items match", and the pack records a hesitation that belongs to the search, not
 to them.
@@ -719,11 +720,41 @@ to them.
 Options:
 - Keep it as it is: staff type the stored spelling, or search by code.
 - Fold the common variants on both sides of every search: «أ إ آ» to «ا», «ة» to «ه», «ى» to
-  «ي», and the short vowels dropped. This must be done in the database's searches and in
-  the console's alike.
+  «ي», the short vowels dropped, and a leading article («ال», and «بال», «لل» or «وال»)
+  dropped from each word. This must be done in the database's searches and in the console's
+  alike.
 - Keep a folded search name beside each Arabic name, written whenever the name is.
 
 Related: PRG-014.
+
+---
+
+## Q-28 — Should every page's word on a write be about the latest one?
+
+**Decides:** Product Owner · **Expected decision:** before the first module is switched on
+
+Found 2026-10-08 writing the ordering-setup staff testing pack (ADR-0033's step 5
+addendum). After a change, a detail page says "Saved." (or "already saved", or "changed by
+someone else") above its forms. On most pages, nothing clears that word until the next
+write succeeds:
+- **A later attempt refused.** Set again and refused, the page showed the earlier "Saved."
+  at its top, and the refusal below it, by the form. A participant reads "Saved." first.
+- **Another record of the same kind.** A page opened directly from another page of its
+  own kind keeps the first one's word: a "Saved." from one item showed on the next. A
+  stock decision's page links to the decision it reverses, and to the one that reversed it,
+  in the same way. Moving through a list leaves the page between, and clears it.
+
+Module 9's pages (item sources, cut-offs and par levels) now clear it when a new write is
+sent and when another record opens (write.ts, `PageHooks`). Every other module's detail
+pages still behave as above: items, suppliers, transfer prices, facilities, stock
+decisions, stock alerts and purchase orders.
+
+Options:
+- Keep it: the word describes the last write that succeeded.
+- Clear it everywhere when a new write is sent and when another record opens, as module 9
+  now does.
+
+Related: ADR-0024, ADR-0033.
 
 ---
 

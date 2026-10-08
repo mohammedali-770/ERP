@@ -52,10 +52,11 @@ test('every string exists in both languages, non-empty, with the same placeholde
 test('the Arabic names the organisation with the facility picker\'s word', () => {
   // A sentence telling someone to work organisation-wide sends them to the picker, which
   // offers «المؤسسة كاملة», as INV-P07's Arabic does. Module 9's said «المنظمة», a word the
-  // picker never shows (found writing its staff testing pack).
+  // picker never shows (found writing its staff testing pack). The root, so «للمنظمة» and a
+  // bare «منظمة» are caught too (found in its review).
   assert.match(STRINGS.ar.org_wide, /المؤسسة/);
   for (const key of Object.keys(STRINGS.ar) as (keyof typeof STRINGS.ar)[]) {
-    assert.doesNotMatch(STRINGS.ar[key], /المنظمة/, key);
+    assert.doesNotMatch(STRINGS.ar[key], /منظمة/, key);
   }
 });
 

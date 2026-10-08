@@ -792,9 +792,10 @@ requirements:
   # one supplying facility per item, one cut-off per supplying facility that moves a late
   # order to the next day, and a par per branch per item, entered in a pack, set from the
   # facility that supplies it. pgTAP 190 and db-check exercise them; neither is an artifact
-  # type req-lint resolves. The staff testing pack (UAT-ordering-setup) evidences all three;
-  # the day an order is for is the database's tests' alone until module 10 places orders,
-  # and the suggestion itself is module 10's, and proposed with it.
+  # type req-lint resolves. The staff testing pack (UAT-ordering-setup) evidences all three,
+  # but for INV-P06's day an order is for: the rule dating it is pgTAP 190's and db-check's,
+  # and an order keeping the day it was first placed is module 10's to build, evidenced by
+  # nothing yet. The suggestion itself is module 10's too, and proposed with it.
   # ---------------------------------------------------------------------------
 
   - id: "INV-P05"

@@ -8,12 +8,12 @@ import { unitName } from '../items.ts';
 import { stateOf, type CapabilityState } from '../navigation.ts';
 import {
   branchAdmits, branchesOf, branchIsHere, clearParBody, hiddenRefusal, inForce, matchItems, PAR_CAPABILITY, parActions, parInput,
-  parNotice, parPacks, parPlace, parWriteBanner, readAll, setParBody, stampOf, suppliedElsewhere, type ParPlace,
+  parNotice, parPacks, parPlace, parWriteBanner, readAll, setParBody, sourceMoved, stampOf, suppliedElsewhere, type ParPlace,
 } from '../ordering-setup.ts';
 import { formatQuantity, workingFacility } from '../stock.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
 import { toViewer } from '../viewer.ts';
-import type { Done, Outcome } from '../write.ts';
+import type { Done, Outcome, PageHooks } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 import { personLabel, useSupplyingFacilities } from './ReplenishmentSources.tsx';
 import { useWrite } from './useWrite.tsx';
@@ -396,6 +396,9 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
   const [failure, setFailure] = useState<Failure | null>(null);
   // The last write's outcome, said as the page that follows can: with the par, or without.
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // A write refused because the item's source moved (sourceMoved): kept on the page that
+  // the read it prompts lands on, where the form that showed it is gone.
+  const [refusal, setRefusal] = useState<Failure | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not
   // offered meanwhile, as their stamp would be the one before the write.
@@ -452,6 +455,9 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
     setNotHere(false);
     setNext(null);
     setLoadingMore(false);
+    // Another record's page: an earlier write's word is not about this one.
+    setOutcome(null);
+    setRefusal(null);
     void load();
     return () => {
       seq.current++;
@@ -478,6 +484,18 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
     setReloading(true);
     void load();
   };
+  const page: PageHooks = {
+    started: () => {
+      setOutcome(null);
+      setRefusal(null);
+    },
+    refused: (f) => {
+      if (!sourceMoved(f)) return;
+      setRefusal(f);
+      setReloading(true);
+      void load();
+    },
+  };
   const said = (shown: boolean): Banner => {
     const key = parWriteBanner(outcome, shown);
     return key === null ? null : { tone: key === 'saved' ? 'ok' : 'info', text: t(lang, key) };
@@ -493,7 +511,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
         <header className="page-header"><h1><bdi dir="ltr">{item.code}</bdi> — {localName(lang, item)}</h1></header>
         <p className="muted">{t(lang, 'par_for_branch', { branch: branchTitle(ctx, branch, branchId) })}</p>
         {/* A write's answer is said here too: the reload after it can land here (found in the second review). */}
-        {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
+        {refusal ? <FailureNotice lang={lang} failure={refusal} /> : banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
         <Notice tone="info" text={source === undefined ? t(lang, 'par_not_supplied_here', { code: here })
           : source.id === null ? t(lang, 'par_no_source') : t(lang, 'par_set_elsewhere', { code: source.code ?? shortId(source.id) })} />
       </section>
@@ -538,7 +556,7 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
         <h1><bdi dir="ltr">{item.code}</bdi> — {localName(lang, item)}</h1>
       </header>
       <p className="muted">{t(lang, 'par_for_branch', { branch: branchTitle(ctx, branch, branchId) })}</p>
-      {banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
+      {refusal ? <FailureNotice lang={lang} failure={refusal} /> : banner ? <Notice tone={banner.tone} text={banner.text} /> : null}
       {failure ? <FailureNotice lang={lang} failure={failure} /> : null}
       {notice !== null ? <Notice tone="info" text={t(lang, notice, { code: source?.code ?? '' })} /> : null}
 
@@ -562,9 +580,9 @@ export function ParItem({ ctx, branchId, itemId }: { ctx: Ctx; branchId: string;
       {reloading && failure !== null
         ? <button type="button" onClick={() => { setFailure(null); void load(); }}>{t(lang, 'reload')}</button>
         : reloading ? <Loading lang={lang} /> : null}
-      {actions.set && !reloading ? <SetPar ctx={ctx} item={item} branchId={branchId} stamp={stamp} onDone={afterWrite} /> : null}
+      {actions.set && !reloading ? <SetPar ctx={ctx} item={item} branchId={branchId} stamp={stamp} onDone={afterWrite} page={page} /> : null}
       {actions.clear && !reloading && stamp !== null
-        ? <ClearPar ctx={ctx} item={item} branchId={branchId} stamp={stamp} onDone={afterWrite} /> : null}
+        ? <ClearPar ctx={ctx} item={item} branchId={branchId} stamp={stamp} onDone={afterWrite} page={page} /> : null}
 
       <h2>{t(lang, 'history')}</h2>
       {history.length === 0 ? <p className="muted">{t(lang, 'no_par_history')}</p> : (
@@ -610,8 +628,8 @@ const notSuppliedHere = (ctx: Ctx) => (f: Failure): boolean => suppliedElsewhere
  * where the person works (OrderingRights.parFrom), against the stamp the page read when the
  * button was pressed (write.ts: built once, retried as sent).
  */
-function SetPar({ ctx, item, branchId, stamp, onDone }: {
-  ctx: Ctx; item: Item; branchId: string; stamp: string | null; onDone: Done;
+function SetPar({ ctx, item, branchId, stamp, onDone, page }: {
+  ctx: Ctx; item: Item; branchId: string; stamp: string | null; onDone: Done; page: PageHooks;
 }) {
   const { api, lang, data } = ctx;
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
@@ -629,7 +647,7 @@ function SetPar({ ctx, item, branchId, stamp, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setQuantity('');
     setReason('');
-  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx));
+  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx), page);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -673,8 +691,8 @@ function SetPar({ ctx, item, branchId, stamp, onDone }: {
 }
 
 /** The item will have no par at the branch: module 10 suggests nothing for it there. Against the stamp read, as a set is. */
-function ClearPar({ ctx, item, branchId, stamp, onDone }: {
-  ctx: Ctx; item: Item; branchId: string; stamp: string; onDone: Done;
+function ClearPar({ ctx, item, branchId, stamp, onDone, page }: {
+  ctx: Ctx; item: Item; branchId: string; stamp: string; onDone: Done; page: PageHooks;
 }) {
   const { api, lang } = ctx;
   const [open, setOpen] = useState(false);
@@ -684,7 +702,7 @@ function ClearPar({ ctx, item, branchId, stamp, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx));
+  }, (seen) => (seen as ParHistory).decisions.some((d) => d.decision_id === ids.decision_id), notSuppliedHere(ctx), page);
 
   function submit(e: FormEvent) {
     e.preventDefault();

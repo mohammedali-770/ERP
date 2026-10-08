@@ -524,52 +524,74 @@ in [`ar/`](../lab/uat/ar/ordering-setup.md), is run by the administrator and the
 manager in turn. On a second computer are the administrator again, the factory manager and a
 cashier. It evidences INV-P05, INV-P06 and INV-P07, which now name it. In thirteen parts it
 covers:
-- item sources: one set, one set again against its clearing, and one cleared;
+- item sources: one set, one set again against its clearing, one cleared, and none offered
+  for an item of a brand with no warehouse or factory;
 - cut-offs, read organisation-wide and changed at the warehouse: `24:00` named before
   sending, `1330` kept as 13:30, the same time refused, then cleared and set again;
 - par levels at a branch, organisation-wide: one set in bags, `0` named before sending, one
-  set in 2.5 cartons, one cleared, one set again against its clearing, and none offered for
-  an item no facility supplies;
+  set in 2.5 cartons, only current packs offered, one cleared, one set again against its
+  clearing, and none offered for an item no facility supplies;
 - the warehouse setting only the pars of what it supplies;
 - two people changing one par, the second told so;
-- a source moved, and the par it leaves to the factory;
+- a source moved while a par page is open, and the par it leaves to the factory; a source
+  cleared, and the par it leaves, which only the organisation can clear;
 - a lost answer retried;
-- the factory manager setting the factory's items' pars at any branch;
+- the factory manager setting the factory's items' pars at any branch, and finding none of
+  the warehouse's;
 - a branch the pilot leaves out, read only and then hidden;
-- a cashier reading their own branch's pars alone;
+- a cashier reading their own branch's pars alone, and refused another's by its address;
 - the other language.
 
 **Every figure in it was run first in a browser** against the scratch database and edge,
 rebuilt fresh, as the session scripts it. The run moves by the links a participant would
-follow. It checks each par as typed and in the base unit, each history, and each sentence
-the pack quotes.
+follow, and checks each par as typed and in the base unit, each history, and each sentence
+the pack quotes. Every quotation in both versions was then checked against the text the
+screens showed. The Arabic version's searches are given as the stored words, «أرز», «معقم»,
+«شرائح» and «دجاج», which the run found.
 
 It holds ten questions for the owner: this ADR's five, and five that the session's staff
 will meet:
-- whether a moved source should keep its pars;
+- whether a moved or cleared source should keep its pars;
 - whether a cut-off change should be scheduled ahead;
 - whether a cut-off should be changed only at its facility;
 - whether a branch should read the cut-offs and sources of facilities that supply it
-  nothing;
+  nothing, which goes beyond O5;
 - where the module is switched on.
 
-Three things are left to the database's tests, and the pack says which: the day an order is
-for, since no order is placed until module 10; a source of another brand, since the test
-data has no warehouse or factory of its second brand; and the races.
+Three things are not shown, and the pack says which:
+- **The day an order is for.** Its rule, `erp.order_day_for()`, is tested at stated moments
+  in pgTAP 190, and `erp.order_day()` is raced against a cut-off change in `db:check`. An
+  order keeping its day is module 10's to build, and nothing evidences it yet.
+- **A request naming another brand's facility as a source.** pgTAP 190 refuses it; the test
+  data has no such facility to offer.
+- **The races,** held in `db:check`.
 
-**Found writing it:**
+**Found writing it, and in its review, fixed before it:**
+- **A par page that contradicted itself.** With a par page open, the item's source moved to
+  another facility, and Set was refused in the right words. The page went on saying
+  "Supplied by" the facility it had read, offering the form, under the earlier "Saved.". A
+  par write refused because the item's source moved or was cleared (`sourceMoved`:
+  `par_level_not_its_source`, `par_level_item_has_no_source`) now reads the item again. The
+  page keeps the refusal and says where the par is set now.
+- **A "Saved." above a later refusal.** A refused attempt left the previous write's
+  "Saved." at the top of the page. On module 9's three pages, the word on a write is now
+  cleared when the next is sent and when another record opens. That is two optional hooks
+  on the shared write lifecycle (write.ts, `PageHooks`), tested in `write.test.ts`.
 - **The Arabic named the organisation with a word the picker never shows.** Module 9's
   sentences said «على مستوى المنظمة». The facility picker offers «المؤسسة كاملة», and INV-P07's
   Arabic says «على مستوى المؤسسة». Every Arabic string now says «المؤسسة», module 4's one
-  refusal that used the other word included. A Node test holds every Arabic string to it
-  (`logic.test.ts`).
-- **A search finds Arabic only as it is stored.** «ارز» finds nothing where the item is
-  «أرز بسمتي», in every module's search, the database's and the console's. Changing that
-  crosses modules, so it is put to the owner as Q-27.
-- **Left as it is: a detail page opened from another page of its own kind keeps the first
-  page's banner.** A "Saved." from one item's source showed on the next item's page, opened
-  by its address. The bell opens a stock decision's page the same way, so one decision's
-  "Saved." can show on another's. That was read from the code, not run. A request in doubt
-  does not follow, since the form is unmounted while the next record loads (Q-26). A
-  participant moves by links, through a list, so the pack never meets it. Every module's
-  detail pages share it, so it is reported to the owner rather than changed here.
+  refusal that used the other word included. A Node test holds every Arabic string to it,
+  on the word's root (`logic.test.ts`).
+- **A built console for the network cut.** Served by Vite's development server, the page
+  reloads itself when the network returns, and loses the change in doubt and its Retry. This
+  pack, and the three before it that cut the network, now serve the console as a built page.
+- **req-lint read the test data's facility codes (BR-001, WH-001, FA-001) as requirement
+  citations.** The pack quotes screens that name a facility by its code alone. No
+  requirement module uses those prefixes, so they join req-lint's list of look-alikes.
+
+**Put to the owner, not changed here:**
+- **A search finds Arabic only as it is stored.** Neither «ارز» nor «الأرز» finds «أرز بسمتي»,
+  in every module's search, the database's and the console's (Q-27).
+- **Every other module's detail pages** keep a page's word on a write until the next one
+  succeeds: above a later refusal, and on another record of the same kind opened directly,
+  as a stock decision's links to the decision it reverses do (Q-28).

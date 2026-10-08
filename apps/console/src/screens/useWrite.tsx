@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Answer, Failure } from '../api.ts';
 import type { Ctx } from '../context.ts';
-import { writeLifecycle, type Done, type WriteHooks } from '../write.ts';
+import { writeLifecycle, type Done, type PageHooks, type WriteHooks } from '../write.ts';
 
 /**
  * A detail page's sub-form write, with React state: write.ts's lifecycle, one per form,
@@ -14,12 +14,12 @@ import { writeLifecycle, type Done, type WriteHooks } from '../write.ts';
  * send (found in review).
  */
 export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: Done, after: () => void,
-                         recorded?: (seen: unknown) => boolean, settled?: (failure: Failure) => boolean) {
+                         recorded?: (seen: unknown) => boolean, settled?: (failure: Failure) => boolean, page?: PageHooks) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [inDoubt, setInDoubt] = useState(false);
-  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded, settled });
-  hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded, settled };
+  const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused });
+  hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused };
   const [life] = useState(() => writeLifecycle({ setBusy, setFailure, setInDoubt }, () => hooks.current));
   return {
     busy,
