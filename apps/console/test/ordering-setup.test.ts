@@ -667,9 +667,19 @@ test('from a warehouse or factory, an item supplied elsewhere is said to be, and
   assert.match(PARS, /const banner = said\(true\);/);
   assert.match(PARS, /const afterWrite: Done = \(done\) => \{\s+setOutcome\(done\);/);
   assert.match(PARS, /const key = parWriteBanner\(outcome, shown\);/);
-  assert.deepEqual([parWriteBanner('already', true), parWriteBanner('already', false)], ['par_already_recorded', 'par_already_recorded_elsewhere']);
-  assert.deepEqual([parWriteBanner('stale', true), parWriteBanner('stale', false)], ['par_changed', 'par_changed_elsewhere']);
-  assert.deepEqual([parWriteBanner('saved', false), parWriteBanner('checked', false), parWriteBanner(null, true)], ['saved', null, null]);
+  // Every outcome on both pages, the commonest included: a plain Save, a plain Start over, a
+  // page opened with no write at all (found in the fourth review).
+  const table = (['saved', 'already', 'stale', 'checked', null] as const).map((o) => [o, parWriteBanner(o, true), parWriteBanner(o, false)]);
+  assert.deepEqual(table, [
+    ['saved', 'saved', 'saved'],
+    ['already', 'par_already_recorded', 'par_already_recorded_elsewhere'],
+    ['stale', 'par_changed', 'par_changed_elsewhere'],
+    ['checked', null, null],
+    [null, null, null],
+  ]);
+  // ...and the page says what it returns, on both views.
+  assert.match(PARS, /const key = parWriteBanner\(outcome, shown\);\s+return key === null \? null : \{ tone: key === 'saved' \? 'ok' : 'info', text: t\(lang, key\) \};/);
+  assert.equal([...PARS.matchAll(/\{banner \? <Notice tone=\{banner\.tone\} text=\{banner\.text\} \/> : null\}/g)].length, 2, 'both views render it');
   for (const k of ['par_already_recorded_elsewhere', 'par_changed_elsewhere']) {
     for (const lang of ['en', 'ar'] as const) {
       assert.doesNotMatch(STRINGS[lang][k as 'par_changed_elsewhere'], /shown|يُعرض/, `${lang} ${k}: no par is shown there`);

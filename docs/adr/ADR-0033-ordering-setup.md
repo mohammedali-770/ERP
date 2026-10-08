@@ -512,3 +512,7 @@ Nothing about the routes changed.
   over's failure is cleared when the request is asked again.
 - **A claim too wide.** "Already saved" is answered while the person may still set pars
   there: 0024 asks its permission gates before the decision's id. The docs say so.
+
+**The fourth review, of those fixes,** found no fault in the code: the banner's table was
+tested for seven of its ten cases, and is now tested for all of them, with how the page
+builds and renders it.
