@@ -503,7 +503,7 @@ begin
       using errcode = 'restrict_violation', constraint = 'par_level_not_set';
   end if;
   if p_kind = 'par_set' and m.par is not distinct from p_par then
-    raise exception 'the par of % at % is already %', p_item.code, b.code, trim_scale(p_par)
+    raise exception 'the par of % at % is already % %', p_item.code, b.code, trim_scale(p_par), p_item.base_unit_key
       using errcode = 'restrict_violation', constraint = 'par_level_unchanged';
   end if;
 
@@ -839,11 +839,12 @@ security definer
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  b      erp.facility;
-  u      erp.item_unit;
-  v_item erp.item;
-  v_qty  numeric;
-  v_base numeric;
+  b        erp.facility;
+  u        erp.item_unit;
+  v_item   erp.item;
+  v_source uuid;
+  v_qty    numeric;
+  v_base   numeric;
 begin
   perform erp.assert_permitted(p_actor_id, 'ordering.par_levels', 'write', p_facility_id);
   perform erp.assert_permitted(p_actor_id, 'ordering.par_levels', 'read', p_facility_id);
@@ -871,11 +872,16 @@ begin
 
   -- Organisation-wide, the source is not checked against where the par is set from; but an
   -- item no facility supplies cannot be ordered, so it is given no par to order up to.
-  if erp.assert_par_set_from(p_facility_id, v_item, b) is null then
+  v_source := erp.assert_par_set_from(p_facility_id, v_item, b);
+  if v_source is null then
     raise exception '% is supplied by no facility', v_item.code
       using errcode = 'restrict_violation', constraint = 'par_level_item_has_no_source',
             hint = 'Set its source first.';
   end if;
+  -- Nor while its source is closed, which takes no orders: a par is new work towards one
+  -- (found in review). Under the source's share lock, so a closure waits. Clearing is not new
+  -- work, so a par can be cleared whatever its source's state.
+  perform erp.assert_facility_open(v_source);
 
   if p_quantity is null or p_quantity !~ '^[0-9]{1,12}(\.[0-9]{1,6})?$' then
     raise exception 'a par is a number with up to twelve digits and six decimal places'

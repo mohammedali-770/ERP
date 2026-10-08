@@ -26,7 +26,7 @@
 -- hours ahead of UTC.
 
 begin;
-select plan(140);
+select plan(156);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -219,15 +219,14 @@ select ok(has_function_privilege('erp_app', 'erp.set_replenishment_source(uuid,u
       and has_function_privilege('erp_app', 'erp.par_levels(uuid,uuid,uuid,text,integer)', 'EXECUTE')
       and has_function_privilege('erp_app', 'erp.par_level_history(uuid,uuid,uuid,uuid,bigint,integer)', 'EXECUTE'),
   'the runtime calls the twelve routes');
-select is(has_function_privilege('erp_app', 'erp.order_day(uuid)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.order_day_for(timestamptz,text,time)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.assert_supplying_facility(uuid,boolean)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.assert_par_branch(uuid,uuid)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.assert_par_read(uuid,uuid)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.assert_par_set_from(uuid,erp.item,erp.facility)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.ordering_setting_is_fixed()', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.ordering_log_is_append_only()', 'EXECUTE'), false,
-  'CONTROL: not the seam, the helpers or the guards — module 10 calls erp.order_day() from its own route');
+select is((select coalesce(string_agg(p.proname, ' ' order by p.proname), '') from pg_proc p
+            where p.pronamespace = 'erp'::regnamespace
+              and p.proname in ('order_day', 'order_day_for', 'assert_supplying_facility', 'assert_par_branch',
+                                'assert_par_read', 'assert_par_set_from', 'apply_par_level',
+                                'assert_replenishment_source_decision_is_new', 'assert_order_cutoff_decision_is_new',
+                                'assert_par_level_decision_is_new', 'ordering_setting_is_fixed', 'ordering_log_is_append_only')
+              and has_function_privilege('erp_app', p.oid, 'EXECUTE')), '',
+  'CONTROL: not the seam, the helpers or the guards, in any overload — module 10 calls erp.order_day() from its own route');
 select ok((select count(*) from erp.capability where capability_key in ('ordering.setup', 'ordering.par_levels')) = 2
       and (select count(*) from erp.role_permission
             where role_key = 'administrator' and capability_key in ('ordering.setup', 'ordering.par_levels')) = 4,
@@ -294,6 +293,20 @@ select is(pg_temp.refusal($$select pg_temp.set_source('e2404', '4101', '403', '6
   '23001 replenishment_source_unchanged', 'a source set to what it already is is refused');
 select is(pg_temp.refusal($$select pg_temp.clear_source('e2404', '4106', '6208')$$),
   '23001 replenishment_source_not_set', 'a cleared source cannot be cleared again');
+select is(pg_temp.refusal($$select pg_temp.clear_source('e2409', '4101', null)$$),
+  '23001 replenishment_source_stale', 'CONTROL: clearing a source is checked against what was read, too');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'administrator'
+                              and capability_key = 'ordering.setup' and action = 'read'$$,
+                          $$select pg_temp.set_source('e2404', '4110', '403', null)$$), '23001 -',
+  'CONTROL: one who could not read a source back sets none: a write asks the reads its retry is confirmed by');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'administrator'
+                              and capability_key = 'inventory.items' and action = 'read'$$,
+                          $$select pg_temp.set_source('e2404', '4110', '403', null)$$), '23001 -',
+  'nor one who reads no items');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'administrator'
+                              and capability_key = 'inventory.items' and action = 'read'$$,
+                          $$select pg_temp.clear_source('e2404', '4101', '6201')$$), '23001 -',
+  'and clears none');
 select is(pg_temp.refusal($$select pg_temp.set_source('e2404', '4109', '403', null)$$),
   '23001 item_admits_no_new_work', 'a retired item is given no source');
 select is(pg_temp.after($$select pg_temp.source('4103')$$,
@@ -356,6 +369,16 @@ select is(pg_temp.refusal($$select pg_temp.set_cutoff('e2413', '403', '14:00', '
 select is(pg_temp.refusal($$select pg_temp.clear_cutoff('e2412', '404', '6213')$$,
                           $$select pg_temp.clear_cutoff('e2413', '404', 'e2412')$$),
   '23001 order_cutoff_not_set', 'a cleared cut-off cannot be cleared again');
+select is(pg_temp.refusal($$select pg_temp.clear_cutoff('e2414', '403', null)$$),
+  '23001 order_cutoff_stale', 'CONTROL: clearing a cut-off is checked against what was read, too');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'administrator'
+                              and capability_key = 'ordering.setup' and action = 'read'$$,
+                          $$select pg_temp.set_cutoff('e2413', '403', '15:00', '6211')$$), '23001 -',
+  'CONTROL: one who could not read a cut-off back sets none');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'administrator'
+                              and capability_key = 'ordering.setup' and action = 'read'$$,
+                          $$select pg_temp.clear_cutoff('e2413', '403', '6211')$$), '23001 -',
+  'and clears none');
 select is(pg_temp.refusal($$select pg_temp.set_cutoff('e2413', '403', '24:00', '6211')$$),
   '23514 order_cutoff_is_valid', 'a cut-off is a time of day, up to 23:59');
 select is(pg_temp.refusal($$select pg_temp.set_cutoff('e2413', '403', '9:30', '6211')$$),
@@ -530,6 +553,27 @@ select is(pg_temp.after($$select pg_temp.par('402', '4101') || ' ' || right(m.as
   'cleared e2441', 'the warehouse manager clears a par: the row stays, stamped with the clearing');
 select is(pg_temp.refusal($$select pg_temp.clear_par('e2442', '403', '402', '4111', '6226')$$),
   '23001 par_level_not_set', 'a cleared par cannot be cleared again');
+select is(pg_temp.refusal($$select pg_temp.clear_par('e2443', '403', '401', '4101', null)$$),
+  '23001 par_level_stale', 'CONTROL: clearing a par is checked against what was read, too');
+select is(pg_temp.refusal($$select pg_temp.clear_par('e2443', null, '401', '4112', null, '900')$$),
+  'P0002 item_exists', 'CONTROL: clearing another brand''s item''s par answers as a missing one, never as "not set" (ADR-0012)');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'factory_manager'
+                              and capability_key = 'ordering.par_levels' and action = 'read'$$,
+                          $$select pg_temp.set_par('e2443', '404', '401', '4207', '3', '6222', '908')$$), '23001 -',
+  'CONTROL: one who could not read a par back sets none');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'warehouse_manager'
+                              and capability_key = 'ordering.par_levels' and action = 'read'$$,
+                          $$select pg_temp.clear_par('e2443', '403', '402', '4101', '6224')$$), '23001 -',
+  'and clears none');
+select is(pg_temp.refusal($$select erp.change_facility_status(pg_temp.u('e2444'), pg_temp.u('403'), pg_temp.u('5603'),
+                              'closed', 'testing', pg_temp.u('900'), now())$$,
+                          $$select pg_temp.set_par('e2445', null, '401', '4203', '5', '6221', '900')$$),
+  '23001 facility_admits_no_new_work', 'CONTROL: while its source is closed, an item is given no par, even organisation-wide');
+select is(pg_temp.after($$select pg_temp.par('401', '4101')$$,
+                        $$select erp.change_facility_status(pg_temp.u('e2444'), pg_temp.u('403'), pg_temp.u('5603'),
+                            'closed', 'testing', pg_temp.u('900'), now())$$,
+                        $$select pg_temp.clear_par('e2445', '403', '401', '4101', '6221')$$),
+  'cleared', 'but its par can still be cleared');
 select is(pg_temp.refusal($$select pg_temp.clear_par('e2442', '404', '401', '4101', '6221', '908')$$),
   '23001 par_level_not_its_source', 'CONTROL: the factory manager clears no par of what the warehouse supplies');
 
@@ -592,6 +636,20 @@ select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
 select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
                           $$select pg_temp.clear_par('e2466', null, 'e2495', '4102', null, '900')$$),
   '23001 facility_admits_no_new_work', 'organisation-wide, where every brand is seen, it is closed');
+select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
+                          $$select * from erp.par_levels(pg_temp.u('908'), pg_temp.u('404'), pg_temp.u('e2495'))$$),
+  'P0002 facility_exists', 'CONTROL: and its branch''s pars, read from the factory, answer as missing too');
+select is(pg_temp.after($$select pg_temp.par('401', '4102')$$,
+                        $$select pg_temp.set_state('ordering.par_levels', null, 'hidden', 'e2471')$$,
+                        $$select pg_temp.set_state('ordering.par_levels', '404', 'pilot', 'e2472')$$,
+                        $$select pg_temp.set_state('ordering.par_levels', '401', 'pilot', 'e2473')$$,
+                        $$select pg_temp.set_par('e2474', '404', '401', '4207', '3', '6222', '908')$$),
+  '120', 'a pilot names its supplier and its branches: hidden elsewhere, the factory sets a par at the branch it covers');
+select is(pg_temp.refusal($$select pg_temp.set_state('ordering.par_levels', null, 'hidden', 'e2471')$$,
+                          $$select pg_temp.set_state('ordering.par_levels', '404', 'pilot', 'e2472')$$,
+                          $$select pg_temp.set_state('ordering.par_levels', '401', 'pilot', 'e2473')$$,
+                          $$select pg_temp.set_par('e2474', '404', '402', '4207', '3', null, '908')$$), '23001 -',
+  'CONTROL: and none at a branch it does not');
 
 select * from finish();
 rollback;

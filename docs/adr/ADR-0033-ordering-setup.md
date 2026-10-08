@@ -145,7 +145,9 @@ history back to confirm a retry (ADR-0031 §3).
    waits for a source change in flight and is judged against what the change left, and a
    factory manager is never admitted by a source no longer in force (db:check races it).
    It is an advisory lock, not a row lock, because an item that has never had a source
-   has no row to lock.
+   has no row to lock. For a set, the source must also be open, under its share lock: a closed
+   facility takes no orders, so a par towards one is new work nobody can use (found in
+   review). A par can be cleared whatever its source's state.
 4. **The value.**
    - A cut-off crosses as `'HH:MM'` text, 00:00 to 23:59, matched by one pattern and
      never parsed loosely; empty is refused, never read as none.
