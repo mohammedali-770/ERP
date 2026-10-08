@@ -69,9 +69,10 @@ changed or cleared by a later decision.
 **How the day is fixed.** The warehouse set an order's `for_date` when the order was
 first inserted, and never again: an edit to the one waiting order replaced its lines and
 kept its day, so lines added after the cut-off kept the earlier day. In the ERP, module 10
-asks `erp.order_day()` once, when an order is first placed, and copies the day and the
-cut-off decision that dated it onto the order (I-7). The same behaviour, with the
-decision recorded.
+asks `erp.order_day()` once, when an order is first placed, and copies the day, the
+cut-off decision that dated it and the moment it was placed onto the order (I-7). The
+warehouse dated an order by its transaction's start; here the moment is the clock once the
+cut-off is read. The same behaviour, with the decision recorded.
 
 **On import:** each category's cut-off becomes the cut-off of the facility its items come
 from.

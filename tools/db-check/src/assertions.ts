@@ -1095,8 +1095,9 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
     title: 'every par equals the latest decision about it, at a branch',
     because:
       'I-8: module 10 suggests an order from the projection, not the log (ADR-0033 O4), so a par that ' +
-      'drifted from its decision would suggest a figure nobody set. A par is a branch\'s: one at a ' +
-      'warehouse or factory would be a stock setting nobody can read or order against. Asked again after ' +
+      'drifted from its decision would suggest a figure nobody set. A par is a branch\'s, for an item of ' +
+      'its brand: one at a warehouse or factory, or for another brand\'s item, is a setting nobody can ' +
+      'read or order against (ADR-0012). Asked again after ' +
       'the probes, whose pars race retirements and source changes.',
     sql: `select 'par of ' || m.item_id || ' at ' || m.facility_id as violation
           from erp.par_level m
@@ -1110,10 +1111,12 @@ export const STOCK_ASSERTIONS: readonly Assertion[] = [
           from erp.par_level_decision d
           where not exists (select 1 from erp.par_level m where m.facility_id = d.facility_id and m.item_id = d.item_id)
           union all
-          select 'decision ' || d.decision_id || ' is at a facility that is no branch'
+          select 'decision ' || d.decision_id || ' is at a facility that is no branch, or of another brand than its item'
           from erp.par_level_decision d
           join erp.facility f on f.facility_id = d.facility_id
-          where f.facility_type <> 'branch'`,
+          join erp.operating_unit ou on ou.operating_unit_id = f.operating_unit_id
+          join erp.item i on i.item_id = d.item_id
+          where f.facility_type <> 'branch' or ou.brand_id is distinct from i.brand_id`,
   },
 ];
 

@@ -26,7 +26,7 @@
 -- hours ahead of UTC.
 
 begin;
-select plan(125);
+select plan(140);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -106,10 +106,37 @@ create function pg_temp.par(p_branch text, p_item text) returns text language sq
                     where m.facility_id = pg_temp.u(p_branch) and m.item_id = pg_temp.u(p_item)), 'none')
 $f$;
 
--- The day erp.order_day() gives, and the last four digits of the cut-off decision it names.
-create function pg_temp.day(p_facility text, p_at timestamptz) returns text language sql as $f$
-  select d.for_date::text || ':' || coalesce(right(d.cutoff_decision_id::text, 4), 'none')
-    from erp.order_day(pg_temp.u(p_facility), p_at) d
+-- The rule alone: the day an order placed at p_at, at a facility in Riyadh, is for.
+create function pg_temp.rule(p_at timestamptz, p_cutoff text, p_tz text default 'Asia/Riyadh') returns text
+language sql as $f$
+  select erp.order_day_for(p_at, p_tz, p_cutoff::time)::text
+$f$;
+
+-- What erp.order_day() gives now, as 'offset:decision': how many days after the date in
+-- Riyadh at the moment it placed the order, and the last four digits of the cut-off
+-- decision it names. Its moment must be the clock, read after the transaction began: never
+-- now(), the transaction's start, which an order that waited behind a cut-off change would
+-- be dated by.
+create function pg_temp.day(p_facility text) returns text language sql as $f$
+  select case when d.placed_at > now() then '' else 'placed at the transaction''s start:' end
+         || (d.for_date - (d.placed_at at time zone 'Asia/Riyadh')::date)::text || ':'
+         || coalesce(right(d.cutoff_decision_id::text, 4), 'none')
+    from erp.order_day(pg_temp.u(p_facility)) d
+$f$;
+
+-- A second brand's operating unit, warehouse and branch, the branch closed: the seed's second
+-- brand owns no facility (0010).
+create function pg_temp.second_brand() returns void language plpgsql as $f$
+begin
+  insert into erp.operating_unit (operating_unit_id, brand_id, code, name_en, name_ar)
+  values (pg_temp.u('e2491'), pg_temp.u('202'), 'OU-E24', 'Probe region', 'منطقة تجريبية');
+  perform erp.create_facility(pg_temp.u('e2492'), pg_temp.u('e2493'), pg_temp.u('e2491'), 'warehouse',
+                              'WH-E24B', 'Probe warehouse', 'مستودع تجريبي', null, null, 'testing', pg_temp.u('900'), now());
+  perform erp.create_facility(pg_temp.u('e2494'), pg_temp.u('e2495'), pg_temp.u('e2491'), 'branch',
+                              'BR-E24B', 'Probe branch', 'فرع تجريبي', null, null, 'testing', pg_temp.u('900'), now());
+  perform erp.change_facility_status(pg_temp.u('e2496'), pg_temp.u('e2495'), pg_temp.u('e2494'), 'closed',
+                                     'testing', pg_temp.u('900'), now());
+end
 $f$;
 
 -- A capability's state at a facility, or organisation-wide when p_facility is NULL.
@@ -192,9 +219,10 @@ select ok(has_function_privilege('erp_app', 'erp.set_replenishment_source(uuid,u
       and has_function_privilege('erp_app', 'erp.par_levels(uuid,uuid,uuid,text,integer)', 'EXECUTE')
       and has_function_privilege('erp_app', 'erp.par_level_history(uuid,uuid,uuid,uuid,bigint,integer)', 'EXECUTE'),
   'the runtime calls the twelve routes');
-select is(has_function_privilege('erp_app', 'erp.order_day(uuid,timestamptz)', 'EXECUTE')
+select is(has_function_privilege('erp_app', 'erp.order_day(uuid)', 'EXECUTE')
+       or has_function_privilege('erp_app', 'erp.order_day_for(timestamptz,text,time)', 'EXECUTE')
        or has_function_privilege('erp_app', 'erp.assert_supplying_facility(uuid,boolean)', 'EXECUTE')
-       or has_function_privilege('erp_app', 'erp.assert_par_branch(uuid)', 'EXECUTE')
+       or has_function_privilege('erp_app', 'erp.assert_par_branch(uuid,uuid)', 'EXECUTE')
        or has_function_privilege('erp_app', 'erp.assert_par_read(uuid,uuid)', 'EXECUTE')
        or has_function_privilege('erp_app', 'erp.assert_par_set_from(uuid,erp.item,erp.facility)', 'EXECUTE')
        or has_function_privilege('erp_app', 'erp.ordering_setting_is_fixed()', 'EXECUTE')
@@ -357,31 +385,45 @@ select is(pg_temp.refusal($$select * from erp.order_cutoff_history(pg_temp.u('90
 -- The day an order is for (O3) — erp.order_day(), module 10's seam
 -- ---------------------------------------------------------------------------
 
-select is(pg_temp.day('403', timestamptz '2026-10-08 10:59:59+00'), '2026-10-08:6211',
-  '13:59:59 in Riyadh, before the warehouse''s 14:00: today, and the cut-off that dated it');
-select is(pg_temp.day('403', timestamptz '2026-10-08 11:00:00+00'), '2026-10-09:6211',
+-- The rule, at stated moments.
+select is(pg_temp.rule(timestamptz '2026-10-08 10:59:59.999999+00', '14:00'), '2026-10-08',
+  'a microsecond before 14:00 in Riyadh: today');
+select is(pg_temp.rule(timestamptz '2026-10-08 11:00:00+00', '14:00'), '2026-10-09',
   'CONTROL: 14:00 itself is at the cut-off, so tomorrow, as in the warehouse');
-select is(pg_temp.day('403', timestamptz '2026-10-08 20:59:00+00'), '2026-10-09:6211',
+select is(pg_temp.rule(timestamptz '2026-10-08 20:59:00+00', '14:00'), '2026-10-09',
   '23:59 in Riyadh: tomorrow');
-select is(pg_temp.day('403', timestamptz '2026-10-08 21:30:00+00'), '2026-10-09:6211',
+select is(pg_temp.rule(timestamptz '2026-10-08 21:30:00+00', '14:00'), '2026-10-09',
   'CONTROL: 00:30 in Riyadh is already the 9th there, and before the cut-off, though the 8th in UTC');
-select is(pg_temp.day('404', timestamptz '2026-10-08 07:59:00+00'), '2026-10-08:6213',
-  'the factory''s own cut-off, 11:00, dates an order to the factory');
-select is(pg_temp.after($$select pg_temp.day('403', timestamptz '2026-10-08 21:00:00+00') || ' '
-                                 || pg_temp.day('403', timestamptz '2026-10-08 20:59:00+00')$$,
-                        $$select pg_temp.set_cutoff('e2421', '403', '00:00', '6211')$$),
-  '2026-10-10:2421 2026-10-09:2421', 'at 00:00, every order is for the next day: midnight itself included');
-select is(pg_temp.after($$select pg_temp.day('404', timestamptz '2026-10-08 20:00:00+00')$$,
-                        $$select pg_temp.clear_cutoff('e2422', '404', '6213')$$),
-  '2026-10-08:2422', 'with the cut-off cleared, 23:00 is still today, and the clearing is what dated it');
-select is(pg_temp.after($$select pg_temp.day('e2424', timestamptz '2026-10-08 20:00:00+00')$$,
+select is(pg_temp.rule(timestamptz '2026-10-08 21:00:00+00', '00:00') || ' '
+          || pg_temp.rule(timestamptz '2026-10-08 20:59:00+00', '00:00'),
+  '2026-10-10 2026-10-09', 'at 00:00, every order is for the next day: midnight itself included');
+select is(pg_temp.rule(timestamptz '2026-10-08 20:59:00+00', null), '2026-10-08',
+  'with no cut-off, 23:59 is still today');
+select is(pg_temp.rule(timestamptz '2026-10-08 13:30:00+00', '14:00', 'Europe/London'), '2026-10-09',
+  'read in the facility''s own zone: 14:30 in London is after its 14:00, though 16:30 in Riyadh');
+select is(pg_temp.after($$select pg_temp.rule(timestamptz '2026-10-08 12:00:00+00', '14:00')$$,
+                        $$set local TimeZone = 'America/New_York'$$),
+  '2026-10-09', 'CONTROL: the session''s own time zone changes nothing: 15:00 in Riyadh is after its 14:00, though 08:00 in New York');
+
+-- The seam: now, under the cut-off's lock.
+select is(pg_temp.day('403'),
+  ((now() at time zone 'Asia/Riyadh')::time >= time '14:00')::int::text || ':6211',
+  'the warehouse''s order placed now: dated by its 14:00, the decision named, the moment the clock''s');
+select is(pg_temp.day('404'),
+  ((now() at time zone 'Asia/Riyadh')::time >= time '11:00')::int::text || ':6213',
+  'the factory''s own cut-off dates an order to the factory');
+select is(pg_temp.after($$select pg_temp.day('403')$$, $$select pg_temp.set_cutoff('e2421', '403', '00:00', '6211')$$),
+  '1:2421', 'at 00:00, an order placed now is for tomorrow, by the new decision');
+select is(pg_temp.after($$select pg_temp.day('404')$$, $$select pg_temp.clear_cutoff('e2422', '404', '6213')$$),
+  '0:2422', 'with the cut-off cleared, today, and the clearing is what dated it');
+select is(pg_temp.after($$select pg_temp.day('e2424')$$,
                         $$select erp.create_facility(pg_temp.u('e2423'), pg_temp.u('e2424'), pg_temp.u('301'), 'warehouse',
                             'WH-E24', 'Probe warehouse', 'مستودع تجريبي', null, null, 'testing', pg_temp.u('900'), now())$$),
-  '2026-10-08:none', 'a facility that never had a cut-off dates every order today, by no decision');
-select is(pg_temp.refusal($$select pg_temp.day('401', now())$$), '23001 ordering_facility_supplies_nothing',
+  '0:none', 'a facility that never had a cut-off dates every order today, by no decision');
+select is(pg_temp.refusal($$select pg_temp.day('401')$$), '23001 ordering_facility_supplies_nothing',
   'a branch is not ordered from');
-select is(pg_temp.refusal($$select pg_temp.day('403', null)$$), '22023 order_day_moment_required',
-  'an order''s day is worked out from a stated moment');
+select is(pg_temp.refusal($$select pg_temp.day(null)$$), '22023 ordering_facility_required',
+  'an order names the facility it is placed with');
 
 -- ---------------------------------------------------------------------------
 -- Pars (O4, O5): read
@@ -509,6 +551,47 @@ select is(pg_temp.after($$select pg_temp.par('401', '4101')$$,
                         $$select pg_temp.clear_source('e2453', '4101', '6201')$$,
                         $$select pg_temp.clear_par('e2454', null, '401', '4101', '6221', '900')$$),
   'cleared', 'but organisation-wide');
+select is(pg_temp.after($$select coalesce((select string_agg(code, ' ' order by code collate "C")
+                                             from erp.par_levels(pg_temp.u('904'), pg_temp.u('403'), pg_temp.u('401'))), '') || ' / '
+                                 || coalesce((select string_agg(code, ' ' order by code collate "C")
+                                             from erp.par_levels(pg_temp.u('908'), pg_temp.u('404'), pg_temp.u('401'))), '')$$,
+                        $$select pg_temp.set_source('e2455', '4102', '403', '6202')$$),
+  'FP-COLA-330 RM-CHK-BREAST SF-CHK-STRIPS / ', 'and a supplying facility''s read follows the source: the strips move to the warehouse''s list, and leave the factory''s');
+
+-- ---------------------------------------------------------------------------
+-- The capability at the branch, and the brand before anything else
+-- ---------------------------------------------------------------------------
+
+select is(pg_temp.refusal($$select pg_temp.set_state('ordering.par_levels', '401', 'withdrawn', 'e2461')$$,
+                          $$select pg_temp.set_par('e2462', '404', '401', '4207', '3', '6222', '908')$$), '23001 -',
+  'CONTROL: withdrawn at the branch, a par for it is refused, though asked at the factory, where it is open');
+select is(pg_temp.after($$select pg_temp.par('402', '4102')$$,
+                        $$select pg_temp.set_state('ordering.par_levels', '401', 'withdrawn', 'e2461')$$,
+                        $$select pg_temp.set_par('e2462', '404', '402', '4207', '3', null, '908')$$),
+  '120', 'while the other branch, where it is open, still takes one');
+select is(pg_temp.refusal($$select pg_temp.set_state('ordering.par_levels', '401', 'hidden', 'e2463')$$,
+                          $$select * from erp.par_levels(pg_temp.u('904'), pg_temp.u('403'), pg_temp.u('401'))$$), '23001 -',
+  'CONTROL: hidden at the branch, its pars are not read from the warehouse either');
+select is(pg_temp.after($$select count(*)::text || ' ' || coalesce(string_agg(kind, ' '), '')
+                            from erp.par_level_history(pg_temp.u('908'), pg_temp.u('404'), pg_temp.u('401'), pg_temp.u('4102'))$$,
+                        $$select pg_temp.set_state('ordering.par_levels', '404', 'read_only', 'e2464')$$),
+  '1 par_set', 'read-only at the factory, its manager still reads the history (CAP-P06)');
+select is(pg_temp.refusal($$select pg_temp.set_state('ordering.par_levels', '404', 'read_only', 'e2464')$$,
+                          $$select pg_temp.set_par('e2465', '404', '401', '4207', '3', '6222', '908')$$), '23001 -',
+  'and sets no par there');
+select is(pg_temp.refusal($$delete from erp.role_permission where role_key = 'factory_manager'
+                              and capability_key = 'inventory.items' and action = 'read'$$,
+                          $$select pg_temp.set_par('e2465', '404', '401', '4207', '3', '6222', '908')$$), '23001 -',
+  'CONTROL: one who sets pars but reads no items sets none: they could not read it back');
+select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
+                          $$select pg_temp.set_par('e2466', '404', 'e2493', '4207', '3', null, '908')$$),
+  'P0002 facility_exists', 'CONTROL: the second brand''s warehouse answers as missing, never as a warehouse (ADR-0012)');
+select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
+                          $$select pg_temp.clear_par('e2466', '404', 'e2495', '4102', null, '908')$$),
+  'P0002 facility_exists', 'CONTROL: and its closed branch as missing, never as closed');
+select is(pg_temp.refusal($$select pg_temp.second_brand()$$,
+                          $$select pg_temp.clear_par('e2466', null, 'e2495', '4102', null, '900')$$),
+  '23001 facility_admits_no_new_work', 'organisation-wide, where every brand is seen, it is closed');
 
 select * from finish();
 rollback;

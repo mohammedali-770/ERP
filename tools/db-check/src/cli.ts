@@ -774,13 +774,39 @@ try {
     const [changed, dated] = await overlap(
       `select erp.set_order_cutoff(${id('0000000d0905')}, ${warehouse}, '00:00', ${id('0000000d0034')},
         'db-check cut-off probe', ${admin}, now())`,
-      `select d.cutoff_decision_id::text || ' ' || (d.for_date = (now() at time zone 'Asia/Riyadh')::date + 1)
-         from erp.order_day(${warehouse}, now()) d`, 'order_day');
+      `select d.cutoff_decision_id::text || ' ' || (d.for_date = (d.placed_at at time zone 'Asia/Riyadh')::date + 1)
+         from erp.order_day(${warehouse}) d`, 'order_day');
     report(changed.status === 0 && dated.status === 0
              && dated.stdout.includes('01936f00-0000-7000-8000-0000000d0905 t'),
       'order_day: an order dated while its cut-off changes waits, and is dated by the new one',
       `order_day: an order dated while its cut-off changed was answered "${dated.stdout.trim() || errorOf(dated)}"` +
         (changed.status === 0 ? '' : `; the change failed too: ${errorOf(changed)}`));
+  }
+
+  {
+    // Two first pars for one item at one branch, each stating that it has none: the second must
+    // wait and then be refused as stale. A first par has no row to lock, so the route takes an
+    // advisory lock on the branch and item before it reads the stamp; without it both read "never
+    // set" and the second overwrote the first unseen. BR-002's cola, which has never had a par,
+    // from the warehouse that supplies it.
+    const par = (d: string, cartons: string) => `select erp.set_par_level(${id(d)}, ${warehouse}, ${id('000000000402')},
+      ${id('000000004210')}, '${cartons}', null, 'db-check par probe', ${manager}, now())`;
+    const [first, second] = await overlap(par('0000000d0906', '1'), par('0000000d0907', '2'), 'par_first');
+    report(first.status === 0 && raisedAs(second.stderr, '23001', 'par_level_stale'),
+      'set_par_level: two first pars racing — the second waits, and is refused as stale',
+      `set_par_level: the second of two first pars was answered "${errorOf(second)}"` +
+        (first.status === 0 ? '' : `; the first failed too: ${errorOf(first)}`));
+  }
+  {
+    // The same for a first source: the fryer basket, which has never had one.
+    const source = (d: string, facility: string) => `select erp.set_replenishment_source(${id(d)}, ${id('000000004107')},
+      ${facility}, null, 'db-check source probe', ${admin}, now())`;
+    const [first, second] = await overlap(source('0000000d0908', warehouse), source('0000000d0909', id('000000000404')),
+      'source_first');
+    report(first.status === 0 && raisedAs(second.stderr, '23001', 'replenishment_source_stale'),
+      'set_replenishment_source: two first sources racing — the second waits, and is refused as stale',
+      `set_replenishment_source: the second of two first sources was answered "${errorOf(second)}"` +
+        (first.status === 0 ? '' : `; the first failed too: ${errorOf(first)}`));
   }
 
   // And the ledger's rules again, over everything the probes above posted through the

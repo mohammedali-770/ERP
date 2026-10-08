@@ -110,6 +110,11 @@ cut-off.
   the manager of the new source sets them from then on. When the source is cleared, its
   pars stay and can only be cleared, organisation-wide; none can be set until the item
   has a source again.
+- **The capability is asked at the branch too.** A par is for a branch, so
+  `ordering.par_levels` must admit new work at the branch as well as where the par is set
+  from. A branch where it is withdrawn, read-only or hidden takes no new par, and a
+  branch's pars are not read from anywhere while it is hidden there. Without this, a
+  pilot could not name the branches it covers (found in review).
 
 Each write route also asks the reads its history asks, so whoever writes can read the
 history back to confirm a retry (ADR-0031 §3).
@@ -127,9 +132,12 @@ history back to confirm a retry (ADR-0031 §3).
      named, open under its share lock, a warehouse or factory, and of the item's brand.
      Clearing is not new work, so a retired item's source can be cleared.
    - A cut-off: the facility is named, open, and a warehouse or factory.
-   - A par: the branch is named, open and a branch. A branch of another brand than the
-     facility the par is set from answers as a missing one. The pack is found through
-     the branch's brand, so another brand's answers as missing too (ADR-0012). For a set,
+   - A par: the branch is named; then, when the par is set from a facility, of that
+     facility's brand, or it answers as a missing one before anything else is said of
+     it: checked later, another brand's warehouse answered "is a warehouse" and its closed
+     branch "is closed" (found in review). Then it is open, a branch, and one the
+     capability admits new work at (§4). The pack is found through the branch's brand, so
+     another brand's answers as missing too (ADR-0012). For a set,
      the item and the pack must be active: the pack is read again, and held, under the
      item's share lock (0022's finding; db:check races it).
 3. **A par's source.** The item's source in force is read under the source's lock, taken
@@ -144,7 +152,8 @@ history back to confirm a retry (ADR-0031 §3).
    - A par is decimal text, up to twelve digits and six places, exact to six places in
      the base unit and under 10¹², as stock's and minimums' are.
 5. **The stale check.** Each setting is locked: an advisory lock on what it is about, for
-   a first setting that has no row yet, and then its row. Its stamp is compared with the
+   a first setting that has no row yet, and then its row. Two first pars, or two first
+   sources, racing are answered stale, the second after the first (db:check races both). Its stamp is compared with the
    one the person read, which is `null` only when it has never been set. Then a setting
    unchanged is refused, a par compared in the base unit, and so is clearing one that is
    not set.
@@ -154,13 +163,20 @@ history back to confirm a retry (ADR-0031 §3).
 Module 10 dates its orders through a seam this module ships, granted to nobody, as
 module 3 shipped `erp.transfer_price_at()`:
 
-- **`erp.order_day(facility, at)`** answers the day an order to that supplying facility
-  is for, and the cut-off decision that dated it. The day is the date at the facility, in
-  its own time zone, at that moment, plus one when a cut-off is in force and the time
-  there is at or after it. The decision is the one in force, a clearing included, or
-  none when the facility has never had a cut-off.
+- **`erp.order_day(facility)`** answers, for an order placed now with that supplying
+  facility, the day it is for, the cut-off decision that dated it, and the moment it was
+  placed. The decision is the one in force, a clearing included, or none when the
+  facility has never had a cut-off.
+- **The rule** is `erp.order_day_for(moment, time zone, cut-off)`: the date at the
+  facility, in its own time zone, at that moment, plus one when there is a cut-off and
+  the time there is at or after it. It reads no table, so its arithmetic is tested at
+  stated moments; the session's own time zone changes nothing.
 - **Never a refusal.** An order after the cut-off is taken for tomorrow.
-- **Module 10 copies both values onto the order when it is first placed** (I-7) and never
+- **Now, never a stated moment.** The moment is the clock once the cut-off's lock is held,
+  as stock's "now" is (ADR-0029 §3). The first draft took a moment from its caller, but
+  the projection holds only the cut-off in force now, so an earlier moment was dated by a
+  cut-off set after it (found in review). An order is placed when it is placed.
+- **Module 10 copies all three onto the order when it is first placed** (I-7) and never
   asks again. A waiting order changed later keeps its day, and a cut-off changed later
   dates only orders placed afterwards.
 - **It takes the cut-off's lock shared,** the lock every cut-off decision takes
@@ -205,8 +221,12 @@ and writes both.
 The synthetic seed opens both at pilot. It gives the two managers par write and the
 setup read: the factory manager at the factory alone, so they set only the factory's items'
 pars; the warehouse manager organisation-wide, so they set any item's. Branch workers
-and the general manager read both.
-The accountant holds nothing here.
+and the general manager read both. The accountant holds nothing here.
+
+**Switching on.** Since a par is asked at its branch too (§4), a pilot that opens
+`ordering.par_levels` at the warehouse and the factory alone opens it at no branch: no
+par could be set or read. The switch-on must open it organisation-wide, or at every
+branch the pilot covers as well as at the supplying facilities.
 
 ### 9. Kept out, deliberately
 
@@ -238,7 +258,7 @@ The accountant holds nothing here.
   evidenced only once module 10 builds them.
 - **db-check's branch rule still checks stock decisions only.** A par at a branch is
   allowed by design; `par-levels-match-their-decisions` requires that every par is at a
-  branch.
+  branch, for an item of its brand.
 - **The edge function, screens and staff testing follow,** as for every module.
 
 ## Questions for the owner

@@ -390,10 +390,21 @@ begin
 end;
 $$;
 
--- The branch a par is for: named, open (its share lock, so a closure waits), and a branch.
--- A branch is accepted here on purpose: a par is not a stock record, and carries no business
--- day, so Q-06 is not reached (ADR-0033). Warehouses, factories and offices have no par.
-create or replace function erp.assert_par_branch(p_branch_id uuid)
+-- The branch a par is for, set from p_from (a supplying facility, or NULL for the
+-- organisation): named; of the brand of where it is set from; open (its share lock, so a
+-- closure waits); a branch; and one the capability admits new work at. A branch is accepted
+-- here on purpose: a par is not a stock record, and carries no business day, so Q-06 is not
+-- reached (ADR-0033). Warehouses, factories and offices have no par.
+--
+-- The brand fence comes before anything is said of the facility: checked after, another
+-- brand's warehouse answered "is a warehouse" and its closed branch "is closed", naming them
+-- (found in review). A facility's operating unit never changes (0019), so it is read
+-- unlocked.
+--
+-- The capability is asked here as well as where the par is set from: a par is FOR the
+-- branch, so a branch where ordering.par_levels is withdrawn, read-only or hidden takes no
+-- new par, and a pilot can name the branches it covers (found in review).
+create or replace function erp.assert_par_branch(p_branch_id uuid, p_from uuid)
 returns erp.facility
 language plpgsql
 volatile
@@ -406,11 +417,15 @@ begin
     raise exception 'a par is set for a branch: choose one'
       using errcode = 'invalid_parameter_value', constraint = 'par_level_branch_required';
   end if;
+  if p_from is not null and erp.item_facility_brand(p_branch_id) is distinct from erp.item_facility_brand(p_from) then
+    raise exception 'no facility %', p_branch_id using errcode = 'no_data_found', constraint = 'facility_exists';
+  end if;
   f := erp.assert_facility_open(p_branch_id);
   if f.facility_type <> 'branch' then
     raise exception 'facility % is a %: a par is set for a branch', f.code, f.facility_type
       using errcode = 'restrict_violation', constraint = 'par_level_at_a_branch';
   end if;
+  perform erp.assert_capability_admits('ordering.par_levels', f.facility_id);
   return f;
 end;
 $$;
@@ -514,44 +529,52 @@ $$;
 -- The seam for module 10 — owner-only, called from its own definer route
 -- ---------------------------------------------------------------------------
 
--- The day an order to a supplying facility is for (O3), and the cut-off decision that dated
--- it: the date at the facility, in its own time zone, at p_at; the next day when a cut-off is
--- in force and the time there is at or after it. The warehouse compared in a hard-coded
--- Asia/Riyadh; every facility is in Riyadh today, so the answer is the same. Never a refusal:
--- an order after the cut-off is taken for tomorrow.
+-- The rule (O3), on its own: the date at a facility, in its time zone, at a moment; the next
+-- day when there is a cut-off and the time there is at or after it. The warehouse compared in
+-- a hard-coded Asia/Riyadh; every facility is in Riyadh today, so the answer is the same.
+-- Never a refusal: an order after the cut-off is taken for tomorrow. Stable, not immutable:
+-- it reads the time-zone database.
+create or replace function erp.order_day_for(p_at timestamptz, p_tz_name text, p_cutoff time)
+returns date
+language sql
+stable
+set search_path = pg_catalog, pg_temp
+as $$
+  select (p_at at time zone p_tz_name)::date
+         + case when p_cutoff is not null and (p_at at time zone p_tz_name)::time >= p_cutoff then 1 else 0 end
+$$;
+
+-- The day an order placed NOW with a supplying facility is for, the cut-off decision that
+-- dated it, and the moment it was placed. cutoff_decision_id is the decision in force — a
+-- clearing included — or NULL when the facility has never had a cut-off.
 --
--- Module 10 copies both values onto the order when it is first placed (I-7) and never asks
+-- Module 10 copies all three onto the order when it is first placed (I-7) and never asks
 -- again, so a waiting order changed later keeps its day, and a cut-off changed later dates
--- only orders placed afterwards. cutoff_decision_id is the decision in force — a clearing
--- included — or NULL when the facility has never had a cut-off.
+-- only orders placed afterwards.
 --
 -- It takes the cut-off's lock SHARED, the lock every cut-off decision at the facility takes
 -- exclusively: an order waits for a cut-off change in flight and is dated by what it left,
--- and the change waits for orders in flight (as 0018's erp.transfer_price_at()).
-create or replace function erp.order_day(p_facility_id uuid, p_at timestamptz)
-returns table (for_date date, cutoff_decision_id uuid)
+-- and the change waits for orders in flight (as 0018's erp.transfer_price_at()). "Now" is the
+-- clock once the lock is held, as 0020's: not now(), the transaction's start, which an order
+-- that waited behind a change would be dated by, and never a moment the caller states. The
+-- projection holds only the cut-off in force now, so a stated moment was dated by a cut-off
+-- set after it (found in review).
+create or replace function erp.order_day(p_facility_id uuid)
+returns table (for_date date, cutoff_decision_id uuid, placed_at timestamptz)
 language plpgsql
 volatile
 set search_path = pg_catalog, pg_temp
 as $$
 declare
-  f       erp.facility;
-  c       erp.order_cutoff;
-  v_local timestamp;
+  f erp.facility;
+  c erp.order_cutoff;
 begin
-  if p_at is null then
-    raise exception 'an order''s day is worked out from the moment it is placed'
-      using errcode = 'invalid_parameter_value', constraint = 'order_day_moment_required';
-  end if;
   f := erp.assert_supplying_facility(p_facility_id, false);
   perform pg_advisory_xact_lock_shared(hashtextextended('erp.order_cutoff:' || f.facility_id::text, 0));
   select * into c from erp.order_cutoff x where x.facility_id = f.facility_id;
 
-  v_local := p_at at time zone f.tz_name;
-  for_date := v_local::date;
-  if c.cutoff is not null and v_local::time >= c.cutoff then
-    for_date := for_date + 1;
-  end if;
+  placed_at := clock_timestamp();
+  for_date := erp.order_day_for(placed_at, f.tz_name, c.cutoff);
   cutoff_decision_id := c.as_of_decision_id;
   return next;
 end;
@@ -826,10 +849,7 @@ begin
   perform erp.assert_permitted(p_actor_id, 'ordering.par_levels', 'read', p_facility_id);
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'read', p_facility_id);
   perform erp.assert_par_level_decision_is_new(p_decision_id);
-  b := erp.assert_par_branch(p_branch_id);
-  if p_facility_id is not null and erp.item_facility_brand(p_facility_id) is distinct from erp.item_facility_brand(b.facility_id) then
-    raise exception 'no facility %', p_branch_id using errcode = 'no_data_found', constraint = 'facility_exists';
-  end if;
+  b := erp.assert_par_branch(p_branch_id, p_facility_id);
 
   -- The brand fence first: 0012's own words for a conversion that does not exist.
   select x.* into u
@@ -910,10 +930,7 @@ begin
   perform erp.assert_permitted(p_actor_id, 'ordering.par_levels', 'read', p_facility_id);
   perform erp.assert_permitted(p_actor_id, 'inventory.items', 'read', p_facility_id);
   perform erp.assert_par_level_decision_is_new(p_decision_id);
-  b := erp.assert_par_branch(p_branch_id);
-  if p_facility_id is not null and erp.item_facility_brand(p_facility_id) is distinct from erp.item_facility_brand(b.facility_id) then
-    raise exception 'no facility %', p_branch_id using errcode = 'no_data_found', constraint = 'facility_exists';
-  end if;
+  b := erp.assert_par_branch(p_branch_id, p_facility_id);
 
   select i.* into v_item
     from erp.item i
@@ -1150,6 +1167,12 @@ begin
       raise exception 'a branch''s pars are read at the branch, or at a facility that supplies it'
         using errcode = 'invalid_parameter_value', constraint = 'par_level_read_scope';
     end if;
+  end if;
+  -- Read from a supplying facility or the organisation, the gate asked the state there; the
+  -- branch's own counts too, in assert_permitted()'s words (found in review).
+  if erp.capability_state_for('ordering.par_levels', b.facility_id) = 'hidden' then
+    raise exception 'capability % is hidden for this scope (CAP-P02)', 'ordering.par_levels'
+      using errcode = 'restrict_violation';
   end if;
   return b;
 end;
