@@ -21,15 +21,19 @@ export function useWrite(ctx: Ctx, see: () => Promise<Answer<unknown>>, onDone: 
   const hooks = useRef<WriteHooks>({ onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused });
   hooks.current = { onFailure: ctx.onFailure, see, after, onDone, recorded, settled, started: page?.started, refused: page?.refused };
   const [life] = useState(() => writeLifecycle({ setBusy, setFailure, setInDoubt }, () => hooks.current));
-  // The page is told while this form's request is in doubt, until it is settled or the form
-  // goes, and holds its other forms meanwhile (write.ts, PageHooks).
+  // The page is told while this form's request is out or in doubt, until it is answered or
+  // settled or the form goes, and holds its other forms meanwhile (write.ts, PageHooks). In
+  // doubt alone, the other form could be used while the request was still out, and unmount
+  // it before its answer was lost (found in the third review). An unanswered request turns
+  // busy into in doubt in one render, so the hold never drops between them.
   const doubt = useRef(page?.doubt);
   doubt.current = page?.doubt;
+  const active = busy || inDoubt;
   useEffect(() => {
-    if (!inDoubt) return undefined;
+    if (!active) return undefined;
     doubt.current?.(true);
     return () => doubt.current?.(false);
-  }, [inDoubt]);
+  }, [active]);
   return {
     busy,
     failure,

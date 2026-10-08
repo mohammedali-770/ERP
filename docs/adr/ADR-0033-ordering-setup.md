@@ -577,13 +577,16 @@ Three things are not shown, and the pack says which:
   page keeps the refusal and says where the par is set now.
 - **A "Saved." above a later refusal.** A refused attempt left the previous write's
   "Saved." at the top of the page. On module 9's three pages, the word on a write is now
-  cleared when the next is sent, when a value is refused before sending, and when another
-  record opens. That is optional hooks on the shared write lifecycle (write.ts,
-  `PageHooks`), tested in `write.test.ts`.
+  cleared when the next is sent, by a hook on the shared write lifecycle (write.ts,
+  `PageHooks.started`, held by `write.test.ts`). The forms that check a value before
+  sending call the same hook first, and each page's own load clears it when another record
+  opens. `ordering-setup.test.ts` holds those two.
 - **A form in doubt lost to the page's other form.** A write on the other form, or a
   refusal that reads the page again, unmounted the form whose request was in doubt, and its
-  Start over with it. A form in doubt now holds the page's other form until it is settled
-  (`PageHooks`, `doubt` and `held`).
+  Start over with it. A form whose request is out or in doubt now holds the page's other
+  form until it is answered or settled (`PageHooks`, `doubt` and `held`). Held only once in
+  doubt, the other form could still be used while the request was out (found in the third
+  review, by the real screens bundled and driven in a browser).
 - **The Arabic named the organisation with a word the picker never shows.** Module 9's
   sentences said «على مستوى المنظمة». The facility picker offers «المؤسسة كاملة», and INV-P07's
   Arabic says «على مستوى المؤسسة». Every Arabic string now says «المؤسسة», module 4's one

@@ -131,7 +131,8 @@ test('the hook carries recorded, settled and the page\'s hooks to the lifecycle,
     'without it, Start over never asks, and the page is never told');
   // A request in doubt is reported to the page until it is settled or the form goes, and a
   // form the page holds is locked as one in doubt is (found in the second review).
-  assert.match(hook, /useEffect\(\(\) => \{\s+if \(!inDoubt\) return undefined;\s+doubt\.current\?\.\(true\);\s+return \(\) => doubt\.current\?\.\(false\);\s+\}, \[inDoubt\]\);/);
+  assert.match(hook, /const active = busy \|\| inDoubt;\s+useEffect\(\(\) => \{\s+if \(!active\) return undefined;\s+doubt\.current\?\.\(true\);\s+return \(\) => doubt\.current\?\.\(false\);\s+\}, \[active\]\);/,
+    'out as well as in doubt: the other form was usable while a request was out (found in the third review)');
   assert.match(hook, /doubt\.current = page\?\.doubt;/, 'the page\'s latest, every render');
   assert.match(hook, /locked: busy \|\| inDoubt \|\| page\?\.held === true,/);
 });

@@ -89,9 +89,10 @@ export interface WriteHooks {
  *   sending calls it too (found in its review).
  * - `refused`: the route refused the request, and the form shows why. A page whose facts
  *   the refusal shows to be out of date reads them again.
- * - `doubt` and `held`: a form reports a request in doubt (useWrite), and while one is, the
- *   page's other forms are held. A write on one, or a refusal that reads the page again,
- *   unmounted the form in doubt, and Start over with it (found in the second review).
+ * - `doubt` and `held`: a form reports a request out or in doubt (useWrite), and while one
+ *   is, the page's other forms are held. A write on one, or a refusal that reads the page
+ *   again, unmounted the form in doubt, and Start over with it (found in the second review),
+ *   or the form whose request was still out (found in the third).
  */
 export interface PageHooks {
   readonly started?: () => void;
