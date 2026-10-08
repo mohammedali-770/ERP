@@ -385,3 +385,60 @@ a count, and the two races.
   "this reversal was already saved", not the receipt's or the order's words; and a record of
   an unexpected shape is read as "not there", so the form resets under new ids rather than
   unlocking the used one (found in review).
+
+## Addendum — 2026-10-07: the switch-on, drafted and held (module 8, step 6)
+
+**Not on `main`.** The migration was drafted in pull request #63, which the owner closed
+for now (2026-10-07); it is kept there, at commit `4ba55a5`, and comes back as a new pull
+request once the preconditions below hold.
+
+The migration, `20261007000500_purchase_orders_pilot_at_central_warehouse.sql`, records two
+capability decisions: `procurement.purchase_orders` and `procurement.purchase_limits`, each
+at `pilot` at the central warehouse, and nowhere else. It is drafted and held unmerged, as
+modules 5's, 6's and 7's were (closed pull requests #48, #53 and #58).
+
+**What it opens.** Organisation-wide both stay hidden: 0023 registers them with no state,
+and no state reads as hidden. `capability_state_for()` reads a facility's own state before
+the organisation's, so Purchase orders and Approval limit show only to a person working at
+the warehouse, and every route refuses anywhere else. The factory, where P1 also lets
+orders go, stays shut because nothing is recorded there; opening stock at the factory later
+would not open purchase orders.
+
+**It finds the warehouse by its code when applied,** as the other three do. Where none has
+that code, which is every local rebuild, it records nothing and warns, and the seed opens
+both for the suites (0030, c011 and c012). A code naming anything but an open warehouse is
+an error. **Two gaps module 7's review found are closed here:**
+- a state already recorded at the warehouse for either capability is refused in words,
+  where module 7's draft failed on the state row's key, unexplained;
+- the warehouse's existence is a precondition of its own (6, below), since a migration that
+  warns and records nothing still counts as applied.
+
+All of it was run on a scratch database:
+- **The rebuild** warned and recorded nothing.
+- **Applied after the seed,** with both capabilities first decided hidden
+  organisation-wide, as a real database has them: both read `pilot` at the warehouse, and
+  `hidden` at the factory and organisation-wide.
+- **The administrator** listed orders and read the limit at the warehouse, and raised an
+  order there. Each was refused at the factory, the raise as admitting no new work.
+- **Applied a second time,** it was refused, naming both states.
+- **Pointed at the factory,** it was refused.
+- `db:check` and `db:fixtures` pass with it in place.
+
+**It is held** until six things hold, named in the migration's header:
+1. the purchase-orders pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. items and suppliers are switched on organisation-wide, then stock at the same warehouse
+   (module 5's held switch-on). Every order route asks read on suppliers and items, and a
+   receipt write on stock, so opened alone purchase orders would answer nobody. Module 5's
+   held file is dated before 0023, and this one after it: when it comes back it takes a
+   fresh timestamp, and this one a later one still (Q-23). The bell is not needed: nothing
+   about an order rings it;
+4. the owner has answered the pack's thirteen questions, A and M among them, and Q-26. A
+   real database grants orders and limits to the administrator alone (0023), and nobody
+   approves an order they raised, by hand or by a limit they set: with the administrator
+   alone, every order waits for ever. A second person who may approve, and orders for the
+   warehouse manager, are permission changes, owner-approved and made on their own, before
+   this;
+5. the real warehouse code replaces the synthetic seed's;
+6. the warehouse exists where it is applied. Check that the warning is absent.

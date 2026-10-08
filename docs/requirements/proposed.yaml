@@ -781,3 +781,53 @@ requirements:
       - INV-006
       - INV-007
       - INV-P01
+
+  # ---------------------------------------------------------------------------
+  # Ordering setup: where an item comes from, when an order is for, and each branch's par
+  #
+  # Owner decisions, 2026-10-08 (ADR-0033 O1 to O5). INV-014 (F3) asks for branch
+  # replenishment by manual request, system-suggested quantities and automatic orders; it
+  # says nothing of which site supplies an item, of a cut-off, or of a par. The warehouse
+  # chose all three by an item's category and kept no history of any of them. The owner chose
+  # one supplying facility per item, one cut-off per supplying facility that moves a late
+  # order to the next day, and a par per branch per item, entered in a pack, set from the
+  # facility that supplies it. pgTAP 190 and db-check exercise them; neither is an artifact
+  # type req-lint resolves. The staff testing pack, when written, evidences them; the
+  # suggestion itself is module 10's, and proposed with it.
+  # ---------------------------------------------------------------------------
+
+  - id: "INV-P05"
+    module: "INV"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-08"
+    status: "proposed"
+    text_en: "A permitted person shall be able to set, change or clear, for an item, the one warehouse or factory of its brand that replenishes branches with it, recorded with who did it, when and why."
+    text_ar: "يجب أن يتمكن الشخص المخوَّل من تحديد المستودع أو المصنع الواحد، من العلامة التجارية للصنف، الذي يزوّد الفروع بصنف ما، أو تغييره أو إلغائه، مُسجلاً مع من فعل ذلك ومتى ولماذا."
+    relates_to:
+      - INV-014
+
+  - id: "INV-P06"
+    module: "INV"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-08"
+    status: "proposed"
+    text_en: "A permitted person shall be able to set or clear one order cut-off time for each warehouse or factory that replenishes branches, recorded with who, when and why; an order placed at or after it, in that facility's time zone, shall be for the next day and one placed before it for the same day, never refused, and the day an order is for, with the cut-off that dated it, shall be fixed when the order is first placed."
+    text_ar: "يجب أن يتمكن الشخص المخوَّل من تحديد موعد إغلاق واحد للطلبات لكل مستودع أو مصنع يزوّد الفروع أو إلغائه، مُسجلاً مع من فعل ذلك ومتى ولماذا؛ ويكون الطلب المُقدَّم عند ذلك الموعد أو بعده، بتوقيت تلك المنشأة، لليوم التالي، والمُقدَّم قبله لليوم نفسه، دون أن يُرفض أبداً، ويُثبَّت اليوم الذي يخصه الطلب، مع موعد الإغلاق الذي حدده، عند تقديم الطلب أول مرة."
+    relates_to:
+      - INV-014
+      - MFG-001
+
+  - id: "INV-P07"
+    module: "INV"
+    proposed_phase: "F1"
+    proposed_priority: "P1"
+    origin: "Owner decision, 2026-10-08"
+    status: "proposed"
+    text_en: "A permitted person shall be able to set or clear a par level for an item at a branch, the stock the branch should hold after a delivery, entered in a current pack of the item and recorded with who, when and why; it shall be set only by a person permitted at the facility that supplies the item, or organisation-wide, and a branch's own staff shall read only their own branch's par levels."
+    text_ar: "يجب أن يتمكن الشخص المخوَّل من تحديد المستوى المستهدف لصنف في فرع، وهو المخزون الذي ينبغي أن يكون لدى الفرع بعد التوريد، أو إلغائه، مُدخلاً بعبوة سارية للصنف ومُسجلاً مع من فعل ذلك ومتى ولماذا؛ ولا يحدده إلا شخص مخوَّل في المنشأة التي تزوّد الصنف، أو على مستوى المؤسسة، ولا يقرأ موظفو الفرع إلا المستويات المستهدفة لفرعهم."
+    relates_to:
+      - INV-014
+      - INV-013
+      - IAM-006

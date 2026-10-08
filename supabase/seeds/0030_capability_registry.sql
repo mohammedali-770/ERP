@@ -98,6 +98,15 @@ insert into erp.capability_decision (
   ('01936f00-0000-7000-8000-00000000c012', 'procurement.purchase_limits', null, 'pilot',
    'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
    '01936f00-0000-7000-8000-000000000900', 'administrator',
+   timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  -- ordering.setup and ordering.par_levels (0024): the same, for module 9.
+  ('01936f00-0000-7000-8000-00000000c013', 'ordering.setup', null, 'pilot',
+   'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
+   '01936f00-0000-7000-8000-000000000900', 'administrator',
+   timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00'),
+  ('01936f00-0000-7000-8000-00000000c014', 'ordering.par_levels', null, 'pilot',
+   'Synthetic: open to the suites. A real database records no decision, so the module is hidden until UAT.',
+   '01936f00-0000-7000-8000-000000000900', 'administrator',
    timestamptz '2026-09-20 00:00:00+00', timestamptz '2026-09-20 00:00:00+00');
 
 -- The projection, stamped with the decision each row was computed through (I-8).
@@ -126,4 +135,8 @@ insert into erp.capability_state (capability_key, facility_id, state, as_of_deci
   ('procurement.purchase_orders', erp.capability_org_scope(), 'pilot',
    '01936f00-0000-7000-8000-00000000c011', timestamptz '2026-09-20 00:00:00+00'),
   ('procurement.purchase_limits', erp.capability_org_scope(), 'pilot',
-   '01936f00-0000-7000-8000-00000000c012', timestamptz '2026-09-20 00:00:00+00');
+   '01936f00-0000-7000-8000-00000000c012', timestamptz '2026-09-20 00:00:00+00'),
+  ('ordering.setup',            erp.capability_org_scope(), 'pilot',
+   '01936f00-0000-7000-8000-00000000c013', timestamptz '2026-09-20 00:00:00+00'),
+  ('ordering.par_levels',       erp.capability_org_scope(), 'pilot',
+   '01936f00-0000-7000-8000-00000000c014', timestamptz '2026-09-20 00:00:00+00');

@@ -34,9 +34,9 @@ ERP is re-seeded synthetically (ADR-0021).
 |---|---|---|
 | `items.serial` | `erp.item.code` | Canonical: trimmed, upper-cased, Arabic-Indic digits folded, and unique across retired items too. The warehouse's was case-sensitive and editable while lot codes were built from it |
 | `items.name`, `description` | `name_en` / `name_ar`, `description_en` / `description_ar` | PRG-014: both languages, descriptions in pairs |
-| `items.category` (`warehouse` \| `factory`) | **Split three ways**: what the item *is* → `item_kind`; which facility replenishes branches with it → ordering setup (module 9); who handles its orders and alerts → permissions | It conflated the three, and could be flipped after stock, recipes and orders named the item |
+| `items.category` (`warehouse` \| `factory`) | **Split three ways**: what the item *is* → `item_kind`; which facility replenishes branches with it → ordering setup (module 9: `erp.replenishment_source`, [its mapping](./process-mapping-ordering-setup.md)); who handles its orders and alerts → permissions | It conflated the three, and could be flipped after stock, recipes and orders named the item |
 | `items.picture_url` (public bucket) | `picture_path` in the private `erp-menu-media` bucket, served by signed URL | 0007 makes public buckets a reviewed act; see ADR-0024's open question 6 |
-| `items.order_index`, per-category reorder | Ordering setup and branch orders (modules 9–10), per facility, saved in one call | A catalogue position is an ordering concern, not what an item is |
+| `items.order_index`, per-category reorder | Branch orders (module 10), per facility, saved in one call — module 10 shows the catalogue it orders ([ADR-0033](../adr/ADR-0033-ordering-setup.md) §9) | A catalogue position is an ordering concern, not what an item is |
 | `items.stock_level_required` | Branch orders (module 10) | Same |
 | `items.unit_price` | Item pricing (module 3), priced against a specific conversion, with history and an effective date | A price per sale unit changed meaning whenever the ratio was edited |
 | `warehouse_units.sale_unit` | `erp.item.base_unit_key` — the unit stock is held in | The warehouse already held stock in the sale unit |

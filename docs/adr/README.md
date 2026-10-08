@@ -61,3 +61,5 @@ as hard to reverse, and were surfaced during F0 architecture work.
 | [ADR-0029](./ADR-0029-stock-ledger.md) | Stock: a ledger at each warehouse and factory, posted through one seam |
 | [ADR-0030](./ADR-0030-notifications.md) | Notifications: an in-app bell, rung by the records people can open |
 | [ADR-0031](./ADR-0031-stock-alerts.md) | Stock alerts: a minimum per item at a facility, and the bell when stock falls to it |
+| [ADR-0032](./ADR-0032-purchase-orders.md) | Purchase orders and receipts: one order per receiving facility, approved above a limit by someone else, received through the stock ledger |
+| [ADR-0033](./ADR-0033-ordering-setup.md) | Ordering setup: which facility supplies an item, when it stops taking today's orders, and each branch's par |

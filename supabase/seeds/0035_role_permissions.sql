@@ -111,4 +111,21 @@ insert into erp.role_permission (role_key, capability_key, action) values
   ('general_manager',   'procurement.purchase_limits', 'read'),
   ('accountant',        'procurement.purchase_orders', 'read'),
   ('accountant',        'procurement.purchase_orders', 'approve'),
-  ('accountant',        'procurement.purchase_limits', 'read');
+  ('accountant',        'procurement.purchase_limits', 'read'),
+  -- ordering.setup and ordering.par_levels (0024). As in the warehouse (ADR-0033 O5): the
+  -- administrator sets sources and cut-offs, which 0024 grants; the managers set pars, each
+  -- asked at the facility that supplies the item, so the factory manager — scoped to FA-001 —
+  -- sets the factory's items' pars at any branch, and no other item's: the control in 190.
+  -- The warehouse manager is organisation-wide here (0015), so sets any item's. A
+  -- branch worker reads their own branch's pars and its suppliers' cut-offs, and writes
+  -- nothing. The accountant holds nothing here: the IAM-003 control.
+  ('branch_worker',     'ordering.setup',      'read'),
+  ('branch_worker',     'ordering.par_levels', 'read'),
+  ('warehouse_manager', 'ordering.setup',      'read'),
+  ('warehouse_manager', 'ordering.par_levels', 'read'),
+  ('warehouse_manager', 'ordering.par_levels', 'write'),
+  ('factory_manager',   'ordering.setup',      'read'),
+  ('factory_manager',   'ordering.par_levels', 'read'),
+  ('factory_manager',   'ordering.par_levels', 'write'),
+  ('general_manager',   'ordering.setup',      'read'),
+  ('general_manager',   'ordering.par_levels', 'read');

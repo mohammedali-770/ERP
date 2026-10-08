@@ -512,6 +512,12 @@ warehouse and factory stock only:
   it (2026-10-07):** an order's business day, and the day its number counts in, is the
   calendar date at its facility of the moment it is raised, and a receipt is a stock
   movement, dated by D3. ADR-0032's question 4 asks the owner to confirm it.
+- **The day a branch order is FOR is not its business day (2026-10-08).** Module 9's
+  `erp.order_day()` gives the day an order to a supplying facility is for: the date there,
+  plus one at or after its cut-off (ADR-0033 §6). That is the warehouse's `for_date`. The
+  order's own business day, and the day its number counts in, are still module 10's to
+  ask, with D3's answer — the calendar date at its facility of the moment it is placed —
+  as the default.
 
 The original question is kept below.
 
@@ -591,6 +597,14 @@ Its review found a sharper reason: where the warehouse does not yet exist, each 
 three warns, records nothing and still counts as applied, so it never runs again. A
 hosted project's migrations applied before module 4 has made the warehouse would lose
 every held pilot with only a warning (ADR-0031's step 6 addendum).
+
+Module 8's switch-on (2026-10-07, closed PR #63, ADR-0032's step 6 addendum) is a fourth, for purchase
+orders and their approval limit at the same warehouse, after stock's: dated after 0023, it
+too needs a later timestamp than stock's when that comes back. It makes the warehouse's
+existence a precondition of its own, and refuses in words a state already recorded there.
+Four held migrations in a fixed order, each re-dated by hand and each lost silently if
+applied before the warehouse exists, are the case for a reviewed run-time decision made
+plainly.
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
