@@ -2,7 +2,8 @@
  * The console's routes, in the URL hash as the warehouse system kept them (#items), so a
  * page survives a reload and the back button works, with no server routing to configure.
  *
- * A route names a screen and, at most, the item, supplier or facility it shows. It never
+ * A route names a screen and, at most, the item, supplier or facility it shows (a par's
+ * page names its branch and its item). It never
  * carries a person or a token, and never where someone is working: who is asking comes
  * from the session, and where they are working from the facility picker. A facility in a
  * route is the one the page SHOWS, a different thing.
@@ -39,6 +40,13 @@ export type Route =
   | { readonly screen: 'purchase_order_new' }
   | { readonly screen: 'purchase_limits' }
   | { readonly screen: 'purchase_order'; readonly purchaseOrderId: string }
+  | { readonly screen: 'replenishment_sources' }
+  | { readonly screen: 'replenishment_source'; readonly itemId: string }
+  | { readonly screen: 'order_cutoffs' }
+  | { readonly screen: 'order_cutoff'; readonly targetId: string }
+  | { readonly screen: 'par_levels' }
+  | { readonly screen: 'par_branch'; readonly branchId: string }
+  | { readonly screen: 'par_item'; readonly branchId: string; readonly itemId: string }
   | { readonly screen: 'unknown'; readonly id: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -111,6 +119,33 @@ export function parseRoute(hash: string): Route {
     if (path.length === 2 && UUID.test(id)) return { screen: 'purchase_order', purchaseOrderId: id.toLowerCase() };
     return unknown;
   }
+  // An item's source is a master's setting: the item is the one the page shows.
+  if (path[0] === 'replenishment_sources') {
+    if (path.length === 1) return { screen: 'replenishment_sources' };
+    const id = path[1]!;
+    if (path.length === 2 && UUID.test(id)) return { screen: 'replenishment_source', itemId: id.toLowerCase() };
+    return unknown;
+  }
+  // A cut-off is a supplying facility's: the facility in the route is the one the page shows.
+  if (path[0] === 'order_cutoffs') {
+    if (path.length === 1) return { screen: 'order_cutoffs' };
+    const id = path[1]!;
+    if (path.length === 2 && UUID.test(id)) return { screen: 'order_cutoff', targetId: id.toLowerCase() };
+    return unknown;
+  }
+  // A par is a branch's: the branch in the route is the one the page shows, never where the
+  // person works, which the picker says.
+  if (path[0] === 'par_levels') {
+    if (path.length === 1) return { screen: 'par_levels' };
+    const branch = path[1]!;
+    if (!UUID.test(branch)) return unknown;
+    if (path.length === 2) return { screen: 'par_branch', branchId: branch.toLowerCase() };
+    const item = path[3];
+    if (path.length === 4 && path[2] === 'items' && item !== undefined && UUID.test(item)) {
+      return { screen: 'par_item', branchId: branch.toLowerCase(), itemId: item.toLowerCase() };
+    }
+    return unknown;
+  }
   // A facility's approval limit: its own entry, read without orders (0023).
   if (path[0] === 'purchase_limits') return path.length === 1 ? { screen: 'purchase_limits' } : unknown;
   // The bell's page: the person's own, from every facility they may open.
@@ -156,6 +191,13 @@ export function formatRoute(route: Route): string {
     case 'purchase_order_new': return '#purchase_orders/new';
     case 'purchase_limits': return '#purchase_limits';
     case 'purchase_order': return `#purchase_orders/${route.purchaseOrderId}`;
+    case 'replenishment_sources': return '#replenishment_sources';
+    case 'replenishment_source': return `#replenishment_sources/${route.itemId}`;
+    case 'order_cutoffs': return '#order_cutoffs';
+    case 'order_cutoff': return `#order_cutoffs/${route.targetId}`;
+    case 'par_levels': return '#par_levels';
+    case 'par_branch': return `#par_levels/${route.branchId}`;
+    case 'par_item': return `#par_levels/${route.branchId}/items/${route.itemId}`;
     case 'unknown': return `#${route.id}`;
   }
 }
@@ -165,6 +207,9 @@ export function navIdOf(route: Route): string | null {
   if (route.screen === 'home' || route.screen === 'unknown') return null;
   if (route.screen === 'notifications') return 'notifications';
   if (route.screen === 'purchase_limits') return 'purchase_limits';
+  if (route.screen === 'replenishment_sources' || route.screen === 'replenishment_source') return 'replenishment_sources';
+  if (route.screen === 'order_cutoffs' || route.screen === 'order_cutoff') return 'order_cutoffs';
+  if (route.screen === 'par_levels' || route.screen === 'par_branch' || route.screen === 'par_item') return 'par_levels';
   if (route.screen.startsWith('purchase_')) return 'purchase_orders';
   // Before stock's: both begin `stock_`.
   if (route.screen === 'stock_alerts' || route.screen === 'stock_alert_item') return 'stock_alerts';

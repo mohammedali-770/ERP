@@ -5,6 +5,7 @@
 import type { Api, Failure, ViewerData } from './api.ts';
 import type { Lang } from './i18n.ts';
 import type { Viewer } from './navigation.ts';
+import type { OrderingRights } from './ordering-setup.ts';
 import type { PurchaseRights } from './purchase-orders.ts';
 import type { Route } from './route.ts';
 
@@ -46,6 +47,8 @@ export interface Ctx {
   readonly seesPurchaseLimits: boolean;
   /** What the person may do with orders at the facility worked at, by 0023's gates (purchase-orders.ts, purchaseRights). */
   readonly purchase: PurchaseRights;
+  /** What the person may do with sources, cut-offs and pars where they are working, by 0024's gates (ordering-setup.ts, orderingRights). */
+  readonly ordering: OrderingRights;
   /** Whether the person has a bell here (notifications.ts, bellVisible). */
   readonly seesBell: boolean;
   /** Reads the bell's unread count again, after the person has marked something read. */

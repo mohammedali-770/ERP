@@ -344,3 +344,89 @@ reachable: module 10 calls it from its own route (§6).
   at `'24:00'`, refused to the factory manager and cleared; and pars set by the factory
   manager from the factory, refused for the warehouse's items, set organisation-wide and
   cleared.
+
+## Addendum — 2026-10-08: the screens (module 9, step 3)
+
+The console reads and changes the three settings through the `ordering-setup` function.
+Nothing about the routes changed.
+
+- **Three entries, under a new Ordering group,** each shown only where every read its list
+  asks is held and nothing is hidden (navigation.ts, `alsoReads`); a typed URL meets the
+  same answer:
+  - "Item sources": read on the setup and on items;
+  - "Order cut-off times": read on the setup alone, so a branch's staff see the cut-offs
+    of the facilities that supply them;
+  - "Par levels": read on pars and on items.
+- **What is offered is 0024's gates, read where the person works** (ordering-setup.ts,
+  `orderingRights`). Nothing is offered in a preview, or where the capability admits no
+  new work.
+  - **Sources organisation-wide only,** as the masters are: 0024 asks at no facility.
+  - **A cut-off only at its own warehouse or factory, worked at,** as a purchase limit is:
+    0024 asks at the facility. Organisation-wide, the administrator reads every cut-off and
+    its history, and switches to the facility to change one.
+  - **Pars from the warehouse or factory worked at, or organisation-wide** (O5). A par
+    write states which: the facility's own id as `facility_id`, or `null`. Never at a
+    branch or an office, which supply nothing.
+- **Sources (`#replenishment_sources`)** lists every item, by code, with its source, read
+  where the person works; one facility's items alone on asking. An item's page
+  (`#replenishment_sources/{item_id}`) shows the source in force and every decision.
+  - A source is set to an open warehouse or factory of the item's brand, never the one in
+    force. The cut-off list gives each facility's state; the session's facilities give its
+    brand.
+  - A source is cleared, a retired item's included.
+- **Cut-offs (`#order_cutoffs`)** lists every warehouse and factory, by code, with its
+  cut-off as `HH:MM` and its time zone.
+  - A cut-off's page (`#order_cutoffs/{facility_id}`) opens organisation-wide or at the
+    facility itself, since 0024 reads its history there. From a branch, the list is all
+    there is.
+  - A cut-off is typed on the 24-hour clock, `9:30` or `14:00`, with Arabic-Indic digits
+    read. It is sent as `HH:MM` and checked by 0024's own pattern, so `24:00` is named
+    before sending.
+  - It is never a time input and never a moment: it is a time of day at the facility, read
+    in its own time zone, which the form names.
+- **Pars (`#par_levels`).**
+  - **The entry, at a branch,** is the branch's own pars, and no other branch is offered
+    (IAM-006).
+  - **At a warehouse or factory, or organisation-wide,** a branch is chosen first: the
+    brand's branches where the person reads facilities, otherwise the session's own.
+  - **A branch's page (`#par_levels/{branch_id}`)** lists its pars, each in the base unit
+    and as entered, with the facility that supplies the item. From a warehouse or factory,
+    it lists only the items that facility supplies.
+  - **An item is found to set a par for.** From a warehouse or factory, it is found among
+    the items that facility supplies (0024's source list, filtered to it). Organisation-wide,
+    it is any active item of the branch's brand.
+  - **An item's par page (`#par_levels/{branch_id}/items/{item_id}`)** shows the par in
+    force, the item's source and every decision. A par is typed in a current pack as
+    decimal text, more than nothing.
+  - **Set and clear are offered as 0024 would take them** (`parActions`): at a branch not
+    known to be closed, and for an item the facility worked at supplies. A set needs an
+    active item with a source, at a source not known to be closed. A clear is offered
+    organisation-wide even when the item has no source.
+- **The stamp is the history's** for all three settings, a clearing included, and never a
+  list's. It is `null` only for a setting never made.
+- **Every write goes through the shared lifecycle** (write.ts): built once, and retried as
+  sent. Start over reads the setting's history, asked as the write was, and says "already
+  saved" when the history holds the lost request's id.
+- **Every 0024 refusal a person can meet is worded** in both languages (messages.ts); the
+  retry keys are not. The Arabic uses the warehouse's own words for a cut-off (موعد
+  الإغلاق) and a par (المستوى المستهدف). It is marked for a native speaker's review with
+  the staff testing pack.
+- **Tested** by `apps/console/test/ordering-setup.test.ts` (Node), against the migration's
+  own patterns, kinds, gates, seed grants and constraints, and by a browser run against the
+  scratch database and edge. In that run:
+  - the administrator, organisation-wide, filters the sources to the factory's, sets
+    frying oil's source to the warehouse and clears it, sets the gloves' source again
+    against its clearing, and is told a clear is stale when the source moved behind the
+    page;
+  - the administrator reads both cut-offs and the factory's history, with no form; at the
+    warehouse, `24:00` is named before sending, `9:30` is kept as `09:30`, an answer cut
+    off after the database recorded `15:15` is found by Start over and reported as
+    already saved, and the cut-off is cleared;
+  - the administrator sets rice's par at the first branch, `0` named before sending, `12.5`
+    kept;
+  - the factory manager, at the factory, chooses the second branch, finds strips but not
+    chicken breast, and sets three trays, kept as 120 pieces; chicken's par is not read
+    from there; sources and the factory's own cut-off are read only;
+  - a cashier at the first branch reads its pars directly, read only, is refused the
+    second branch's in words, and opens no cut-off's page;
+  - the warehouse manager reads a branch's pars and the cut-offs in Arabic, right to left.
