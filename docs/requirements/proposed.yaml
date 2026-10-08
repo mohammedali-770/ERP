@@ -788,7 +788,7 @@ requirements:
   # Owner decisions, 2026-10-08 (ADR-0033 O1 to O5). INV-014 (F3) asks for branch
   # replenishment by manual request, system-suggested quantities and automatic orders; it
   # says nothing of which site supplies an item, of a cut-off, or of a par. The warehouse
-  # chose all three by an item's category and kept no record of any change. The owner chose
+  # chose all three by an item's category and kept no history of any of them. The owner chose
   # one supplying facility per item, one cut-off per supplying facility that moves a late
   # order to the next day, and a par per branch per item, entered in a pack, set from the
   # facility that supplies it. pgTAP 190 and db-check exercise them; neither is an artifact
@@ -802,7 +802,7 @@ requirements:
     proposed_priority: "P1"
     origin: "Owner decision, 2026-10-08"
     status: "proposed"
-    text_en: "A permitted person shall be able to set, change or clear the one warehouse or factory of the item's brand that replenishes branches with an item, recorded with who did it, when and why."
+    text_en: "A permitted person shall be able to set, change or clear, for an item, the one warehouse or factory of its brand that replenishes branches with it, recorded with who did it, when and why."
     text_ar: "يجب أن يتمكن الشخص المخوَّل من تحديد المستودع أو المصنع الواحد، من العلامة التجارية للصنف، الذي يزوّد الفروع بصنف ما، أو تغييره أو إلغائه، مُسجلاً مع من فعل ذلك ومتى ولماذا."
     relates_to:
       - INV-014

@@ -1,7 +1,9 @@
 -- Synthetic ordering setup (0024). SEC-012: no production data, masked or otherwise.
 --
 -- After 0040, whose items and packs these name, and 0070, whose warehouse and factory supply
--- the branches. Chosen so each state a source, a cut-off and a par can be in already exists:
+-- the branches. Chosen so each state a source and a par can be in already exists — set,
+-- cleared, never set — and a cut-off has a history. A cleared cut-off, and a facility with
+-- none, are made by pgTAP 190 and db-check:
 --
 --   SOURCES   set by the administrator, organisation-wide (O1). WH-001 supplies the chicken,
 --             the cola, the meal boxes, the sanitiser and the rice; FA-001 the chicken strips.

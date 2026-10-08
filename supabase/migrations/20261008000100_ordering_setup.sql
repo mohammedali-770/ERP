@@ -7,7 +7,7 @@
 -- Phase 4, module 9. The warehouse's OrderingSetup screen kept four sections. Two are here:
 -- the order cut-off times (public.order_cutoffs, one per category, overwritten in place) and
 -- the branch par levels (public.branch_par_levels, one number per branch and item, no unit,
--- cascaded away with its item). Neither kept who changed it or why. The other two are not:
+-- cascaded away with its item). Neither kept why, or any change but the last. The other two are not:
 -- module 8 already carries the approval limits (0023), and the supplier-invoice tolerance is
 -- read only by supplier-invoice matching, which is payment-adjacent and stays with frozen
 -- module 21 (CLAUDE.md §6). Written fresh here (docs/estate/process-mapping-ordering-setup.md).
@@ -21,12 +21,12 @@
 --   O1  ONE SUPPLYING FACILITY PER ITEM, a warehouse or a factory, organisation-wide, as
 --       category was. A decision, with who, when and why.
 --   O2  ONE CUT-OFF PER SUPPLYING FACILITY, a time of day read in that facility's own time
---       zone. No cut-off is a clearing, not a time.
+--       zone. To have no cut-off, it is cleared; no time of day means none.
 --   O3  AN ORDER AT OR AFTER THE CUT-OFF IS FOR THE NEXT DAY, never refused. Its day is fixed
 --       when it is first placed and kept if the waiting order is changed. 00:00 makes every
 --       order next-day. Module 10 asks erp.order_day() and copies its answer (I-7).
 --   O4  A PAR IS AN ORDER-UP-TO LEVEL per branch per item, entered in a pack and kept in the
---       item's base unit, as 0022's minimum is. Nothing is suggested or stored here: module 10
+--       item's base unit, as 0022's minimum is. No suggestion is worked out or stored here: module 10
 --       suggests the par less the on-hand figure a worker types, rounded up to whole packs.
 --       Module 7's minimum is a different thing, and unchanged.
 --   O5  AS THE WAREHOUSE: the administrator sets sources and cut-offs; a par is set by the
@@ -165,9 +165,10 @@ create table erp.par_level_decision (
   factor        numeric,
   quantity      numeric,
   -- In the item's base unit: quantity × factor, exact to six places. Empty when cleared.
-  -- More than nothing: the warehouse stored 0 as a row apart from "no par", and a 0 only made
-  -- New Order ask for the on-hand figure, which is module 10's stock_level_required now. To
-  -- have none, clear it.
+  -- More than nothing: the warehouse stored 0 as a row apart from "no par", which showed
+  -- "Par 0" and an optional on-hand field on that branch's New Order and suggested nothing.
+  -- Requiring the on-hand figure was items.stock_level_required, module 10's now. To have
+  -- none, clear it.
   par           numeric
     constraint par_level_is_valid check (par > 0 and par < 1e12 and par = round(par, 6)),
   reason        text        not null constraint par_level_reason_is_stated check (length(btrim(reason)) > 0),
@@ -628,8 +629,8 @@ end;
 $$;
 
 -- No facility supplies the item: module 10 cannot order it. Not new work, so a retired
--- item's source can still be cleared. Its pars stay, and are then set or cleared
--- organisation-wide only (erp.assert_par_set_from()).
+-- item's source can still be cleared. Its pars stay, and can then only be cleared,
+-- organisation-wide, until the item has a source again (erp.assert_par_set_from()).
 create or replace function erp.clear_replenishment_source(
   p_decision_id          uuid,
   p_item_id              uuid,

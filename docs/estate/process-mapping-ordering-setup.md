@@ -87,7 +87,7 @@ from.
 | Who sets it | admin any item; each manager their category's items, at any branch | admin; the manager of the facility that supplies the item, asked there, at any branch (O5) |
 | Who reads it | every signed-in person, every branch | a branch's own staff, their own branch; a supplying facility, the pars of what it supplies |
 | Saved | an upsert, then a separate delete: not atomic | one decision per par, atomic |
-| History | none | every decision, with who, when and why |
+| History | the last change's time and person; nothing once deleted | every decision, with who, when and why |
 
 **The suggestion.** New Order showed "Par n" and, once the worker typed what the branch
 had on hand, suggested `min(10000, max(0, ceil(par − on hand)))`. Nothing about the
@@ -113,8 +113,8 @@ unit's own pack. A par of 0 is no par.
 - **A par is entered in a pack,** and kept in the base unit too.
 - **No par of 0.** None is cleared.
 - **Every change is a decision,** with who, when and why, and its history kept.
-- **A branch reads only its own pars,** and a manager sets only the pars of what their
-  facility supplies, asked at that facility.
+- **A branch reads only its own pars,** and a manager scoped to a facility sets only the
+  pars of what it supplies, asked there.
 - **Nothing cascades.** An item is retired, never deleted, and its par stays until it is
   cleared.
 

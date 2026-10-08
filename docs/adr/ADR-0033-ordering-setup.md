@@ -24,11 +24,12 @@ process mapping sets out what each did. Five things matter here:
   category's cut-off, in a hard-coded Riyadh time, was for the next day. The day was
   fixed when the order was first saved, and an edit to a waiting order kept it. That day
   decided which day's factory production the order landed in.
-- **A par had no unit and no owner.** One number per branch and item, implicitly in the
+- **A par had no unit, and no control by branch.** One number per branch and item, implicitly in the
   sale unit, which the ERP calls the base unit. Every signed-in user could read every
   branch's. A manager could set any branch's par for their category's items. A par
   cascaded away with its item, and 0 was stored as a row apart from "no par".
-- **Nothing kept who or why.** Cut-offs and pars were overwritten in place.
+- **Nothing kept why, or any change but the last.** Cut-offs and pars were overwritten in
+  place, keeping only who changed each last, and when.
 - **Two of the four sections belong elsewhere.** Module 8 already carries the approval
   limits (ADR-0032 §4). The tolerance is read only by supplier-invoice matching, which
   decides whether an invoice may be paid.
@@ -45,7 +46,7 @@ module records what they need.
   supplies every branch with it, organisation-wide, as the category did. It is recorded
   with who, when and why, and changed by a later decision.
 - **O2 — One cut-off per supplying facility,** a time of day read in that facility's own
-  time zone. No cut-off is a clearing, not a time.
+  time zone. To have no cut-off, it is cleared; no time of day means none.
 - **O3 — Next day, fixed once placed.** An order placed at or after the cut-off is for
   the next day, never refused. Its day is fixed when it is first placed and kept if the
   waiting order is changed later. A cut-off of 00:00 makes every order next-day.
@@ -74,9 +75,10 @@ it, binding the owner too. No foreign key cascades (B-11).
 - **A par records the pack it was entered in.** The conversion is copied whole, under a
   composite key to `erp.item_unit` as 0012's seam lays out (I-7), with the quantity in
   that pack and the base quantity, exact to six places.
-- **A par is more than nothing.** In the warehouse a 0 only made New Order ask for the
-  on-hand figure, which is module 10's `stock_level_required` now. To have no par, it is
-  cleared.
+- **A par is more than nothing.** In the warehouse a par of 0 showed "Par 0" and an
+  optional on-hand field on that branch's New Order, and suggested nothing. Requiring the
+  on-hand figure was `items.stock_level_required`, per item, which module 10 carries. To
+  have no par, it is cleared.
 - **A source is a warehouse or factory of the item's brand.** A source of another brand
   would send one brand's goods from another's site (ADR-0012).
 
@@ -106,7 +108,8 @@ cut-off.
   for an item no facility supplies: it cannot be ordered.
 - **The gate moves with the source.** When an item's source moves, its pars stay, and
   the manager of the new source sets them from then on. When the source is cleared, its
-  pars are set or cleared organisation-wide only.
+  pars stay and can only be cleared, organisation-wide; none can be set until the item
+  has a source again.
 
 Each write route also asks the reads its history asks, so whoever writes can read the
 history back to confirm a retry (ADR-0031 §3).
@@ -133,7 +136,8 @@ history back to confirm a retry (ADR-0031 §3).
    shared. Every source decision about the item takes that lock exclusively. So a par
    waits for a source change in flight and is judged against what the change left, and a
    factory manager is never admitted by a source no longer in force (db:check races it).
-   It is a lock, not a row lock, because an item with no source has no row to lock.
+   It is an advisory lock, not a row lock, because an item that has never had a source
+   has no row to lock.
 4. **The value.**
    - A cut-off crosses as `'HH:MM'` text, 00:00 to 23:59, matched by one pattern and
      never parsed loosely; empty is refused, never read as none.
@@ -178,8 +182,8 @@ Every read pages, 1 to 500 rows.
   - `erp.replenishment_sources()` lists every item of the brand by code, with the
     facility that supplies it, if any. It can narrow to the items one facility supplies.
   - `erp.order_cutoffs()` lists every warehouse and factory of the brand, with its
-    cut-off as `'HH:MM'`, or none. At a branch, these are the cut-offs of the facilities
-    that supply it.
+    cut-off as `'HH:MM'`, or none. At a branch, these are the cut-offs of every
+    warehouse and factory of its brand: its suppliers, and any that supplies nothing yet.
   - Each has a history read, newest first, marking the decision in force. A cut-off's
     history is read at its own facility, as its routes are.
 - **Pars** are read at their branch, by its staff for New Order, or at a facility that
@@ -189,7 +193,8 @@ Every read pages, 1 to 500 rows.
   - `erp.par_level_history()` gives one item's decisions at a branch.
   - A branch's staff hold the read at their own branch alone, so they read no other
     branch's (IAM-006). Asking for another branch from their own is refused, as is
-    reading a par from anywhere but its branch or a supplying facility.
+    asking from an office. Asked at a warehouse or factory, a branch's pars are only
+    those of the items it supplies.
 
 ### 8. Hidden, as every module ships
 
@@ -198,7 +203,9 @@ hidden in every real database until a migration promotes them. The administrator
 and writes both.
 
 The synthetic seed opens both at pilot. It gives the two managers par write and the
-setup read, each within their scope. Branch workers and the general manager read both.
+setup read: the factory manager at FA-001 alone, so they set only the factory's items'
+pars; the warehouse manager organisation-wide, so they set any item's. Branch workers
+and the general manager read both.
 The accountant holds nothing here.
 
 ### 9. Kept out, deliberately
@@ -222,8 +229,8 @@ The accountant holds nothing here.
 
 - **Each setting has a history and an actor,** where the warehouse kept only the last
   value.
-- **A branch reads its own pars only,** and a manager sets only the pars of what their
-  facility supplies.
+- **A branch reads its own pars only,** and a manager scoped to a facility sets only
+  the pars of what it supplies.
 - **An order's day is fixed by a recorded decision,** which module 10 copies, so a
   cut-off changed later never re-dates an order.
 - **INV-015 is not met.** The suggestion uses no recorded stock, open transfers or lead
@@ -238,12 +245,13 @@ The accountant holds nothing here.
 
 1. **Should a cut-off of 00:00 be allowed?** It makes every order next-day, as in the
    warehouse. To have none, the cut-off is cleared.
-2. **A par of 0.** The warehouse stored 0 as a row apart from "no par", and it only made
-   New Order ask for the on-hand figure. Here it is refused; is that right?
+2. **A par of 0.** The warehouse stored 0 as a row apart from "no par": on that
+   branch's New Order it showed "Par 0" and an optional on-hand field. Here it is
+   refused, and no per-branch way to show that field remains; is that right?
 3. **Whose time zone dates an order:** the supplying facility's, as built, or the
    branch's? They cannot differ until a facility outside Riyadh exists.
 4. **Can a warehouse ever supply two brands?** A source must be of the item's brand
    today, so it cannot be expressed.
 5. **Who sets pars in a real database,** and who reads them? The seed's answer is the
-   managers, each from the facility that supplies the item, and the branch's own staff
-   reading.
+   managers — the factory manager from the factory alone, the warehouse manager
+   organisation-wide — and the branch's own staff reading.

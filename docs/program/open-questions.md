@@ -516,7 +516,8 @@ warehouse and factory stock only:
   `erp.order_day()` gives the day an order to a supplying facility is for: the date there,
   plus one at or after its cut-off (ADR-0033 §6). That is the warehouse's `for_date`. The
   order's own business day, and the day its number counts in, are still module 10's to
-  ask, with this answer as the default.
+  ask, with D3's answer — the calendar date at its facility of the moment it is placed —
+  as the default.
 
 The original question is kept below.
 
