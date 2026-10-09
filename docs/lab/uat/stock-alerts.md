@@ -118,7 +118,10 @@ the session's staff will meet.
   second computer will do). Both consoles reach them over the network, not at 127.0.0.1,
   so that cutting the participant's network in Part 9 cuts them off: the team sets
   `VITE_ERP_FUNCTIONS_URL` to that machine's address, and lists in `ERP_ALLOWED_ORIGINS`
-  the exact address each console's page is opened at.
+  the exact address each console's page is opened at. Each console is served as a built page
+  (`npm run build`, then `npm run preview -- --host`, in `apps/console`, with
+  `VITE_ERP_FUNCTIONS_URL` set for the build), never by the development server. When the network
+  returns, the development server's page reloads itself, and loses the change in doubt and its Retry.
 - A second computer, placed where the observer can see both screens and the participant
   cannot see the second. Its people take turns, each signing out before the next signs in.
   Where the participant acts once an entry is saved, the observer tells them when.

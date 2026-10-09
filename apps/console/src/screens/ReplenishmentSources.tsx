@@ -8,7 +8,7 @@ import {
   clearSourceBody, inForce, readAll, setSourceBody, sourceActions, sourceOptions, stampOf,
 } from '../ordering-setup.ts';
 import { formatRiyadh } from '../transfer-prices.ts';
-import type { Done } from '../write.ts';
+import type { Done, PageHooks } from '../write.ts';
 import { FailureNotice, Field, InDoubt, Loading, Notice, ReasonField } from './ui.tsx';
 import { useWrite } from './useWrite.tsx';
 
@@ -174,6 +174,8 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   const [next, setNext] = useState<string | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
+  // How many of the page's forms have a request out or in doubt.
+  const [held, setHeld] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   // True from a write's answer until the page has read what it left: the forms are not
   // offered meanwhile, as their stamp would be the one before the write.
@@ -209,6 +211,8 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     setHistory(null);
     setNext(null);
     setLoadingMore(false);
+    // Another item's page: an earlier write's word is not about this one.
+    setBanner(null);
     void load();
     return () => {
       seq.current++;
@@ -237,6 +241,9 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
     setReloading(true);
     void load();
   };
+  // A new write: the word on the last one no longer describes the page; one out or in doubt
+  // holds the other form (write.ts, PageHooks).
+  const page: PageHooks = { started: () => setBanner(null), doubt: (on) => setHeld((n) => n + (on ? 1 : -1)), held: held > 0 };
 
   if (item === null || history === null) {
     return (
@@ -286,10 +293,10 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
         : reloading ? <Loading lang={lang} /> : null}
       {actions.set && !reloading && supplying.failure === null
         ? <SetSource ctx={ctx} item={item} options={supplying.rows === null ? null
-          : sourceOptions(supplying.rows, ctx.data.facilities, item.brand_id, current?.facility_id ?? null)} stamp={stamp} onDone={afterWrite} />
+          : sourceOptions(supplying.rows, ctx.data.facilities, item.brand_id, current?.facility_id ?? null)} stamp={stamp} onDone={afterWrite} page={page} />
         : null}
       {actions.clear && !reloading && stamp !== null
-        ? <ClearSource ctx={ctx} item={item} stamp={stamp} onDone={afterWrite} /> : null}
+        ? <ClearSource ctx={ctx} item={item} stamp={stamp} onDone={afterWrite} page={page} /> : null}
 
       <h2>{t(lang, 'history')}</h2>
       {history.length === 0 ? <p className="muted">{t(lang, 'no_source_history')}</p> : (
@@ -326,8 +333,8 @@ export function SourceItem({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
  * against the stamp the page read when the button was pressed (write.ts: built once,
  * retried as sent).
  */
-function SetSource({ ctx, item, options, stamp, onDone }: {
-  ctx: Ctx; item: Item; options: readonly CutoffRow[] | null; stamp: string | null; onDone: Done;
+function SetSource({ ctx, item, options, stamp, onDone, page }: {
+  ctx: Ctx; item: Item; options: readonly CutoffRow[] | null; stamp: string | null; onDone: Done; page: PageHooks;
 }) {
   const { api, lang } = ctx;
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
@@ -341,7 +348,7 @@ function SetSource({ ctx, item, options, stamp, onDone }: {
     setIds(formIds(['decision_id'] as const));
     setSuppliedBy('');
     setReason('');
-  }, (seen) => (seen as SourceHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as SourceHistory).decisions.some((d) => d.decision_id === ids.decision_id), undefined, page);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -377,7 +384,7 @@ function SetSource({ ctx, item, options, stamp, onDone }: {
 }
 
 /** No facility will supply the item: module 10 cannot order it. Against the stamp read, as a set is. */
-function ClearSource({ ctx, item, stamp, onDone }: { ctx: Ctx; item: Item; stamp: string; onDone: Done }) {
+function ClearSource({ ctx, item, stamp, onDone, page }: { ctx: Ctx; item: Item; stamp: string; onDone: Done; page: PageHooks }) {
   const { api, lang } = ctx;
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState(() => formIds(['decision_id'] as const));
@@ -386,7 +393,7 @@ function ClearSource({ ctx, item, stamp, onDone }: { ctx: Ctx; item: Item; stamp
     setIds(formIds(['decision_id'] as const));
     setOpen(false);
     setReason('');
-  }, (seen) => (seen as SourceHistory).decisions.some((d) => d.decision_id === ids.decision_id));
+  }, (seen) => (seen as SourceHistory).decisions.some((d) => d.decision_id === ids.decision_id), undefined, page);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -396,7 +403,7 @@ function ClearSource({ ctx, item, stamp, onDone }: { ctx: Ctx; item: Item; stamp
   }
 
   if (!open) {
-    return <button type="button" className="danger" onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_source')}</button>;
+    return <button type="button" className="danger" disabled={w.locked} onClick={() => { setReason(''); setOpen(true); }}>{t(lang, 'clear_source')}</button>;
   }
   return (
     <form className="inline-form compact" onSubmit={submit}>
