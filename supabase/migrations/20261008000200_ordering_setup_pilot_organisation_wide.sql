@@ -14,36 +14,50 @@
 --      Refused, in words, when this is applied; check it read-only first (below), since a
 --      refused migration stops every migration after it.
 --   4. The owner has answered the ten questions at the head of the pack, E and J among
---      them, and Q-29: whether this comes before module 10. In a real database only the
+--      them, and Q-29 (whether this comes before module 10) and Q-30, recorded in the
+--      pack's answer column and in each question. In a real database only the
 --      administrator holds a permission on either capability (0024). Then, each
 --      owner-approved and made on its own, before this:
 --      - the permission changes the answers to E and J call for (par write for the
 --        warehouse and factory managers, the branches' reads); without them only the
 --        administrator can use what this opens;
 --      - at every facility the answer to J leaves out, its own decision on each capability
---        it is left out of: ordering.setup for item sources and cut-offs, which go
---        together, and ordering.par_levels for par levels. Opened organisation-wide, the
---        pilot reaches every facility with no decision of its own from the moment this is
---        applied, and every facility made later. No reviewed way to record such a decision
---        exists yet (Q-23): it is a further migration naming the facility by code, which
---        this then waits on, or a write to the live database.
---   5. An open warehouse or factory exists where this is applied, made through facilities
---      (module 4). Where none does, this warns, records nothing, and still counts as
---      applied, so it never runs again (the gap found in review of module 7's switch-on,
---      ADR-0031's step 6 addendum). Check the warning's absence when applying.
---   6. Neither capability has a state recorded organisation-wide where this is applied: a
---      recorded hidden counts, though it reads as no state at all. Check it read-only
---      before merging and again before applying, on every project it is pushed to (below).
+--        it is left out of: ordering.setup for item sources and cut-offs, ordering.par_levels
+--        for par levels. Hidden at a branch, no par is set for it or read, and no source or
+--        cut-off is read there; read_only takes no new par for it and leaves all of it
+--        readable. Hidden at a warehouse or factory, no cut-off is set there and no par
+--        set from there; one kept in par levels takes ordering.setup read_only instead,
+--        since its par page finds items through their sources. Whatever is decided there,
+--        a warehouse or factory can still be named as an item's source, and pars for that
+--        item set organisation-wide: 0024 asks the source routes at no facility (Q-30).
+--      Opened organisation-wide, the pilot reaches every facility with no decision of its
+--      own from the moment this is applied, and every facility made later until one is
+--      recorded there. No reviewed way to record such a decision exists yet (Q-23): it is
+--      a further migration naming the facility by code, which this then waits on, or a
+--      write to the live database.
+--   5. Where this is applied to a database not built from the seed (production), an open
+--      warehouse or factory exists there, made through facilities (module 4). Where none
+--      does, this warns, records nothing, and still counts as applied, so it never runs
+--      again (the gap found in review of module 7's switch-on, ADR-0031's step 6
+--      addendum). Check the warning's absence when applying.
+--   6. Where this is applied to a database not built from the seed, neither capability has
+--      a state recorded there organisation-wide: a recorded hidden counts, though it reads
+--      as no state at all. Check it read-only before merging and again before applying.
+--      A database built from the seed (a local stack, the staging project) always has the
+--      seed's two. There this is applied only by a rebuild, which runs it before the seed
+--      makes any facility, so it warns by design; pushed onto one already seeded, it is
+--      refused (below).
 --   7. It takes a fresh timestamp when it comes back, later than every migration merged by
 --      then, module 10's and any switch-on of module 1 included, or a hosted project would
 --      refuse it as out of order (Q-23). It is dated directly after 0024.
 --
--- Read-only checks before applying, as the owner of the database:
+-- Read-only checks, as the owner of the database, before merging and again before
+-- applying, where it is not built from the seed:
 --   3. select erp.capability_state_for('inventory.items', null);  -- enabled or pilot
 --   4. select f.code, s.capability_key, s.state from erp.capability_state s
 --        join erp.facility f on f.facility_id = s.facility_id
 --       where s.capability_key in ('ordering.setup', 'ordering.par_levels') order by 1, 2;
---                                     -- every facility the answer to J leaves out, listed
+--                       -- each facility the answer to J leaves out, in the state (4) says
 --   5. select code from erp.facility
 --       where facility_type in ('warehouse', 'factory') and status = 'open';  -- at least one
 --   6. select capability_key, state from erp.capability_state
@@ -58,10 +72,11 @@
 -- no branch. §8 also allows par levels at the supplying facilities and at each branch the
 -- pilot covers. Not taken: there, a par is neither set nor read organisation-wide, and the
 -- par of an item whose source is cleared, which only the organisation clears, could not be
--- cleared at all. capability_state_for() reads a facility's own state before the
--- organisation's, so a facility the pilot leaves out is closed by its own decision there,
--- recorded first (4), which this leaves in place. The cost: a facility made later is in
--- the pilot until a decision closes it.
+-- cleared until the item has a source again, nor ever once the item is retired.
+-- capability_state_for() reads a facility's own state before the organisation's, so a
+-- facility the pilot leaves out takes its own decision there, recorded first (4), which
+-- this leaves in place. The cost: a facility made later is in the pilot until one is
+-- recorded there.
 --
 -- A DATABASE WITH NO OPEN WAREHOUSE OR FACTORY IS NOT PROMOTED. A source and a cut-off name
 -- one; with none, there is nothing to set either to. It also keeps every local rebuild
@@ -71,7 +86,7 @@
 -- decisions, dated now() in an append-only log the seed cannot freeze, would make two
 -- builds differ (db:check). A facility of that kind that is closed does not count. No
 -- facility is named here, so no code needs replacing before merging, unlike modules 5 to
--- 8's WH-001.
+-- 8's WH-001 (a facility left out may be named elsewhere: 4).
 --
 -- A STATE ALREADY RECORDED ORGANISATION-WIDE for either capability is an error, worded,
 -- and asked first, so the warning never passes over one: this migration would otherwise

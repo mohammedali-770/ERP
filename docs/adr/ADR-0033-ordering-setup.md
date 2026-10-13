@@ -625,16 +625,29 @@ pull requests #48, #53, #58 and #63).
 - §8 also allows par levels at the supplying facilities and at each branch the pilot
   covers. Not taken: there, a par is neither set nor read organisation-wide, and the par of
   an item whose source is cleared, which only the organisation clears (§4), could not be
-  cleared at all.
-- `capability_state_for()` reads a facility's own state before the organisation's, so a
-  facility the pilot leaves out is closed by its own decision there, recorded before this
-  is applied (precondition 4), and this leaves it in place. The pack's Part 11 shows a
-  branch closed so, read only and then hidden. The cost: a facility made later is in the
-  pilot until a decision closes it.
+  cleared until the item has a source again, nor ever once the item is retired.
 - Opened organisation-wide, the pilot reaches only those who hold a permission on it. In
   a real database that is the administrator alone (0024). Any permission changes the
   owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
   made on their own, before this: otherwise only the administrator can use what it opens.
+
+**What leaving a facility out does.** `capability_state_for()` reads a facility's own
+state before the organisation's, so a facility the pilot leaves out takes its own decision
+there, on each capability it is left out of, recorded first (precondition 4). This leaves
+it in place, and a facility made later is in the pilot until one is recorded there.
+- **At a branch,** `hidden` closes everything: no par is set for it or read, and no source
+  or cut-off is read there. `read_only` takes no new par for it and leaves all of it
+  readable. The pack's Part 11 shows both.
+- **At a warehouse or factory,** `hidden` closes its cut-off and the pars set from there.
+  One kept in par levels takes `ordering.setup` at `read_only` instead, since its par page
+  finds items through their sources.
+- **No decision at a warehouse or factory keeps it from being named as an item's source,**
+  or pars for that item from being set organisation-wide: 0024 asks the source routes at
+  no facility. With `ordering.setup` hidden at the factory, the administrator still made it
+  an item's source on a scratch database. Keeping one out of sources is the
+  administrator's practice until the owner answers Q-30.
+- No reviewed way to record such a decision exists yet (Q-23). It is a further migration
+  naming the facility by code, which this then waits on, or a write to the live database.
 
 **It is anchored on an open warehouse or factory, not on a facility's code.**
 - A source and a cut-off each name one, so with none there is nothing to set.
@@ -645,22 +658,24 @@ pull requests #48, #53, #58 and #63).
   also make two builds differ, which `db:check` refuses.
 - A closed warehouse or factory does not count.
 - No facility is named in it, so no code needs replacing before it is merged, unlike
-  modules 5 to 8's `WH-001`.
+  modules 5 to 8's `WH-001`; a facility left out may be named elsewhere.
 
 **Two refusals, in words.** Either stops every migration after it, so the header gives
 the read-only query that checks each one first.
 - **A state already recorded organisation-wide** for either capability, naming each state
   recorded. A recorded `hidden` counts, though it reads as no state at all. It is asked
   first, so the warning never passes over one. No route removes a state, so the refusal
-  stands until something changes. A database built from the seed and then migrated
-  forward has the seed's: a local stack, or the staging project once seeded
-  ([`supabase-deployment.md`](../program/supabase-deployment.md) §5). Its hint says to
-  rebuild that database, which runs migrations before the seed. Anywhere else, the file
-  is withdrawn by a pull request.
+  stands until something changes. A database built from the seed (a local stack, the
+  staging project, [`supabase-deployment.md`](../program/supabase-deployment.md) §5)
+  always has the seed's two. There the file is applied only by a rebuild, which runs it
+  before the seed and so warns by design; pushed onto one already seeded, it is refused,
+  and its hint says to rebuild. Anywhere else, the file is withdrawn by a pull request.
+  Hence preconditions 5 and 6 speak of a database not built from the seed: production.
 - **Items not open organisation-wide.** Every source and par route asks read on items.
-  Hidden, sources and pars would answer nobody; read-only or withdrawn, items take no new
-  work, and ordering setup is not opened over them. So any state but `enabled` or `pilot`
-  organisation-wide is refused, after the facility check, so a rebuild still only warns.
+  Hidden organisation-wide, no source can be set and nothing is read organisation-wide;
+  read-only or withdrawn, items take no new work. Ordering setup is not opened over items
+  that are not open, so any state but `enabled` or `pilot` organisation-wide is refused,
+  after the facility check, so a rebuild still only warns.
 
 All of it was run on a scratch database:
 - **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
@@ -684,24 +699,31 @@ All of it was run on a scratch database:
 - **With par levels first decided `hidden`, or `read_only`, at a branch,** par levels kept
   that state there and read `pilot` everywhere else; item sources and cut-offs read
   `pilot` at that branch too.
+- **With both capabilities first decided `hidden` at the factory,** the administrator
+  still named it an item's source.
 - **The header's four read-only checks** ran as written.
 
-**Found in its two reviews, before it was opened:**
+**Found in its three reviews, before it was opened.** Each round's findings were put to
+three refuters, and only those upheld were fixed:
 - the file's re-dating, which modules 7's and 8's headers state and Q-23 records for all
   four (precondition 7);
-- the warning, which said both stayed hidden where one was already open;
-- a refusal whose advice did not unblock anything, now a hint for a database built from
-  the seed and for anywhere else, with no state recorded a precondition of its own (6);
-- items, a precondition that could be refused in words when applied and was not;
+- the warning, which said both stayed hidden where one was already open, and where a
+  facility's own state could be open;
+- a refusal whose advice did not unblock anything. It is now a hint for a database built
+  from the seed and for anywhere else, and no state recorded is a precondition of its own
+  (6), for production, which a seeded staging project could never meet;
+- items: a precondition that could be refused in words when applied and was not, and a
+  stated reason that was false for read-only and withdrawn;
 - the module 10 question, put as the pack's J, which asks only where and for whom: it is
   now Q-29;
-- the facilities a pilot leaves out, which nothing said to close first, and for par
-  levels alone where item sources and cut-offs reach a facility too. The pack's J now
-  says how the switch-on is drafted, and its setup no longer says a branch is left out by
-  migration;
-- §8's other option, and why it is not taken;
+- the facilities a pilot leaves out, which nothing said to close first, then which were
+  said to be closed by a decision that does not keep a warehouse or factory out of item
+  sources: what a decision closes at each kind of facility is now stated, and the gap is
+  Q-30. The pack's J says how the switch-on is drafted, and its setup no longer says a
+  branch is left out by migration;
+- §8's other option, why it is not taken, and the reason first overstated;
 - the permission changes, owner-approved and made first, in the header and here alike;
-- read-only checks for preconditions 3 to 6, where the header had said only to check.
+- read-only queries for preconditions 3 to 6.
 
 **It is held** until seven things hold, named in the migration's header:
 1. the ordering-setup pack is signed by staff;
@@ -709,15 +731,13 @@ All of it was run on a scratch database:
    the merging PR);
 3. items are open organisation-wide (module 1, whose switch-on is still to be drafted).
    Stock, the bell and purchase orders are not needed: nothing here reads them;
-4. the owner has answered the pack's ten questions, E and J among them, and Q-29. Then,
-   each owner-approved and made first: the permission changes the answers call for, and
-   at every facility the answer to J leaves out, its own decision on each capability it
-   is left out of. No reviewed way to record such a decision exists yet (Q-23): it is a
-   further migration naming the facility by code, which this then waits on, or a write
-   to the live database;
-5. an open warehouse or factory exists where it is applied. Check that the warning is
-   absent;
-6. neither capability has a state recorded organisation-wide where it is applied, checked
-   read-only before merging and again before applying, on every project it is pushed to;
+4. the owner has answered the pack's ten questions, E and J among them, Q-29 and Q-30.
+   Then, each owner-approved and made first: the permission changes the answers call
+   for, and at every facility the answer to J leaves out, its own decision on each
+   capability it is left out of, as above;
+5. in production, an open warehouse or factory exists where it is applied. Check that the
+   warning is absent;
+6. in production, neither capability has a state recorded organisation-wide, checked
+   read-only before merging and again before applying;
 7. it takes a fresh timestamp, later than every migration merged by then, module 10's and
    any switch-on of module 1 included (Q-23). It is dated directly after 0024.
