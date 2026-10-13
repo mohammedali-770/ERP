@@ -828,8 +828,8 @@ the administrator made the factory an item's source. Module 10 would route that 
 orders there.
 
 Options:
-- Keep it: the administrator does not name a facility the pilot leaves out, and the
-  merging PR says so.
+- Keep it: the administrator names no facility where `ordering.setup` is hidden as an
+  item's source, and the merging PR says so.
 - Have the source routes refuse, in words, a facility where `ordering.setup` is hidden: a
   new migration, since 0024 is merged, which the switch-on then waits on. Not one where it
   is read-only: a warehouse or factory kept in par levels takes `ordering.setup` read-only,

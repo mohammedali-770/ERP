@@ -631,8 +631,9 @@ pull requests #48, #53, #58 and #63).
   owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
   made on their own, before this: otherwise only the administrator can use what it opens.
   A manager who sets pars from their facility needs par levels read and write, with the
-  setup read and items read, as the seed gives them, since the par page finds items
-  through their sources.
+  setup, items and facilities reads, as the seed gives them: the par page finds items
+  through their sources, and chooses a branch through facilities, which a manager scoped
+  to their facility reads only where facilities are switched on (module 4).
 
 **What leaving a facility out does.** `capability_state_for()` reads a facility's own
 state before the organisation's, so a facility the pilot leaves out takes its own decision
@@ -648,14 +649,16 @@ it in place, and a facility made later is in the pilot until one is recorded the
   cut-offs read there, and `ordering.par_levels` the pars set from and read there.
   `hidden`, nothing is set, cleared or read under it, though a cut-off already set stays
   in force: it is listed elsewhere, and `erp.order_day()` asks no capability. `read_only`
-  leaves it readable with nothing set. One left out of item sources and cut-offs but kept
-  in par levels takes `ordering.setup` at `read_only`, not `hidden`, since its par page
-  finds items through their sources.
+  leaves it readable with nothing set. One kept in par levels but left out of cut-offs
+  takes `ordering.setup` at `read_only`, not `hidden`: its par page finds items through
+  their sources, and it remains the named source of each item it sets pars for, since a
+  facility sets pars only for items it supplies.
 - **No decision at a warehouse or factory keeps it from being named as an item's source,**
   or pars for that item from being set organisation-wide: 0024 asks the source routes at
   no facility. With `ordering.setup` hidden at the factory, the administrator still made it
-  an item's source on a scratch database. Keeping one out of sources is the
-  administrator's practice, unless the owner's answer to Q-30 changes the source routes.
+  an item's source on a scratch database. Keeping one where `ordering.setup` is hidden out
+  of sources is the administrator's practice, which the merging PR states, unless the
+  owner's answer to Q-30 changes the source routes.
 - No reviewed way to record such a decision exists yet (Q-23). It is a further migration
   naming the facility by code, which this then waits on, or a write to the live database.
 
@@ -716,10 +719,11 @@ All of it was run on a scratch database:
   still named it an item's source.
 - **The header's four read-only checks** ran as written.
 
-**Found in its reviews, before it was opened.** Four rounds: two independent reviewers of
-the draft, then three that checked each earlier fix and reviewed the change afresh, every
+**Found in its reviews, before it was opened.** Six rounds: two independent reviewers of
+the draft, then five that checked each earlier fix and reviewed the change afresh, every
 new finding put to three refuters. In the fourth, some refuters did not run, and their
-findings were judged against the sources by hand. The commits record each round. In
+findings were judged against the sources by hand; the sixth reported only what would
+mislead a reader or break. The commits record each round. In
 substance:
 - the file's re-dating, which modules 7's and 8's headers state and Q-23 records for all
   four (precondition 7);
@@ -742,7 +746,10 @@ substance:
   out by migration or that `read_only` is how a pilot leaves one out;
 - §8's other option, why it is not taken, and that reason twice overstated;
 - the permission changes, owner-approved and made first, in the header and here alike,
-  and what a manager needs to set pars from their facility, par read first left out;
+  and what a manager needs to set pars from their facility, par read and then the
+  facilities read first left out;
+- a warehouse or factory "left out of item sources but kept in par levels", which cannot
+  be: it sets pars only for items it supplies. It is now one left out of cut-offs;
 - read-only queries for preconditions 3 to 6, and that the console cannot check 6.
 
 **It is held** until seven things hold, named in the migration's header:

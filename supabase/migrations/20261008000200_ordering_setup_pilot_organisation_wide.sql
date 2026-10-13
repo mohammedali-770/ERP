@@ -4,7 +4,7 @@
 -- HELD UNMERGED until every one of these holds, and the pull request that merges it names
 -- who signed 1 and 2, and when (Q-23: nothing yet enforces the sign-offs, so the PR does),
 -- and, where the answer to Q-30 keeps today's source routes, says that the administrator
--- names no facility the pilot leaves out as an item's source:
+-- names no facility where ordering.setup is hidden as an item's source:
 --
 --   1. The ordering-setup staff testing pack (docs/lab/uat/ordering-setup.md) is run by real
 --      staff and signed.
@@ -24,9 +24,10 @@
 --      database only the administrator holds a permission on either capability (0024).
 --      Then, each owner-approved and made on its own, before this:
 --      - the permission changes the answers to E and J call for (for the warehouse and
---        factory managers, par levels read and write, with the setup read and items read,
---        as the seed gives them; the branches' reads); without them only the administrator
---        can use what this opens;
+--        factory managers, par levels read and write, with the setup, items and facilities
+--        reads, as the seed gives them; the branches' reads); without them only the
+--        administrator can use what this opens. A manager scoped to their facility chooses
+--        a branch through facilities, so facilities are switched on there too (module 4);
 --      - at every facility the answer to J leaves out, its own decision on each capability
 --        it is left out of. At a branch, both hidden closes everything there: no par is
 --        set, cleared or read for it, and nothing is read there; read_only leaves all of
@@ -35,9 +36,10 @@
 --        At a warehouse or factory, ordering.setup governs its cut-off and the sources and
 --        cut-offs read there, and ordering.par_levels the pars set from and read there:
 --        hidden, nothing is set, cleared or read under it, though a cut-off already set
---        stays in force; read_only leaves it readable and nothing set. One left out of
---        item sources and cut-offs but kept in par levels takes ordering.setup read_only,
---        not hidden, since its par page finds items through their sources.
+--        stays in force; read_only leaves it readable and nothing set. One kept in par
+--        levels but left out of cut-offs takes ordering.setup read_only, not hidden: its
+--        par page finds items through their sources, and it remains the named source of
+--        each item it sets pars for. Only hidden on both leaves it out of all but that.
 --        Whatever is decided there, a warehouse or factory can still be named as an item's
 --        source, and pars for that item set organisation-wide: 0024 asks the source routes
 --        at no facility (Q-30).
