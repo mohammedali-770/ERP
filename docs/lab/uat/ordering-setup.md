@@ -99,7 +99,7 @@ ones the session's staff will meet.
 | G | A changed cut-off takes effect at once, and an order already placed keeps its day. Should a change be scheduled ahead, from a date, as a transfer price can be? | At once | |
 | H | A cut-off is changed only while working at its facility (3.3). Is having to switch there right, or should the administrator change any from the whole organisation? | Switch to the facility | |
 | I | O5 says a branch's staff read their suppliers' cut-offs. The console shows them every warehouse's and factory's cut-off of their brand, and every item's source, those that supply them nothing included (ADR-0033 §7). The test data cannot show the difference: its warehouse and its factory both supply the first branch. Should they see only their own suppliers'? | Every one of their brand's | |
-| J | Where, and for which roles, are item sources, cut-offs and par levels switched on? | The test data opens them everywhere. A real database shows no Ordering entries until they are switched on, and then only to the administrator. Par levels must be switched on at every branch the pilot covers, as well as at the warehouse and the factory, or no par can be set there (Part 11) | |
+| J | Where, and for which roles, are item sources, cut-offs and par levels switched on? | The test data opens them everywhere. A real database shows no Ordering entries until they are switched on, and then only to the administrator. The switch-on is drafted organisation-wide: every warehouse, factory and branch is in the pilot, and so is one made later, unless the answer leaves it out. Each one left out is closed first by its own decision there, item sources and cut-offs together, par levels on their own (Part 11). Par levels must be on at every branch the pilot covers, as well as at the warehouse and the factory, or no par can be set there | |
 
 ## Setup — the team, before the participants arrive
 
@@ -134,10 +134,10 @@ ones the session's staff will meet.
   cannot see the second. Its people take turns, each signing out before the next signs in.
   Where the participant acts once a change is saved, the observer tells them when.
 - In Part 11 the team changes the test database three times, between tasks, as a pilot
-  would by migration: par levels first take no changes at the second branch, are then not
-  switched on there, and are switched back on before Part 12. The team prepares all three
-  statements beforehand, and the observer tells the factory manager when each of the first
-  two is done.
+  would by its own decision at that branch: par levels first take no changes at the
+  second branch, are then not switched on there, and are switched back on before Part 12.
+  The team prepares all three statements beforehand, and the observer tells the factory
+  manager when each of the first two is done.
 - Who made each change: a history names the person signed in; anyone else is shown by a
   short code, and every person in the test data has the same one (Q-25).
 - Where a change is refused, the console's own sentence is what the participant is judged

@@ -623,13 +623,14 @@ pull requests #48, #53, #58 and #63).
   (§4, §8), so a pilot at the warehouse and the factory alone would open pars at no
   branch.
 - §8 also allows par levels at the supplying facilities and at each branch the pilot
-  covers. Not taken: a par set organisation-wide asks the capability at no facility, and
-  would be refused. Every facility named in the migration would also be a code to replace
-  before merging, as modules 5 to 8's `WH-001` is.
-- `capability_state_for()` reads a facility's own state before the organisation's. A
-  branch the pilot leaves out is closed by its own decision there, recorded before this is
-  applied (precondition 4), and this leaves it in place. The pack's Part 11 shows such a
-  branch, read only and then hidden.
+  covers. Not taken: there, a par is neither set nor read organisation-wide, and the par of
+  an item whose source is cleared, which only the organisation clears (§4), could not be
+  cleared at all.
+- `capability_state_for()` reads a facility's own state before the organisation's, so a
+  facility the pilot leaves out is closed by its own decision there, recorded before this
+  is applied (precondition 4), and this leaves it in place. The pack's Part 11 shows a
+  branch closed so, read only and then hidden. The cost: a facility made later is in the
+  pilot until a decision closes it.
 - Opened organisation-wide, the pilot reaches only those who hold a permission on it. In
   a real database that is the administrator alone (0024). Any permission changes the
   owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
@@ -643,20 +644,23 @@ pull requests #48, #53, #58 and #63).
   seed's. Its decisions, dated `now()` in an append-only log the seed cannot freeze, would
   also make two builds differ, which `db:check` refuses.
 - A closed warehouse or factory does not count.
-- No facility code is written into it, so none needs replacing with the real one before
-  it is merged, as modules 5 to 8's `WH-001` does.
+- No facility is named in it, so no code needs replacing before it is merged, unlike
+  modules 5 to 8's `WH-001`.
 
-**Two refusals, in words.**
+**Two refusals, in words.** Either stops every migration after it, so the header gives
+the read-only query that checks each one first.
 - **A state already recorded organisation-wide** for either capability, naming each state
-  recorded. It is asked first, so the warning never says both stay hidden while one is
-  open. A local stack built from the seed always has both, so one migrated forward with
-  this file stops there. Its hint says to rebuild locally, and anywhere else to withdraw
-  the file by a pull request, since a refused migration stops every one after it. Hence
-  precondition 6, checked before merging.
-- **Items not open organisation-wide.** Every source and par route asks read on items, so
-  opened before them, sources and pars would answer nobody. Items in any state but
-  `enabled` or `pilot` organisation-wide is refused, after the facility check, so a
-  rebuild still only warns.
+  recorded. A recorded `hidden` counts, though it reads as no state at all. It is asked
+  first, so the warning never passes over one. No route removes a state, so the refusal
+  stands until something changes. A database built from the seed and then migrated
+  forward has the seed's: a local stack, or the staging project once seeded
+  ([`supabase-deployment.md`](../program/supabase-deployment.md) §5). Its hint says to
+  rebuild that database, which runs migrations before the seed. Anywhere else, the file
+  is withdrawn by a pull request.
+- **Items not open organisation-wide.** Every source and par route asks read on items.
+  Hidden, sources and pars would answer nobody; read-only or withdrawn, items take no new
+  work, and ordering setup is not opened over them. So any state but `enabled` or `pilot`
+  organisation-wide is refused, after the facility check, so a rebuild still only warns.
 
 All of it was run on a scratch database:
 - **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
@@ -680,33 +684,40 @@ All of it was run on a scratch database:
 - **With par levels first decided `hidden`, or `read_only`, at a branch,** par levels kept
   that state there and read `pilot` everywhere else; item sources and cut-offs read
   `pilot` at that branch too.
+- **The header's four read-only checks** ran as written.
 
-**Found in its review, before it was opened:**
-- the file's re-dating, which every earlier held switch-on states (precondition 7);
+**Found in its two reviews, before it was opened:**
+- the file's re-dating, which modules 7's and 8's headers state and Q-23 records for all
+  four (precondition 7);
 - the warning, which said both stayed hidden where one was already open;
-- a refusal whose hint did not unblock anything, now worded for a local stack and for
-  anywhere else;
-- items, a precondition that could be checked when applied and was not;
-- the module 10 question, put as the pack's J, which asks only where and for whom;
-- the branches a pilot leaves out, which nothing said to close first.
+- a refusal whose advice did not unblock anything, now a hint for a database built from
+  the seed and for anywhere else, with no state recorded a precondition of its own (6);
+- items, a precondition that could be refused in words when applied and was not;
+- the module 10 question, put as the pack's J, which asks only where and for whom: it is
+  now Q-29;
+- the facilities a pilot leaves out, which nothing said to close first, and for par
+  levels alone where item sources and cut-offs reach a facility too. The pack's J now
+  says how the switch-on is drafted, and its setup no longer says a branch is left out by
+  migration;
+- §8's other option, and why it is not taken;
+- the permission changes, owner-approved and made first, in the header and here alike;
+- read-only checks for preconditions 3 to 6, where the header had said only to check.
 
 **It is held** until seven things hold, named in the migration's header:
 1. the ordering-setup pack is signed by staff;
 2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
    the merging PR);
-3. items are switched on organisation-wide (module 1, whose switch-on is still to be
-   drafted). Stock, the bell and purchase orders are not needed: nothing here reads them.
-   Unlike modules 6 to 8's, this file waits on no other held one. Checked when applied;
-4. the owner has answered the pack's ten questions, E and J among them, and has said,
-   though no question in the pack asks it, whether this comes before module 10: until
-   module 10 places orders, nothing reads a source, a cut-off or a par, and switching on
-   early only lets them be entered ahead. The permission changes the answers call for are
-   made first, and every branch the answer to J leaves out has its own decision on par
-   levels recorded there first, each owner-approved;
+3. items are open organisation-wide (module 1, whose switch-on is still to be drafted).
+   Stock, the bell and purchase orders are not needed: nothing here reads them;
+4. the owner has answered the pack's ten questions, E and J among them, and Q-29. Then,
+   each owner-approved and made first: the permission changes the answers call for, and
+   at every facility the answer to J leaves out, its own decision on each capability it
+   is left out of. No reviewed way to record such a decision exists yet (Q-23): it is a
+   further migration naming the facility by code, which this then waits on, or a write
+   to the live database;
 5. an open warehouse or factory exists where it is applied. Check that the warning is
    absent;
 6. neither capability has a state recorded organisation-wide where it is applied, checked
-   read-only before merging;
+   read-only before merging and again before applying, on every project it is pushed to;
 7. it takes a fresh timestamp, later than every migration merged by then, module 10's and
-   any switch-on of module 1 included (Q-23). Dated `20261008000200`, it follows only
-   0024.
+   any switch-on of module 1 included (Q-23). It is dated directly after 0024.

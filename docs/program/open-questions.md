@@ -614,14 +614,21 @@ warehouse or factory, so it records nothing, with a warning, where no open one e
 every rebuild is such a place. Recorded during a rebuild, it would collide with the seed's
 states for the suites, and its decisions, dated `now()` in an append-only log, would make
 two builds differ. So even a promotion that names no facility is lost with only a warning
-if applied too early. It waits on no other held migration, only on items being opened
-organisation-wide, which no drafted migration yet does, and which it checks when applied.
-Dated after 0024 and drafted five days later, it too takes a fresh timestamp when it comes
-back, later than module 10's and any switch-on of module 1 merged first. And
-organisation-wide it meets a state of its own kind wherever one was ever recorded, the
-seed's on every local stack included. No route removes a state, so its worded refusal
-stops every later migration until the file is withdrawn; that nothing is recorded there
-is a precondition, checked read-only before merging.
+if applied too early. It refuses in words where items are not open organisation-wide.
+Dated directly after 0024, it too takes a fresh timestamp when it comes back, later than
+every migration merged by then.
+
+It sharpens this question twice. **Its scope is made by run-time decisions:** opened
+organisation-wide, the pilot reaches every facility with no decision of its own, so each
+facility the owner leaves out is closed by a decision recorded there first, owner-approved.
+No reviewed way to record one exists: it is a further migration naming the facility by code,
+held like this one, which this then waits on, or a write to the live database. **And it
+meets a state of its own kind wherever one was ever recorded organisation-wide.** No route
+removes a state, so its worded refusal stands until something changes. A database built
+from the seed and then migrated forward has the seed's: there the remedy is a rebuild, which
+runs migrations before the seed. Anywhere else the file is withdrawn. That nothing is
+recorded there is a precondition, checked read-only before merging and again before
+applying.
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
@@ -774,6 +781,29 @@ Options:
   now does.
 
 Related: ADR-0024, ADR-0033.
+
+---
+
+## Q-29 — Is ordering setup switched on before branch orders?
+
+**Decides:** Product Owner, with Operations · **Expected decision:** before module 9's
+switch-on is applied
+
+Found 2026-10-13 in review of module 9's held switch-on (ADR-0033's step 6 addendum). Item
+sources, cut-offs and par levels are settings: until module 10 places orders, nothing acts
+on them. A par set now is shown on its own pages and nowhere else, and no order is yet
+dated by a cut-off. The pack cannot evidence the day an order is for, which module 10
+builds, and none of its ten questions asks when the module is switched on. The draft first
+put this to the owner as part of the pack's J, which asks only where and for whom.
+
+Options:
+- Before module 10: staff enter sources, cut-offs and pars ahead, and module 10 finds them
+  in place. They are entered without being used, and may have changed by the time an
+  order reads them.
+- With module 10: one switch-on, the settings entered when an order first needs them, and
+  module 10's own staff testing exercises them both.
+
+Related: INV-014, INV-P05, INV-P06, INV-P07, ADR-0033.
 
 ---
 

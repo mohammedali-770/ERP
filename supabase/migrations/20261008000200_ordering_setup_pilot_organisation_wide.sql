@@ -8,32 +8,47 @@
 --      staff and signed.
 --   2. Operations has signed off the ordering-setup process mapping
 --      (docs/estate/process-mapping-ordering-setup.md), as MFG-012 asks.
---   3. Items are open organisation-wide first (module 1). Every source and par route asks
---      read on inventory.items; only the cut-off routes do not (0024). Opened alone, item
---      sources and par levels would answer nobody. Stock, the bell and purchase orders are
---      not needed: nothing here reads them. Checked when this is applied: items in any
---      state but enabled or pilot organisation-wide is refused, in words.
+--   3. Items are open (enabled or pilot) organisation-wide first (module 1). Every source
+--      and par route asks read on inventory.items; only the cut-off routes do not (0024).
+--      Stock, the bell and purchase orders are not needed: nothing here reads them.
+--      Refused, in words, when this is applied; check it read-only first (below), since a
+--      refused migration stops every migration after it.
 --   4. The owner has answered the ten questions at the head of the pack, E and J among
---      them, and has said, though no question in the pack asks it, whether this comes
---      before module 10: until module 10 places orders, nothing reads a source, a cut-off
---      or a par, and switching on early only lets them be entered ahead. In a real
---      database only the administrator holds a permission on either capability (0024).
---      Any permission changes the answers to E and J call for (par write for the warehouse
---      and factory managers, the branches' reads) are owner-approved and made on their
---      own, before this: otherwise only the administrator can use what it opens. And
---      every branch the answer to J leaves out has its own decision on par levels recorded
---      there first, also owner-approved: opened organisation-wide, the pilot reaches every
---      branch that has none from the moment this is applied.
+--      them, and Q-29: whether this comes before module 10. In a real database only the
+--      administrator holds a permission on either capability (0024). Then, each
+--      owner-approved and made on its own, before this:
+--      - the permission changes the answers to E and J call for (par write for the
+--        warehouse and factory managers, the branches' reads); without them only the
+--        administrator can use what this opens;
+--      - at every facility the answer to J leaves out, its own decision on each capability
+--        it is left out of: ordering.setup for item sources and cut-offs, which go
+--        together, and ordering.par_levels for par levels. Opened organisation-wide, the
+--        pilot reaches every facility with no decision of its own from the moment this is
+--        applied, and every facility made later. No reviewed way to record such a decision
+--        exists yet (Q-23): it is a further migration naming the facility by code, which
+--        this then waits on, or a write to the live database.
 --   5. An open warehouse or factory exists where this is applied, made through facilities
 --      (module 4). Where none does, this warns, records nothing, and still counts as
 --      applied, so it never runs again (the gap found in review of module 7's switch-on,
 --      ADR-0031's step 6 addendum). Check the warning's absence when applying.
---   6. Neither capability has a state recorded organisation-wide where this is applied.
---      Check it read-only before merging: this refuses otherwise, and a refused migration
---      stops every migration after it.
+--   6. Neither capability has a state recorded organisation-wide where this is applied: a
+--      recorded hidden counts, though it reads as no state at all. Check it read-only
+--      before merging and again before applying, on every project it is pushed to (below).
 --   7. It takes a fresh timestamp when it comes back, later than every migration merged by
 --      then, module 10's and any switch-on of module 1 included, or a hosted project would
---      refuse it as out of order (Q-23). Dated 20261008000200, it follows only 0024.
+--      refuse it as out of order (Q-23). It is dated directly after 0024.
+--
+-- Read-only checks before applying, as the owner of the database:
+--   3. select erp.capability_state_for('inventory.items', null);  -- enabled or pilot
+--   4. select f.code, s.capability_key, s.state from erp.capability_state s
+--        join erp.facility f on f.facility_id = s.facility_id
+--       where s.capability_key in ('ordering.setup', 'ordering.par_levels') order by 1, 2;
+--                                     -- every facility the answer to J leaves out, listed
+--   5. select code from erp.facility
+--       where facility_type in ('warehouse', 'factory') and status = 'open';  -- at least one
+--   6. select capability_key, state from erp.capability_state
+--       where facility_id = erp.capability_org_scope()
+--         and capability_key in ('ordering.setup', 'ordering.par_levels');  -- no rows
 --
 -- ORGANISATION-WIDE, NOT AT ONE FACILITY, unlike modules 5 to 8's pilots at the central
 -- warehouse. 0024 asks ordering.setup at no facility to set or clear an item's source, so a
@@ -41,11 +56,12 @@
 -- ordering.par_levels at the branch a par is for as well as where it is set from
 -- (ADR-0033 §4, §8), so a pilot at the warehouse and the factory alone would open pars at
 -- no branch. §8 also allows par levels at the supplying facilities and at each branch the
--- pilot covers. Not taken: a par set organisation-wide asks the capability at no facility,
--- and would be refused, and every facility named here would be a code to replace before
--- merging, as modules 5 to 8's WH-001 is. capability_state_for() reads a facility's own
--- state before the organisation's, so a branch the pilot leaves out is closed by its own
--- decision there, recorded first (4), which this leaves in place.
+-- pilot covers. Not taken: there, a par is neither set nor read organisation-wide, and the
+-- par of an item whose source is cleared, which only the organisation clears, could not be
+-- cleared at all. capability_state_for() reads a facility's own state before the
+-- organisation's, so a facility the pilot leaves out is closed by its own decision there,
+-- recorded first (4), which this leaves in place. The cost: a facility made later is in
+-- the pilot until a decision closes it.
 --
 -- A DATABASE WITH NO OPEN WAREHOUSE OR FACTORY IS NOT PROMOTED. A source and a cut-off name
 -- one; with none, there is nothing to set either to. It also keeps every local rebuild
@@ -53,13 +69,17 @@
 -- and warns, and the seed opens both for the suites, as it has since 0024 (0030, c013 and
 -- c014). Recorded there, this would collide with the seed's own state rows, and its
 -- decisions, dated now() in an append-only log the seed cannot freeze, would make two
--- builds differ (db:check). A facility of that kind that is closed does not count.
+-- builds differ (db:check). A facility of that kind that is closed does not count. No
+-- facility is named here, so no code needs replacing before merging, unlike modules 5 to
+-- 8's WH-001.
 --
 -- A STATE ALREADY RECORDED ORGANISATION-WIDE for either capability is an error, worded,
--- and asked first, so the warning above never claims both stay hidden while one is open:
--- this migration would otherwise fail on the state row's key, closed but unexplained
--- (found in review of module 7's switch-on). A local stack built from the seed always has
--- both, so one migrated forward with this file stops here; its hint says to rebuild.
+-- and asked first, so the warning never passes over one: this migration would otherwise
+-- fail on the state row's key, closed but unexplained (found in review of module 7's
+-- switch-on). No route removes a state, so the error stands until something changes. A
+-- database built from the seed and then migrated forward has both, the seed's: a local
+-- stack, or the staging project once seeded. Its hint says to rebuild it, which runs
+-- migrations before the seed. Anywhere else the file is withdrawn.
 --
 -- Requirements: CAP-P02 · CAP-P03 · CAP-P04 · MFG-012 · INV-014 · INV-P05 · INV-P06 · INV-P07
 
@@ -71,28 +91,30 @@ declare
     'Module 9 switch-on: a pilot organisation-wide (ADR-0033, step 6). Its sign-offs are named in the pull request that merged this migration.';
   v_existing text;
   v_supplying text;
+  v_items text;
 begin
   select string_agg(s.capability_key || ' is ' || s.state, ', ' order by s.capability_key) into v_existing
     from erp.capability_state s
    where s.facility_id = erp.capability_org_scope()
      and s.capability_key in ('ordering.setup', 'ordering.par_levels');
   if v_existing is not null then
-    raise exception 'organisation-wide a decision is already recorded (%): this migration decides nothing over it.',
+    raise exception 'already recorded organisation-wide: %. This migration decides nothing over a recorded state.',
       v_existing
-      using hint = 'On a local stack built from the seed, which opens both (0030), rebuild it: npm run db:reset. Anywhere else, withdraw this migration by a pull request; the decision recorded stands, and a change to it is recorded through erp.decide_capability().';
+      using hint = 'On a database built from the seed (a local stack, or the staging project), rebuild it: npm run db:reset locally, supabase db reset --linked on staging alone, owner-approved. Anywhere else, withdraw this migration by a pull request; what is recorded stands, and a change to it is recorded through erp.decide_capability().';
   end if;
 
   select string_agg(f.code, ', ' order by f.code) into v_supplying
     from erp.facility f
    where f.facility_type in ('warehouse', 'factory') and f.status = 'open';
   if v_supplying is null then
-    raise warning 'ordering.setup and ordering.par_levels are NOT promoted: no open warehouse or factory exists here. They stay hidden.';
+    raise warning 'ordering.setup and ordering.par_levels are NOT promoted: no open warehouse or factory exists here. Nothing is recorded.';
     return;
   end if;
 
-  if not erp.capability_admits_new_work('inventory.items', null) then
-    raise exception 'inventory.items is % organisation-wide: item sources and par levels would answer nobody. Nothing is promoted.',
-      erp.capability_state_for('inventory.items', null)
+  v_items := erp.capability_state_for('inventory.items', null);
+  if v_items not in ('enabled', 'pilot') then
+    raise exception 'inventory.items is % organisation-wide, not open: ordering setup is switched on only after items are. Nothing is promoted.',
+      v_items
       using hint = 'Switch items on organisation-wide first (module 1), then apply this.';
   end if;
 
