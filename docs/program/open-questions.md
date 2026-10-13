@@ -620,17 +620,18 @@ it too takes a fresh timestamp when it comes back, later than every migration me
 then.
 
 It sharpens this question twice. **Its scope is made by run-time decisions:** opened
-organisation-wide, the pilot reaches only those the owner's permission changes reach, and
-every facility with no decision of its own, so each facility the owner leaves out takes a
-decision there first, owner-approved. No reviewed way to record one exists: it is a further
-migration naming the facility by code, held like this one, which this then waits on, or a
-write to the live database. Even then, no decision at a warehouse or factory keeps it from
-being named as an item's source (Q-30). **And it meets a state of its own kind wherever one
-was ever recorded organisation-wide.** No route removes a state, so its worded refusal
-stands until something changes. A database built from the seed has the seed's: there the
-file is applied only by a rebuild, which runs migrations before the seed. Anywhere else the
-file is withdrawn. That nothing is recorded in production is a precondition, checked
-read-only before merging and again before applying.
+organisation-wide, the pilot reaches the administrator, whoever the owner's permission
+changes reach besides, and every facility with no decision of its own, so each facility the
+owner leaves out takes a decision there first, owner-approved. No reviewed way to record
+one exists: it is a further migration naming the facility by code, held like this one,
+which this then waits on, or a write to the live database. Even then, no decision at a
+warehouse or factory keeps it from being named as an item's source (Q-30). **And it meets
+a state of its own kind wherever one was ever recorded organisation-wide.** No route
+removes a state, so its worded refusal stands until something changes. A database built
+from the seed has the seed's: there the file is applied before the seed makes any
+facility, by a rebuild or the first push to a fresh project. Anywhere else the file is
+withdrawn. That nothing is recorded in production, a recorded `hidden` included, is a
+precondition, checked read-only before merging and again before applying.
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
@@ -789,7 +790,7 @@ Related: ADR-0024, ADR-0033.
 ## Q-29 — Is ordering setup switched on before branch orders?
 
 **Decides:** Product Owner, with Operations · **Expected decision:** before module 9's
-switch-on is applied
+switch-on is merged
 
 Found 2026-10-13 in review of module 9's held switch-on (ADR-0033's step 6 addendum). Item
 sources, cut-offs and par levels are settings: until module 10 places orders, nothing acts
@@ -812,24 +813,26 @@ Related: INV-014, INV-P05, INV-P06, INV-P07, ADR-0033.
 ## Q-30 — Can a warehouse or factory left out of a pilot still supply items?
 
 **Decides:** Product Owner, with Operations · **Expected decision:** before module 9's
-switch-on is applied
+switch-on is merged
 
 Found 2026-10-13 in the third review of module 9's held switch-on (ADR-0033's step 6
 addendum). The switch-on opens item sources, cut-offs and par levels organisation-wide, and
-a facility the owner leaves out takes a decision of its own. At a branch, that closes
-everything there. At a warehouse or factory it closes its cut-off and the pars set from
-there, but not item sources: 0024 sets a source organisation-wide and asks the capability
-at no facility, so any open warehouse or factory of the item's brand can be named, and
-pars for that item set organisation-wide at every branch the pilot covers. On a scratch
-database, with ordering setup hidden at the factory, the administrator made the factory an
-item's source. Module 10 would route that item's orders there.
+a facility the owner leaves out takes a decision of its own. At a branch, both capabilities
+hidden close everything there. At a warehouse or factory, hidden, no cut-off is set there
+and no par from there, but item sources are not closed: 0024 sets a source
+organisation-wide and asks the capability at no facility, so any open warehouse or factory
+of the item's brand can be named, and pars for that item set organisation-wide at every
+branch the pilot covers. On a scratch database, with ordering setup hidden at the factory,
+the administrator made the factory an item's source. Module 10 would route that item's
+orders there.
 
 Options:
 - Keep it: the administrator does not name a facility the pilot leaves out, and the
   merging PR says so.
-- Have the source routes also ask that the named facility admits new work under
-  `ordering.setup`: a new migration, since 0024 is merged, and a refusal in words for a
-  facility the pilot leaves out.
+- Have the source routes refuse, in words, a facility where `ordering.setup` is hidden: a
+  new migration, since 0024 is merged, which the switch-on then waits on. Not one where it
+  is read-only: a warehouse or factory kept in par levels takes `ordering.setup` read-only,
+  and sets pars only for the items it supplies.
 
 Related: INV-P05, INV-P07, ADR-0033, CAP-P02.
 
