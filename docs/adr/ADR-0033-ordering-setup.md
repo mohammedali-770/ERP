@@ -608,3 +608,71 @@ Three things are not shown, and the pack says which:
 - **Every other module's detail pages** keep a page's word on a write until the next one
   succeeds: above a later refusal, and on another record of the same kind opened by an
   address typed or pasted (Q-28).
+
+## Addendum — 2026-10-13: the switch-on, drafted and held (module 9, step 6)
+
+The migration, `20261008000200_ordering_setup_pilot_organisation_wide.sql`, records two
+capability decisions: `ordering.setup` and `ordering.par_levels`, each at `pilot`
+**organisation-wide**. It is drafted and held unmerged, as modules 5 to 8's were (closed
+pull requests #48, #53, #58 and #63).
+
+**Why organisation-wide, where modules 5 to 8 opened one warehouse.**
+- 0024 asks `ordering.setup` at no facility to set or clear an item's source (§4), so a
+  pilot at a facility would let no source be set.
+- It asks `ordering.par_levels` at the branch a par is for as well as where it is set from
+  (§4, §8), so a pilot at the warehouse and the factory alone would open pars at no
+  branch.
+- `capability_state_for()` reads a facility's own state before the organisation's. A
+  branch the pilot leaves out is closed by a run-time decision there, which this leaves in
+  place (the pack's Part 11).
+- Opened organisation-wide, the pilot reaches only those who hold the permissions. In a
+  real database that is the administrator alone (0024). The managers' par writes and the
+  branches' reads are permission changes made on their own (question 5 above; the pack's
+  E and J).
+
+**It is anchored on an open warehouse or factory, not on a facility's code.**
+- A source and a cut-off each name one, so with none there is nothing to set.
+- Every local rebuild applies migrations before the seed makes any facility, so this
+  records nothing and warns, and the seed opens both for the suites, as it has since 0024
+  (0030, c013 and c014). Recorded during a rebuild, its state rows would collide with the
+  seed's. Its decisions, dated `now()` in an append-only log the seed cannot freeze, would
+  also make two builds differ, which `db:check` refuses.
+- A closed warehouse or factory does not count.
+- No facility code is written into it, so none needs replacing with the real one before
+  it is merged, as modules 5 to 8's `WH-001` does.
+
+**A state already recorded organisation-wide** for either capability is refused in words,
+naming both states, as module 8's was at its warehouse.
+
+All of it was run on a scratch database:
+- **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
+  and `db:check` and `db:fixtures` pass with the migration in place.
+- **Applied after a seed without those two rows,** as a real database has them: both read
+  `hidden` everywhere before. After, both read `pilot` at every facility and
+  organisation-wide, the decisions recorded as the system's. The notice named the
+  warehouse and the factory.
+- **The administrator** then:
+  - listed every item's source organisation-wide;
+  - set an item's source to the warehouse;
+  - changed the warehouse's cut-off;
+  - set a par at a branch organisation-wide, in bags.
+- **Applied a second time,** it was refused, naming both states.
+- **With the warehouse and the factory both closed,** it warned and recorded nothing.
+- **With par levels first decided `hidden` at a branch,** par levels stayed hidden there
+  and read `pilot` everywhere else; item sources and cut-offs read `pilot` at that branch
+  too.
+
+**It is held** until five things hold, named in the migration's header:
+1. the ordering-setup pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. items are switched on organisation-wide (module 1, whose switch-on is still to be
+   drafted). Every source and par route asks read on items; only the cut-off routes do
+   not. Opened alone, sources and pars would answer nobody. Stock, the bell and purchase
+   orders are not needed: nothing here reads them. Unlike modules 6 to 8's, this file
+   waits on no other held one;
+4. the owner has answered the pack's ten questions, E and J among them, and said with J
+   whether this comes before module 10: until module 10 places orders, nothing reads a
+   source, a cut-off or a par, and switching on early only lets them be entered ahead;
+5. an open warehouse or factory exists where it is applied. Check that the warning is
+   absent.

@@ -606,6 +606,17 @@ Four held migrations in a fixed order, each re-dated by hand and each lost silen
 applied before the warehouse exists, are the case for a reviewed run-time decision made
 plainly.
 
+Module 9's switch-on (2026-10-13, ADR-0033's step 6 addendum) is a fifth, and the first
+organisation-wide: item sources, cut-offs and par levels at `pilot` for the whole
+organisation, since 0024 sets a source only organisation-wide and asks a par at its branch
+too. Naming no facility does not free it from run-time data. A source and a cut-off name a
+warehouse or factory, so it records nothing, with a warning, where no open one exists, and
+every rebuild is such a place. Recorded during a rebuild, it would collide with the seed's
+states for the suites, and its decisions, dated `now()` in an append-only log, would make
+two builds differ. So even a promotion that names no facility is lost with only a warning
+if applied too early. It waits on no other held migration, only on items being opened
+organisation-wide, which no drafted migration yet does.
+
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.
 
