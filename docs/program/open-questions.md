@@ -615,7 +615,13 @@ every rebuild is such a place. Recorded during a rebuild, it would collide with 
 states for the suites, and its decisions, dated `now()` in an append-only log, would make
 two builds differ. So even a promotion that names no facility is lost with only a warning
 if applied too early. It waits on no other held migration, only on items being opened
-organisation-wide, which no drafted migration yet does.
+organisation-wide, which no drafted migration yet does, and which it checks when applied.
+Dated after 0024 and drafted five days later, it too takes a fresh timestamp when it comes
+back, later than module 10's and any switch-on of module 1 merged first. And
+organisation-wide it meets a state of its own kind wherever one was ever recorded, the
+seed's on every local stack included. No route removes a state, so its worded refusal
+stops every later migration until the file is withdrawn; that nothing is recorded there
+is a precondition, checked read-only before merging.
 
 Related: MFG-012, CAP-P09, ADR-0024, [`consolidation-plan.md`](./consolidation-plan.md)
 Phase 4.

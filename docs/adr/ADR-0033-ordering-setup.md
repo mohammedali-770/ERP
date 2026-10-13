@@ -622,13 +622,18 @@ pull requests #48, #53, #58 and #63).
 - It asks `ordering.par_levels` at the branch a par is for as well as where it is set from
   (§4, §8), so a pilot at the warehouse and the factory alone would open pars at no
   branch.
+- §8 also allows par levels at the supplying facilities and at each branch the pilot
+  covers. Not taken: a par set organisation-wide asks the capability at no facility, and
+  would be refused. Every facility named in the migration would also be a code to replace
+  before merging, as modules 5 to 8's `WH-001` is.
 - `capability_state_for()` reads a facility's own state before the organisation's. A
-  branch the pilot leaves out is closed by a run-time decision there, which this leaves in
-  place (the pack's Part 11).
-- Opened organisation-wide, the pilot reaches only those who hold the permissions. In a
-  real database that is the administrator alone (0024). The managers' par writes and the
-  branches' reads are permission changes made on their own (question 5 above; the pack's
-  E and J).
+  branch the pilot leaves out is closed by its own decision there, recorded before this is
+  applied (precondition 4), and this leaves it in place. The pack's Part 11 shows such a
+  branch, read only and then hidden.
+- Opened organisation-wide, the pilot reaches only those who hold a permission on it. In
+  a real database that is the administrator alone (0024). Any permission changes the
+  owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
+  made on their own, before this: otherwise only the administrator can use what it opens.
 
 **It is anchored on an open warehouse or factory, not on a facility's code.**
 - A source and a cut-off each name one, so with none there is nothing to set.
@@ -641,38 +646,67 @@ pull requests #48, #53, #58 and #63).
 - No facility code is written into it, so none needs replacing with the real one before
   it is merged, as modules 5 to 8's `WH-001` does.
 
-**A state already recorded organisation-wide** for either capability is refused in words,
-naming both states, as module 8's was at its warehouse.
+**Two refusals, in words.**
+- **A state already recorded organisation-wide** for either capability, naming each state
+  recorded. It is asked first, so the warning never says both stay hidden while one is
+  open. A local stack built from the seed always has both, so one migrated forward with
+  this file stops there. Its hint says to rebuild locally, and anywhere else to withdraw
+  the file by a pull request, since a refused migration stops every one after it. Hence
+  precondition 6, checked before merging.
+- **Items not open organisation-wide.** Every source and par route asks read on items, so
+  opened before them, sources and pars would answer nobody. Items in any state but
+  `enabled` or `pilot` organisation-wide is refused, after the facility check, so a
+  rebuild still only warns.
 
 All of it was run on a scratch database:
 - **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
   and `db:check` and `db:fixtures` pass with the migration in place.
-- **Applied after a seed without those two rows,** as a real database has them: both read
-  `hidden` everywhere before. After, both read `pilot` at every facility and
-  organisation-wide, the decisions recorded as the system's. The notice named the
-  warehouse and the factory.
+- **Applied after a seed without those two rows,** as in a real database, which has
+  neither: both read `hidden` everywhere before. After, both read `pilot` at every
+  facility and organisation-wide, the decisions recorded as the system's. The notice named
+  the warehouse and the factory.
 - **The administrator** then:
   - listed every item's source organisation-wide;
   - set an item's source to the warehouse;
   - changed the warehouse's cut-off;
   - set a par at a branch organisation-wide, in bags.
-- **Applied a second time,** it was refused, naming both states.
-- **With the warehouse and the factory both closed,** it warned and recorded nothing.
-- **With par levels first decided `hidden` at a branch,** par levels stayed hidden there
-  and read `pilot` everywhere else; item sources and cut-offs read `pilot` at that branch
-  too.
+- **Applied a second time,** it was refused, naming both states, with the hint.
+- **With the warehouse and the factory both closed,** it warned and recorded nothing. With
+  item sources also already enabled organisation-wide, it was refused instead, naming
+  that state.
+- **With items hidden, read-only or withdrawn organisation-wide,** it was refused, naming
+  the state, and recorded nothing. With items enabled organisation-wide, or a pilot there
+  and hidden only at the warehouse, it promoted.
+- **With par levels first decided `hidden`, or `read_only`, at a branch,** par levels kept
+  that state there and read `pilot` everywhere else; item sources and cut-offs read
+  `pilot` at that branch too.
 
-**It is held** until five things hold, named in the migration's header:
+**Found in its review, before it was opened:**
+- the file's re-dating, which every earlier held switch-on states (precondition 7);
+- the warning, which said both stayed hidden where one was already open;
+- a refusal whose hint did not unblock anything, now worded for a local stack and for
+  anywhere else;
+- items, a precondition that could be checked when applied and was not;
+- the module 10 question, put as the pack's J, which asks only where and for whom;
+- the branches a pilot leaves out, which nothing said to close first.
+
+**It is held** until seven things hold, named in the migration's header:
 1. the ordering-setup pack is signed by staff;
 2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
    the merging PR);
 3. items are switched on organisation-wide (module 1, whose switch-on is still to be
-   drafted). Every source and par route asks read on items; only the cut-off routes do
-   not. Opened alone, sources and pars would answer nobody. Stock, the bell and purchase
-   orders are not needed: nothing here reads them. Unlike modules 6 to 8's, this file
-   waits on no other held one;
-4. the owner has answered the pack's ten questions, E and J among them, and said with J
-   whether this comes before module 10: until module 10 places orders, nothing reads a
-   source, a cut-off or a par, and switching on early only lets them be entered ahead;
+   drafted). Stock, the bell and purchase orders are not needed: nothing here reads them.
+   Unlike modules 6 to 8's, this file waits on no other held one. Checked when applied;
+4. the owner has answered the pack's ten questions, E and J among them, and has said,
+   though no question in the pack asks it, whether this comes before module 10: until
+   module 10 places orders, nothing reads a source, a cut-off or a par, and switching on
+   early only lets them be entered ahead. The permission changes the answers call for are
+   made first, and every branch the answer to J leaves out has its own decision on par
+   levels recorded there first, each owner-approved;
 5. an open warehouse or factory exists where it is applied. Check that the warning is
-   absent.
+   absent;
+6. neither capability has a state recorded organisation-wide where it is applied, checked
+   read-only before merging;
+7. it takes a fresh timestamp, later than every migration merged by then, module 10's and
+   any switch-on of module 1 included (Q-23). Dated `20261008000200`, it follows only
+   0024.
