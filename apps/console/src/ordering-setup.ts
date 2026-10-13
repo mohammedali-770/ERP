@@ -285,6 +285,20 @@ export function suppliedElsewhere(from: string | null, refusal: { readonly statu
 }
 
 /**
+ * Whether a par write was refused because its item's source is no longer what the page
+ * read: moved to another facility (par_level_not_its_source) or cleared
+ * (par_level_item_has_no_source). 0024 raises both in erp.assert_par_set_from(). The page
+ * then reads the item again. Kept, it went on saying "Supplied by" the facility it read and
+ * offering the form, beneath the refusal saying another facility supplies the item (found
+ * writing the staff testing pack).
+ */
+export const SOURCE_MOVED = ['par_level_not_its_source', 'par_level_item_has_no_source'] as const;
+
+export function sourceMoved(refusal: { readonly constraint: string | null }): boolean {
+  return (SOURCE_MOVED as readonly (string | null)[]).includes(refusal.constraint);
+}
+
+/**
  * Whether a par read's refusal is par levels being hidden at the branch, which a page says
  * as such: 0024 refuses it without naming a constraint, as "not permitted". Only a forbidden
  * answer: a branch it does not know, or a facility that is no branch, is 0024's to say,

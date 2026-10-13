@@ -27,7 +27,7 @@ cannot perform real workflows".
 
 ## The packs
 
-Arabic versions of all seventeen are in [`ar/`](./ar/) — see the note at the end of
+Arabic versions of all eighteen are in [`ar/`](./ar/) — see the note at the end of
 this file before using them.
 
 | Pack | Who runs it | Covers |
@@ -43,6 +43,7 @@ this file before using them.
 | [`notifications`](./notifications.md) | Whoever looks after stock at the warehouse and the factory, the factory manager, the administrator, the accountant | The bell: told on the next click, what a notification says, marking read, opening one at its facility, who is never told, the idle sign-out with the console open — module 6's step 5 (ADR-0030) |
 | [`stock-alerts`](./stock-alerts.md) | Whoever looks after the warehouse's stock, the administrator, the factory manager, the accountant, a cashier | What is low, minimums set in a pack and cleared, the bell when stock falls to a minimum, once per drop, the person who moved it told too — module 7's step 5 (ADR-0031) |
 | [`purchase-orders`](./purchase-orders.md) | Whoever orders and receives the warehouse's stock, the accountant, the administrator, the factory manager, a cashier | Orders raised from a supplier's packs with their cost shown before sending, approval within a limit before VAT and never of one's own order, receipts into stock and their reversal, closing short and cancelling — module 8's step 5 (ADR-0032) |
+| [`ordering-setup`](./ordering-setup.md) | Whoever sets where each item comes from and each facility's cut-off, the warehouse manager, the factory manager, a cashier | Which warehouse or factory supplies each item, each one's order cut-off at its own time, and branches' par levels entered in a pack, set from the facility that supplies the item, and read by a branch for itself alone — module 9's step 5 (ADR-0033) |
 | [`customer-app`](./customer-app.md) | Customers, or staff acting as them | Ordering, tracking, history, notifications |
 | [`reporting`](./reporting.md) | Finance, operations | Standard reports reconciling to source |
 | [`support`](./support.md) | IT, branch managers | Runbooks, alerts, incident handling |
@@ -69,7 +70,7 @@ whether they could do it.
 
 ## Before these are used
 
-> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` and `suppliers` added 2026-10-04, `transfer-prices` and `facilities` 2026-10-05, `stock` and `notifications` 2026-10-06, `stock-alerts` 2026-10-07.**
+> **Arabic versions exist as of 2026-09-21: [`ar/`](./ar/), all nine packs; `items` and `suppliers` added 2026-10-04, `transfer-prices` and `facilities` 2026-10-05, `stock` and `notifications` 2026-10-06, `stock-alerts` and `purchase-orders` 2026-10-07, `ordering-setup` 2026-10-08.**
 >
 > `PRG-014` requires user-facing material in both languages. The English packs
 > here remain the source of truth — they are updated first and the Arabic

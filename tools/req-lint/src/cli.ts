@@ -45,9 +45,12 @@ const OPEN_DECISIONS = Array.from({ length: 12 }, (_, i) => `OPN-${String(i + 1)
 /**
  * Prefixes that look like a requirement identifier but are not one: decision
  * records, open decisions, acceptance scenarios, risks, blockers, open questions,
- * invariants, workstreams, phases, spikes and common technical abbreviations.
+ * invariants, workstreams, phases, spikes and common technical abbreviations. BR, WH and FA
+ * are the test data's facility codes (BR-001, WH-001, FA-001): a staff testing pack quotes
+ * the screens, and some name a facility by its code alone. No requirement module uses them;
+ * one that ever did would need them taken out of this list.
  */
-const NOT_A_REQUIREMENT = /^(ADR|OPN|T|R|B|Q|I|D|W|F|P|SHA|SPIKE|UAT|RFC|SDK|ES|HTTP|TLS|JSON|SQL|API|MDM|NTP|HLC|WAL|AP|EGS|VAT|PDPL|ZATCA|IT|CI)-/;
+const NOT_A_REQUIREMENT = /^(ADR|OPN|T|R|B|Q|I|D|W|F|P|SHA|SPIKE|UAT|RFC|SDK|ES|HTTP|TLS|JSON|SQL|API|MDM|NTP|HLC|WAL|AP|EGS|VAT|PDPL|ZATCA|IT|CI|BR|WH|FA)-/;
 const CITATION = /\b([A-Z]{2,4}-\d{3})\b/g;
 const PROPOSED_CITATION = /\b([A-Z]{2,4}-P\d{2})\b/g;
 /**
