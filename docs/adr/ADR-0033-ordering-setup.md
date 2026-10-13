@@ -220,10 +220,10 @@ Every read pages, 1 to 500 rows.
 hidden in every real database until a migration promotes them. The administrator reads
 and writes both.
 
-The synthetic seed opens both at pilot. It gives the two managers par write and the
-setup read: the factory manager at the factory alone, so they set only the factory's items'
-pars; the warehouse manager organisation-wide, so they set any item's. Branch workers
-and the general manager read both. The accountant holds nothing here.
+The synthetic seed opens both at pilot. It gives the two managers par read and write and
+the setup read: the factory manager at the factory alone, so they set only the factory's
+items' pars; the warehouse manager organisation-wide, so they set any item's. Branch
+workers and the general manager read both. The accountant holds nothing here.
 
 **Switching on.** Since a par is asked at its branch too (§4), a pilot that opens
 `ordering.par_levels` at the warehouse and the factory alone opens it at no branch: no
@@ -630,9 +630,9 @@ pull requests #48, #53, #58 and #63).
   a real database that is the administrator alone (0024). Any permission changes the
   owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
   made on their own, before this: otherwise only the administrator can use what it opens.
-  A manager who sets pars from their facility needs par write with the setup read and
-  items read, as the seed gives them, since the par page finds items through their
-  sources.
+  A manager who sets pars from their facility needs par levels read and write, with the
+  setup read and items read, as the seed gives them, since the par page finds items
+  through their sources.
 
 **What leaving a facility out does.** `capability_state_for()` reads a facility's own
 state before the organisation's, so a facility the pilot leaves out takes its own decision
@@ -640,14 +640,17 @@ there, on each capability it is left out of, recorded first (precondition 4). Th
 it in place, and a facility made later is in the pilot until one is recorded there.
 - **At a branch,** both capabilities `hidden` close everything there: no par is set,
   cleared or read for it, and nothing is read there. Hiding `ordering.setup` alone still
-  shows each par's supplying facility on the branch's par list. `read_only` leaves all of
+  returns each par's supplying facility, by id, on the branch's par list; the console then
+  shows only the start of the id, not the facility's code. `read_only` leaves all of
   it readable, and no par is set or cleared for it. The pack's Part 11 shows `read_only`
   and then `hidden` for par levels.
-- **At a warehouse or factory,** `ordering.setup` governs its cut-off and what is read
-  there, and `ordering.par_levels` the pars set from there. Both `hidden`, nothing is set
-  or read there, though a cut-off already set stays in force: it is listed elsewhere, and
-  `erp.order_day()` asks no capability. One kept in par levels takes `ordering.setup` at
-  `read_only`, not `hidden`, since its par page finds items through their sources.
+- **At a warehouse or factory,** `ordering.setup` governs its cut-off and the sources and
+  cut-offs read there, and `ordering.par_levels` the pars set from and read there.
+  `hidden`, nothing is set, cleared or read under it, though a cut-off already set stays
+  in force: it is listed elsewhere, and `erp.order_day()` asks no capability. `read_only`
+  leaves it readable with nothing set. One left out of item sources and cut-offs but kept
+  in par levels takes `ordering.setup` at `read_only`, not `hidden`, since its par page
+  finds items through their sources.
 - **No decision at a warehouse or factory keeps it from being named as an item's source,**
   or pars for that item from being set organisation-wide: 0024 asks the source routes at
   no facility. With `ordering.setup` hidden at the factory, the administrator still made it
@@ -684,7 +687,8 @@ the read-only query that checks each one first.
   organisation-wide; read-only or withdrawn, items take no new work. Ordering setup is not
   opened over items that are not open, so any state but `enabled` or `pilot`
   organisation-wide is refused, after the facility check, so a rebuild still only warns.
-  Its hint names the two ways to open items first, and otherwise withdrawing the file.
+  Its hint names module 1's switch-on, as a migration dated before this one, and
+  otherwise withdrawing the file.
 
 All of it was run on a scratch database:
 - **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
@@ -726,10 +730,11 @@ substance:
   (6), for production, which a seeded staging project could never meet;
 - items: a precondition that could be refused in words when applied and was not, then a
   stated reason that was false for each state but hidden, and then too broad for hidden,
-  and a hint with no way out in production;
+  and a hint with no way out in production, then one that offered a run-time promotion;
 - the module 10 question, put as the pack's J, which asks only where and for whom: it is
   now Q-29;
-- the facilities a pilot leaves out: first nothing said to close them; then a decision
+- the facilities a pilot leaves out: first said to be closed by a decision there, with
+  nothing requiring it before this is applied, and only branches named; then a decision
   was said to close one, which does not keep a warehouse or factory out of item sources,
   nor at `read_only` close anything to reading. What each capability governs at each kind
   of facility, and in which state, is now stated, and the source gap is Q-30. The pack's
@@ -737,7 +742,7 @@ substance:
   out by migration or that `read_only` is how a pilot leaves one out;
 - §8's other option, why it is not taken, and that reason twice overstated;
 - the permission changes, owner-approved and made first, in the header and here alike,
-  and what a manager needs to set pars from their facility;
+  and what a manager needs to set pars from their facility, par read first left out;
 - read-only queries for preconditions 3 to 6, and that the console cannot check 6.
 
 **It is held** until seven things hold, named in the migration's header:

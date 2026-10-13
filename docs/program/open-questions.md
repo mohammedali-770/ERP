@@ -625,7 +625,8 @@ changes reach besides, and every facility with no decision of its own, so each f
 owner leaves out takes a decision there first, owner-approved. No reviewed way to record
 one exists: it is a further migration naming the facility by code, held like this one,
 which this then waits on, or a write to the live database. Even then, no decision at a
-warehouse or factory keeps it from being named as an item's source (Q-30). **And it meets
+warehouse or factory keeps it from being named as an item's source, or pars for the items
+it supplies from being set organisation-wide (Q-30). **And it meets
 a state of its own kind wherever one was ever recorded organisation-wide.** No route
 removes a state, so its worded refusal stands until something changes. A database built
 from the seed has the seed's: there the file is applied before the seed makes any
