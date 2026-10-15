@@ -5,17 +5,23 @@ name: Deploy to staging
 # MANUAL ONLY, AND THE OWNER'S. Applying migrations and deploying edge functions are
 # owner-approved actions, one at a time (CLAUDE.md §4). The job runs in the GitHub
 # environment `staging`, which admits only main and holds the job until its required
-# reviewer, the owner, approves that one run: the approval is the owner's, given in
-# GitHub's own interface. The name typed below only guards against a slip.
+# reviewer approves that one run. The name typed below only guards against a slip.
 #
 # THE SECRETS LIVE IN THAT ENVIRONMENT, NOT IN THE REPOSITORY. The access token reaches
 # every project in the Supabase account, both live databases included, and needs no
 # database password to run SQL on any of them. A repository secret is readable by any
 # workflow on any branch of this repository, so no check in this file could keep it on
 # staging. An environment secret is given only to a job that names the environment,
-# after the environment's branch rule and reviewer have admitted it. The durable fix is
-# docs/program/supabase-deployment.md §1's: staging in an organisation of its own, and a
-# token from someone who belongs to that organisation alone.
+# after the environment's branch rule and reviewer have admitted it.
+#
+# WHAT THE REVIEWER DOES NOT DO: tell the owner from an agent. Agent sessions act as the
+# owner's own GitHub account, so a run an agent started, or an approval it gave, is the
+# owner's to GitHub, and this file can reach main through a merge that needs no
+# approval. Approve only a run you started, after reading this file on main. CLAUDE.md
+# §3 and §4 keep an agent from starting or approving one; no mechanism here does. The
+# durable fix is docs/program/supabase-deployment.md §1's: staging in an organisation of
+# its own, and a token from someone who belongs to that organisation alone. See that
+# document's "Staging, as built".
 #
 # NEVER PRODUCTION. The project ref is pinned below; the run is refused unless it is from
 # main, the name typed matches, the database password is set, and the project under that

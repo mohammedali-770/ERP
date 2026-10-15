@@ -193,10 +193,12 @@ ADR-0002 closes.
   access token the deploy workflow uses reaches `spicy-meal-ordering` and
   `warehouse-factory-system` too, and can run SQL on either without a database password.
   It is kept in the GitHub environment `staging`, which admits only `main` and holds each
-  run for the owner's approval, never as a repository secret that a workflow on any
-  branch could read; the workflow's own checks keep an admitted run on staging. Moving
-  staging to an organisation of its own, with a token that reaches only it, is still the
-  durable fix.
+  run for its required reviewer, never as a repository secret that a workflow on any
+  branch could read; the workflow's own checks keep an admitted run on staging. The
+  reviewer is the owner's account, and agent sessions act as that same account, so the
+  gate does not tell the owner from an agent: the approval is the owner's choice, as
+  merging is, held by governance and not by GitHub. Moving staging to an organisation of
+  its own, with a token that reaches only it, is still the durable fix.
 - **It holds synthetic data only** (SEC-012), and is rebuilt from `main` by the manual
   `Deploy to staging` workflow, each run the owner's action. Its edge functions run
   there, the sign-in function included before Q-24 is answered, which the owner accepted
