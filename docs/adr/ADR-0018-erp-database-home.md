@@ -190,8 +190,13 @@ ADR-0002 closes.
 - **Its organisation is the live projects'** (`Spicy Meal Org`), the owner's choice, where
   [`supabase-deployment.md`](../program/supabase-deployment.md) §1 asked for one of its own.
   So "never write to the live estate" stays a rule and is not an access-control fact: the
-  access token the deploy workflow uses reaches `spicy-meal-ordering` too, and the
-  workflow's own checks are what keep it on staging.
+  access token the deploy workflow uses reaches `spicy-meal-ordering` and
+  `warehouse-factory-system` too, and can run SQL on either without a database password.
+  It is kept in the GitHub environment `staging`, which admits only `main` and holds each
+  run for the owner's approval, never as a repository secret that a workflow on any
+  branch could read; the workflow's own checks keep an admitted run on staging. Moving
+  staging to an organisation of its own, with a token that reaches only it, is still the
+  durable fix.
 - **It holds synthetic data only** (SEC-012), and is rebuilt from `main` by the manual
   `Deploy to staging` workflow, each run the owner's action. Its edge functions run
   there, the sign-in function included before Q-24 is answered, which the owner accepted

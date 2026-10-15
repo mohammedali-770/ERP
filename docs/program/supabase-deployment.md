@@ -103,10 +103,10 @@ hosted project inherited the posture rather than only the tables.
 supabase db reset --linked          # STAGING ONLY. Never against production.
 ```
 
-`supabase/seed.sql` is synthetic and `SEC-012` forbids production data in
-development or testing without approved masking. **Production is never seeded**;
-it starts empty and is populated by the migration of real data, which is its own
-approved plan and not this document.
+The seed, `supabase/seeds/*.sql` in the order `config.toml`'s `[db.seed]` lists, is
+synthetic, and `SEC-012` forbids production data in development or testing without
+approved masking. **Production is never seeded**; it starts empty and is populated by
+the migration of real data, which is its own approved plan and not this document.
 
 ## Staging, as built (2026-10-15)
 
@@ -115,35 +115,70 @@ document: `first-taste-erp-staging`, ref `olrqvewevfndvqwwkner`, `eu-central-1`,
 same organisation as the live projects (ADR-0018's addendum of 2026-10-15). It was
 created through the Supabase connector, which could not carry the larger migrations, so
 it is built by `.github/workflows/staging-deploy.yml` instead: from `main` only, run by
-hand, the project's name typed to confirm. A run links (§2), resets the project from the
-migrations and the synthetic seed (§5), and deploys the twelve edge functions.
+hand, the project's name typed to confirm, and held until the owner approves that run.
+A run links (§2), resets the project from the migrations and the synthetic seed (§5),
+and deploys the twelve edge functions.
 
-What the owner sets, once, and never in a file:
+What the owner sets, and never in a file:
 
-1. **Two repository secrets.** `SUPABASE_ACCESS_TOKEN`, a personal access token. It reaches
-   every project in the account, the live ones included, and the workflow's checks are what
-   keep it on staging. `STAGING_DB_PASSWORD`, the staging database's password: the connector
-   generated one nobody holds, so it is reset in the dashboard first (Project Settings,
-   Database).
-2. **The first run**, from the Actions tab: `Deploy to staging`, from `main`.
-3. **`erp_edge`'s password**, after the first run has created the role, in the dashboard's
+1. **A GitHub environment named `staging`** (repository Settings, Environments), before
+   the first run:
+   - deployment branches: `main` only;
+   - required reviewer: the owner, so every run waits for the owner's approval in
+     GitHub's own interface;
+   - two **environment** secrets, never repository secrets. A repository secret is
+     readable by a workflow on any branch, and agent sessions push branches here; an
+     environment secret reaches only a job that the environment has admitted.
+2. **`SUPABASE_ACCESS_TOKEN`**, a personal access token. It reaches every project in the
+   account, `spicy-meal-ordering` and `warehouse-factory-system` included, and can run SQL
+   as `postgres` on any of them without a database password. The environment is what
+   keeps it to approved runs from `main`, and the workflow's checks are what keep those on
+   staging. The durable fix is §1's: staging in an organisation of its own, and a token
+   from an account that belongs to that organisation alone.
+3. **`STAGING_DB_PASSWORD`**, the staging database's password. The connector generated one
+   nobody holds, so it is reset in the dashboard first (Project Settings, Database). The
+   workflow refuses to run without it: with no password the CLI would make a login role
+   of its own on the project from the token alone, which no migration created.
+4. **Each run**, from the Actions tab: `Deploy to staging`, from `main`, the name typed;
+   then approve the pending deployment.
+5. **`erp_edge`'s password**, after the first run has created the role, in the dashboard's
    SQL editor: `alter role erp_edge with password '…';`, a new password kept in the password
-   manager. A reset keeps roles, so this survives later runs.
-4. **The edge functions' two secrets**, in the dashboard (Edge Functions, Secrets):
+   manager. A reset keeps roles, which belong to the cluster, so this survives later runs.
+6. **The edge functions' two secrets**, in the dashboard (Edge Functions, Secrets):
    - `ERP_DATABASE_URL`: the transaction pooler's connection string from the dashboard's
-     Connect panel, with the user `erp_edge.olrqvewevfndvqwwkner` and `erp_edge`'s password.
-     The driver is set for the pooler: one connection, no prepared statements.
+     Connect panel, with the user `erp_edge.olrqvewevfndvqwwkner`, `erp_edge`'s password,
+     and `?sslmode=require` on the end; and "Enforce SSL" turned on under Project
+     Settings, Database. The driver is set for the pooler: one connection, no prepared
+     statements.
    - `ERP_ALLOWED_ORIGINS`: the console's exact origin, or several, comma-separated. No
      wildcard is accepted, so a Vercel preview's own address is refused unless it is named.
-5. **The console on Vercel**: import the repository with `apps/console` as its root
-   directory, and set `VITE_ERP_FUNCTIONS_URL` to
-   `https://olrqvewevfndvqwwkner.supabase.co/functions/v1`. `apps/console/vercel.json`
-   turns off deployments from `main`, so the console's production address moves only when
-   the owner promotes a deployment, as the database moves only when the owner runs the
-   workflow.
+7. **An administrator's PIN**, if anyone is to make changes on staging. The seed gives the
+   synthetic administrator, employee number `1000`, none. After a run, in the SQL editor,
+   with six digits of the owner's choosing in place of `…`:
 
-The pgTAP suites (§4) are not part of the workflow: run against the project they need the
-pgTAP extension enabled there, which is a further change of its own.
+   ```sql
+   select erp.set_pin(gen_random_uuid(), '01936f00-0000-7000-8000-000000000900', '…',
+     'Staging administrator PIN.', '01936f00-0000-7000-8000-000000000900', now());
+   ```
+
+   The administrator is both the actor and the person, which its role permits. The next
+   run's reset erases the PIN, as it erases everything but roles. Until it is set, only the seeded cashiers can sign in, and their
+   PINs are in clear in `supabase/seeds/0015_identity.sql`, which is public: anyone can
+   sign in to staging as them (Q-24's note of 2026-10-15).
+8. **The console on Vercel**: import the repository with `apps/console` as its root
+   directory; `apps/console/vercel.json` gives the install, build and output. Before the
+   first deployment, set `VITE_ERP_FUNCTIONS_URL` to
+   `https://olrqvewevfndvqwwkner.supabase.co/functions/v1` for Production and Preview: it
+   is read at build time, so a deployment built without it has no address to call. Turn
+   off auto-assigning custom domains to production deployments (Project Settings,
+   Environments, Production), so a push to `main` builds a staged production deployment
+   and the console's production address moves only when the owner promotes one, as the
+   database moves only when the owner runs the workflow.
+
+The CLI bundles the functions in its own edge-runtime image, from `deno.json`'s import
+map; `deno.lock` binds CI's `deno check --frozen`, not that bundle. The pgTAP suites (§4)
+are not part of the workflow: run against the project they need the pgTAP extension
+enabled there, which is a further change of its own.
 
 ## 6. Configuration that is not in this repository
 

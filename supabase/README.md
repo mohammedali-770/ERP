@@ -4,10 +4,14 @@ The ERP's database, functions and tests live here, vendored in-repo — the same
 pattern the live Spicy Meal system uses, so the schema is reviewable in a pull
 request rather than existing only in a dashboard.
 
-**This repository is the source of truth for the database.** No hosted project
-exists yet; development runs the stack locally in Docker. Creating the hosted
-project is deferred to roughly 6–8 weeks before launch ([ADR-0018](../docs/adr/ADR-0018-erp-database-home.md)),
-and when it arrives it is populated by promoting these files, never the reverse.
+**This repository is the source of truth for the database.** Development runs the
+stack locally in Docker. One hosted project exists, `first-taste-erp-staging`, since
+2026-10-15 on the owner's instruction: synthetic data only, rebuilt from `main` by the
+owner's run of the manual `Deploy to staging` workflow
+([`supabase-deployment.md`](../docs/program/supabase-deployment.md), "Staging, as built").
+Creating the production project is still deferred to roughly 6–8 weeks before launch
+([ADR-0018](../docs/adr/ADR-0018-erp-database-home.md)), and every hosted project is
+populated by promoting these files, never the reverse.
 
 ```
 config.toml    local stack definition — committed, holds no credential

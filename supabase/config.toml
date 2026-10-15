@@ -1,9 +1,12 @@
-# Local development stack — `supabase start`.
+# Local development stack — `supabase start` — and what staging takes from it.
 #
-# LOCAL ONLY. This file describes a container on a developer's machine. It holds
-# no credential and is committed deliberately so every machine runs the same
-# stack. Staging and production are configured in the hosted dashboard and in
-# the deployment runbook, never here.
+# This file describes a container on a developer's machine. It holds no
+# credential and is committed deliberately so every machine runs the same stack.
+# Two parts of it also reach staging, through the manual `Deploy to staging`
+# workflow: `db reset --linked` loads the seed files [db.seed] lists, and
+# `functions deploy` deploys the [functions.*] entries as they are set here.
+# Everything else about staging and production, every credential included, is
+# configured in the hosted dashboard and the deployment runbook, never here.
 #
 # See docs/program/supabase-deployment.md.
 

@@ -222,10 +222,12 @@ architecture gate (PRG-010, PRG-011) has not been passed.
   reports FAIL, because it has proved nothing.
 - `supabase/` — **the source of truth for the database.** Migrations, synthetic
   seed, pgTAP suites, and the edge functions that hold its credential (ADR-0023). They
-  are deployed only to staging, and deploying is owner-approved. The staging project,
-  `first-taste-erp-staging`, exists since 2026-10-15 on the owner's instruction, rebuilt from
-  `main` only by the manual `Deploy to staging` workflow. Development is local (Docker), and
-  the production project is still created ~6–8 weeks before launch (ADR-0018).
+  may be deployed only to staging, and only by the owner's run of the manual `Deploy to
+  staging` workflow, which rebuilds `first-taste-erp-staging` from `main`. That project
+  exists since 2026-10-15 on the owner's instruction, and any other write to it is
+  owner-approved, one action at a time, as for any hosted project (§4, §5). Development
+  is local (Docker), and the production project is still created ~6–8 weeks before
+  launch (ADR-0018).
 - `services/` — reserved boundaries, not implementations.
 - `apps/console` — a **real** Vite + React workspace since 2026-10-01, and the shell
   the consolidation's modules land in (ADR-0021). Sign-in, module 1's items screens and
