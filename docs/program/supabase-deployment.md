@@ -205,7 +205,11 @@ What the owner sets, and never in a file:
    in, and their PINs are in clear in `supabase/seeds/0015_identity.sql`, which is
    public: anyone can sign in to staging as them (Q-24's note of 2026-10-15).
 8. **The console on Vercel**: import the repository with `apps/console` as its root
-   directory; `apps/console/vercel.json` gives the install, build and output. Before the
+   directory; `apps/console/vercel.json` gives the install, build and output. Its install
+   runs `npm ci` at the repository root, where the workspace's lockfile is, so leave
+   "Include files outside the root directory in the Build Step" on under the Root
+   Directory setting: it is on for every project created since 2020, and with it off the
+   install cannot reach the lockfile and fails. Before the
    first deployment, set `VITE_ERP_FUNCTIONS_URL` to
    `https://olrqvewevfndvqwwkner.supabase.co/functions/v1` for Production and Preview. It
    is read at build time, and a build without it still succeeds but calls the local
