@@ -1,0 +1,91 @@
+name: Deploy to staging
+
+# Rebuilds first-taste-erp-staging from main and deploys the edge functions to it.
+#
+# MANUAL ONLY. Applying migrations and deploying edge functions are owner-approved
+# actions, one at a time (CLAUDE.md §4): pressing Run, and typing the project's name, is
+# that approval for one rebuild. Nothing here runs on a push or a pull request.
+#
+# NEVER PRODUCTION. The project ref is pinned below, and the job refuses to touch it
+# unless the run is from main, the name typed matches, and the project the access token
+# reaches under that ref is named first-taste-erp-staging. Production is never seeded
+# and never reset (docs/program/supabase-deployment.md §5); this workflow does both.
+#
+# What it runs, in the runbook's terms (docs/program/supabase-deployment.md):
+#   §2  link, and confirm what you are linked to
+#   §5  db reset --linked: staging only. Drops every user-created object and rebuilds
+#       the database from supabase/migrations and the synthetic seed, so the migration
+#       history matches the repository exactly. Roles are kept, and with them the
+#       password the owner set on erp_edge.
+#   then functions deploy: the twelve functions in supabase/config.toml, verify_jwt off
+#       as it says. Their secrets (ERP_DATABASE_URL, ERP_ALLOWED_ORIGINS) are the
+#       owner's, set in the dashboard once; a deploy leaves them as they are.
+#
+# Main only, so a held migration on a branch (PR #68's switch-on, say) is never applied.
+#
+# Secrets, set by the owner in the repository's settings:
+#   SUPABASE_ACCESS_TOKEN  a personal access token. It reaches every project in the
+#                          account, the live ones included; the checks below are what
+#                          keep this job on staging.
+#   STAGING_DB_PASSWORD    the staging database's postgres password.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type first-taste-erp-staging to rebuild it from main'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+env:
+  STAGING_REF: olrqvewevfndvqwwkner
+  STAGING_NAME: first-taste-erp-staging
+
+jobs:
+  deploy:
+    name: Rebuild staging from main
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+    steps:
+      - name: The name typed is staging's
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "$STAGING_NAME" ]; then
+            echo "::error::Type $STAGING_NAME to confirm. Nothing was changed."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      # Pinned, as in ci.yml, and for the same reason.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.34.3
+
+      - name: The project under that ref is staging
+        run: |
+          name="$(supabase projects list -o json | jq -r --arg ref "$STAGING_REF" \
+            '.[] | select(.id == $ref or .ref == $ref) | .name')"
+          if [ "$name" != "$STAGING_NAME" ]; then
+            echo "::error::$STAGING_REF is '${name:-not reachable}', not $STAGING_NAME. Nothing was changed."
+            exit 1
+          fi
+
+      - name: Link
+        run: supabase link --project-ref "$STAGING_REF"
+
+      - name: Rebuild the database from migrations and the synthetic seed
+        run: supabase db reset --linked --yes
+
+      - name: Deploy the edge functions
+        run: supabase functions deploy --project-ref "$STAGING_REF"

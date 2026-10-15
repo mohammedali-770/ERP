@@ -179,3 +179,24 @@ session:
   programme says "against production" and none said what that left permitted, so
   `supabase/README.md`, `CLAUDE.md` §5 and `governance.md` §4 now say plainly
   that a local reset is free and a hosted project is owner-approved.
+
+## Addendum — 2026-10-15: a staging project, early
+
+On the owner's instruction, a staging project exists ahead of the schedule above:
+`first-taste-erp-staging`, ref `olrqvewevfndvqwwkner`, region `eu-central-1`. Production is
+unchanged: it is still created about six to eight weeks before launch, and not before
+ADR-0002 closes.
+
+- **Its organisation is the live projects'** (`Spicy Meal Org`), the owner's choice, where
+  [`supabase-deployment.md`](../program/supabase-deployment.md) §1 asked for one of its own.
+  So "never write to the live estate" stays a rule and is not an access-control fact: the
+  access token the deploy workflow uses reaches `spicy-meal-ordering` too, and the
+  workflow's own checks are what keep it on staging.
+- **It holds synthetic data only** (SEC-012), and is rebuilt from `main` by the manual
+  `Deploy to staging` workflow, each run the owner's action. Its edge functions run
+  there, the sign-in function included before Q-24 is answered, which the owner accepted
+  for staging alone.
+- **Its first ten migrations were applied through the Supabase connector** before it
+  proved unable to carry the larger files; their history entries carry the time they were
+  applied, not the files' numbers. The workflow's first run resets the project and
+  rebuilds the history from the files.

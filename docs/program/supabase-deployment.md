@@ -108,6 +108,43 @@ development or testing without approved masking. **Production is never seeded**;
 it starts empty and is populated by the migration of real data, which is its own
 approved plan and not this document.
 
+## Staging, as built (2026-10-15)
+
+On the owner's instruction, staging exists ahead of the schedule at the top of this
+document: `first-taste-erp-staging`, ref `olrqvewevfndvqwwkner`, `eu-central-1`, in the
+same organisation as the live projects (ADR-0018's addendum of 2026-10-15). It was
+created through the Supabase connector, which could not carry the larger migrations, so
+it is built by `.github/workflows/staging-deploy.yml` instead: from `main` only, run by
+hand, the project's name typed to confirm. A run links (§2), resets the project from the
+migrations and the synthetic seed (§5), and deploys the twelve edge functions.
+
+What the owner sets, once, and never in a file:
+
+1. **Two repository secrets.** `SUPABASE_ACCESS_TOKEN`, a personal access token. It reaches
+   every project in the account, the live ones included, and the workflow's checks are what
+   keep it on staging. `STAGING_DB_PASSWORD`, the staging database's password: the connector
+   generated one nobody holds, so it is reset in the dashboard first (Project Settings,
+   Database).
+2. **The first run**, from the Actions tab: `Deploy to staging`, from `main`.
+3. **`erp_edge`'s password**, after the first run has created the role, in the dashboard's
+   SQL editor: `alter role erp_edge with password '…';`, a new password kept in the password
+   manager. A reset keeps roles, so this survives later runs.
+4. **The edge functions' two secrets**, in the dashboard (Edge Functions, Secrets):
+   - `ERP_DATABASE_URL`: the transaction pooler's connection string from the dashboard's
+     Connect panel, with the user `erp_edge.olrqvewevfndvqwwkner` and `erp_edge`'s password.
+     The driver is set for the pooler: one connection, no prepared statements.
+   - `ERP_ALLOWED_ORIGINS`: the console's exact origin, or several, comma-separated. No
+     wildcard is accepted, so a Vercel preview's own address is refused unless it is named.
+5. **The console on Vercel**: import the repository with `apps/console` as its root
+   directory, and set `VITE_ERP_FUNCTIONS_URL` to
+   `https://olrqvewevfndvqwwkner.supabase.co/functions/v1`. `apps/console/vercel.json`
+   turns off deployments from `main`, so the console's production address moves only when
+   the owner promotes a deployment, as the database moves only when the owner runs the
+   workflow.
+
+The pgTAP suites (§4) are not part of the workflow: run against the project they need the
+pgTAP extension enabled there, which is a further change of its own.
+
 ## 6. Configuration that is not in this repository
 
 Set in the dashboard, never committed:
