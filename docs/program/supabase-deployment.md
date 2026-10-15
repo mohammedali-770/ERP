@@ -179,17 +179,28 @@ What the owner sets, and never in a file:
 7. **An administrator's PIN**, if anyone is to make changes on staging. The seed gives the
    synthetic administrator, employee number `1000`, none. After a run, in `psql` as in 5,
    typed at a prompt and sent as a bound parameter, so that neither `psql`'s history nor
-   the statement the server sees holds the digits:
+   the statement the server sees holds the digits. Two inputs, in this order, never
+   pasted together. First this line on its own, then the six digits at `PIN:`:
 
    ```
    \prompt 'PIN: ' pin
+   ```
+
+   Then, once the prompt has been answered, these two lines:
+
+   ```
    select erp.set_pin(gen_random_uuid(), '01936f00-0000-7000-8000-000000000900', $1,
      'Staging administrator PIN.', '01936f00-0000-7000-8000-000000000900', now()) \bind :pin \g
    ```
 
-   `\bind :pin`, not `:'pin'`, which would send the quotes too and be refused as not six
-   digits. `\prompt` shows the digits as they are typed. The administrator is both the
-   actor and the person, which its role permits. The next run's reset erases the PIN, as
+   Pasted as one, the block fails: `\prompt` takes the `select` as its own arguments, or
+   leaves the digits typed after it at `psql`'s prompt, where they are sent as SQL and
+   kept in its history. `\bind :pin`, not `:'pin'`, which would send the quotes too and
+   be refused as not six digits. `\prompt` shows the digits as they are typed. To
+   confirm, `select updated_at from erp.person_credential where person_id =
+   '01936f00-0000-7000-8000-000000000900';` shows the moment just now; a PIN set some
+   other way, or none, shows an older one or no row. The administrator is both the actor
+   and the person, which its role permits. The next run's reset erases the PIN, as
    it erases everything but roles. Until it is set, only the seeded cashiers can sign
    in, and their PINs are in clear in `supabase/seeds/0015_identity.sql`, which is
    public: anyone can sign in to staging as them (Q-24's note of 2026-10-15).
