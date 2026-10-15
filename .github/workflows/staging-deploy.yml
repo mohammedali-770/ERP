@@ -1,0 +1,122 @@
+name: Deploy to staging
+
+# Rebuilds first-taste-erp-staging from main and deploys the edge functions to it.
+#
+# MANUAL ONLY, AND THE OWNER'S. Applying migrations and deploying edge functions are
+# owner-approved actions, one at a time (CLAUDE.md §4). The job runs in the GitHub
+# environment `staging`, which admits only main and holds the job until its required
+# reviewer approves that one run. The name typed below only guards against a slip.
+#
+# THE SECRETS LIVE IN THAT ENVIRONMENT, NOT IN THE REPOSITORY. The access token reaches
+# every project in the Supabase account, both live databases included, and needs no
+# database password to run SQL on any of them. A repository secret is readable by any
+# workflow on any branch of this repository, so no check in this file could keep it on
+# staging. An environment secret is given only to a job that names the environment,
+# after the environment's branch rule and reviewer have admitted it.
+#
+# WHAT THE REVIEWER DOES NOT DO: tell the owner from an agent. Agent sessions act as the
+# owner's own GitHub account, so a run an agent started, or an approval it gave, is the
+# owner's to GitHub, and this file can reach main through a merge that needs no
+# approval. Approve only a run you started, after reading this file, and what changed
+# since the last run approved, at the commit the run's page shows: the run executes that
+# commit, not whatever main has moved to since. CLAUDE.md §3 and §4 keep an agent from
+# starting or approving one; no mechanism here does. The
+# durable fix is docs/program/supabase-deployment.md §1's: staging in an organisation of
+# its own, and a token from someone who belongs to that organisation alone. See that
+# document's "Staging, as built".
+#
+# NEVER PRODUCTION. The project ref is pinned below; the run is refused unless it is from
+# main, the name typed matches, the database password is set, and the project under that
+# ref is named first-taste-erp-staging. Production is never seeded and never reset; this
+# workflow does both.
+#
+# What it runs, in the runbook's terms (docs/program/supabase-deployment.md):
+#   §2  link, and confirm what you are linked to
+#   §5  db reset --linked: drops every user-created object and rebuilds the database
+#       from supabase/migrations and the seed files supabase/config.toml lists, so the
+#       migration history matches the repository exactly. Roles belong to the cluster
+#       and are kept, and with them the password the owner set on erp_edge.
+#   then functions deploy: the twelve functions in supabase/config.toml, verify_jwt off
+#       as it says. The CLI bundles them in its own edge-runtime image from deno.json's
+#       import map; deno.lock binds CI's deno check, not this bundle. Their secrets are
+#       the owner's, set in the dashboard once, and a deploy leaves them as they are.
+#
+# Main only, so a held migration on a branch (PR #68's switch-on, say) is never applied.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type first-taste-erp-staging to rebuild it from main'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  STAGING_REF: olrqvewevfndvqwwkner
+  STAGING_NAME: first-taste-erp-staging
+
+jobs:
+  deploy:
+    name: Rebuild staging from main
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    # At the job, so a run the `if` above skips never takes a queued run's place.
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false
+    steps:
+      - name: The name typed is staging's, and the database password is set
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          HAS_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD != '' }}
+        run: |
+          if [ "$CONFIRM" != "$STAGING_NAME" ]; then
+            echo "::error::Type $STAGING_NAME to confirm. Nothing was changed."
+            exit 1
+          fi
+          # Without it the CLI would make a login role of its own on the project with
+          # the token alone, which no migration created.
+          if [ "$HAS_DB_PASSWORD" != "true" ]; then
+            echo "::error::STAGING_DB_PASSWORD is not set in the staging environment. Nothing was changed."
+            exit 1
+          fi
+
+      # Pinned to commits, not tags: these run in a job that holds a token. The CLI's own
+      # version is pinned as in ci.yml.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
+        with:
+          version: 2.34.3
+
+      # The secrets are given to these four steps alone.
+      - name: The project under that ref is staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          name="$(supabase projects list -o json | jq -r --arg ref "$STAGING_REF" \
+            '.[] | select(.id == $ref or .ref == $ref) | .name')"
+          if [ "$name" != "$STAGING_NAME" ]; then
+            echo "::error::$STAGING_REF is '${name:-not reachable}', not $STAGING_NAME. Nothing was changed."
+            exit 1
+          fi
+
+      - name: Link
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: supabase link --project-ref "$STAGING_REF"
+
+      - name: Rebuild the database from migrations and the synthetic seed
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: supabase db reset --linked --yes
+
+      - name: Deploy the edge functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref "$STAGING_REF"
