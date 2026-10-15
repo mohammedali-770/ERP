@@ -139,10 +139,11 @@ What the owner sets, and never in a file:
    approval screen does not show what the run will execute. So the approval is the
    owner's choice, as merging is, and CLAUDE.md §3 and §4 are what keep an agent from
    making it; nothing in GitHub does. Approve only a run you started yourself, after
-   reading `staging-deploy.yml` on `main`. What would separate the two: §1's organisation
-   of its own with a token that reaches only staging, a GitHub identity for agent
-   sessions with no administrator or deployment-review rights, or a second human
-   reviewer.
+   reading it as 4 says. What would separate the two: §1's organisation of its own with
+   a token that reaches only staging, or a GitHub identity for agent sessions with no
+   administrator or deployment-review rights. A second human reviewer is not enough on
+   its own: GitHub proceeds on any one listed reviewer's approval, and an administrator
+   can bypass the environment's rules or change them.
 2. **`SUPABASE_ACCESS_TOKEN`**, a personal access token. It reaches every project in the
    account, `spicy-meal-ordering` and `warehouse-factory-system` included, and can run SQL
    as `postgres` on any of them without a database password. The environment keeps it
@@ -151,19 +152,25 @@ What the owner sets, and never in a file:
    staging in an organisation of its own, and a token from an account that belongs to
    that organisation alone.
 3. **`STAGING_DB_PASSWORD`**, the staging database's password. The connector generated one
-   nobody holds, so it is reset in the dashboard first (Project Settings, Database). The
-   workflow refuses to run without it: with no password the CLI would make a login role
-   of its own on the project from the token alone, which no migration created.
+   nobody holds, so it is reset in the dashboard first (Project Settings, Database), and
+   kept in the password manager as well: GitHub never shows a secret again, and 5 needs
+   it. The workflow refuses to run without it: with no password the CLI would make a
+   login role of its own on the project from the token alone, which no migration
+   created.
 4. **Each run**, by the owner, from the Actions tab: `Deploy to staging`, from `main`, the
-   name typed; then read the workflow on `main` and approve the pending deployment.
+   name typed. Then open the pending run and note the commit it shows: the run executes
+   that commit, whatever `main` shows by the time it is approved. Read
+   `.github/workflows/staging-deploy.yml` at that commit, and what has changed since the
+   last run you approved, and only then approve the pending deployment.
 5. **`erp_edge`'s password**, after the first run has created the role, from `psql` and
    never in the dashboard's SQL editor: Supabase logs every DDL statement `postgres` runs,
-   `alter role … password` included, and the editor keeps what it ran. Connect as
-   `postgres` with the session pooler's connection string from the Connect panel and
-   `STAGING_DB_PASSWORD`, then run `\password erp_edge` and type a new password, kept in
+   `alter role … password` included, and the editor keeps what it ran. Connect with
+   `psql` 16 or later as `postgres`, with the session pooler's connection string from the
+   Connect panel and the password left out of it, so that `psql` asks for
+   `STAGING_DB_PASSWORD`. Then run `\password erp_edge` and type a new password, kept in
    the password manager. `psql` sends only a SCRAM verifier, so the password itself
-   reaches no log. A reset keeps roles, which belong to the cluster, so this survives
-   later runs.
+   reaches neither the server's log nor `psql`'s history. A reset keeps roles, which
+   belong to the cluster, so this survives later runs.
 6. **`ERP_DATABASE_URL`**, an edge function secret, in the dashboard (Edge Functions,
    Secrets): the transaction pooler's connection string from the Connect panel, with the
    user `erp_edge.olrqvewevfndvqwwkner`, `erp_edge`'s password, and `?sslmode=require` on
@@ -171,19 +178,21 @@ What the owner sets, and never in a file:
    set for the pooler: one connection, no prepared statements.
 7. **An administrator's PIN**, if anyone is to make changes on staging. The seed gives the
    synthetic administrator, employee number `1000`, none. After a run, in `psql` as in 5,
-   since the editor keeps what it ran, with six digits of the owner's choosing in place
-   of `…`:
+   typed at a prompt and sent as a bound parameter, so that neither `psql`'s history nor
+   the statement the server sees holds the digits:
 
-   ```sql
-   select erp.set_pin(gen_random_uuid(), '01936f00-0000-7000-8000-000000000900', '…',
-     'Staging administrator PIN.', '01936f00-0000-7000-8000-000000000900', now());
+   ```
+   \prompt 'PIN: ' pin
+   select erp.set_pin(gen_random_uuid(), '01936f00-0000-7000-8000-000000000900', $1,
+     'Staging administrator PIN.', '01936f00-0000-7000-8000-000000000900', now()) \bind :pin \g
    ```
 
-   The administrator is both the actor and the person, which its role permits. The next
-   run's reset erases the PIN, as it erases everything but roles. Until it is set, only
-   the seeded cashiers can sign in, and their PINs are in clear in
-   `supabase/seeds/0015_identity.sql`, which is public: anyone can sign in to staging as
-   them (Q-24's note of 2026-10-15).
+   `\bind :pin`, not `:'pin'`, which would send the quotes too and be refused as not six
+   digits. `\prompt` shows the digits as they are typed. The administrator is both the
+   actor and the person, which its role permits. The next run's reset erases the PIN, as
+   it erases everything but roles. Until it is set, only the seeded cashiers can sign
+   in, and their PINs are in clear in `supabase/seeds/0015_identity.sql`, which is
+   public: anyone can sign in to staging as them (Q-24's note of 2026-10-15).
 8. **The console on Vercel**: import the repository with `apps/console` as its root
    directory; `apps/console/vercel.json` gives the install, build and output. Before the
    first deployment, set `VITE_ERP_FUNCTIONS_URL` to
