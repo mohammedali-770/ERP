@@ -35,8 +35,9 @@
 --
 -- What still writes this log, unchanged: erp.decide_capability(), which runs as its owner,
 -- and the migrations and seeds that record a decision as the owner, held switch-ons
--- included. The owner was never subject to the dropped policy, which named erp_app alone.
--- erp_app keeps SELECT, and the read policy that goes with it.
+-- included. The owner never needed the dropped policy: it bypasses row security, as a
+-- superuser locally and by BYPASSRLS on Supabase. erp_app keeps SELECT, and the read
+-- policy that goes with it.
 --
 -- No function is added, so nothing new needs revoking from PUBLIC.
 

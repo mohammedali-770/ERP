@@ -667,12 +667,16 @@ export const ASSERTIONS: readonly Assertion[] = [
       'and granting it back would be a way round the sign-in log, so this would report it. ' +
       'The exceptions are named by signature, not by name: an overload such as ' +
       'erp.sign_out(uuid) is reported like any other route (found in review). A mention is ' +
-      'not a call: comments and quoted strings are taken out of the source first, in one ' +
-      'pass that reads them in order as the parser does, so a "--" inside a string and an ' +
-      'apostrophe inside a comment are each read as part of what holds them. Until 2026-10-16 a ' +
-      'route whose only mention was a comment passed (found by a sweep of the checks). Dead ' +
-      'code still counts, and so would a dollar-quoted string inside a body, which no route ' +
-      'has: that the call runs, and runs first, stays pgTAP\'s to prove.',
+      'not a call: comments, quoted strings and quoted identifiers are taken out of the ' +
+      'source first, in one pass that reads them in order, so a "--" inside a string and an ' +
+      'apostrophe inside a comment or an identifier are each read as part of what holds ' +
+      'them, and a line comment ends at a carriage return as at a newline, as the scanner ' +
+      'reads it. Until 2026-10-16 a route whose only mention was a comment passed (found by ' +
+      'a sweep of the checks). A regular expression cannot read everything the scanner ' +
+      'does: a nested comment, a backslash-escaped quote in an E\'\' string, and a ' +
+      'dollar-quoted string inside a body each end early or late, so could hide a mention ' +
+      'or a call. No route has one (found in this change\'s review), and dead code still ' +
+      'counts: that the call runs, and runs first, stays pgTAP\'s to prove.',
     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
@@ -682,7 +686,7 @@ export const ASSERTIONS: readonly Assertion[] = [
             and p.oid::regprocedure::text not in
                 ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
             and strpos(regexp_replace(p.prosrc,
-                         $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n]*|'([^']|'')*'$re$, ' ', 'g'),
+                         $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n\\r]*|'([^']|'')*'|"([^"]|"")*"$re$, ' ', 'g'),
                        'erp.assert_permitted(') = 0`,
   },
   {

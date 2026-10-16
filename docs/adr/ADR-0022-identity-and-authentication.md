@@ -153,7 +153,7 @@ of their signatures checked.
 ## Addendum — 2026-10-16: the capability log has one writer too
 
 §2 gave every identity change one admitted route, and the runtime no write on any table
-behind it. 0011's header said so against 0010, "which granted INSERT on its decision log",
+behind it. 0011's note on its privileges said so against 0010, "which granted INSERT on its decision log",
 and nothing took that grant back: `erp_app`, and so `erp_edge`, could append to
 `erp.capability_decision` directly, past every check `erp.decide_capability()` makes,
 with an actor who never decided anything and a state that never followed. The log refuses

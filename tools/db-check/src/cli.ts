@@ -92,14 +92,16 @@ try {
     }
   }
 
-  // Every assertion names its one column `violation`, and is read through a wrapper that
-  // gives each row some text. psql prints NULL, and an empty string, as an empty line, and
-  // empty lines are dropped below, so a check whose violation was NULL passed: the
-  // actor_id-is-null half of cashier-actors-resolve-to-a-person could never fail (found by
-  // a sweep of the checks, 2026-10-16).
+  // Every assertion names its one column `violation`, and each row is read after a record
+  // separator, chr(30), so it counts whatever its text. psql prints NULL, a blank, and a
+  // value of nothing but a tab or a no-break space as an empty line, and empty lines were
+  // dropped, so such a violation read as none: the actor_id-is-null half of
+  // cashier-actors-resolve-to-a-person could never fail (found by a sweep of the checks,
+  // 2026-10-16, and its whitespace half in that change's review). A violation that spans
+  // lines is one row.
   const violations = (c: Cluster, sql: string): string[] =>
-    c.sql(`select coalesce(nullif(btrim(v.violation::text), ''), '(a violation with no text)') from (${sql}) v`)
-      .split('\n').map((r) => r.trim()).filter(Boolean);
+    c.sql(`select chr(30) || coalesce(v.violation::text, '') from (${sql}) v`)
+      .split('\u001e').slice(1).map((r) => r.trim() || '(a violation with no text)');
 
   const check = (c: Cluster, group: string, list: readonly Assertion[]): void => {
     console.log(`\n  ${group}\n`);
@@ -158,10 +160,13 @@ try {
   const assertion = (id: string): Assertion =>
     ASSERTIONS.find((a) => a.id === id) ?? fail(`no assertion ${id}, so the control for it has nothing to ask`);
 
-  const blank = violations(cluster, `select null::text as violation union all select '' union all select '  '`);
+  const blank = violations(cluster,
+    `select null::text as violation union all select '' union all select '  ' union all select chr(9)
+     union all select chr(160) union all select 'two' || chr(10) || 'lines'`);
   const none = violations(cluster, `select 'never' as violation where false`);
-  control('a violation with no text still counts as one', blank.length === 3 && none.length === 0,
-    `Three blank violations read as ${blank.length}, and none as ${none.length}: a NULL violation would pass.`);
+  control('a violation with no text, or only whitespace, still counts as one, and one over two lines as one',
+    blank.length === 6 && none.length === 0,
+    `Six violations read as ${blank.length}, and none as ${none.length}: a NULL or blank violation would pass.`);
 
   // What an unqualified CREATE leaves in public: a routine, a sequence, a domain.
   cluster.sql(`create function public.__public_probe() returns int language sql as 'select 1';
@@ -176,11 +181,14 @@ try {
     `It reported ${inPublic.join(', ') || 'nothing'}.`);
 
   // Two definer routes the runtime may call. One only mentions the gate, in a line comment,
-  // a block comment and a string. The other calls it, after a comment with an apostrophe and
-  // a string holding "--" on the same line: read in the wrong order, either would hide the
-  // call, and a gated route would be reported.
+  // a block comment, a string and a quoted identifier. The other calls it after an
+  // identifier holding an apostrophe, a comment holding one, a comment ended by a bare
+  // carriage return, and a string holding "--" on the call's own line: misread, any of them
+  // would hide the call, and a gated route would be reported.
   cluster.sql(`create function erp.__ungated_probe() returns void language plpgsql security definer
                  set search_path = pg_catalog, pg_temp as $$
+               declare
+                 "erp.assert_permitted(" int := 0;
                begin
                  -- erp.assert_permitted() is called by the edge instead
                  /* erp.assert_permitted( */
@@ -188,9 +196,11 @@ try {
                end $$;
                create function erp.__gated_probe() returns void language plpgsql security definer
                  set search_path = pg_catalog, pg_temp as $$
+               declare
+                 "the edge's" int := 0;
                begin
                  -- the caller's permission, which isn't the edge's to decide
-                 raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
+                 -- a comment ended by a bare carriage return\r raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
                end $$;
                revoke all on function erp.__ungated_probe(), erp.__gated_probe() from public;
                grant execute on function erp.__ungated_probe(), erp.__gated_probe() to erp_app`);
