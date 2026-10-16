@@ -99,7 +99,7 @@ ones the session's staff will meet.
 | G | A changed cut-off takes effect at once, and an order already placed keeps its day. Should a change be scheduled ahead, from a date, as a transfer price can be? | At once | |
 | H | A cut-off is changed only while working at its facility (3.3). Is having to switch there right, or should the administrator change any from the whole organisation? | Switch to the facility | |
 | I | O5 says a branch's staff read their suppliers' cut-offs. The console shows them every warehouse's and factory's cut-off of their brand, and every item's source, those that supply them nothing included (ADR-0033 §7). The test data cannot show the difference: its warehouse and its factory both supply the first branch. Should they see only their own suppliers'? | Every one of their brand's | |
-| J | Where, and for which roles, are item sources, cut-offs and par levels switched on? | The test data opens them everywhere. A real database shows no Ordering entries until they are switched on, and then only to the administrator. Par levels must be switched on at every branch the pilot covers, as well as at the warehouse and the factory, or no par can be set there (Part 11) | |
+| J | Where, and for which roles, are item sources, cut-offs and par levels switched on? | The test data opens them everywhere. A real database shows no Ordering entries until they are switched on, and then only to the administrator; another role sees them once it is given permission. The switch-on is drafted organisation-wide: every warehouse, factory and branch is in the pilot unless a decision of its own, owner-approved and recorded there first, takes it out; one made later is in until such a decision is recorded. No reviewed way to record one exists yet: a further migration naming the facility, which the switch-on then waits on, or a write to the live database (Q-23). Item sources and cut-offs are switched on or off together, par levels on their own (Part 11). At a branch, both not switched on: its pars are neither set nor read, and its staff read nothing there; both taking no changes: all of it stays readable, and no par is set or cleared for it; item sources and cut-offs alone not switched on there still leave each par's supplier on its par list, as a short id. At a warehouse or factory, item sources and cut-offs not switched on: no cut-off is set there, though one already set stays in force; par levels not switched on: no par is set from there or read there. One that keeps par levels but is left out of cut-offs keeps item sources and cut-offs taking no changes, not switched off: its par page finds items through their sources, and it stays the source of the items it sets pars for. Whatever is decided there, it can still be named as an item's source, and pars for the items it supplies set for the whole organisation (Q-30) | |
 
 ## Setup — the team, before the participants arrive
 
@@ -134,10 +134,10 @@ ones the session's staff will meet.
   cannot see the second. Its people take turns, each signing out before the next signs in.
   Where the participant acts once a change is saved, the observer tells them when.
 - In Part 11 the team changes the test database three times, between tasks, as a pilot
-  would by migration: par levels first take no changes at the second branch, are then not
-  switched on there, and are switched back on before Part 12. The team prepares all three
-  statements beforehand, and the observer tells the factory manager when each of the first
-  two is done.
+  would by its own decision at that branch: par levels first take no changes at the
+  second branch, are then not switched on there, and are switched back on before Part 12.
+  The team prepares all three statements beforehand, and the observer tells the factory
+  manager when each of the first two is done.
 - Who made each change: a history names the person signed in; anyone else is shown by a
   short code, and every person in the test data has the same one (Q-25).
 - Where a change is refused, the console's own sentence is what the participant is judged
@@ -283,7 +283,7 @@ saved.
 
 | # | Task | Passes when |
 |---|---|---|
-| 11.1 | The team records that par levels take no changes at BR-002, as a pilot that leaves it out would. The factory manager opens Par levels, chooses BR-002, then opens the chicken strips | "Par levels take no changes at this branch: they can be read, but not set or cleared." Chicken breast 30 Kilogram and chicken strips 120 Piece (3 Tray) are still listed; there is no "Set a par level for an item". The chicken strips' page has no form |
+| 11.1 | The team records that par levels take no changes at BR-002, as a pilot that keeps it read-only would. The factory manager opens Par levels, chooses BR-002, then opens the chicken strips | "Par levels take no changes at this branch: they can be read, but not set or cleared." Chicken breast 30 Kilogram and chicken strips 120 Piece (3 Tray) are still listed; there is no "Set a par level for an item". The chicken strips' page has no form |
 | 11.2 | The team records par levels as not switched on at BR-002. The factory manager presses Back, to BR-002's par levels | "Par levels are not switched on at this branch." Nothing is listed. Nothing says "not permitted" |
 
 Before Part 12, the team switches par levels back on at BR-002.

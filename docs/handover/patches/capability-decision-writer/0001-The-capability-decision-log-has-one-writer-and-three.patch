@@ -1,0 +1,475 @@
+From b01f14d7cfb45596d33818a2b5cce7e1150b1e6e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 00:20:57 +0000
+Subject: [PATCH 1/3] The capability decision log has one writer, and three
+ checks see what they claim
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Found by a sweep of the repository's checks against what CLAUDE.md says they
+enforce.
+
+0025 revokes erp_app's INSERT on erp.capability_decision and drops the
+policy that admitted any row. 0010 granted both and then routed every
+decision through erp.decide_capability(), which writes as its owner, so the
+grant stood unused. erp_edge is erp_app, so the edge credential could
+append a decision directly, skipping what that function checks: an actor
+who may administer capabilities (CAP-P03), CAP-P07 and CAP-P08, and the
+state that follows (CAP-P04). The log refuses correction, so a row like
+that would stand for good. 0011 had made exactly this rule for its own log
+and named 0010 as the exception. Nothing that writes the log changes: the
+function, the seeds and the switch-ons all insert as the owner, which the
+dropped policy never named. Staging has 0010 but no login role inheriting
+erp_app, since 0014 is not applied there; its next rebuild takes 0025.
+
+db-check:
+- every-decision-log-is-append-only now refuses an INSERT grant to erp_app
+  on any log but the event log, which the branch runtime appends to by
+  design, and to erp_read on any log. It reported the capability log until
+  0025.
+- no-erp-object-in-public covers sequences, foreign tables, composite types,
+  routines and types, not only tables and views. A routine created without
+  its schema lands in public, and PostgREST serves it to the anon key.
+  Extension members are left to no-extension-in-public. Read-only on
+  staging, public holds nothing of the kind, and postgres bypasses RLS.
+- every-runtime-definer-route-is-gated takes comments and quoted strings out
+  of a route's source first, in one pass that reads them in order, so a
+  mention in a comment or a string no longer counts as a call.
+- The runner reads each assertion through a wrapper, so a violation whose
+  text is NULL or blank counts. psql printed it as an empty line, which was
+  dropped, so cashier-actors-resolve-to-a-person's actor_id-is-null half
+  could never fail.
+
+Controls, run on every db:check:
+- three blank violations read as three;
+- a routine, a sequence and a domain left in public are reported;
+- a route that only mentions the gate, in a line comment, a block comment
+  and a string, is reported, and one that calls it after a comment with an
+  apostrophe and a string holding "--" is not.
+
+Each fix was reverted in a copy of the tree, and db:check failed with
+exactly the matching check:
+- 0025 removed;
+- the old public query;
+- the old strpos;
+- the old runner;
+- comments stripped before strings, which reported the gated route.
+
+pgTAP:
+- 060 asserts the runtime holds no INSERT on the log;
+- 010 mirrors the wider public check.
+Both fail on the scratch database with the grant restored or a function
+left in public.
+
+Docs: CLAUDE.md's four rows, ADR-0022's addendum, and the consolidation
+plan's note on 0010.
+
+These pass:
+- npm run db:check (133);
+- db:fixtures;
+- every pgTAP suite but 040, which needs Supabase's storage schema;
+- verify (695 tests);
+- secret:scan;
+- dep:policy.
+
+Requirements: CAP-P03 · CAP-P04 · CAP-P07 · CAP-P08 · SEC-006
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N99CTZ1JH716U2E54THxmp
+---
+ CLAUDE.md                                     |  8 +--
+ .../ADR-0022-identity-and-authentication.md   | 16 +++++
+ docs/program/consolidation-plan.md            |  3 +-
+ ...100_capability_decision_has_one_writer.sql | 45 ++++++++++++
+ supabase/tests/010_schema_and_roles_test.sql  | 22 ++++--
+ .../tests/060_capability_registry_test.sql    | 10 ++-
+ tools/db-check/src/assertions.ts              | 56 ++++++++++++---
+ tools/db-check/src/cli.ts                     | 71 ++++++++++++++++++-
+ 8 files changed, 210 insertions(+), 21 deletions(-)
+ create mode 100644 supabase/migrations/20261016000100_capability_decision_has_one_writer.sql
+
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 6833601..f5dc982 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -118,14 +118,14 @@ npm run db:test       # pgTAP suites against the local stack
+ | Services do not import each other | `boundary:check` |
+ | Every PRD open decision maps to an ADR | `req:lint` |
+ | The catalogue and the risk register match the source PRD | `prd:extract -- --check` |
+-| **No ERP object is created in `public`** | `db:check` + pgTAP |
++| **No ERP object is created in `public`** — no relation, sequence, routine or type | `db:check` (`no-erp-object-in-public`, with a control that leaves a routine, a sequence and a domain there) + pgTAP — a routine created without its schema lands in `public`, and PostgREST serves it to the anon key; relations alone were asked until 2026-10-16 |
+ | Default privileges grant `anon` and `authenticated` nothing | `db:check` + pgTAP |
+ | The event log rejects `UPDATE`, `DELETE` and `TRUNCATE` at runtime, whichever partition a statement names | `db:check` + pgTAP — a statement trigger on the parent never fired for a statement naming a partition, so the owner could delete every event until 0013 |
+-| Every decision log — event, capability, identity, item, supplier, transfer price, facility, sign-in, stock, stock minimum, purchase order, purchase limit, replenishment source, order cut-off, par level — and the stock ledger refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name (`%_log`, `%_decision`, `%_ledger`, one predicate shared by the catalogue check and the runtime probe) and through `pg_inherits`; `db:check` requires enabled, unconditional triggers and no write grant on every log and partition, then attempts all three writes on each, so a new log or partition cannot be added unprotected |
++| Every decision log — event, capability, identity, item, supplier, transfer price, facility, sign-in, stock, stock minimum, purchase order, purchase limit, replenishment source, order cut-off, par level — and the stock ledger refuses `UPDATE`, `DELETE` and `TRUNCATE`, through any partition | `db:check` + pgTAP — discovered by name (`%_log`, `%_decision`, `%_ledger`, one predicate shared by the catalogue check and the runtime probe) and through `pg_inherits`; `db:check` requires enabled, unconditional triggers, no `UPDATE`, `DELETE` or `TRUNCATE` grant on any log or partition and no `INSERT` on any but the event log, then attempts all three writes on each, so a new log or partition cannot be added unprotected |
+ | **No foreign key in `erp` cascades, nulls or defaults** | `db:check` — B-11: records are retired, never deleted |
+ | **The scratch database is UTF8, as Supabase's is** | `db:check` and `db:fixtures` — the scratch cluster refuses to start otherwise: in SQL_ASCII, `length()` counts bytes and every Arabic string measures twice its length |
+ | An item's code, kind, base unit and brand, and a conversion's factor, never change; neither is deleted or truncated | `db:check` (`item-guard-triggers-exist`) + pgTAP — triggers that bind the owner too |
+-| **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed. The three session routes are the named exceptions (ADR-0025) |
++| **Every definer function the runtime may call asks permission** | `db:check` (`every-runtime-definer-route-is-gated`) — discovered, so a later module's route cannot skip `erp.assert_permitted()` unnoticed. The three session routes are the named exceptions (ADR-0025). A mention in a comment or a string does not count, and a control proves it |
+ | **A caller cannot name the actor** | Node tests (`supabase/functions/_shared/test`) — `withSession` hands a handler the person the token resolves to, whatever the request says (ADR-0025), and every items, suppliers, transfer-prices, facilities, stock, stock-alerts, purchase-orders and ordering-setup write, and every notifications route, is held to it |
+ | **A database refusal is an answer; anything else is a 500 that says nothing** | Node tests (`supabase/functions/_shared/test/items.test.ts`, `suppliers.test.ts`, `transfer-prices.test.ts`, `facilities.test.ts`, `stock.test.ts`, `notifications.test.ts`, `stock-alerts.test.ts`, `purchase-orders.test.ts`, `ordering-setup.test.ts`) + the Deno items, suppliers, transfer-prices, facilities, stock, notifications, stock-alerts, purchase-orders and ordering-setup tests, end to end. A route's own words reach the person; PostgreSQL's never do |
+ | **An amount crosses the edge as a whole number of minor units, and a moment with its offset** | Node tests (`supabase/functions/_shared/test/transfer-prices.test.ts`) + the Deno transfer-prices test — an amount sent or answered as text is refused, never guessed at; a moment without an offset would be read as UTC (ADR-0027's step 2 addendum) |
+@@ -178,7 +178,7 @@ npm run db:test       # pgTAP suites against the local stack
+ | **A retry that overlaps its original is answered as a retry** | `db:check` — two real sessions, one decision id, on every item, supplier, transfer price, facility, stock, stock minimum, purchase order, receipt, purchase limit, replenishment source, order cut-off and par level write route and both imports; checked by SQLSTATE, constraint and that a route raised it, which is what the edge matches |
+ | **No `erp` function is executable by `PUBLIC`** | `db:check` — a per-schema default cannot undo PostgreSQL's global one, so every migration that adds a function must revoke it |
+ | **No role but the owner can touch a credential table** | `db:check` — discovered by name, or by a `%token%` column, so `erp_read`'s default `SELECT` cannot reach a PIN hash or a session's token hash |
+-| A capability or identity decision needs a permitted actor | pgTAP |
++| A capability or identity decision needs a permitted actor | pgTAP + `db:check` (`every-decision-log-is-append-only`) — the runtime may append to neither log directly, so every decision goes through the route that asks; 0010's `INSERT` on the capability log stood until 0025 |
+ | No bcrypt hash is committed | `secret:scan` |
+ | **Every projection row names the record that produced it** | `db:check` + pgTAP — the stamp column is **discovered**, not listed, so a new projection cannot be added uncovered |
+ | **A migration never leaves a pgTAP fixture uncompilable** | `db:fixtures` |
+diff --git a/docs/adr/ADR-0022-identity-and-authentication.md b/docs/adr/ADR-0022-identity-and-authentication.md
+index 91ab5c0..3ba4c27 100644
+--- a/docs/adr/ADR-0022-identity-and-authentication.md
++++ b/docs/adr/ADR-0022-identity-and-authentication.md
+@@ -149,3 +149,19 @@ screen only. Rejected: it fails IAM-006 and CAP-P11 outright.
+ writing it: each kind carries different arguments and different guards, and one
+ function switching on a string would have been seven functions in one body with none
+ of their signatures checked.
++
++## Addendum — 2026-10-16: the capability log has one writer too
++
++§2 gave every identity change one admitted route, and the runtime no write on any table
++behind it. 0011's header said so against 0010, "which granted INSERT on its decision log",
++and nothing took that grant back: `erp_app`, and so `erp_edge`, could append to
++`erp.capability_decision` directly, past every check `erp.decide_capability()` makes,
++with an actor who never decided anything and a state that never followed. The log refuses
++correction, so such a row would stand for good.
++
++0025 revokes the INSERT and drops the policy that admitted any row. `erp.decide_capability()`
++runs as its owner, as do the seeds and the switch-ons that record a decision, so nothing
++that writes the log changes. db-check's `every-decision-log-is-append-only` now asks about
++INSERT as well as UPDATE, DELETE and TRUNCATE, on every log but the event log, which the
++branch runtime appends to by design; pgTAP 060 asserts the revoke. Found by a sweep of the
++checks against what they claim.
+diff --git a/docs/program/consolidation-plan.md b/docs/program/consolidation-plan.md
+index 9dfc104..173a63f 100644
+--- a/docs/program/consolidation-plan.md
++++ b/docs/program/consolidation-plan.md
+@@ -158,7 +158,8 @@ so a `hidden` capability simply has no entry — with the database refusal behin
+ >   administer capabilities; the two protected platform capabilities and the
+ >   `administrator` role moved from the seed into the migration, because a real
+ >   database needs them before anyone can decide anything; and the identity log grants
+->   the runtime **no** direct INSERT, unlike 0010's.
++>   the runtime **no** direct INSERT, unlike 0010's. (0025 took 0010's back on
++>   2026-10-16: it had stood unused, and no check asked about INSERT.)
+ > - **Two defects found and closed.** `0002`'s default privileges gave `erp_read`
+ >   SELECT on every new table, which would have included the PIN hash; and **every
+ >   `erp` function had been executable by PUBLIC since `0002`**, because a per-schema
+diff --git a/supabase/migrations/20261016000100_capability_decision_has_one_writer.sql b/supabase/migrations/20261016000100_capability_decision_has_one_writer.sql
+new file mode 100644
+index 0000000..333e3ee
+--- /dev/null
++++ b/supabase/migrations/20261016000100_capability_decision_has_one_writer.sql
+@@ -0,0 +1,45 @@
++-- 0025 · The capability decision log has one writer: erp.decide_capability()
++--
++-- Requirements: CAP-P03 · CAP-P04 · CAP-P07 · CAP-P08 · SEC-006
++-- ADR-0021 · ADR-0022 · ADR-0025
++--
++-- 0010 granted the runtime INSERT on erp.capability_decision, with a policy admitting any
++-- row, so that a decision could be recorded. Then it routed every decision through
++-- erp.decide_capability(), a SECURITY DEFINER function, which records it as the owner, and
++-- nothing has used the grant since. It was never taken back:
++--
++--     grant select, insert on erp.capability_decision to erp_app;            -- 0010
++--     create policy erp_app_append on erp.capability_decision
++--       for insert to erp_app with check (true);                             -- 0010
++--
++-- 0011 wrote the rule down for its own log and left this one out: "Unlike 0010, which
++-- granted INSERT on its decision log, this log has no direct INSERT: a decision appended
++-- without its projection would be a decision never in force." erp_edge, the edge
++-- functions' login role (0014), is erp_app, so the edge credential could append a
++-- capability decision directly. No trigger turns that row into a state, since only
++-- erp.decide_capability() moves erp.capability_state, so what it could do is write, for
++-- good, a record that function would have refused:
++--   * an actor who may not administer capabilities, or one who never decided anything;
++--   * an actor_type of 'system', which the function refuses from the application;
++--   * a protected capability closed (CAP-P08), or one closed while another that depends on
++--     it is still open (CAP-P07);
++--   * a decision the state never followed. CAP-P03 says the current state is derived from
++--     the decision records; this one would say a capability is closed while it is open.
++-- The log refuses UPDATE, DELETE and TRUNCATE to everyone, the owner included (0010,
++-- 0013), so a row like that could never be corrected, only answered by another.
++--
++-- Found on 2026-10-16 by a sweep of the checks against what they claim: db-check's
++-- every-decision-log-is-append-only looked for UPDATE, DELETE and TRUNCATE grants and not
++-- for INSERT. It now asks for INSERT too, on every log but the event log, which the branch
++-- runtime appends to by design (0004).
++--
++-- What still writes this log, unchanged: erp.decide_capability(), which runs as its owner,
++-- and the migrations and seeds that record a decision as the owner, held switch-ons
++-- included. The owner was never subject to the dropped policy, which named erp_app alone.
++-- erp_app keeps SELECT, and the read policy that goes with it.
++--
++-- No function is added, so nothing new needs revoking from PUBLIC.
++
++revoke insert on erp.capability_decision from erp_app;
++
++drop policy erp_app_append on erp.capability_decision;
+diff --git a/supabase/tests/010_schema_and_roles_test.sql b/supabase/tests/010_schema_and_roles_test.sql
+index 2c6e67a..8de43a9 100644
+--- a/supabase/tests/010_schema_and_roles_test.sql
++++ b/supabase/tests/010_schema_and_roles_test.sql
+@@ -11,11 +11,25 @@ select plan(19);
+ select has_schema('erp',        'the erp schema exists');
+ select has_schema('extensions', 'extensions has its own schema');
+ 
+--- ADR-0018 §1: a relation in public is born writable by the anon key.
++-- ADR-0018 §1: a relation in public is born writable by the anon key, and PostgREST
++-- serves a routine there to it at /rest/v1/rpc/. Relations alone were asked until
++-- 2026-10-16. An extension's own objects are the next assertion's to report.
+ select is_empty(
+-  $$ select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+-     where n.nspname = 'public' and c.relkind in ('r','p','v','m') $$,
+-  'public holds no relation at all'
++  $$ select 'relation public.' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
++      where n.nspname = 'public' and c.relkind in ('r','p','v','m','S','f','c')
++        and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
++                          and d.objid = c.oid and d.deptype = 'e')
++     union all
++     select 'routine public.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
++      where n.nspname = 'public'
++        and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass
++                          and d.objid = p.oid and d.deptype = 'e')
++     union all
++     select 'type public.' || t.typname from pg_type t join pg_namespace n on n.oid = t.typnamespace
++      where n.nspname = 'public' and t.typtype in ('d','e','r','m')
++        and not exists (select 1 from pg_depend d where d.classid = 'pg_type'::regclass
++                          and d.objid = t.oid and d.deptype = 'e') $$,
++  'public holds no relation, sequence, routine or type'
+ );
+ 
+ select is_empty(
+diff --git a/supabase/tests/060_capability_registry_test.sql b/supabase/tests/060_capability_registry_test.sql
+index fd830c4..a71e56d 100644
+--- a/supabase/tests/060_capability_registry_test.sql
++++ b/supabase/tests/060_capability_registry_test.sql
+@@ -15,7 +15,7 @@
+ -- also why this suite adds no entry to db-fixtures' reset list.
+ 
+ begin;
+-select plan(20);
++select plan(21);
+ 
+ -- Structure. Four reads, because the stamp's EXISTENCE and its NULLability are
+ -- different questions: db-check asserts `not attnotnull` over a discovered column,
+@@ -130,6 +130,14 @@ select is(
+   false,
+   'nor DELETE on the decision log'
+ );
++-- 0010 granted it, with a policy admitting any row, and 0025 took both back: a decision
++-- appended directly skips every check erp.decide_capability() makes, and the state never
++-- follows it (CAP-P03). The log refuses correction, so such a row would stand for good.
++select is(
++  has_table_privilege('erp_app', 'erp.capability_decision', 'INSERT'),
++  false,
++  'nor INSERT on the decision log: erp.decide_capability() is the only route to a decision'
++);
+ 
+ -- ---------------------------------------------------------------------------
+ -- CAP-P08 and CAP-P07 — what a decision may not do
+diff --git a/tools/db-check/src/assertions.ts b/tools/db-check/src/assertions.ts
+index a33afd7..d1e3aa5 100644
+--- a/tools/db-check/src/assertions.ts
++++ b/tools/db-check/src/assertions.ts
+@@ -44,15 +44,36 @@ export const ASSERTIONS: readonly Assertion[] = [
+   },
+   {
+     id: 'no-erp-object-in-public',
+-    title: 'public holds no ERP relation',
++    title: 'public holds no ERP object: no relation, sequence, function, procedure or type',
+     because:
+       'A table in public inherits default privileges granting anon and authenticated ' +
+       'insert, update and delete, with RLS off. ADR-0018 §1 — the trap that has already ' +
+-      'fired four times in this estate.',
+-    sql: `select c.relname as violation
++      'fired four times in this estate. A function is the same trap by another door: one ' +
++      'created without its schema lands in public, executable by PUBLIC unless revoked, and ' +
++      'PostgREST serves every function in an exposed schema to the anon key at ' +
++      '/rest/v1/rpc/ (config.toml exposes public). Until 2026-10-16 this asked only about ' +
++      'relations (found by a sweep of the checks). An extension\'s own objects are left to ' +
++      'no-extension-in-public, which reports the extension itself.',
++    sql: `select 'relation public.' || c.relname as violation
+           from pg_class c
+           join pg_namespace n on n.oid = c.relnamespace
+-          where n.nspname = 'public' and c.relkind in ('r','p','v','m')`,
++          where n.nspname = 'public' and c.relkind in ('r','p','v','m','S','f','c')
++            and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
++                              and d.objid = c.oid and d.deptype = 'e')
++          union all
++          select 'routine public.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
++          from pg_proc p
++          join pg_namespace n on n.oid = p.pronamespace
++          where n.nspname = 'public'
++            and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass
++                              and d.objid = p.oid and d.deptype = 'e')
++          union all
++          select 'type public.' || t.typname
++          from pg_type t
++          join pg_namespace n on n.oid = t.typnamespace
++          where n.nspname = 'public' and t.typtype in ('d','e','r','m')
++            and not exists (select 1 from pg_depend d where d.classid = 'pg_type'::regclass
++                              and d.objid = t.oid and d.deptype = 'e')`,
+   },
+   {
+     id: 'no-extension-in-public',
+@@ -297,7 +318,7 @@ export const ASSERTIONS: readonly Assertion[] = [
+   },
+   {
+     id: 'every-decision-log-is-append-only',
+-    title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant',
++    title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant, and none but the event log takes a direct INSERT',
+     because:
+       'A log that can be edited answers nothing. Discovered by name — every %_log, %_decision ' +
+       'and %_ledger table, event_log, sign_in_log and stock_ledger among them — and through ' +
+@@ -305,7 +326,12 @@ export const ASSERTIONS: readonly Assertion[] = [
+       'new log or partition is covered ' +
+       'without being listed. Each needs an enabled BEFORE UPDATE OR DELETE trigger with no ' +
+       'WHEN clause, an enabled BEFORE TRUNCATE trigger (no UPDATE or DELETE trigger sees ' +
+-      'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. A ' +
++      'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. ' +
++      'Nor may erp_app INSERT into any log but erp.event_log, which the branch runtime ' +
++      'appends to by design (0004): every other log has one writer, its route, and a row ' +
++      'appended past the route skips every check it makes and is never in force. 0010\'s ' +
++      'INSERT on erp.capability_decision stood, unused, until 0025, because this asked only ' +
++      'about UPDATE, DELETE and TRUNCATE (found by a sweep of the checks). A ' +
+       'partitioned log also needs a ROW trigger: PostgreSQL fires a partitioned table\'s ' +
+       'statement triggers only for statements that name the parent, so 0004\'s statement ' +
+       'trigger never fired for "delete from erp.event_log_default", and the owner could ' +
+@@ -355,8 +381,10 @@ export const ASSERTIONS: readonly Assertion[] = [
+             union all select 'erp_app may UPDATE' where has_any_column_privilege('erp_app', g.oid, 'UPDATE')
+             union all select 'erp_app may DELETE or TRUNCATE'
+              where has_table_privilege('erp_app', g.oid, 'DELETE') or has_table_privilege('erp_app', g.oid, 'TRUNCATE')
+-            union all select 'erp_read may UPDATE, DELETE or TRUNCATE'
+-             where has_any_column_privilege('erp_read', g.oid, 'UPDATE')
++            union all select 'erp_app may INSERT, past the route that records it'
++             where g.oid <> 'erp.event_log'::regclass and has_any_column_privilege('erp_app', g.oid, 'INSERT')
++            union all select 'erp_read may INSERT, UPDATE, DELETE or TRUNCATE'
++             where has_any_column_privilege('erp_read', g.oid, 'INSERT') or has_any_column_privilege('erp_read', g.oid, 'UPDATE')
+                 or has_table_privilege('erp_read', g.oid, 'DELETE') or has_table_privilege('erp_read', g.oid, 'TRUNCATE')
+           ) p`,
+   },
+@@ -638,7 +666,13 @@ export const ASSERTIONS: readonly Assertion[] = [
+       'proves. erp.verify_pin() is no longer one: since 0014 the runtime cannot call it, ' +
+       'and granting it back would be a way round the sign-in log, so this would report it. ' +
+       'The exceptions are named by signature, not by name: an overload such as ' +
+-      'erp.sign_out(uuid) is reported like any other route (found in review).',
++      'erp.sign_out(uuid) is reported like any other route (found in review). A mention is ' +
++      'not a call: comments and quoted strings are taken out of the source first, in one ' +
++      'pass that reads them in order as the parser does, so a "--" inside a string and an ' +
++      'apostrophe inside a comment are each read as part of what holds them. Until 2026-10-16 a ' +
++      'route whose only mention was a comment passed (found by a sweep of the checks). Dead ' +
++      'code still counts, and so would a dollar-quoted string inside a body, which no route ' +
++      'has: that the call runs, and runs first, stays pgTAP\'s to prove.',
+     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
+           from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+@@ -647,7 +681,9 @@ export const ASSERTIONS: readonly Assertion[] = [
+             and has_function_privilege('erp_app', p.oid, 'EXECUTE')
+             and p.oid::regprocedure::text not in
+                 ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
+-            and strpos(p.prosrc, 'erp.assert_permitted(') = 0`,
++            and strpos(regexp_replace(p.prosrc,
++                         $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n]*|'([^']|'')*'$re$, ' ', 'g'),
++                       'erp.assert_permitted(') = 0`,
+   },
+   {
+     id: 'session-guard-triggers-exist',
+diff --git a/tools/db-check/src/cli.ts b/tools/db-check/src/cli.ts
+index 98513b0..1d0c200 100644
+--- a/tools/db-check/src/cli.ts
++++ b/tools/db-check/src/cli.ts
+@@ -92,10 +92,19 @@ try {
+     }
+   }
+ 
++  // Every assertion names its one column `violation`, and is read through a wrapper that
++  // gives each row some text. psql prints NULL, and an empty string, as an empty line, and
++  // empty lines are dropped below, so a check whose violation was NULL passed: the
++  // actor_id-is-null half of cashier-actors-resolve-to-a-person could never fail (found by
++  // a sweep of the checks, 2026-10-16).
++  const violations = (c: Cluster, sql: string): string[] =>
++    c.sql(`select coalesce(nullif(btrim(v.violation::text), ''), '(a violation with no text)') from (${sql}) v`)
++      .split('\n').map((r) => r.trim()).filter(Boolean);
++
+   const check = (c: Cluster, group: string, list: readonly Assertion[]): void => {
+     console.log(`\n  ${group}\n`);
+     for (const a of list) {
+-      const rows = c.sql(a.sql).split('\n').map((r) => r.trim()).filter(Boolean);
++      const rows = violations(c, a.sql);
+       if (rows.length === 0) {
+         console.log(`  pass  ${a.title}`);
+       } else {
+@@ -131,6 +140,66 @@ try {
+     console.log('        The default privileges are set for a role that does not create these tables.');
+   }
+ 
++  // The reader, and two checks, proved against what they must report, as the default
++  // privileges are just above. A check that returns nothing passes, so one that cannot see
++  // what it looks for passes too. Each control makes the thing, asks the check's own SQL,
++  // and takes it away again (found by a sweep of the checks against what they claim,
++  // 2026-10-16).
++  console.log('');
++  const control = (name: string, ok: boolean, why: string): void => {
++    if (ok) {
++      console.log(`  pass  ${name}`);
++    } else {
++      failures++;
++      console.log(`  FAIL  ${name}`);
++      console.log(`        ${why}`);
++    }
++  };
++  const assertion = (id: string): Assertion =>
++    ASSERTIONS.find((a) => a.id === id) ?? fail(`no assertion ${id}, so the control for it has nothing to ask`);
++
++  const blank = violations(cluster, `select null::text as violation union all select '' union all select '  '`);
++  const none = violations(cluster, `select 'never' as violation where false`);
++  control('a violation with no text still counts as one', blank.length === 3 && none.length === 0,
++    `Three blank violations read as ${blank.length}, and none as ${none.length}: a NULL violation would pass.`);
++
++  // What an unqualified CREATE leaves in public: a routine, a sequence, a domain.
++  cluster.sql(`create function public.__public_probe() returns int language sql as 'select 1';
++               create sequence public.__public_probe_seq;
++               create domain public.__public_probe_domain as int`);
++  const inPublic = violations(cluster, assertion('no-erp-object-in-public').sql);
++  cluster.sql(`drop function public.__public_probe(); drop sequence public.__public_probe_seq;
++               drop domain public.__public_probe_domain`);
++  control('no-erp-object-in-public reports a routine, a sequence and a domain left in public',
++    ['routine public.__public_probe()', 'relation public.__public_probe_seq', 'type public.__public_probe_domain']
++      .every((v) => inPublic.includes(v)),
++    `It reported ${inPublic.join(', ') || 'nothing'}.`);
++
++  // Two definer routes the runtime may call. One only mentions the gate, in a line comment,
++  // a block comment and a string. The other calls it, after a comment with an apostrophe and
++  // a string holding "--" on the same line: read in the wrong order, either would hide the
++  // call, and a gated route would be reported.
++  cluster.sql(`create function erp.__ungated_probe() returns void language plpgsql security definer
++                 set search_path = pg_catalog, pg_temp as $$
++               begin
++                 -- erp.assert_permitted() is called by the edge instead
++                 /* erp.assert_permitted( */
++                 raise notice 'erp.assert_permitted(';
++               end $$;
++               create function erp.__gated_probe() returns void language plpgsql security definer
++                 set search_path = pg_catalog, pg_temp as $$
++               begin
++                 -- the caller's permission, which isn't the edge's to decide
++                 raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
++               end $$;
++               revoke all on function erp.__ungated_probe(), erp.__gated_probe() from public;
++               grant execute on function erp.__ungated_probe(), erp.__gated_probe() to erp_app`);
++  const ungated = violations(cluster, assertion('every-runtime-definer-route-is-gated').sql);
++  cluster.sql('drop function erp.__ungated_probe(); drop function erp.__gated_probe()');
++  control('every-runtime-definer-route-is-gated reports a route that only mentions the gate, and not one that calls it',
++    ungated.includes('__ungated_probe()') && !ungated.includes('__gated_probe()'),
++    `It reported ${ungated.join(', ') || 'nothing'}.`);
++
+   // Requirement 3's actual claim is not "db reset runs" but "db reset recreates
+   // the COMPLETE database" — which is only meaningful if it lands in the same
+   // place every time. Build it a second time and compare the data.
+-- 
+2.43.0
+

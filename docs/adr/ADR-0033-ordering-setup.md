@@ -220,10 +220,10 @@ Every read pages, 1 to 500 rows.
 hidden in every real database until a migration promotes them. The administrator reads
 and writes both.
 
-The synthetic seed opens both at pilot. It gives the two managers par write and the
-setup read: the factory manager at the factory alone, so they set only the factory's items'
-pars; the warehouse manager organisation-wide, so they set any item's. Branch workers
-and the general manager read both. The accountant holds nothing here.
+The synthetic seed opens both at pilot. It gives the two managers par read and write and
+the setup read: the factory manager at the factory alone, so they set only the factory's
+items' pars; the warehouse manager organisation-wide, so they set any item's. Branch
+workers and the general manager read both. The accountant holds nothing here.
 
 **Switching on.** Since a par is asked at its branch too (§4), a pilot that opens
 `ordering.par_levels` at the warehouse and the factory alone opens it at no branch: no
@@ -608,3 +608,165 @@ Three things are not shown, and the pack says which:
 - **Every other module's detail pages** keep a page's word on a write until the next one
   succeeds: above a later refusal, and on another record of the same kind opened by an
   address typed or pasted (Q-28).
+
+## Addendum — 2026-10-13: the switch-on, drafted and held (module 9, step 6)
+
+The migration, `20261008000200_ordering_setup_pilot_organisation_wide.sql`, records two
+capability decisions: `ordering.setup` and `ordering.par_levels`, each at `pilot`
+**organisation-wide**. It is drafted and held unmerged, as modules 5 to 8's were (closed
+pull requests #48, #53, #58 and #63).
+
+**Why organisation-wide, where modules 5 to 8 opened one warehouse.**
+- 0024 asks `ordering.setup` at no facility to set or clear an item's source (§4), so a
+  pilot at a facility would let no source be set.
+- It asks `ordering.par_levels` at the branch a par is for as well as where it is set from
+  (§4, §8), so a pilot at the warehouse and the factory alone would open pars at no
+  branch.
+- §8 also allows par levels at the supplying facilities and at each branch the pilot
+  covers. Not taken: there, a par is neither set nor read organisation-wide, and the par of
+  an item whose source is cleared, which only the organisation clears (§4), could not be
+  cleared until the item has a source again.
+- Opened organisation-wide, the pilot reaches only those who hold a permission on it. In
+  a real database that is the administrator alone (0024). Any permission changes the
+  owner's answers call for (question 5 above; the pack's E and J) are owner-approved and
+  made on their own, before this: otherwise only the administrator can use what it opens.
+  A manager who sets pars from their facility needs par levels read and write, with the
+  setup, items and facilities reads, as the seed gives them: the par page finds items
+  through their sources, and chooses a branch through facilities, which a manager scoped
+  to their facility reads only where facilities are switched on (module 4).
+
+**What leaving a facility out does.** `capability_state_for()` reads a facility's own
+state before the organisation's, so a facility the pilot leaves out takes its own decision
+there, on each capability it is left out of, recorded first (precondition 4). This leaves
+it in place, and a facility made later is in the pilot until one is recorded there.
+- **At a branch,** both capabilities `hidden` close everything there: no par is set,
+  cleared or read for it, and nothing is read there. Hiding `ordering.setup` alone still
+  returns each par's supplying facility, by id, on the branch's par list; the console then
+  shows only the start of the id, not the facility's code. `read_only` leaves all of
+  it readable, and no par is set or cleared for it. The pack's Part 11 shows `read_only`
+  and then `hidden` for par levels.
+- **At a warehouse or factory,** `ordering.setup` governs its cut-off and the sources and
+  cut-offs read there, and `ordering.par_levels` the pars set from and read there.
+  `hidden`, nothing is set, cleared or read under it, though a cut-off already set stays
+  in force: it is listed elsewhere, and `erp.order_day()` asks no capability. `read_only`
+  leaves it readable with nothing set. One kept in par levels but left out of cut-offs
+  takes `ordering.setup` at `read_only`, not `hidden`: its par page finds items through
+  their sources, and it remains the named source of each item it sets pars for, since a
+  facility sets pars only for items it supplies.
+- **No decision at a warehouse or factory keeps it from being named as an item's source,**
+  or pars for that item from being set organisation-wide: 0024 asks the source routes at
+  no facility. With `ordering.setup` hidden at the factory, the administrator still made it
+  an item's source on a scratch database. Keeping one where `ordering.setup` is hidden out
+  of sources is the administrator's practice, which the merging PR states, unless the
+  owner's answer to Q-30 changes the source routes.
+- No reviewed way to record such a decision exists yet (Q-23). It is a further migration
+  naming the facility by code, which this then waits on, or a write to the live database.
+
+**It is anchored on an open warehouse or factory, not on a facility's code.**
+- A source and a cut-off each name one, so with none there is nothing to set.
+- Every local rebuild applies migrations before the seed makes any facility, so this
+  records nothing and warns, and the seed opens both for the suites, as it has since 0024
+  (0030, c013 and c014). Recorded during a rebuild, its state rows would collide with the
+  seed's. Its decisions, dated `now()` in an append-only log the seed cannot freeze, would
+  also make two builds differ, which `db:check` refuses.
+- A closed warehouse or factory does not count.
+- No facility is named in it, so no code needs replacing before it is merged, unlike
+  modules 5 to 8's `WH-001`; a facility left out may be named elsewhere.
+
+**Two refusals, in words.** Either stops every migration after it, so the header gives
+the read-only query that checks each one first.
+- **A state already recorded organisation-wide** for either capability, naming each state
+  recorded. A recorded `hidden` counts, though it reads as no state at all. It is asked
+  first, so the warning never passes over one. No route removes a state, so the refusal
+  stands until something changes. A database built from the seed (a local stack, the
+  staging project, [`supabase-deployment.md`](../program/supabase-deployment.md) §5)
+  always has the seed's two. There the file is applied before the seed makes any
+  facility, by a rebuild or the first push to a fresh project, and so warns by design;
+  pushed onto one already seeded, it is refused, and its hint says to rebuild. Anywhere
+  else, the file is withdrawn by a pull request. Hence preconditions 5 and 6 speak of a
+  database not built from the seed: production.
+- **Items not open organisation-wide.** Every source and par route asks read on items.
+  Hidden organisation-wide, no source can be set, and no source or par is read
+  organisation-wide; read-only or withdrawn, items take no new work. Ordering setup is not
+  opened over items that are not open, so any state but `enabled` or `pilot`
+  organisation-wide is refused, after the facility check, so a rebuild still only warns.
+  Its hint names module 1's switch-on, as a migration dated before this one, and
+  otherwise withdrawing the file.
+
+All of it was run on a scratch database:
+- **The rebuild** warned and recorded nothing. The seed's c013 and c014 still opened both,
+  and `db:check` and `db:fixtures` pass with the migration in place.
+- **Applied after a seed without those two rows,** as in a real database, which has
+  neither: both read `hidden` everywhere before. After, both read `pilot` at every
+  facility and organisation-wide, the decisions recorded as the system's. The notice named
+  the warehouse and the factory.
+- **The administrator** then:
+  - listed every item's source organisation-wide;
+  - set an item's source to the warehouse;
+  - changed the warehouse's cut-off;
+  - set a par at a branch organisation-wide, in bags.
+- **Applied a second time,** it was refused, naming both states, with the hint.
+- **With the warehouse and the factory both closed,** it warned and recorded nothing. With
+  item sources also already enabled organisation-wide, it was refused instead, naming
+  that state.
+- **With items hidden, read-only or withdrawn organisation-wide,** it was refused, naming
+  the state, and recorded nothing. With items enabled organisation-wide, or a pilot there
+  and hidden only at the warehouse, it promoted.
+- **With par levels first decided `hidden`, or `read_only`, at a branch,** par levels kept
+  that state there and read `pilot` everywhere else; item sources and cut-offs read
+  `pilot` at that branch too.
+- **With both capabilities first decided `hidden` at the factory,** the administrator
+  still named it an item's source.
+- **The header's four read-only checks** ran as written.
+
+**Found in its reviews, before it was opened.** Six rounds: two independent reviewers of
+the draft, then five that checked each earlier fix and reviewed the change afresh, every
+new finding put to three refuters. In the fourth, some refuters did not run, and their
+findings were judged against the sources by hand; the sixth reported only what would
+mislead a reader or break. The commits record each round. In
+substance:
+- the file's re-dating, which modules 7's and 8's headers state and Q-23 records for all
+  four (precondition 7);
+- the warning, which said both stayed hidden where one was already open, and where a
+  facility's own state could be open;
+- a refusal whose advice did not unblock anything. It is now a hint for a database built
+  from the seed and for anywhere else, and no state recorded is a precondition of its own
+  (6), for production, which a seeded staging project could never meet;
+- items: a precondition that could be refused in words when applied and was not, then a
+  stated reason that was false for each state but hidden, and then too broad for hidden,
+  and a hint with no way out in production, then one that offered a run-time promotion;
+- the module 10 question, put as the pack's J, which asks only where and for whom: it is
+  now Q-29;
+- the facilities a pilot leaves out: first said to be closed by a decision there, with
+  nothing requiring it before this is applied, and only branches named; then a decision
+  was said to close one, which does not keep a warehouse or factory out of item sources,
+  nor at `read_only` close anything to reading. What each capability governs at each kind
+  of facility, and in which state, is now stated, and the source gap is Q-30. The pack's
+  J says how the switch-on is drafted, and its Part 11 no longer says a branch is left
+  out by migration or that `read_only` is how a pilot leaves one out;
+- §8's other option, why it is not taken, and that reason twice overstated;
+- the permission changes, owner-approved and made first, in the header and here alike,
+  and what a manager needs to set pars from their facility, par read and then the
+  facilities read first left out;
+- a warehouse or factory "left out of item sources but kept in par levels", which cannot
+  be: it sets pars only for items it supplies. It is now one left out of cut-offs;
+- read-only queries for preconditions 3 to 6, and that the console cannot check 6.
+
+**It is held** until seven things hold, named in the migration's header:
+1. the ordering-setup pack is signed by staff;
+2. operations has signed off the process mapping (MFG-012; Q-23 leaves the sign-off to
+   the merging PR);
+3. items are open organisation-wide (module 1, whose switch-on is still to be drafted).
+   Stock, the bell and purchase orders are not needed: nothing here reads them;
+4. the owner has answered the pack's ten questions, E and J among them, Q-29 and Q-30.
+   An answer may hold this longer (Q-29: with module 10) or add a migration it waits on
+   (Q-30: the source routes changed). Then, each owner-approved and made first: the
+   permission changes the answers call for, and at every facility the answer to J leaves
+   out, its own decision on each capability it is left out of, as above;
+5. in production, an open warehouse or factory exists where it is applied. Check that the
+   warning is absent;
+6. in production, neither capability has a state recorded organisation-wide, checked
+   read-only before merging and again before applying, by the header's query: the
+   console and `capability_state_for()` read a recorded `hidden` as none;
+7. it takes a fresh timestamp, later than every migration merged by then, module 10's and
+   any switch-on of module 1 included (Q-23). It is dated directly after 0024.
