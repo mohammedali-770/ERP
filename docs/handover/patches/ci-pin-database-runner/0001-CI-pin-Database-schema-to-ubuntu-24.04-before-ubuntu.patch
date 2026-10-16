@@ -1,0 +1,54 @@
+From bad320d9c97e97803832aac535c1b517763fc186 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 16 Oct 2026 07:23:37 +0000
+Subject: [PATCH] CI: pin Database schema to ubuntu-24.04 before ubuntu-latest
+ moves to 26.04
+
+GitHub's notice on this job's runs on main: "The ubuntu-latest label will
+migrate to Ubuntu 26 beginning October 19, 2026" (actions/runner-images
+#14748). That image installs PostgreSQL 18 alone, under
+/usr/lib/postgresql/18/bin, off PATH. db:check and db:fixtures build their
+scratch cluster with the runner's own PostgreSQL, which
+tools/db-check/src/cluster.ts looks for among versions 15 to 17, then on
+PATH. On a 26.04 runner both would find nothing and fail every run, on main
+and on every pull request.
+
+24.04 keeps PostgreSQL 16, which every recorded run has used. Nothing else
+in the workflow reads the runner's PostgreSQL. Moving this job, and adding
+18 to the candidates, waits until both checks have passed on 18.
+
+Found by a review of the db-check changes on claude/capability-decision-
+writer, and kept apart from them so it can merge before 2026-10-19 on its
+own.
+
+npm run verify passes, ci-contract included (695 tests).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01N99CTZ1JH716U2E54THxmp
+---
+ .github/workflows/ci.yml | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 9610c95..bf3047d 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -80,7 +80,14 @@ jobs:
+ 
+   database:
+     name: Database schema
+-    runs-on: ubuntu-latest
++    # Pinned, not ubuntu-latest: db:check and db:fixtures build their scratch cluster
++    # with the runner's own PostgreSQL, found by tools/db-check/src/cluster.ts among
++    # versions 15 to 17. ubuntu-latest moves to Ubuntu 26.04 from 2026-10-19 (GitHub's
++    # notice on this job), whose image installs PostgreSQL 18 alone, off PATH, so both
++    # would find nothing and fail every run. 24.04 has PostgreSQL 16, which every
++    # recorded run has used. Move this, and add 18 to the candidates, only once both
++    # have passed on 18.
++    runs-on: ubuntu-24.04
+     steps:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+-- 
+2.43.0
+
