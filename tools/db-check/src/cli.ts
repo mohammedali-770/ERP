@@ -23,8 +23,13 @@ import { readdirSync } from 'node:fs';
 const MIGRATIONS_DIR = 'supabase/migrations';
 const CONFIG = 'supabase/config.toml';
 
+// Declared before fail(), which stops it: process.exit() skips the finally below, so a
+// run that failed after the cluster started left its postmaster running (found in review).
+let cluster: Cluster | null = null;
+
 function fail(message: string): never {
   console.error(`\n  db-check: ${message}`);
+  cluster?.stop();
   process.exit(1);
 }
 
@@ -65,7 +70,6 @@ console.log(`  migrations  ${migrations.length}`);
 console.log(`  seed files  ${seed.files.length}\n`);
 
 const started = Date.now();
-let cluster: Cluster | null = null;
 let failures = 0;
 
 try {
@@ -93,14 +97,14 @@ try {
   }
 
   // Every assertion names its one column `violation`, and each row is read after a record
-  // separator, chr(30), so it counts whatever its text. psql prints NULL, a blank, and a
-  // value of nothing but a tab or a no-break space as an empty line, and empty lines were
-  // dropped, so such a violation read as none: the actor_id-is-null half of
-  // cashier-actors-resolve-to-a-person could never fail (found by a sweep of the checks,
+  // separator, chr(30), so it counts whatever its text. psql prints NULL and an empty string
+  // as an empty line, the reader's trim() emptied a line of nothing but whitespace, and
+  // empty lines were dropped, so such a violation read as none: the actor_id-is-null half
+  // of cashier-actors-resolve-to-a-person could never fail (found by a sweep of the checks,
   // 2026-10-16, and its whitespace half in that change's review). A violation that spans
-  // lines is one row.
+  // lines is one row, and a separator inside one is read as a space, not as another row.
   const violations = (c: Cluster, sql: string): string[] =>
-    c.sql(`select chr(30) || coalesce(v.violation::text, '') from (${sql}) v`)
+    c.sql(`select chr(30) || coalesce(replace(v.violation::text, chr(30), ' '), '') from (${sql}) v`)
       .split('\u001e').slice(1).map((r) => r.trim() || '(a violation with no text)');
 
   const check = (c: Cluster, group: string, list: readonly Assertion[]): void => {
@@ -162,11 +166,12 @@ try {
 
   const blank = violations(cluster,
     `select null::text as violation union all select '' union all select '  ' union all select chr(9)
-     union all select chr(160) union all select 'two' || chr(10) || 'lines'`);
+     union all select chr(160) union all select 'two' || chr(10) || 'lines'
+     union all select 'one' || chr(30) || 'separator'`);
   const none = violations(cluster, `select 'never' as violation where false`);
-  control('a violation with no text, or only whitespace, still counts as one, and one over two lines as one',
-    blank.length === 6 && none.length === 0,
-    `Six violations read as ${blank.length}, and none as ${none.length}: a NULL or blank violation would pass.`);
+  control('a violation with no text, or only whitespace, still counts as one, and one over two lines or holding a separator as one',
+    blank.length === 7 && none.length === 0,
+    `Seven violations read as ${blank.length}, and none as ${none.length}: a NULL or blank violation would pass.`);
 
   // What an unqualified CREATE leaves in public: a routine, a sequence, a domain.
   cluster.sql(`create function public.__public_probe() returns int language sql as 'select 1';
@@ -180,11 +185,14 @@ try {
       .every((v) => inPublic.includes(v)),
     `It reported ${inPublic.join(', ') || 'nothing'}.`);
 
-  // Two definer routes the runtime may call. One only mentions the gate, in a line comment,
-  // a block comment, a string and a quoted identifier. The other calls it after an
-  // identifier holding an apostrophe, a comment holding one, a comment ended by a bare
-  // carriage return, and a string holding "--" on the call's own line: misread, any of them
-  // would hide the call, and a gated route would be reported.
+  // Three definer routes the runtime may call. The first only mentions the gate, in a line
+  // comment, a block comment, a string and a quoted identifier, and calls a lookalike in
+  // another schema. The second calls it after a comment holding apostrophes and a lone
+  // double quote, a comment ended by a bare carriage return, and, on the call's own line,
+  // after an identifier holding an apostrophe and a string holding "--": misread, each would
+  // hide the call, and a gated route would be reported. The third sets
+  // standard_conforming_strings off, under which the scanner reads \' in any string as a
+  // quote and the stripping cannot follow, so it must be reported whatever its body.
   cluster.sql(`create function erp.__ungated_probe() returns void language plpgsql security definer
                  set search_path = pg_catalog, pg_temp as $$
                declare
@@ -193,21 +201,27 @@ try {
                  -- erp.assert_permitted() is called by the edge instead
                  /* erp.assert_permitted( */
                  raise notice 'erp.assert_permitted(';
+                 perform noterp.assert_permitted(null, 'platform.capability_admin', 'read', null);
                end $$;
                create function erp.__gated_probe() returns void language plpgsql security definer
                  set search_path = pg_catalog, pg_temp as $$
                declare
                  "the edge's" int := 0;
                begin
-                 -- the caller's permission, which isn't the edge's to decide
-                 -- a comment ended by a bare carriage return\r raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
+                 -- the caller's permission, which isn't the edge's to decide, and a lone " too
+                 -- a comment ended by a bare carriage return\r "the edge's" := 1; raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
                end $$;
-               revoke all on function erp.__ungated_probe(), erp.__gated_probe() from public;
-               grant execute on function erp.__ungated_probe(), erp.__gated_probe() to erp_app`);
+               create function erp.__scs_probe() returns void language plpgsql security definer
+                 set search_path = pg_catalog, pg_temp set standard_conforming_strings = off as $$
+               begin
+                 raise notice 'it\\'s erp.assert_permitted( \\'';
+               end $$;
+               revoke all on function erp.__ungated_probe(), erp.__gated_probe(), erp.__scs_probe() from public;
+               grant execute on function erp.__ungated_probe(), erp.__gated_probe(), erp.__scs_probe() to erp_app`);
   const ungated = violations(cluster, assertion('every-runtime-definer-route-is-gated').sql);
-  cluster.sql('drop function erp.__ungated_probe(); drop function erp.__gated_probe()');
-  control('every-runtime-definer-route-is-gated reports a route that only mentions the gate, and not one that calls it',
-    ungated.includes('__ungated_probe()') && !ungated.includes('__gated_probe()'),
+  cluster.sql('drop function erp.__ungated_probe(); drop function erp.__gated_probe(); drop function erp.__scs_probe()');
+  control('every-runtime-definer-route-is-gated reports a route that only mentions the gate, or sets standard_conforming_strings, and not one that calls it',
+    ungated.includes('__ungated_probe()') && ungated.includes('__scs_probe()') && !ungated.includes('__gated_probe()'),
     `It reported ${ungated.join(', ') || 'nothing'}.`);
 
   // Requirement 3's actual claim is not "db reset runs" but "db reset recreates

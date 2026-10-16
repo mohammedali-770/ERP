@@ -672,11 +672,15 @@ export const ASSERTIONS: readonly Assertion[] = [
       'apostrophe inside a comment or an identifier are each read as part of what holds ' +
       'them, and a line comment ends at a carriage return as at a newline, as the scanner ' +
       'reads it. Until 2026-10-16 a route whose only mention was a comment passed (found by ' +
-      'a sweep of the checks). A regular expression cannot read everything the scanner ' +
-      'does: a nested comment, a backslash-escaped quote in an E\'\' string, and a ' +
-      'dollar-quoted string inside a body each end early or late, so could hide a mention ' +
-      'or a call. No route has one (found in this change\'s review), and dead code still ' +
-      'counts: that the call runs, and runs first, stays pgTAP\'s to prove.',
+      'a sweep of the checks). The call is looked for standing alone, so a lookalike such as ' +
+      'noterp.assert_permitted( is not it, and a route that sets standard_conforming_strings ' +
+      'is reported whatever its body: with it off, the scanner reads \\\' inside any string ' +
+      'as a quote, which the stripping cannot follow (both found in this change\'s review). ' +
+      'A regular expression still cannot read everything the scanner does: a nested ' +
+      'comment, a backslash-escaped quote in an E\'\' string, and a dollar-quoted string ' +
+      'inside a body each end early or late, so could hide a mention or a call. No route has ' +
+      'one, and dead code still counts: that the call runs, and runs first, stays pgTAP\'s ' +
+      'to prove.',
     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
@@ -685,9 +689,10 @@ export const ASSERTIONS: readonly Assertion[] = [
             and has_function_privilege('erp_app', p.oid, 'EXECUTE')
             and p.oid::regprocedure::text not in
                 ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
-            and strpos(regexp_replace(p.prosrc,
-                         $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n\\r]*|'([^']|'')*'|"([^"]|"")*"$re$, ' ', 'g'),
-                       'erp.assert_permitted(') = 0`,
+            and (exists (select 1 from unnest(p.proconfig) c where c ilike 'standard_conforming_strings=%')
+                 or regexp_replace(p.prosrc,
+                      $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n\\r]*|'([^']|'')*'|"([^"]|"")*"$re$, ' ', 'g')
+                    !~ $nd$(^|[^A-Za-z0-9_$\\u0080-\\U0010FFFF])erp\\.assert_permitted\\($nd$)`,
   },
   {
     id: 'session-guard-triggers-exist',
