@@ -149,3 +149,19 @@ screen only. Rejected: it fails IAM-006 and CAP-P11 outright.
 writing it: each kind carries different arguments and different guards, and one
 function switching on a string would have been seven functions in one body with none
 of their signatures checked.
+
+## Addendum — 2026-10-16: the capability log has one writer too
+
+§2 gave every identity change one admitted route, and the runtime no write on any table
+behind it. 0011's header said so against 0010, "which granted INSERT on its decision log",
+and nothing took that grant back: `erp_app`, and so `erp_edge`, could append to
+`erp.capability_decision` directly, past every check `erp.decide_capability()` makes,
+with an actor who never decided anything and a state that never followed. The log refuses
+correction, so such a row would stand for good.
+
+0025 revokes the INSERT and drops the policy that admitted any row. `erp.decide_capability()`
+runs as its owner, as do the seeds and the switch-ons that record a decision, so nothing
+that writes the log changes. db-check's `every-decision-log-is-append-only` now asks about
+INSERT as well as UPDATE, DELETE and TRUNCATE, on every log but the event log, which the
+branch runtime appends to by design; pgTAP 060 asserts the revoke. Found by a sweep of the
+checks against what they claim.

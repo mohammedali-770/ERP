@@ -44,15 +44,36 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'no-erp-object-in-public',
-    title: 'public holds no ERP relation',
+    title: 'public holds no ERP object: no relation, sequence, function, procedure or type',
     because:
       'A table in public inherits default privileges granting anon and authenticated ' +
       'insert, update and delete, with RLS off. ADR-0018 §1 — the trap that has already ' +
-      'fired four times in this estate.',
-    sql: `select c.relname as violation
+      'fired four times in this estate. A function is the same trap by another door: one ' +
+      'created without its schema lands in public, executable by PUBLIC unless revoked, and ' +
+      'PostgREST serves every function in an exposed schema to the anon key at ' +
+      '/rest/v1/rpc/ (config.toml exposes public). Until 2026-10-16 this asked only about ' +
+      'relations (found by a sweep of the checks). An extension\'s own objects are left to ' +
+      'no-extension-in-public, which reports the extension itself.',
+    sql: `select 'relation public.' || c.relname as violation
           from pg_class c
           join pg_namespace n on n.oid = c.relnamespace
-          where n.nspname = 'public' and c.relkind in ('r','p','v','m')`,
+          where n.nspname = 'public' and c.relkind in ('r','p','v','m','S','f','c')
+            and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
+                              and d.objid = c.oid and d.deptype = 'e')
+          union all
+          select 'routine public.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass
+                              and d.objid = p.oid and d.deptype = 'e')
+          union all
+          select 'type public.' || t.typname
+          from pg_type t
+          join pg_namespace n on n.oid = t.typnamespace
+          where n.nspname = 'public' and t.typtype in ('d','e','r','m')
+            and not exists (select 1 from pg_depend d where d.classid = 'pg_type'::regclass
+                              and d.objid = t.oid and d.deptype = 'e')`,
   },
   {
     id: 'no-extension-in-public',
@@ -297,7 +318,7 @@ export const ASSERTIONS: readonly Assertion[] = [
   },
   {
     id: 'every-decision-log-is-append-only',
-    title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant',
+    title: 'every decision log, and every partition of one, refuses UPDATE, DELETE and TRUNCATE, by trigger and by grant, and none but the event log takes a direct INSERT',
     because:
       'A log that can be edited answers nothing. Discovered by name — every %_log, %_decision ' +
       'and %_ledger table, event_log, sign_in_log and stock_ledger among them — and through ' +
@@ -305,7 +326,12 @@ export const ASSERTIONS: readonly Assertion[] = [
       'new log or partition is covered ' +
       'without being listed. Each needs an enabled BEFORE UPDATE OR DELETE trigger with no ' +
       'WHEN clause, an enabled BEFORE TRUNCATE trigger (no UPDATE or DELETE trigger sees ' +
-      'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. A ' +
+      'TRUNCATE), and no write grant to erp_app or erp_read, UPDATE checked per column. ' +
+      'Nor may erp_app INSERT into any log but erp.event_log, which the branch runtime ' +
+      'appends to by design (0004): every other log has one writer, its route, and a row ' +
+      'appended past the route skips every check it makes and is never in force. 0010\'s ' +
+      'INSERT on erp.capability_decision stood, unused, until 0025, because this asked only ' +
+      'about UPDATE, DELETE and TRUNCATE (found by a sweep of the checks). A ' +
       'partitioned log also needs a ROW trigger: PostgreSQL fires a partitioned table\'s ' +
       'statement triggers only for statements that name the parent, so 0004\'s statement ' +
       'trigger never fired for "delete from erp.event_log_default", and the owner could ' +
@@ -355,8 +381,10 @@ export const ASSERTIONS: readonly Assertion[] = [
             union all select 'erp_app may UPDATE' where has_any_column_privilege('erp_app', g.oid, 'UPDATE')
             union all select 'erp_app may DELETE or TRUNCATE'
              where has_table_privilege('erp_app', g.oid, 'DELETE') or has_table_privilege('erp_app', g.oid, 'TRUNCATE')
-            union all select 'erp_read may UPDATE, DELETE or TRUNCATE'
-             where has_any_column_privilege('erp_read', g.oid, 'UPDATE')
+            union all select 'erp_app may INSERT, past the route that records it'
+             where g.oid <> 'erp.event_log'::regclass and has_any_column_privilege('erp_app', g.oid, 'INSERT')
+            union all select 'erp_read may INSERT, UPDATE, DELETE or TRUNCATE'
+             where has_any_column_privilege('erp_read', g.oid, 'INSERT') or has_any_column_privilege('erp_read', g.oid, 'UPDATE')
                 or has_table_privilege('erp_read', g.oid, 'DELETE') or has_table_privilege('erp_read', g.oid, 'TRUNCATE')
           ) p`,
   },
@@ -638,7 +666,13 @@ export const ASSERTIONS: readonly Assertion[] = [
       'proves. erp.verify_pin() is no longer one: since 0014 the runtime cannot call it, ' +
       'and granting it back would be a way round the sign-in log, so this would report it. ' +
       'The exceptions are named by signature, not by name: an overload such as ' +
-      'erp.sign_out(uuid) is reported like any other route (found in review).',
+      'erp.sign_out(uuid) is reported like any other route (found in review). A mention is ' +
+      'not a call: comments and quoted strings are taken out of the source first, in one ' +
+      'pass that reads them in order as the parser does, so a "--" inside a string and an ' +
+      'apostrophe inside a comment are each read as part of what holds them. Until 2026-10-16 a ' +
+      'route whose only mention was a comment passed (found by a sweep of the checks). Dead ' +
+      'code still counts, and so would a dollar-quoted string inside a body, which no route ' +
+      'has: that the call runs, and runs first, stays pgTAP\'s to prove.',
     sql: `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as violation
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
@@ -647,7 +681,9 @@ export const ASSERTIONS: readonly Assertion[] = [
             and has_function_privilege('erp_app', p.oid, 'EXECUTE')
             and p.oid::regprocedure::text not in
                 ('erp.sign_in(text,text)', 'erp.resolve_session(text)', 'erp.sign_out(text)')
-            and strpos(p.prosrc, 'erp.assert_permitted(') = 0`,
+            and strpos(regexp_replace(p.prosrc,
+                         $re$/\\*([^*]|\\*+[^*/])*\\*+/|--[^\\n]*|'([^']|'')*'$re$, ' ', 'g'),
+                       'erp.assert_permitted(') = 0`,
   },
   {
     id: 'session-guard-triggers-exist',

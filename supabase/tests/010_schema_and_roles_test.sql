@@ -11,11 +11,25 @@ select plan(19);
 select has_schema('erp',        'the erp schema exists');
 select has_schema('extensions', 'extensions has its own schema');
 
--- ADR-0018 §1: a relation in public is born writable by the anon key.
+-- ADR-0018 §1: a relation in public is born writable by the anon key, and PostgREST
+-- serves a routine there to it at /rest/v1/rpc/. Relations alone were asked until
+-- 2026-10-16. An extension's own objects are the next assertion's to report.
 select is_empty(
-  $$ select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'public' and c.relkind in ('r','p','v','m') $$,
-  'public holds no relation at all'
+  $$ select 'relation public.' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r','p','v','m','S','f','c')
+        and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass
+                          and d.objid = c.oid and d.deptype = 'e')
+     union all
+     select 'routine public.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass
+                          and d.objid = p.oid and d.deptype = 'e')
+     union all
+     select 'type public.' || t.typname from pg_type t join pg_namespace n on n.oid = t.typnamespace
+      where n.nspname = 'public' and t.typtype in ('d','e','r','m')
+        and not exists (select 1 from pg_depend d where d.classid = 'pg_type'::regclass
+                          and d.objid = t.oid and d.deptype = 'e') $$,
+  'public holds no relation, sequence, routine or type'
 );
 
 select is_empty(

@@ -92,10 +92,19 @@ try {
     }
   }
 
+  // Every assertion names its one column `violation`, and is read through a wrapper that
+  // gives each row some text. psql prints NULL, and an empty string, as an empty line, and
+  // empty lines are dropped below, so a check whose violation was NULL passed: the
+  // actor_id-is-null half of cashier-actors-resolve-to-a-person could never fail (found by
+  // a sweep of the checks, 2026-10-16).
+  const violations = (c: Cluster, sql: string): string[] =>
+    c.sql(`select coalesce(nullif(btrim(v.violation::text), ''), '(a violation with no text)') from (${sql}) v`)
+      .split('\n').map((r) => r.trim()).filter(Boolean);
+
   const check = (c: Cluster, group: string, list: readonly Assertion[]): void => {
     console.log(`\n  ${group}\n`);
     for (const a of list) {
-      const rows = c.sql(a.sql).split('\n').map((r) => r.trim()).filter(Boolean);
+      const rows = violations(c, a.sql);
       if (rows.length === 0) {
         console.log(`  pass  ${a.title}`);
       } else {
@@ -130,6 +139,66 @@ try {
     console.log(`  FAIL  a new erp table is reachable by: ${reachable.join(', ')}`);
     console.log('        The default privileges are set for a role that does not create these tables.');
   }
+
+  // The reader, and two checks, proved against what they must report, as the default
+  // privileges are just above. A check that returns nothing passes, so one that cannot see
+  // what it looks for passes too. Each control makes the thing, asks the check's own SQL,
+  // and takes it away again (found by a sweep of the checks against what they claim,
+  // 2026-10-16).
+  console.log('');
+  const control = (name: string, ok: boolean, why: string): void => {
+    if (ok) {
+      console.log(`  pass  ${name}`);
+    } else {
+      failures++;
+      console.log(`  FAIL  ${name}`);
+      console.log(`        ${why}`);
+    }
+  };
+  const assertion = (id: string): Assertion =>
+    ASSERTIONS.find((a) => a.id === id) ?? fail(`no assertion ${id}, so the control for it has nothing to ask`);
+
+  const blank = violations(cluster, `select null::text as violation union all select '' union all select '  '`);
+  const none = violations(cluster, `select 'never' as violation where false`);
+  control('a violation with no text still counts as one', blank.length === 3 && none.length === 0,
+    `Three blank violations read as ${blank.length}, and none as ${none.length}: a NULL violation would pass.`);
+
+  // What an unqualified CREATE leaves in public: a routine, a sequence, a domain.
+  cluster.sql(`create function public.__public_probe() returns int language sql as 'select 1';
+               create sequence public.__public_probe_seq;
+               create domain public.__public_probe_domain as int`);
+  const inPublic = violations(cluster, assertion('no-erp-object-in-public').sql);
+  cluster.sql(`drop function public.__public_probe(); drop sequence public.__public_probe_seq;
+               drop domain public.__public_probe_domain`);
+  control('no-erp-object-in-public reports a routine, a sequence and a domain left in public',
+    ['routine public.__public_probe()', 'relation public.__public_probe_seq', 'type public.__public_probe_domain']
+      .every((v) => inPublic.includes(v)),
+    `It reported ${inPublic.join(', ') || 'nothing'}.`);
+
+  // Two definer routes the runtime may call. One only mentions the gate, in a line comment,
+  // a block comment and a string. The other calls it, after a comment with an apostrophe and
+  // a string holding "--" on the same line: read in the wrong order, either would hide the
+  // call, and a gated route would be reported.
+  cluster.sql(`create function erp.__ungated_probe() returns void language plpgsql security definer
+                 set search_path = pg_catalog, pg_temp as $$
+               begin
+                 -- erp.assert_permitted() is called by the edge instead
+                 /* erp.assert_permitted( */
+                 raise notice 'erp.assert_permitted(';
+               end $$;
+               create function erp.__gated_probe() returns void language plpgsql security definer
+                 set search_path = pg_catalog, pg_temp as $$
+               begin
+                 -- the caller's permission, which isn't the edge's to decide
+                 raise notice 'a -- b'; perform erp.assert_permitted(null, 'platform.capability_admin', 'read', null);
+               end $$;
+               revoke all on function erp.__ungated_probe(), erp.__gated_probe() from public;
+               grant execute on function erp.__ungated_probe(), erp.__gated_probe() to erp_app`);
+  const ungated = violations(cluster, assertion('every-runtime-definer-route-is-gated').sql);
+  cluster.sql('drop function erp.__ungated_probe(); drop function erp.__gated_probe()');
+  control('every-runtime-definer-route-is-gated reports a route that only mentions the gate, and not one that calls it',
+    ungated.includes('__ungated_probe()') && !ungated.includes('__gated_probe()'),
+    `It reported ${ungated.join(', ') || 'nothing'}.`);
 
   // Requirement 3's actual claim is not "db reset runs" but "db reset recreates
   // the COMPLETE database" — which is only meaningful if it lands in the same

@@ -1,0 +1,45 @@
+-- 0025 · The capability decision log has one writer: erp.decide_capability()
+--
+-- Requirements: CAP-P03 · CAP-P04 · CAP-P07 · CAP-P08 · SEC-006
+-- ADR-0021 · ADR-0022 · ADR-0025
+--
+-- 0010 granted the runtime INSERT on erp.capability_decision, with a policy admitting any
+-- row, so that a decision could be recorded. Then it routed every decision through
+-- erp.decide_capability(), a SECURITY DEFINER function, which records it as the owner, and
+-- nothing has used the grant since. It was never taken back:
+--
+--     grant select, insert on erp.capability_decision to erp_app;            -- 0010
+--     create policy erp_app_append on erp.capability_decision
+--       for insert to erp_app with check (true);                             -- 0010
+--
+-- 0011 wrote the rule down for its own log and left this one out: "Unlike 0010, which
+-- granted INSERT on its decision log, this log has no direct INSERT: a decision appended
+-- without its projection would be a decision never in force." erp_edge, the edge
+-- functions' login role (0014), is erp_app, so the edge credential could append a
+-- capability decision directly. No trigger turns that row into a state, since only
+-- erp.decide_capability() moves erp.capability_state, so what it could do is write, for
+-- good, a record that function would have refused:
+--   * an actor who may not administer capabilities, or one who never decided anything;
+--   * an actor_type of 'system', which the function refuses from the application;
+--   * a protected capability closed (CAP-P08), or one closed while another that depends on
+--     it is still open (CAP-P07);
+--   * a decision the state never followed. CAP-P03 says the current state is derived from
+--     the decision records; this one would say a capability is closed while it is open.
+-- The log refuses UPDATE, DELETE and TRUNCATE to everyone, the owner included (0010,
+-- 0013), so a row like that could never be corrected, only answered by another.
+--
+-- Found on 2026-10-16 by a sweep of the checks against what they claim: db-check's
+-- every-decision-log-is-append-only looked for UPDATE, DELETE and TRUNCATE grants and not
+-- for INSERT. It now asks for INSERT too, on every log but the event log, which the branch
+-- runtime appends to by design (0004).
+--
+-- What still writes this log, unchanged: erp.decide_capability(), which runs as its owner,
+-- and the migrations and seeds that record a decision as the owner, held switch-ons
+-- included. The owner was never subject to the dropped policy, which named erp_app alone.
+-- erp_app keeps SELECT, and the read policy that goes with it.
+--
+-- No function is added, so nothing new needs revoking from PUBLIC.
+
+revoke insert on erp.capability_decision from erp_app;
+
+drop policy erp_app_append on erp.capability_decision;
