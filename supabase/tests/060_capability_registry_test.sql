@@ -15,7 +15,7 @@
 -- also why this suite adds no entry to db-fixtures' reset list.
 
 begin;
-select plan(20);
+select plan(21);
 
 -- Structure. Four reads, because the stamp's EXISTENCE and its NULLability are
 -- different questions: db-check asserts `not attnotnull` over a discovered column,
@@ -129,6 +129,14 @@ select is(
   has_table_privilege('erp_app', 'erp.capability_decision', 'DELETE'),
   false,
   'nor DELETE on the decision log'
+);
+-- 0010 granted it, with a policy admitting any row, and 0025 took both back: a decision
+-- appended directly skips every check erp.decide_capability() makes, and the state never
+-- follows it (CAP-P03). The log refuses correction, so such a row would stand for good.
+select is(
+  has_table_privilege('erp_app', 'erp.capability_decision', 'INSERT'),
+  false,
+  'nor INSERT on the decision log: erp.decide_capability() is the only route to a decision'
 );
 
 -- ---------------------------------------------------------------------------
