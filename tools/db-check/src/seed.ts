@@ -9,11 +9,16 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-/** `sql_paths = ["./seeds/a.sql", "./seeds/b.sql"]` under `[db.seed]`. */
+/**
+ * `sql_paths = ["./seeds/a.sql", "./seeds/b.sql"]` under `[db.seed]`. The header and
+ * the key are read only where they begin a line, as TOML writes them: a comment that
+ * names the section, as config.toml's own header once did, is not the section.
+ */
 export function parseSeedPaths(configToml: string): string[] {
-  const section = /\[db\.seed\][\s\S]*?(?=\n\[|$)/.exec(configToml);
-  if (!section) return [];
-  const list = /sql_paths\s*=\s*\[([\s\S]*?)\]/.exec(section[0]);
+  const header = /^\[db\.seed\][ \t]*(?:#.*?)?\r?$/m.exec(configToml);
+  if (!header) return [];
+  const section = configToml.slice(header.index + header[0].length).split(/\n\[/, 1)[0]!;
+  const list = /^[ \t]*sql_paths\s*=\s*\[([\s\S]*?)\]/m.exec(section);
   if (!list) return [];
   return [...list[1]!.matchAll(/["']([^"']+)["']/g)].map((m) => m[1]!);
 }
