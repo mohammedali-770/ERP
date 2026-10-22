@@ -127,8 +127,34 @@ jobs:
           version: 2.34.3
 
       # The half bare Postgres cannot reach: storage policies, auth, PostgREST.
+      #
+      # Retried only when the image registry refuses a pull. On 2026-10-22 ghcr.io
+      # answered `toomanyrequests` to every pull, twice in a row, and the job failed
+      # before any test ran (PR #73). The CLI retries a refused pull itself and prints
+      # each one, so only the error that ended the run is read: its last two lines,
+      # the error and the CLI's closing hint. Any other failure ends the step at once,
+      # so a real fault in the stack is never retried away, and so does a failed
+      # cleanup, which would leave a container that a later start reports as
+      # "already running". Three attempts, a minute and then two apart.
       - name: Start the local stack
-        run: supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/supabase-start.log"
+          for attempt in 1 2 3; do
+            if supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            if ! grep -qE 'toomanyrequests|error pulling image' <(tail -n 2 "$log"); then
+              exit 1
+            fi
+            supabase stop --no-backup
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::The image registry refused a pull (attempt $attempt of 3). Retrying in $((attempt * 60)) s."
+              sleep $((attempt * 60))
+            fi
+          done
+          echo "::error::The image registry refused a pull on all three attempts. No test ran."
+          exit 1
 
       - name: db reset rebuilds the database from migrations and seed
         run: supabase db reset --no-seed=false
