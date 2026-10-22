@@ -1,8 +1,8 @@
 # Handover — for the next Claude Code session on this repository
 
 First written 2026-10-16, when the owner stopped that session. **Updated 2026-10-22**, at
-the owner's request, after PRs #70, #71 and #69 merged. It records where the work stands,
-what is waiting on whom, and how work has been done here.
+the owner's request, after PRs #70, #71 and #69 merged and #68 was closed. It records
+where the work stands, what is waiting on whom, and how work has been done here.
 
 The owner continues this project with Claude Code, so it is written for the next Claude
 Code session, not for another model. That session loads `CLAUDE.md` itself, and has the
@@ -12,12 +12,13 @@ workflows (§7).
 **`CLAUDE.md` is binding and this does not replace it.** Read it first, then this. Where
 the two disagree, `CLAUDE.md` wins.
 
-This file lives on `claude/planning-session-65wym0`, which is the head of held PR #68, so
-it shows in that PR's diff. It is not on `main`. `main` (`ffa2bac`) was merged into this
-branch in this update, so the branch's `CLAUDE.md` and runbook are `main`'s, and its plan
-is `main`'s except row 9, which #68 changes. If `main` moves on, read those from `main`
-(`git show origin/main:<path>`): `main`'s `CLAUDE.md` is the current one. Q-29, Q-30 and
-the plan's row 9 as #68 has it exist only on this branch.
+This file lives on `claude/held-docs-and-handover`, the new branch the owner asked for on
+2026-10-22 when closing PR #68 (the name is the agent's). It is not on `main`. The branch
+is `main` (`ffa2bac`) plus #68's docs, without its migration, and this file. So its
+`CLAUDE.md` and runbook are `main`'s, and its plan is `main`'s except row 9, which #68 changed. If `main` moves on,
+read those from `main` (`git show origin/main:<path>`): `main`'s `CLAUDE.md` is the current
+one. Q-29, Q-30 and the plan's row 9 as #68 has it exist only on this branch until it
+reaches `main` by PR. No PR is open for it yet.
 
 ---
 
@@ -46,16 +47,17 @@ the plan's row 9 as #68 has it exist only on this branch.
    ([`docs/program/github-controls.md`](docs/program/github-controls.md), "Why zero required
    approvals"). Only the rules above stop an agent. Behave accordingly.
 6. **Branches.**
-   - The session's designated branch has been `claude/planning-session-65wym0`.
+   - The session's designated branch has been `claude/planning-session-65wym0`, the head
+     of #68, now closed. On 2026-10-22 the owner asked for a new branch; it is
+     `claude/held-docs-and-handover`, carrying #68's docs and this file.
    - Pushing to any other branch needs the owner's explicit permission. It was given for
      `claude/staging-deploy`. `claude/ci-pin-database-runner` and
      `claude/capability-decision-writer` were pushed on 2026-10-16 by the owner, who
      applied this handover's patches (the owner is their commits' committer). That gave
      no agent permission to push them. All three are merged.
-   - **While #68 is open, no new PR can come from the designated branch.** GitHub allows
-     one open PR per head and base, and anything pushed there joins held #68. Before any
-     new step lands by PR, ask the owner either to close #68 (§2 gives what follows) or
-     to permit a new purpose-named branch off `main`.
+   - GitHub allows one open PR per head and base. So each feature step after the docs
+     PR needs a purpose-named branch of its own, or waits until that PR has merged; ask
+     the owner which.
    - Never commit to `main`.
 7. **A check that returns nothing passes.** Every check, control and test added here was
    shown to fail when the thing it guards is broken. Keep doing that (§6).
@@ -91,7 +93,7 @@ the plan's row 9 as #68 has it exist only on this branch.
   and switch-on (step 6) remain; the plan's Progress table counts 4 of 6 per module.
 - **Switch-ons are drafted and held for modules 5–9:**
   - modules 5–8 in closed PRs #48, #53, #58 and #63;
-  - module 9 in open PR #68.
+  - module 9 in closed PR #68, closed on 2026-10-22.
 - **Modules 1–4 have no switch-on drafted.** Every held pilot needs module 1 (items) open
   organisation-wide first.
 - **Module 10, branch orders, is the next module to build**, once staging is live. It is
@@ -104,13 +106,12 @@ the plan's row 9 as #68 has it exist only on this branch.
 
 ## 2. Pull requests
 
-### PR #68 — HELD: module 9 switch-on (ordering setup as a pilot organisation-wide). Open.
+### PR #68 — HELD: module 9 switch-on (ordering setup as a pilot organisation-wide). Closed.
 
-- **Branch:** `claude/planning-session-65wym0`. It carries this handover's commits too.
-- **State on 2026-10-22:** CI was green on `8471af3`. `main` (`ffa2bac`) was merged in
-  with this update, cleanly, so the branch's `CLAUDE.md` is current for a session that
-  starts on it. The merge does not re-date the held migration.
-- **Do not merge.** It merges only once its seven preconditions hold, listed in the PR
+- **Closed on 2026-10-22, on the owner's instruction**, as #48, #53, #58 and #63 were.
+  Its draft stays in the PR at `a6cc926`, the head of `claude/planning-session-65wym0`.
+  CI was green there, with `main` (`ffa2bac`) merged in.
+- **It comes back as a new PR** only once its seven preconditions hold, listed in its
   body. Among them:
   - staff sign the ordering-setup pack;
   - operations sign off the process mapping;
@@ -121,18 +122,20 @@ the plan's row 9 as #68 has it exist only on this branch.
   `20261008000200_ordering_setup_pilot_organisation_wide.sql`, and `main` has since gained
   0025, `20261016000100`. A hosted project refuses a migration dated before one it has
   already applied, as out of order (Q-23).
-- **What it adds:**
-  - the migration above;
+- **What it added:**
+  - the migration above, kept in the closed PR only;
   - ADR-0033's step 6 addendum;
   - Q-29 and Q-30 in `docs/program/open-questions.md`;
   - Q-23 extended;
   - row 9 of the consolidation plan;
   - question J and Part 11 of the ordering-setup pack (en and ar).
-- **The established pattern when the owner closes a held PR:** a later commit on the branch
-  removes the migration file and keeps the docs, and the docs reach `main` with the next
-  PR, as happened after #48, #53, #58 and #63.
-- **This handover file** rides on this branch too. When the docs go to `main`, decide
-  with the owner whether it goes with them.
+- **What followed, as after #48, #53, #58 and #63:** a later commit removes the migration
+  and keeps the docs. Here it is the first commit of `claude/held-docs-and-handover`
+  ("Hold the ordering-setup switch-on in closed PR #68, off this branch"). It also says
+  in ADR-0033's addendum, the plan's row 9 and Q-23 that the draft is kept in #68.
+  The docs reach `main` with that branch's PR.
+- **This handover file** rides on that branch too. Before its PR, decide with the owner
+  whether it goes to `main` with the docs.
 
 ### Merged on 2026-10-22, each on the owner's instruction
 
@@ -247,7 +250,7 @@ acting.** These are leads, not facts.
 | 18 | No db:check rule that capability state, person status and roles equal the latest decision about them, though every route's gate reads all three. The two logs still have no `seq` to order them (`decided_at` is the caller's, `recorded_at` the transaction's); every other decision log has one. 0025 removed only the direct `INSERT` | unenforced rule | M | `tools/db-check/src/assertions.ts` (beside the `*-match-their-decisions` checks); `supabase/migrations/20261001000100_capability_registry.sql:83-106, 175`; `20261002000100_identity.sql:78-117, 263-326` |
 | 19 | The seed-is-synthetic checks (db:check and pgTAP 050) scan only `erp.event_log`. Supplier contacts in `erp.supplier` (SEC-008) are never scanned, and `secret:scan` has no phone or IBAN pattern. The staging workflow loads this seed from a public repository. Today's seeded phone is synthetic; nothing would catch a real one | unenforced rule | M | `tools/db-check/src/assertions.ts:1189-1209`; `supabase/tests/050_seed_is_synthetic_test.sql:14-24`; `supabase/seeds/0050_suppliers.sql:25-28, 76` |
 | 20 | Three latent checker gaps. Dropping `tools/*/src/**/*.ts` from tsconfig leaves every tool's CLI, and several modules no test imports, untypechecked with all checks green. A second import on one line, or a dynamic `import()`, crosses a service boundary unseen (tried under node). Two console "latest check" tests read fixed migrations, so the next widened stock-decision or notification kind goes unnoticed | defect | S each | `tools/dep-policy/src/rules.ts:393`; `tools/ci-contract/test/ci-contract.test.ts:117-137`; `tools/boundary-check/src/rules.ts:72-73`; `apps/console/test/stock.test.ts:212-216`; `apps/console/test/notifications.test.ts:189-192` |
-| 21 | **Partly done.** A real database has no way to get its organisation: only the seed creates a company, brand or operating unit, so production could hold no facility or item, and no switch-on anchored on a warehouse can work. The plan's "Decided 2026-10-22" now lists it as needed before real use, "not yet an open question". Still to do: record it as Q-31. `main` ends at Q-28; Q-29 and Q-30 are on held #68 | plan gap, owner decision | S to record | `docs/program/consolidation-plan.md:236-238`; `supabase/migrations/20260920000300_organisation_hierarchy.sql:17, 35, 44`; `supabase/seeds/0010_organisation.sql:7, 17, 23`; ADR-0028:240-248 |
+| 21 | **Partly done.** A real database has no way to get its organisation: only the seed creates a company, brand or operating unit, so production could hold no facility or item, and no switch-on anchored on a warehouse can work. The plan's "Decided 2026-10-22" now lists it as needed before real use, "not yet an open question". Still to do: record it as Q-31. `main` ends at Q-28; Q-29 and Q-30 reach it with the docs branch | plan gap, owner decision | S to record | `docs/program/consolidation-plan.md:236-238`; `supabase/migrations/20260920000300_organisation_hierarchy.sql:17, 35, 44`; `supabase/seeds/0010_organisation.sql:7, 17, 23`; ADR-0028:240-248 |
 | 22 | Module 1's and both imports' refusals have no words of their own: `RULE_KEY` maps 7 of 0012's constraints. About 12 more fall back to "A value is not valid." with the database's English underneath, and about 6 to the generic "This change breaks a rule of the item." ADR-0024 makes wording a gate on staff testing | follow-up | M | `apps/console/src/messages.ts:45-52`; `apps/console/src/i18n.ts:157-158`; `supabase/functions/_shared/refusal.ts:148, 151`; ADR-0024:313-321 |
 | 23 | Phase 3 carry-overs (print, offline) have no plan; the plan's "before real use" list leaves them out. The warehouse's purchase-order print file was read but is in no "Not here" list. Language is kept per browser and never cleared at sign-out, so a shared computer keeps the last person's | plan gap | S to record | `docs/program/consolidation-plan.md:232-242, 249`; `docs/estate/process-mapping-purchase-orders.md:25, 89-93`; `apps/console/src/session.ts:68-83`; `apps/console/src/App.tsx:77, 80, 107` |
 | 24 | Switch-ons for modules 1, 2 and 4 are not drafted, and module 4 is in no precondition list (the lists ask only that the warehouse exists). All held pilots need module 1. The plan now names switch-ons, "items first", as needed before real use, but drafts none. Drafting is engineering work; the scope is the owner's to confirm | plan | L | `docs/program/consolidation-plan.md:239-240, 274-277`; ADR-0029:544; ADR-0031:335, 349-351; ADR-0032:431, 444 |
@@ -269,11 +272,10 @@ acting.** These are leads, not facts.
 
 This is what the owner has accepted and expects.
 
-- **One module step per PR**, from the designated branch, or from a branch the owner has
-  permitted while #68 holds it (§0, rule 6).
+- **One module step per PR**, from a branch the owner has permitted (§0, rule 6).
   - A held switch-on is opened as a PR titled `HELD — …` and is not merged until its
-    preconditions hold and the owner says so. #48, #53, #58 and #63 were closed; #68 is
-    held open. When one comes back, its migration takes a fresh timestamp (Q-23).
+    preconditions hold and the owner says so. #48, #53, #58, #63 and #68 were closed.
+    When one comes back, its migration takes a fresh timestamp (Q-23).
   - When a held PR is closed, a later commit removes its migration file, and its docs
     reach `main` with the next PR.
 - **Since 2026-10-22, one feature at a time onto the live site** (§1). A step is not done
@@ -383,16 +385,16 @@ This is what the owner has accepted and expects.
 
 1. Read `CLAUDE.md`, this file, `docs/program/consolidation-plan.md` (above all "Decided
    2026-10-22") and `docs/program/open-questions.md`.
-2. Run `git fetch`, and check PR #68 and the `Deploy to staging` runs. The owner may have
-   acted since.
+2. Run `git fetch`, and check `claude/held-docs-and-handover` (is a PR open for it?) and
+   the `Deploy to staging` runs. The owner may have acted since.
 3. **If staging has been deployed**, offer the read-only verification in §4. If the owner
    reports the site not working, diagnose it read-only and fix the cause in the
    repository, by PR.
 4. **If it has not**, the owner's setup in §4 comes first. Help with it when asked, but
    every step there is the owner's to take.
-5. Then, one feature at a time and only as the owner directs. First settle the branch:
-   while #68 is open, a new PR cannot come from the designated branch (§0, rule 6), so
-   ask the owner to close #68 or to permit a new branch off `main`. Then:
+5. Then, one feature at a time and only as the owner directs. Ask first whether the
+   docs PR from `claude/held-docs-and-handover` should open now, and which branch the
+   next step goes on (§0, rule 6). Then:
    - module 10;
    - the remaining sweep items in §5. Row 8 is now unblocked, since #69 has merged; rows
      6 and 5 come next. Row 21 still needs recording as Q-31;
