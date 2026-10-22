@@ -80,7 +80,14 @@ jobs:
 
   database:
     name: Database schema
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: db:check and db:fixtures build their scratch cluster
+    # with the runner's own PostgreSQL, found by tools/db-check/src/cluster.ts among
+    # versions 15 to 17. ubuntu-latest moves to Ubuntu 26.04 from 2026-10-19 (GitHub's
+    # notice on this job), whose image installs PostgreSQL 18 alone, off PATH, so both
+    # would find nothing and fail every run. 24.04 has PostgreSQL 16, which every
+    # recorded run has used. Move this, and add 18 to the candidates, only once both
+    # have passed on 18.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
