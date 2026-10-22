@@ -1,17 +1,23 @@
-# Handover — for the next AI session on this repository
+# Handover — for the next Claude Code session on this repository
 
 First written 2026-10-16, when the owner stopped that session. **Updated 2026-10-22**, at
 the owner's request, after PRs #70, #71 and #69 merged. It records where the work stands,
 what is waiting on whom, and how work has been done here.
+
+The owner continues this project with Claude Code, so it is written for the next Claude
+Code session, not for another model. That session loads `CLAUDE.md` itself, and has the
+same tools this one had: the GitHub and Supabase connectors, `gh`, subagents and
+workflows (§7).
 
 **`CLAUDE.md` is binding and this does not replace it.** Read it first, then this. Where
 the two disagree, `CLAUDE.md` wins.
 
 This file lives on `claude/planning-session-65wym0`, which is the head of held PR #68, so
 it shows in that PR's diff. It is not on `main`. `main` (`ffa2bac`) was merged into this
-branch in this update, so the branch's `CLAUDE.md`, plan and runbook are `main`'s. If
-`main` moves on, read those from `main` (`git show origin/main:<path>`): `main`'s
-`CLAUDE.md` is the current one. Q-29 and Q-30 exist only on this branch.
+branch in this update, so the branch's `CLAUDE.md` and runbook are `main`'s, and its plan
+is `main`'s except row 9, which #68 changes. If `main` moves on, read those from `main`
+(`git show origin/main:<path>`): `main`'s `CLAUDE.md` is the current one. Q-29, Q-30 and
+the plan's row 9 as #68 has it exist only on this branch.
 
 ---
 
@@ -237,7 +243,7 @@ acting.** These are leads, not facts.
 | 14 | Settled decisions still shown open or superseded. The estate map states ADR-0020's two databases and never cites ADR-0021. B-04 (answered 2026-10-01), Q-08 and D-2 (ADR-0003, accepted 2026-09-20) are shown open. Q-20 cites ADR-0020 and points at a D-6 that does not exist (the pack has D-1 to D-4) | stale doc | S | `docs/estate/migration-map.md:45-46, 104`; `docs/estate/inventory.md:123, 164`; `docs/program/f0-exit-criteria.md:77`; `docs/program/open-questions.md:109-113, 422, 441`; `docs/program/executive-decision-pack.md:137, 346, 386` |
 | 15 | Merge-gate text and the spikes index say "five" blocked requirements; req:lint reports four (PRN-014, OFF-012, OFF-013, OFF-014). Governance §2 says "the four CI checks" and "required reviews"; the ruleset has six checks and 0 approvals | stale doc | S | `.github/workflows/f0-gate.yml:10-13`; `docs/program/github-controls.md:91-92`; `spikes/README.md:80-82`; `docs/program/governance.md:44-45` |
 | 16 | Landing and setup docs stop at 2026-10-04/05. The root README gives the console module 1 and calls it "boundaries only"; the console README stops at module 4; the supabase README names 5 of 12 functions (#69 rewrote only its header); the spikes index leaves the executable `zatca-counter-chain` out and calls ZATCA wholly blocked. `.env.example` documents an unread `ERP_ENV`, omits `ERP_DATABASE_URL`, `ERP_ALLOWED_ORIGINS` and `VITE_ERP_FUNCTIONS_URL`, and says no hosted project exists | stale doc | S | `README.md:91, 103-107`; `apps/console/README.md:7-24`; `supabase/README.md:22-25`; `spikes/README.md:47-56, 85-89`; `.env.example:9-11, 21-24` |
-| 17 | Roadmap and architecture docs never revised for ADR-0021. Overview and bounded-contexts still call inventory and procurement reserved F3 contexts with "no implementation before their phase", though both are built. The roadmap never says that ADR-0021 brought F3 requirements forward (INV-002, INV-005, INV-013, INV-014, INV-016 among them), which the plan (:334-336) says it should. bounded-contexts credits boundary:check with table isolation, but it reads only imports and never scans `supabase/` | stale doc | S | `docs/program/roadmap.md:23-86, 115-119`; `docs/architecture/overview.md:29-30, 40, 42, 51-53`; `docs/domain/bounded-contexts.md:3-9, 81-91`; `tools/boundary-check/src/cli.ts:13` |
+| 17 | Roadmap and architecture docs never revised for ADR-0021. Overview and bounded-contexts still call inventory and procurement reserved F3 contexts, with "no implementation is scheduled before their phase" (overview) and "no implementation before their phase" (bounded-contexts), though both are built. The roadmap never says that ADR-0021 brought F3 requirements forward (INV-002, INV-005, INV-013, INV-014, INV-016 among them), which the plan (:334-336) says it should. bounded-contexts credits boundary:check with table isolation, but it reads only imports and never scans `supabase/` | stale doc | S | `docs/program/roadmap.md:23-86, 115-119`; `docs/architecture/overview.md:29-30, 40, 42, 51-53`; `docs/domain/bounded-contexts.md:3-9, 81-91`; `tools/boundary-check/src/cli.ts:13` |
 | 18 | No db:check rule that capability state, person status and roles equal the latest decision about them, though every route's gate reads all three. The two logs still have no `seq` to order them (`decided_at` is the caller's, `recorded_at` the transaction's); every other decision log has one. 0025 removed only the direct `INSERT` | unenforced rule | M | `tools/db-check/src/assertions.ts` (beside the `*-match-their-decisions` checks); `supabase/migrations/20261001000100_capability_registry.sql:83-106, 175`; `20261002000100_identity.sql:78-117, 263-326` |
 | 19 | The seed-is-synthetic checks (db:check and pgTAP 050) scan only `erp.event_log`. Supplier contacts in `erp.supplier` (SEC-008) are never scanned, and `secret:scan` has no phone or IBAN pattern. The staging workflow loads this seed from a public repository. Today's seeded phone is synthetic; nothing would catch a real one | unenforced rule | M | `tools/db-check/src/assertions.ts:1189-1209`; `supabase/tests/050_seed_is_synthetic_test.sql:14-24`; `supabase/seeds/0050_suppliers.sql:25-28, 76` |
 | 20 | Three latent checker gaps. Dropping `tools/*/src/**/*.ts` from tsconfig leaves every tool's CLI, and several modules no test imports, untypechecked with all checks green. A second import on one line, or a dynamic `import()`, crosses a service boundary unseen (tried under node). Two console "latest check" tests read fixed migrations, so the next widened stock-decision or notification kind goes unnoticed | defect | S each | `tools/dep-policy/src/rules.ts:393`; `tools/ci-contract/test/ci-contract.test.ts:117-137`; `tools/boundary-check/src/rules.ts:72-73`; `apps/console/test/stock.test.ts:212-216`; `apps/console/test/notifications.test.ts:189-192` |
@@ -293,7 +299,9 @@ This is what the owner has accepted and expects.
   - Bring a behind branch up to date by merging `main` into it, never by rebasing: GitHub's
     update-branch, or a local merge pushed normally. Re-run the checks and wait for CI.
   - If the merge from `main` changed anything that matters, review again before merging.
-    #69's last review found a defect after `main` was merged in.
+    #69's last review, after `main` was merged in (`53efb80`), found nothing lost in the
+    merge, and one defect in the plan section added after it (`64f83cf`), fixed in
+    `ee96529`.
   - Merge pinned to the head that was checked:
     `gh api -X PUT repos/mohammedali-770/ERP/pulls/<n>/merge -f merge_method=merge -f sha=<head>`.
   - Then confirm `main`'s new commit.
@@ -360,6 +368,10 @@ This is what the owner has accepted and expects.
   - The proxy refuses some paths, among them `repos/…/environments` (403).
   - The `mcp__github__*` tools work too. The MCP servers sometimes disconnect after a
     container restart and reconnect later.
+- **Reviews with subagents.** Each review in these sessions ran reviewer agents, one per
+  lens, then an adversarial verifier per finding (§6), on a read-only checkout so they
+  could not touch the working tree. The Workflow tool runs that only when the owner has
+  opted in to multi-agent work; otherwise use the Agent tool.
 - **Restarts:** the container restarted several times during these sessions; `/tmp` and
   `/root` survived. It is reclaimed when the session ends, so anything unpushed is lost.
 - **Subscriptions:** no PR subscription or scheduled check-in for this repository is
