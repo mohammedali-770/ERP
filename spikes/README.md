@@ -54,6 +54,7 @@ rather than a mechanism that was:
 | [`payment-reconciliation`](./payment-reconciliation) | **D-1 design risk** | Zero double charges and zero misattribution under induced ambiguity; refunds idempotent | `npm run spike:payment-reconciliation` |
 | [`callback-engine`](./callback-engine) | CC-P01..P08 design risk | Nobody called after ordering; no duplicates, stale or out-of-hours calls | `npm run spike:callback-engine` |
 | [`rating-statistics`](./rating-statistics) | RTG-P03..P05 design risk | Nobody scored below the minimum sample; the person named worst is not above the median; no driver moved by a kitchen | `npm run spike:rating-statistics` |
+| [`zatca-counter-chain`](./zatca-counter-chain) | Half of T-09 — the counter and hash chain only | Each device's counter goes up by exactly one with no gap; the hash chain verifies from the genesis hash; a restart rewinds nothing; a restored device refuses to issue until it reconciles | `npm run spike:zatca-counter-chain` |
 
 Each writes a machine-readable report to `<spike>/out/report.json`, so the
 executive evidence package is assembled from artifacts rather than written up.
@@ -78,12 +79,18 @@ and an expensive surprise.
 
 **A procedure is not evidence until someone runs it.** `req-lint` distinguishes
 these two from the runnable spikes, and reports a requirement that names only them
-as having no acceptance evidence — five do. Before that check existed, those five
-satisfied the F0 exit gate by citing a document.
+as having no acceptance evidence — four do: PRN-014, OFF-012, OFF-013 and OFF-014.
+POS-008 was a fifth until it also cited `offline-sync`. Before that check existed,
+all five satisfied the F0 exit gate by citing a document.
 
 ## Blocked on external parties
 
 | Spike | Needs | Blocked by |
 |---|---|---|
 | Payment ECR unknown-outcome harness | The real acquirer and terminal; cannot be run against production | B-01 |
-| ZATCA offline issuance | Sandbox onboarding credentials | B-02 |
+| ZATCA deferred synchronisation, clearance, signatures and certificates | Sandbox onboarding credentials | B-02 |
+
+Only part of ZATCA offline issuance is blocked. The other half of T-09 — each
+device's counter and hash chain, and the restore-from-backup case — needs no
+credentials, and runs above as `zatca-counter-chain`. Its run says what it does
+not prove.
