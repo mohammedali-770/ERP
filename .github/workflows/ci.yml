@@ -129,31 +129,42 @@ jobs:
       # The half bare Postgres cannot reach: storage policies, auth, PostgREST.
       #
       # Retried only when the image registry refuses a pull. On 2026-10-22 ghcr.io
-      # answered `toomanyrequests` to every pull, twice in a row, and the job failed
-      # before any test ran (PR #73). The CLI retries a refused pull itself and prints
-      # each one, so only the error that ended the run is read: its last two lines,
-      # the error and the CLI's closing hint. Any other failure ends the step at once,
-      # so a real fault in the stack is never retried away, and so does a failed
-      # cleanup, which would leave a container that a later start reports as
-      # "already running". Three attempts, a minute and then two apart.
+      # answered `toomanyrequests` to every pull from GitHub's runners, for hours, and
+      # the job failed before any test ran (PRs #73 and #74). The CLI retries a
+      # refused pull itself and prints each one, so only the error that ended the run
+      # is read: its last two lines, the error and the CLI's closing hint. Any other
+      # failure ends the step at once, so a real fault in the stack is never retried
+      # away, and so does a failed cleanup, which would leave a container that a later
+      # start reports as "already running". Three attempts, a minute and then two
+      # apart.
+      #
+      # The second attempt pulls from the other registry Supabase publishes the same
+      # images to. setup-cli pins ghcr.io for CLI versions without a registry fallback
+      # (2.34.3 is one); the CLI's own default is public.ecr.aws. The third goes back
+      # to the first. Whichever registry the stack started from is kept for the rest
+      # of the job, since db reset and the pgTAP run pull images too.
       - name: Start the local stack
         run: |
           set -o pipefail
           log="$RUNNER_TEMP/supabase-start.log"
+          first="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
+          if [ "$first" = "ghcr.io" ]; then other="public.ecr.aws"; else other="ghcr.io"; fi
           for attempt in 1 2 3; do
-            if supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector 2>&1 | tee "$log"; then
+            if [ "$attempt" -eq 2 ]; then registry="$other"; else registry="$first"; fi
+            if SUPABASE_INTERNAL_IMAGE_REGISTRY="$registry" supabase start --exclude studio,inbucket,imgproxy,edge-runtime,logflare,vector 2>&1 | tee "$log"; then
+              echo "SUPABASE_INTERNAL_IMAGE_REGISTRY=$registry" >> "$GITHUB_ENV"
               exit 0
             fi
             if ! grep -qE 'toomanyrequests|error pulling image' <(tail -n 2 "$log"); then
               exit 1
             fi
-            supabase stop --no-backup
+            SUPABASE_INTERNAL_IMAGE_REGISTRY="$registry" supabase stop --no-backup
             if [ "$attempt" -lt 3 ]; then
-              echo "::warning::The image registry refused a pull (attempt $attempt of 3). Retrying in $((attempt * 60)) s."
+              echo "::warning::$registry refused a pull (attempt $attempt of 3). Retrying in $((attempt * 60)) s."
               sleep $((attempt * 60))
             fi
           done
-          echo "::error::The image registry refused a pull on all three attempts. No test ran."
+          echo "::error::The image registries refused a pull on all three attempts. No test ran."
           exit 1
 
       - name: db reset rebuilds the database from migrations and seed
