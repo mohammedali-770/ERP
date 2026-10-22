@@ -158,7 +158,8 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 >   administer capabilities; the two protected platform capabilities and the
 >   `administrator` role moved from the seed into the migration, because a real
 >   database needs them before anyone can decide anything; and the identity log grants
->   the runtime **no** direct INSERT, unlike 0010's.
+>   the runtime **no** direct INSERT, unlike 0010's. (0025 took 0010's back on
+>   2026-10-16: it had stood unused, and no check asked about INSERT.)
 > - **Two defects found and closed.** `0002`'s default privileges gave `erp_read`
 >   SELECT on every new table, which would have included the PIN hash; and **every
 >   `erp` function had been executable by PUBLIC since `0002`**, because a per-schema
