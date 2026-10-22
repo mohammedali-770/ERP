@@ -606,7 +606,7 @@ Four held migrations in a fixed order, each re-dated by hand and each lost silen
 applied before the warehouse exists, are the case for a reviewed run-time decision made
 plainly.
 
-Module 9's switch-on (2026-10-13, ADR-0033's step 6 addendum) is a fifth, and the first
+Module 9's switch-on (2026-10-13, closed PR #68, ADR-0033's step 6 addendum) is a fifth, and the first
 organisation-wide: item sources, cut-offs and par levels at `pilot` for the whole
 organisation, since 0024 sets a source only organisation-wide, and a pilot at named
 facilities could neither set nor read a par organisation-wide. Naming no facility does not

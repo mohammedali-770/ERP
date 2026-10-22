@@ -611,6 +611,11 @@ Three things are not shown, and the pack says which:
 
 ## Addendum — 2026-10-13: the switch-on, drafted and held (module 9, step 6)
 
+**Not on `main`.** The migration was drafted in pull request #68, which the owner closed
+for now (2026-10-22); it is kept there, at commit `a6cc926`, and comes back as a new pull
+request once the preconditions below hold, with a timestamp later than every migration
+merged by then (Q-23).
+
 The migration, `20261008000200_ordering_setup_pilot_organisation_wide.sql`, records two
 capability decisions: `ordering.setup` and `ordering.par_levels`, each at `pilot`
 **organisation-wide**. It is drafted and held unmerged, as modules 5 to 8's were (closed
