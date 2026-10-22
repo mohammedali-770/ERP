@@ -60,7 +60,10 @@ env:
 jobs:
   deploy:
     name: Rebuild staging from main
-    runs-on: ubuntu-latest
+    # Pinned, as ci.yml's Database schema job is: ubuntu-latest moves to Ubuntu 26.04
+    # from 2026-10-19. This job resets staging before it deploys the functions, so an
+    # image that broke a later step would leave staging half-built.
+    runs-on: ubuntu-24.04
     if: github.ref == 'refs/heads/main'
     environment: staging
     # At the job, so a run the `if` above skips never takes a queued run's place.
