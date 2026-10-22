@@ -35,3 +35,20 @@ test('the list may span lines, as a formatter would write it', () => {
   const wrapped = '[db.seed]\nsql_paths = [\n  "./seeds/a.sql",\n  "./seeds/b.sql",\n]\n';
   assert.deepEqual(parseSeedPaths(wrapped), ['./seeds/a.sql', './seeds/b.sql']);
 });
+
+test('a comment naming the section is not the section', () => {
+  // config.toml's header once said "the seed files [db.seed] lists", and the first
+  // match ended at the next real section, so every seed file read as undeclared.
+  const commented = `# loads the seed files [db.seed] lists\n\n[api]\nport = 1\n\n${CONFIG}`;
+  assert.deepEqual(parseSeedPaths(commented), ['./seeds/0010_a.sql', './seeds/0020_b.sql']);
+});
+
+test('a commented-out sql_paths in the section is not read', () => {
+  const config = '[db.seed]\n# sql_paths = ["./seeds/old.sql"]\nsql_paths = ["./seeds/a.sql"]\n';
+  assert.deepEqual(parseSeedPaths(config), ['./seeds/a.sql']);
+});
+
+test('a header with a trailing comment or a CRLF line end is still the section', () => {
+  assert.deepEqual(parseSeedPaths('[db.seed] # seeds\nsql_paths = ["./seeds/a.sql"]\n'), ['./seeds/a.sql']);
+  assert.deepEqual(parseSeedPaths('[db.seed]\r\nsql_paths = ["./seeds/a.sql"]\r\n'), ['./seeds/a.sql']);
+});

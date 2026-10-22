@@ -660,6 +660,14 @@ the owner included. **Nothing limits how fast anyone can add to it:**
 Neither matters while nothing is deployed, which is why the foundation shipped without
 them. Both need an answer before the first deployment.
 
+**2026-10-15: the owner accepted** deploying the sign-in function to the staging project,
+which holds synthetic data only, before this is answered. Production still waits for it.
+The repository is public and `supabase/seeds/0015_identity.sql` holds the synthetic
+cashiers' PINs in clear, so anyone can sign in to staging as those cashiers, and anyone
+can add to staging's `sign_in_log` as fast as described above; only the next rebuild
+clears it. The administrator has no seeded PIN; one set on staging by hand lasts until
+the next rebuild (`supabase-deployment.md`, "Staging, as built").
+
 Options, which combine:
 - Limit attempts per source address at the edge, before the database is called.
 - Record a source (for example, a keyed hash of the address the edge saw) and the

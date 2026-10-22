@@ -18,6 +18,7 @@ it is rebuilding a working thing.
 | Project | Region | Status | Verdict |
 |---|---|---|---|
 | `spicy-meal-ordering` | eu-central-1 | **Active, production** | The live customer-ordering backend. Migration source. |
+| `first-taste-erp-staging` | eu-central-1 | Active, **ERP staging** (created 2026-10-15) | The ERP's staging project, ref `olrqvewevfndvqwwkner`, in the same organisation as the live projects on the owner's instruction. Synthetic data only, rebuilt from `main` by the manual `Deploy to staging` workflow ([`supabase-deployment.md`](../program/supabase-deployment.md), "Staging, as built"). |
 | `whatsapp-inbox-simple` | eu-central-1 | Active | AI WhatsApp customer-service inbox. Adjacent, not ERP core — **surveyed in depth 2026-09-20**, see below. |
 | `spicy-meal-whatsapp-inbox` | eu-central-1 | Inactive (paused) | Superseded earlier build of the inbox. |
 | `spicy-meal-operation` | ap-northeast-1 | Inactive (paused) | Pairs with an operations app; both stopped the same week. Likely abandoned. |

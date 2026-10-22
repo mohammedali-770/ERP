@@ -11,6 +11,9 @@
   ([ADR-0025](../adr/ADR-0025-sessions-and-the-edge-layer.md))
 - **Status:** approved by the owner 2026-10-01. Phases 1, 2 and 3 are built; Phase 4 began 2026-10-02 —
   4 of 28 steps done; module 1 has 4 of its 6 sub-steps, module 2 has 4, module 3 has 4, module 4 has 4, module 5 has 4, module 6 has 4, module 7 has 4, module 8 has 4 and module 9 has 4, and the first nine modules' staff-testing packs are written.
+  Since 2026-10-22, by the owner's direction, a working website comes first: the
+  console goes live on staging before module 10 begins, and features are then added
+  one at a time ("Decided 2026-10-22", under Phase 4).
 
 Neither system is in production — verified read-only: seven of eight accounts in the
 warehouse database are demo accounts, against 18 items, 5 branches and 6 suppliers. So
@@ -158,7 +161,8 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 >   administer capabilities; the two protected platform capabilities and the
 >   `administrator` role moved from the seed into the migration, because a real
 >   database needs them before anyone can decide anything; and the identity log grants
->   the runtime **no** direct INSERT, unlike 0010's.
+>   the runtime **no** direct INSERT, unlike 0010's. (0025 took 0010's back on
+>   2026-10-16: it had stood unused, and no check asked about INSERT.)
 > - **Two defects found and closed.** `0002`'s default privileges gave `erp_read`
 >   SELECT on every new table, which would have included the PIN hash; and **every
 >   `erp` function had been executable by PUBLIC since `0002`**, because a per-schema
@@ -195,6 +199,47 @@ so a `hidden` capability simply has no entry — with the database refusal behin
 > in the old list at all, including the warehouse's core workflow, **branch orders**;
 > two old modules split in two; raw materials folded into items by the owner's
 > decision; and the old order had two dependency errors.
+
+### Decided 2026-10-22: a working website first, then one feature at a time
+
+The owner's direction: get the website working, then add features step by step,
+rather than building every module before anything runs. Nine modules have their
+database layer, tests, data layer and screens, and none runs anywhere a person can
+open it. So, before module 10:
+
+1. **The console goes live on staging first.** The deploy workflow, the console's
+   Vercel settings and the owner's setup are in
+   [`supabase-deployment.md`](./supabase-deployment.md), "Staging, as built". Once the
+   owner has done that setup:
+   - `first-taste-erp-staging` is rebuilt from `main` with the synthetic seed;
+   - its twelve edge functions are deployed;
+   - the console signs in against them from its Vercel address.
+
+   The seed opens the nine built modules' capabilities as `pilot`, organisation-wide,
+   so each can be used there with test data. That is what "working" means here:
+   signed in at the live address, with every built screen answering.
+2. **Then one feature at a time, each checked on the live site before the next.**
+   - A step still lands on `main` by pull request, with the checks under
+     "Verification" below.
+   - It then reaches staging by the owner's run of `Deploy to staging`.
+   - After that run, the administrator's PIN is set again: the run's reset erases it
+     ("Staging, as built", item 7). Until then only the seeded cashiers can sign in,
+     and a branch worker only reads, at their branch.
+   - It is tried there before the next step starts.
+
+   The six steps in "Each module, every time" are unchanged. What changes is that
+   each step reaches the live site as it lands, not at the end of the programme.
+3. **Staging is not real use.** It holds synthetic data only (SEC-012). Before real
+   use, at least these are needed:
+   - **The production project**, created as ADR-0018 says, and not before ADR-0002 and
+     [Q-20](./open-questions.md) are settled.
+   - **A way for a real database to get its organisation.** Today only the seed
+     creates a company, brand or operating unit, so a real database could hold no
+     facility and no item. This is not yet an open question.
+   - **Each module's switch-on (step 6)**, items first, since every held pilot needs
+     them.
+   - **[Q-24](./open-questions.md) answered**, before the sign-in function serves real
+     staff.
 
 ### Progress
 
@@ -307,7 +352,8 @@ to exist. Only then is "one project" true rather than aspirational.
 1. **Hosting.** ADR-0018 defers the ERP's hosted project to ~April–May 2027. One
    project means one database sooner. Development stays local on Docker for a long
    while, so this is not urgent — but ADR-0018 should be revisited deliberately rather
-   than left to drift.
+   than left to drift. A staging project has existed since 2026-10-15 (ADR-0018's
+   addendum), holding synthetic data only; production is unchanged.
 2. **[Q-20](./open-questions.md)** — `eu-central-1` and the plan tier. Now a
    precondition rather than an open question: it must be settled **before** any real
    data is entered, which is a decision that can be taken calmly precisely because
