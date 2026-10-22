@@ -12,13 +12,14 @@ workflows (§7).
 **`CLAUDE.md` is binding and this does not replace it.** Read it first, then this. Where
 the two disagree, `CLAUDE.md` wins.
 
-This file lives on `claude/held-docs-and-handover`, the new branch the owner asked for on
-2026-10-22 when closing PR #68 (the name is the agent's). It is not on `main`. The branch
-is `main` (`ffa2bac`) plus #68's docs, without its migration, and this file. So its
-`CLAUDE.md` and runbook are `main`'s, and its plan is `main`'s except row 9, which #68 changed. If `main` moves on,
-read those from `main` (`git show origin/main:<path>`): `main`'s `CLAUDE.md` is the current
-one. Q-29, Q-30 and the plan's row 9 as #68 has it exist only on this branch until it
-reaches `main` by PR. No PR is open for it yet.
+This file reaches `main` with PR #72, opened on 2026-10-22 at the owner's request, from
+`claude/held-docs-and-handover`: the new branch the owner asked for when closing PR #68
+(the name is the agent's). That branch is `main` (`ffa2bac`) plus #68's docs, without its
+migration, and this file. So its `CLAUDE.md` and runbook are `main`'s, and its plan is
+`main`'s except row 9. If `main` has moved on, read those from `main`
+(`git show origin/main:<path>`): `main`'s `CLAUDE.md` is the current one. Until #72
+merges, Q-29, Q-30 and the plan's row 9 as this branch has it reach `main` only through
+that PR.
 
 ---
 
@@ -56,7 +57,7 @@ reaches `main` by PR. No PR is open for it yet.
      applied this handover's patches (the owner is their commits' committer). That gave
      no agent permission to push them. All three are merged.
    - GitHub allows one open PR per head and base. So each feature step after the docs
-     PR needs a purpose-named branch of its own, or waits until that PR has merged; ask
+     PR, #72, needs a purpose-named branch of its own, or waits until #72 has merged; ask
      the owner which.
    - Never commit to `main`.
 7. **A check that returns nothing passes.** Every check, control and test added here was
@@ -133,9 +134,8 @@ reaches `main` by PR. No PR is open for it yet.
   and keeps the docs. Here it is the first commit of `claude/held-docs-and-handover`
   ("Hold the ordering-setup switch-on in closed PR #68, off this branch"). It also says
   in ADR-0033's addendum, the plan's row 9 and Q-23 that the draft is kept in #68.
-  The docs reach `main` with that branch's PR.
-- **This handover file** rides on that branch too. Before its PR, decide with the owner
-  whether it goes to `main` with the docs.
+  The docs reach `main` with that branch's PR, #72.
+- **This handover file** goes to `main` with them in #72, at the owner's request.
 
 ### Merged on 2026-10-22, each on the owner's instruction
 
@@ -385,15 +385,14 @@ This is what the owner has accepted and expects.
 
 1. Read `CLAUDE.md`, this file, `docs/program/consolidation-plan.md` (above all "Decided
    2026-10-22") and `docs/program/open-questions.md`.
-2. Run `git fetch`, and check `claude/held-docs-and-handover` (is a PR open for it?) and
-   the `Deploy to staging` runs. The owner may have acted since.
+2. Run `git fetch`, and check PR #72 (merged yet?) and the `Deploy to staging` runs. The
+   owner may have acted since.
 3. **If staging has been deployed**, offer the read-only verification in §4. If the owner
    reports the site not working, diagnose it read-only and fix the cause in the
    repository, by PR.
 4. **If it has not**, the owner's setup in §4 comes first. Help with it when asked, but
    every step there is the owner's to take.
-5. Then, one feature at a time and only as the owner directs. Ask first whether the
-   docs PR from `claude/held-docs-and-handover` should open now, and which branch the
+5. Then, one feature at a time and only as the owner directs. Ask first which branch the
    next step goes on (§0, rule 6). Then:
    - module 10;
    - the remaining sweep items in §5. Row 8 is now unblocked, since #69 has merged; rows
