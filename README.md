@@ -8,6 +8,11 @@ own architecture gate (PRG-010, PRG-011) has not been passed. What is here is th
 requirement baseline, the architecture and its decisions, the estate map, the
 compliance gates, the lab design, and runnable spikes that retire the top risks.
 
+It also holds the warehouse system's rebuild into this repository
+([ADR-0021](docs/adr/ADR-0021-one-project.md)): the database and its edge functions in
+`supabase/`, and the console in `apps/console`. Modules 1–9 have their schema, data
+layer, screens and tests. None is switched on, and nothing runs in production.
+
 ---
 
 ## Start here
@@ -21,7 +26,8 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 | How customers rate service, and what ratings may never do | [`docs/architecture/ratings-and-feedback.md`](docs/architecture/ratings-and-feedback.md) |
 | What has been decided, and what has not | [`docs/adr/`](docs/adr/) |
 | What could go wrong, and what is being done about it | [`docs/program/risk-register.md`](docs/program/risk-register.md) — R-01..R-10, extracted from the PRD |
-| How the database is built, and where it lives | [`supabase/`](supabase/README.md) — migrations, synthetic seed, pgTAP; the repository is the source of truth |
+| How the database is built, and where it lives | [`supabase/`](supabase/README.md) — migrations, synthetic seed, pgTAP, and the twelve edge functions; the repository is the source of truth |
+| How staging is built, and who rebuilds it | [`docs/program/supabase-deployment.md`](docs/program/supabase-deployment.md), "Staging, as built" |
 | What already exists and must not be rebuilt | [`docs/estate/migration-map.md`](docs/estate/migration-map.md) |
 | **What needs a decision from you** | [`docs/program/executive-decision-pack.md`](docs/program/executive-decision-pack.md) |
 | **What others can start today, without engineering** | [`docs/program/enablement/`](docs/program/enablement/README.md) |
@@ -45,6 +51,9 @@ compliance gates, the lab design, and runnable spikes that retire the top risks.
 3. **Production hosting is a gate, not a default.** Data residency has not been
    determined and the lab's platform confers no presumption. See
    [`docs/compliance/data-residency-gate.md`](docs/compliance/data-residency-gate.md).
+   The ERP has one hosted project: `first-taste-erp-staging`, since 2026-10-15, on
+   synthetic data only. It has no production project yet; that is created about 6–8
+   weeks before launch ([ADR-0018](docs/adr/ADR-0018-erp-database-home.md)).
 
 ---
 
@@ -64,6 +73,7 @@ npm run verify        # generated files + traceability + boundaries + typecheck 
 | `npm run db:check` | Apply every migration to a scratch Postgres and assert the invariants (no Docker) |
 | `npm run db:reset` | Rebuild the local Supabase database from migrations and seed |
 | `npm run db:test` | pgTAP suites against the local stack |
+| `npm run db:fixtures` | Run the pgTAP suites' `throws_ok` and `lives_ok` statements against a scratch Postgres, and check each fails or passes as its suite says (no Docker) |
 | `npm run secret:scan` | Fail on a credential-shaped string in any tracked file |
 | `npm run typecheck` | Typecheck every workspace |
 | `npm test` | Run all tests |
@@ -77,7 +87,10 @@ npm run verify        # generated files + traceability + boundaries + typecheck 
 No build step **outside `apps/*`**: Node 22 runs the TypeScript sources directly by
 stripping types. Outside `apps/*` the only dependencies are TypeScript and Node type
 definitions — deliberately, so the tooling that defines the requirement baseline
-carries no supply-chain risk. `apps/*` is exempt under
+carries no supply-chain risk. The edge functions in `supabase/functions` are the one
+other exception ([ADR-0023](docs/adr/ADR-0023-edge-functions-hold-the-erp-credential.md)'s
+addendum). They run on Deno, and their one dependency, `npm:postgres`, is pinned exactly
+in `deno.json`, locked in `deno.lock`, and imported only by `_deno/`. `apps/*` is exempt under
 [ADR-0021](docs/adr/ADR-0021-one-project.md) §4 because a browser application cannot
 honour either rule, and `npm run dep:policy` is what keeps the exemption from
 spreading.
@@ -88,12 +101,14 @@ spreading.
 docs/          requirements, architecture, adr, estate, domain, compliance, lab, program
 packages/      contracts — identifiers, events, sync protocol (depends on nothing)
 services/      identity, menu, orders, payments, printing, sync-gateway (F0: boundaries only)
-apps/          pos (Expo/iPad), console (F0: boundaries only)
+apps/          console (Vite + React, modules 1–9), pos (Expo/iPad, a reserved boundary)
 spikes/        risk harnesses, each with a control case — plus two written as
                procedures, because they test physical properties a simulation
                would not prove
-tools/         prd-extract, req-lint, boundary-check
-supabase/      migrations, synthetic seed, pgTAP tests — the database's source of truth
+tools/         prd-extract, req-lint, boundary-check, db-check, db-fixtures,
+               secret-scan, dep-policy, ci-contract
+supabase/      migrations, synthetic seed, pgTAP tests, edge functions — the
+               database's source of truth
 ```
 
 Service workspaces are **reserved boundaries**, not implementations. The boundary
@@ -102,9 +117,19 @@ gate approved.
 
 `apps/console` is no longer a boundary — it is a Vite + React workspace as of
 2026-10-01, and the shell the consolidated system is built in
-([ADR-0021](docs/adr/ADR-0021-one-project.md)). Since 2026-10-04 it signs people in and
-carries module 1's items screens ([its README](apps/console/README.md)). `apps/pos` is
-still reserved.
+([ADR-0021](docs/adr/ADR-0021-one-project.md)). It signs people in, and has screens for
+modules 1–9: items, suppliers, transfer prices, facilities, stock, the notifications
+bell, stock alerts, purchase orders and ordering setup ([its README](apps/console/README.md)).
+Staff testing and switch-on remain for each. `apps/pos` is still reserved.
+
+For staging, Vercel builds the console from `apps/console` (`apps/console/vercel.json`)
+once the owner has imported the repository there. It calls staging's edge functions at
+`VITE_ERP_FUNCTIONS_URL`, set in Vercel and read at build time. The functions read
+`ERP_DATABASE_URL` and `ERP_ALLOWED_ORIGINS`, set as edge-function secrets in the
+Supabase dashboard. On staging, none of the three is read from a file. The two
+function secrets are never committed; the URL is public, and the runbook gives its
+value. The owner's steps are in the runbook,
+[`supabase-deployment.md`](docs/program/supabase-deployment.md), "Staging, as built".
 
 ## Requirement baseline
 
@@ -135,6 +160,11 @@ Migrations, deployments, payment work, push broadcasts and any live write each
 require explicit human owner approval, and approval for one action is never
 blanket approval for the next. Full rules:
 [`docs/program/governance.md`](docs/program/governance.md).
+
+`first-taste-erp-staging` is rebuilt from `main` only, by the owner's run of the manual
+`Deploy to staging` workflow ([`staging-deploy.yml`](.github/workflows/staging-deploy.yml)). Each
+run is the owner's to start and approve, never an agent session's, and any other write
+to staging is owner-approved, one action at a time.
 
 ---
 
