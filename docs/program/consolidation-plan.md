@@ -208,7 +208,7 @@ database layer, tests, data layer and screens, and none runs anywhere a person c
 open it. So, before module 10:
 
 1. **The console goes live on staging first.** The deploy workflow, the console's
-   Vercel settings and the owner's one-off setup are in
+   Vercel settings and the owner's setup are in
    [`supabase-deployment.md`](./supabase-deployment.md), "Staging, as built". Once the
    owner has done that setup:
    - `first-taste-erp-staging` is rebuilt from `main` with the synthetic seed;
@@ -222,6 +222,9 @@ open it. So, before module 10:
    - A step still lands on `main` by pull request, with the checks under
      "Verification" below.
    - It then reaches staging by the owner's run of `Deploy to staging`.
+   - After that run, the administrator's PIN is set again: the run's reset erases it
+     ("Staging, as built", item 7). Until then only the seeded cashiers can sign in,
+     and a branch worker only reads, at their branch.
    - It is tried there before the next step starts.
 
    The six steps in "Each module, every time" are unchanged. What changes is that
