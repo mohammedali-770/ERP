@@ -14,17 +14,30 @@ Creating the production project is still deferred to roughly 6–8 weeks before 
 populated by promoting these files, never the reverse.
 
 ```
-config.toml    local stack definition — committed, holds no credential
+config.toml    local stack definition — committed, holds no credential. Staging
+               takes two parts of it: the seed list and the functions' settings
 migrations/    plain SQL, one file per approved change, append-only history
 seeds/         synthetic development fixtures, listed in config.toml's
                [db.seed] sql_paths — the CLI sends seed SQL over the wire, so a
                psql meta-command like \ir is a syntax error there
-functions/     edge functions (ADR-0023, ADR-0025): sign-in, session (with the
-               console's viewer, erp.viewer() from 0015), sign-out, items
-               (module 1's nine routes, ADR-0024's addenda) and suppliers
-               (module 2's twelve, ADR-0026's addendum).
-               _shared/ is plain TypeScript, tested by `npm test`; _deno/ holds
-               the one file that imports the driver; deno.json and deno.lock pin it
+functions/     edge functions (ADR-0023, ADR-0025), one directory each, the
+               twelve config.toml lists:
+                 sign-in           sessions, ADR-0025
+                 session           sessions, ADR-0025; also the console's
+                                   viewer, erp.viewer() from 0015
+                 sign-out          sessions, ADR-0025
+                 items             module 1, ADR-0024
+                 suppliers         module 2, ADR-0026
+                 transfer-prices   module 3, ADR-0027
+                 facilities        module 4, ADR-0028
+                 stock             module 5, ADR-0029
+                 notifications     module 6, ADR-0030
+                 stock-alerts      module 7, ADR-0031
+                 purchase-orders   module 8, ADR-0032
+                 ordering-setup    module 9, ADR-0033
+               _shared/ is plain TypeScript, tested by `npm test`. _deno/ holds
+               serve.ts, the Deno tests and db.ts, the one function file that
+               imports the driver; deno.json and deno.lock pin the driver
 tests/         pgTAP suites
 ```
 `tests/` runs only under `supabase test db`, which needs Docker and the Supabase
@@ -54,10 +67,14 @@ exists to avoid. Install it as a standalone binary; CI pins the same version in
 
 They connect as `erp_edge`, a login role migration `20261003000100_sessions.sql`
 creates **without a password**. Nothing in this repository sets one for a real
-project; that, and deploying, are owner-approved actions (`CLAUDE.md` §4).
+project; that, and deploying, are owner-approved actions (`CLAUDE.md` §4). On
+staging, the owner sets the password from `psql`, and the two function secrets in
+the dashboard; the owner's run of `Deploy to staging` deploys all twelve functions
+([`supabase-deployment.md`](../docs/program/supabase-deployment.md), "Staging, as
+built", steps 5, 6 and 9).
 
-Against the local stack, the Deno test sets a throwaway password for its own run and
-clears it afterwards, and refuses any database that is not on this machine:
+Against the local stack, the Deno tests set a throwaway password for their own run
+and clear it afterwards, and refuse any database that is not on this machine:
 
 ```bash
 eval "$(supabase status -o env)"          # DB_URL for the local stack
@@ -79,7 +96,7 @@ They prove different things and neither replaces the other.
 |---|---|---|
 | Needs | PostgreSQL | Docker + the CLI |
 | Applies | every migration, in order, then the seed | the same, via `db reset` |
-| Asserts | schema layout, roles, grants, default privileges, the append-only pair, the partial unique indexes, that the seed is synthetic and reproducible | all of that **plus** storage policies, auth and PostgREST exposure |
+| Asserts | schema layout, roles, grants, default privileges, that every log refuses `UPDATE`, `DELETE` and `TRUNCATE`, the partial unique indexes, that each module's projections equal its decisions, retries and races between two real sessions, that the seed is synthetic and reproducible | most of that again, and each module's routes and refusals, **plus** storage policies, auth and PostgREST exposure. Not the two-session races, nor the second build |
 | Runs in | seconds, on every push, and in sessions without a container daemon | minutes |
 
 `db:check` also builds the database **twice and compares the data**, because
@@ -97,7 +114,14 @@ Inherited from the live system and not negotiable here
   production.** Schema changes go only through the approved migration workflow.
 - Applying a migration to a hosted project is an **explicit owner-approved
   action**, one file at a time, each followed by read-only verification.
-- Migration history is a ledger: appended to, never rewritten.
+  Staging, which holds only synthetic data, has one other route: the owner's
+  approved run of `Deploy to staging`, which resets it and rebuilds it from every
+  migration and the seed, which replaces its migration history with this directory's
+  ([`supabase-deployment.md`](../docs/program/supabase-deployment.md), "Staging, as
+  built").
+- Migration history is a ledger: appended to, never rewritten. Staging's is the one
+  hosted exception: each run of `Deploy to staging` replaces it whole with this
+  directory's.
 
 ### The local exception, stated so nobody has to guess
 
@@ -115,11 +139,15 @@ owner-approved, one action at a time.**
 
 ## The shape of the schema
 
-`event_log` is the system of record and everything queryable is a projection
+`event_log` is the branch runtime's system of record, and migration 0006's four
+tables are its projections
 ([ADR-0003](../docs/adr/ADR-0003-event-sourced-core.md), accepted 2026-09-20).
-Append-only is enforced **twice** — `erp_app` holds no `UPDATE` or `DELETE`
-grant, and a `BEFORE UPDATE OR DELETE` trigger raises — because "a migration
-accidentally rewrote history" is not a recoverable event.
+Central decisions are not branch events. Capabilities, identity and each module
+keep their decisions in an append-only log of their own, and leave `event_log`
+untouched; migration 0010's header says why. Append-only is enforced **twice** on
+every log — `erp_app` holds no `UPDATE`, `DELETE` or `TRUNCATE` grant, and
+triggers raise on all three, whichever partition a statement names — because "a
+migration accidentally rewrote history" is not a recoverable event.
 
 Nothing ERP-owned is ever created in `public`. A table there inherits default
 privileges granting `anon` and `authenticated` insert, update and delete, with
