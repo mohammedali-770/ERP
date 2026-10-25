@@ -152,7 +152,10 @@ What the owner sets, and never in a file:
    - **API Keys: Read-write**, because `supabase link` reads the secret key with
      `reveal`, which Read does not cover (found 2026-10-25, when a token with Read was
      refused);
-   - **Connection Pooling: Read**, which `supabase link` reads too;
+   - **Connection Pooling: Read**: `supabase link` reads the pooler's address, and the CLI
+     reaches the database through it. Without it the CLI falls back to the direct host,
+     `db.olrqvewevfndvqwwkner.supabase.co`, which Supabase serves over IPv6 unless the
+     IPv4 add-on is bought, and GitHub's hosted runners have no IPv6;
    - **Edge Functions: Read-write**, to deploy the functions.
 
    Since 2026-10-25 the workflow asks for the one project rather than listing the
