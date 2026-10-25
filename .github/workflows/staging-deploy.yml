@@ -8,7 +8,7 @@ name: Deploy to staging
 # reviewer approves that one run. The name typed below only guards against a slip.
 #
 # THE SECRETS LIVE IN THAT ENVIRONMENT, NOT IN THE REPOSITORY. The access token is a
-# scoped one, reaching first-taste-erp-staging alone (the runbook lists its four
+# scoped one, reaching first-taste-erp-staging alone (the runbook lists its five
 # permissions); a classic token would reach every project in the account, both live
 # databases included. A repository secret is readable by any workflow on any branch of
 # this repository, so no check in this file could keep it on staging. An environment

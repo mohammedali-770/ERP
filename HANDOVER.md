@@ -206,7 +206,7 @@ Every step is the owner's. Values go in the dashboards, never in a file. The run
 1. **GitHub → Settings → Environments → `staging`:** deployment branches `main` only; the
    owner as required reviewer, with "Prevent self-review" and "Allow administrators to
    bypass" off; the environment secret (never a repository secret)
-   `SUPABASE_ACCESS_TOKEN`, a scoped Supabase token reaching staging alone, with the four
+   `SUPABASE_ACCESS_TOKEN`, a scoped Supabase token reaching staging alone, with the five
    permissions the runbook's item 2 lists. The environment and its secrets exist since
    2026-10-25.
 2. **Reset the staging database password** in Supabase (Project Settings → Database):
