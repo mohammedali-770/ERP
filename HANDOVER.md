@@ -1,7 +1,8 @@
 # Handover — for the next Claude Code session on this repository
 
 First written 2026-10-16, when the owner stopped that session. **Updated 2026-10-22**, at
-the owner's request, after PRs #70, #71 and #69 merged and #68 was closed. It records
+the owner's request, after PRs #70, #71 and #69 merged and #68 was closed. **Updated again
+2026-10-25**, after #72, #74 and #73 merged and staging was found paused. It records
 where the work stands, what is waiting on whom, and how work has been done here.
 
 The owner continues this project with Claude Code, so it is written for the next Claude
@@ -56,9 +57,12 @@ that PR.
      `claude/capability-decision-writer` were pushed on 2026-10-16 by the owner, who
      applied this handover's patches (the owner is their commits' committer). That gave
      no agent permission to push them. All three are merged.
-   - GitHub allows one open PR per head and base. So each feature step after the docs
-     PR, #72, needs a purpose-named branch of its own, or waits until #72 has merged; ask
-     the owner which.
+   - Since then the owner has asked for one new branch per step:
+     `claude/held-docs-and-handover` (#72), `claude/staging-readiness-docs` (#73) and
+     `claude/ci-retry-stack-start` (#74), all merged, and `claude/staging-pause-caveat`
+     (2026-10-25). Each new step still needs the owner's word for its branch.
+   - GitHub allows one open PR per head and base, so each step has a purpose-named branch
+     of its own.
    - Never commit to `main`.
 7. **A check that returns nothing passes.** Every check, control and test added here was
    shown to fail when the thing it guards is broken. Keep doing that (§6).
@@ -87,7 +91,7 @@ that PR.
   - Staging is not real use. The plan lists what real use still needs: the production
     project, a way for a real database to get its organisation, the switch-ons (items
     first) and Q-24.
-- **`main` is at `ffa2bac`** (PR #69's merge).
+- **`main` is at `65b59b3`** (PR #73's merge, 2026-10-25), before this update's own PR.
 - **Modules 1–9 have steps 1–4 on `main`, and each module's UAT pack is written:** items
   and units, suppliers, transfer prices, facilities, stock and movements, notifications,
   stock alerts, purchase orders and receipts, and ordering setup. Staff testing (step 5)
@@ -137,13 +141,16 @@ that PR.
   The docs reach `main` with that branch's PR, #72.
 - **This handover file** goes to `main` with them in #72, at the owner's request.
 
-### Merged on 2026-10-22, each on the owner's instruction
+### Merged since 2026-10-22, each on the owner's instruction
 
 | PR | Merge | What it did |
 |---|---|---|
 | #70 | `3026730` | Pinned CI's Database schema job to `ubuntu-24.04`. `ubuntu-latest` moves to Ubuntu 26.04 from 2026-10-19, which has only PostgreSQL 18; `tools/db-check/src/cluster.ts` looks for 15–17. Moving the job, and adding 18 to `PG_BIN_CANDIDATES`, waits until both database checks have passed on 18. |
 | #71 | `00115ce` | Migration 0025, `20261016000100_capability_decision_has_one_writer.sql`: revokes `erp_app`'s `INSERT` on `erp.capability_decision` and drops the policy `erp_app_append`, both from 0010. Widened three db:check checks (`every-decision-log-is-append-only`, `no-erp-object-in-public`, `every-runtime-definer-route-is-gated`), with runtime controls for the last two; the new `INSERT` refusal has no db:check control, and pgTAP 060 holds it. db:check's runner now counts a NULL or blank violation, which used to pass, with a control of its own, and `fail()` stops the scratch cluster; pgTAP 060 and 010; `CLAUDE.md` rows; ADR-0022's addendum. It was opened with GitHub's default title and an empty body; its three commit messages are the record. Brought up to date with `main` by GitHub's update-branch before merging. |
 | #69 | `ffa2bac` | `.github/workflows/staging-deploy.yml` (manual, `main` only, in the `staging` environment, pinned to `ubuntu-24.04`); `apps/console/vercel.json`; the runbook section "Staging, as built" in [`docs/program/supabase-deployment.md`](docs/program/supabase-deployment.md); ADR-0018's addendum; an inventory row; a Q-24 note; `CLAUDE.md`'s `supabase/` bullet; `tools/db-check/src/seed.ts` reading `[db.seed]` only where its header begins a line; and the plan's "Decided 2026-10-22". `main` was merged into it (`53efb80`) before a final review, whose one finding was fixed in `ee96529`. |
+| #72 | `58d1e02` | #68's docs without its migration (ADR-0033's step 6 addendum, Q-29, Q-30, Q-23, the plan's row 9, the ordering-setup pack), and this handover. 2026-10-22. |
+| #73 | `65b59b3` | The landing and setup docs (sweep row 16): `.env.example` lists the six names the code and the staging workflow read, and where each is set; the root, console, supabase and spikes READMEs describe what is built. 2026-10-25. |
+| #74 | `15a84f4` | CI's Database stack retries `supabase start` when the image registry refuses a pull, three attempts, the second from Supabase's ECR registry (`public.ecr.aws`, the CLI's own default) and the rest of the job on whichever worked. GitHub's incident of 2026-10-22 left ghcr.io refusing runners for hours. 2026-10-25. |
 
 The two patch sets this handover kept under `docs/handover/patches/` became #70 and #71,
 so that folder was removed in this update. Commit `8471af3` still holds them.
@@ -152,7 +159,14 @@ so that folder was removed in this update. Commit `8471af3` still holds them.
 
 ## 3. Staging, as it actually is today
 
-Read through the Supabase connector on 2026-10-22, read-only.
+Read through the Supabase connector on 2026-10-22 and again on 2026-10-25, read-only.
+
+- **Paused since at least 2026-10-25** (status `INACTIVE`). Spicy Meal Org is on
+  Supabase's Free plan, which pauses a project after a week of low database activity.
+  Nothing answers while it is paused, and a `Deploy to staging` run fails. **Resuming it
+  is the owner's**, in the dashboard, and comes first (§4, step 0). It can be resumed for
+  up to a year after the pause. It pauses again after any idle week unless the organisation moves
+  to a paid plan; the runbook's "When staging is paused" has the rest.
 
 - **Created 2026-10-15** at the owner's instruction, in Spicy Meal Org (`bcwztszkdbnhidhmibyv`).
 - **Migrations 1–10 are applied**, through the connector's `apply_migration`, which
@@ -183,6 +197,11 @@ Read through the Supabase connector on 2026-10-22, read-only.
 Every step is the owner's. Values go in the dashboards, never in a file. The runbook,
 "Staging, as built", gives the detail; follow it rather than this summary.
 
+0. **Resume the project if it is paused:** Supabase dashboard, the organisation, the
+   project, **Resume project**. After a resume, if sign-in fails where it worked before
+   the pause, set `erp_edge`'s password and `ERP_DATABASE_URL` again (steps 4 and 5):
+   Supabase's daily backups do not keep custom roles' passwords, and its docs do not say
+   whether a resume does.
 1. **GitHub → Settings → Environments → `staging`:** deployment branches `main` only; the
    owner as required reviewer; the environment secret (never a repository secret)
    `SUPABASE_ACCESS_TOKEN`.
@@ -244,8 +263,8 @@ acting.** These are leads, not facts.
 | 12 | Process mappings awaiting operations' sign-off describe modules 7–8 as not built (no minimum held; receipts and low-stock alerts under "Not yet"; the actor never told, which ADR-0031 A3 reversed for `stock_low`). The notifications pack says the bell has one kind, and its question D asks what A3 answered | stale doc | S | `docs/estate/process-mapping-notifications.md:47, 59, 65, 69, 78`; `process-mapping-stock.md:102-110`; `docs/lab/uat/notifications.md:18, 92`; `ar/notifications.md:21, 87` |
 | 13 | Five UAT packs' "connection drops" part cannot pass as written: the setup never says where the database and console run, so a local stack survives the cut, and a dev-server reload loses the in-doubt Retry. `stock-alerts.md:117-124` has wording that works, as do the notifications, purchase-orders and ordering-setup packs | follow-up | S | `docs/lab/uat/items.md:109-114`, `suppliers.md:110-115`, `transfer-prices.md:102-107`, `facilities.md:108-113`, `stock.md:153-158` (+ `ar/`); ADR-0033:595-600 |
 | 14 | Settled decisions still shown open or superseded. The estate map states ADR-0020's two databases and never cites ADR-0021. B-04 (answered 2026-10-01), Q-08 and D-2 (ADR-0003, accepted 2026-09-20) are shown open. Q-20 cites ADR-0020 and points at a D-6 that does not exist (the pack has D-1 to D-4) | stale doc | S | `docs/estate/migration-map.md:45-46, 104`; `docs/estate/inventory.md:123, 164`; `docs/program/f0-exit-criteria.md:77`; `docs/program/open-questions.md:109-113, 422, 441`; `docs/program/executive-decision-pack.md:137, 346, 386` |
-| 15 | **Partly done:** the spikes index now says four (on `claude/staging-readiness-docs`). Merge-gate text still says "five" blocked requirements; req:lint reports four (PRN-014, OFF-012, OFF-013, OFF-014). Governance §2 says "the four CI checks" and "required reviews"; the ruleset has six checks and 0 approvals | stale doc | S | `.github/workflows/f0-gate.yml:10-13`; `docs/program/github-controls.md:91-92`; `docs/program/governance.md:44-45` |
-| 16 | **Done** on `claude/staging-readiness-docs` (2026-10-22): the root, console and supabase READMEs describe modules 1–9, the twelve functions and staging; the spikes index lists `zatca-counter-chain` and narrows ZATCA's block to what needs credentials; `.env.example` lists the six names the code and the staging workflow read, and where each is set | stale doc | S | `README.md`; `apps/console/README.md`; `supabase/README.md`; `spikes/README.md`; `.env.example` |
+| 15 | **Partly done:** the spikes index now says four (#73). Merge-gate text still says "five" blocked requirements; req:lint reports four (PRN-014, OFF-012, OFF-013, OFF-014). Governance §2 says "the four CI checks" and "required reviews"; the ruleset has six checks and 0 approvals | stale doc | S | `.github/workflows/f0-gate.yml:10-13`; `docs/program/github-controls.md:91-92`; `docs/program/governance.md:44-45` |
+| 16 | **Done** in #73 (merged 2026-10-25): the root, console and supabase READMEs describe modules 1–9, the twelve functions and staging; the spikes index lists `zatca-counter-chain` and narrows ZATCA's block to what needs credentials; `.env.example` lists the six names the code and the staging workflow read, and where each is set | stale doc | S | `README.md`; `apps/console/README.md`; `supabase/README.md`; `spikes/README.md`; `.env.example` |
 | 17 | Roadmap and architecture docs never revised for ADR-0021. Overview and bounded-contexts still call inventory and procurement reserved F3 contexts, with "no implementation is scheduled before their phase" (overview) and "no implementation before their phase" (bounded-contexts), though both are built. The roadmap never says that ADR-0021 brought F3 requirements forward (INV-002, INV-005, INV-013, INV-014, INV-016 among them), which the plan (:334-336) says it should. bounded-contexts credits boundary:check with table isolation, but it reads only imports and never scans `supabase/` | stale doc | S | `docs/program/roadmap.md:23-86, 115-119`; `docs/architecture/overview.md:29-30, 40, 42, 51-53`; `docs/domain/bounded-contexts.md:3-9, 81-91`; `tools/boundary-check/src/cli.ts:13` |
 | 18 | No db:check rule that capability state, person status and roles equal the latest decision about them, though every route's gate reads all three. The two logs still have no `seq` to order them (`decided_at` is the caller's, `recorded_at` the transaction's); every other decision log has one. 0025 removed only the direct `INSERT` | unenforced rule | M | `tools/db-check/src/assertions.ts` (beside the `*-match-their-decisions` checks); `supabase/migrations/20261001000100_capability_registry.sql:83-106, 175`; `20261002000100_identity.sql:78-117, 263-326` |
 | 19 | The seed-is-synthetic checks (db:check and pgTAP 050) scan only `erp.event_log`. Supplier contacts in `erp.supplier` (SEC-008) are never scanned, and `secret:scan` has no phone or IBAN pattern. The staging workflow loads this seed from a public repository. Today's seeded phone is synthetic; nothing would catch a real one | unenforced rule | M | `tools/db-check/src/assertions.ts:1189-1209`; `supabase/tests/050_seed_is_synthetic_test.sql:14-24`; `supabase/seeds/0050_suppliers.sql:25-28, 76` |
@@ -385,8 +404,8 @@ This is what the owner has accepted and expects.
 
 1. Read `CLAUDE.md`, this file, `docs/program/consolidation-plan.md` (above all "Decided
    2026-10-22") and `docs/program/open-questions.md`.
-2. Run `git fetch`, and check PR #72 (merged yet?) and the `Deploy to staging` runs. The
-   owner may have acted since.
+2. Run `git fetch`, and check the `Deploy to staging` runs and whether staging is paused
+   (the Supabase connector's `get_project`, read-only). The owner may have acted since.
 3. **If staging has been deployed**, offer the read-only verification in §4. If the owner
    reports the site not working, diagnose it read-only and fix the cause in the
    repository, by PR.
