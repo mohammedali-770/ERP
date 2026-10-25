@@ -7,12 +7,13 @@ name: Deploy to staging
 # environment `staging`, which admits only main and holds the job until its required
 # reviewer approves that one run. The name typed below only guards against a slip.
 #
-# THE SECRETS LIVE IN THAT ENVIRONMENT, NOT IN THE REPOSITORY. The access token reaches
-# every project in the Supabase account, both live databases included, and needs no
-# database password to run SQL on any of them. A repository secret is readable by any
-# workflow on any branch of this repository, so no check in this file could keep it on
-# staging. An environment secret is given only to a job that names the environment,
-# after the environment's branch rule and reviewer have admitted it.
+# THE SECRETS LIVE IN THAT ENVIRONMENT, NOT IN THE REPOSITORY. The access token is a
+# scoped one, reaching first-taste-erp-staging alone (the runbook lists its four
+# permissions); a classic token would reach every project in the account, both live
+# databases included. A repository secret is readable by any workflow on any branch of
+# this repository, so no check in this file could keep it on staging. An environment
+# secret is given only to a job that names the environment, after the environment's
+# branch rule and reviewer have admitted it.
 #
 # WHAT THE REVIEWER DOES NOT DO: tell the owner from an agent. Agent sessions act as the
 # owner's own GitHub account, so a run an agent started, or an approval it gave, is the
@@ -27,8 +28,8 @@ name: Deploy to staging
 #
 # NEVER PRODUCTION. The project ref is pinned below; the run is refused unless it is from
 # main, the name typed matches, the database password is set, and the project under that
-# ref is named first-taste-erp-staging. Production is never seeded and never reset; this
-# workflow does both.
+# ref is named first-taste-erp-staging and running. Production is never seeded and never
+# reset; this workflow does both.
 #
 # What it runs, in the runbook's terms (docs/program/supabase-deployment.md):
 #   §2  link, and confirm what you are linked to
@@ -96,14 +97,29 @@ jobs:
           version: 2.34.3
 
       # The secrets are given to these four steps alone.
-      - name: The project under that ref is staging
+      #
+      # Asked of the one project, not of every project in the account: a token scoped to
+      # staging reads it with Project Settings (Read), and needs no account-wide read that
+      # would list the live projects too. A paused project is refused here, before Link
+      # meets a database that is not there.
+      - name: The project under that ref is staging, and running
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          name="$(supabase projects list -o json | jq -r --arg ref "$STAGING_REF" \
-            '.[] | select(.id == $ref or .ref == $ref) | .name')"
+          if ! project="$(curl -sS --fail-with-body \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              "https://api.supabase.com/v1/projects/$STAGING_REF")"; then
+            echo "::error::$STAGING_REF could not be read: ${project:-no answer}. Nothing was changed."
+            exit 1
+          fi
+          name="$(jq -r '.name // empty' <<<"$project")"
+          status="$(jq -r '.status // empty' <<<"$project")"
           if [ "$name" != "$STAGING_NAME" ]; then
-            echo "::error::$STAGING_REF is '${name:-not reachable}', not $STAGING_NAME. Nothing was changed."
+            echo "::error::$STAGING_REF is '${name:-unnamed}', not $STAGING_NAME. Nothing was changed."
+            exit 1
+          fi
+          if [ "$status" != "ACTIVE_HEALTHY" ]; then
+            echo "::error::$STAGING_NAME is ${status:-of unknown status}, not ACTIVE_HEALTHY. INACTIVE means paused: resume it in the Supabase dashboard (docs/program/supabase-deployment.md, \"When staging is paused\"). Nothing was changed."
             exit 1
           fi
 

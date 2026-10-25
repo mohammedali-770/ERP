@@ -144,13 +144,23 @@ What the owner sets, and never in a file:
    administrator or deployment-review rights. A second human reviewer is not enough on
    its own: GitHub proceeds on any one listed reviewer's approval, and an administrator
    can bypass the environment's rules or change them.
-2. **`SUPABASE_ACCESS_TOKEN`**, a personal access token. It reaches every project in the
-   account, `spicy-meal-ordering` and `warehouse-factory-system` included, and can run SQL
-   as `postgres` on any of them without a database password. The environment keeps it
-   from workflows on other branches and the workflow's checks keep a run on staging;
-   neither keeps it from an agent acting as the owner (1). The durable fix is §1's:
-   staging in an organisation of its own, and a token from an account that belongs to
-   that organisation alone.
+2. **`SUPABASE_ACCESS_TOKEN`**, a **scoped** personal access token (Supabase, Account,
+   Access tokens; scoped tokens are in public alpha there). Resource access: **Project**,
+   `first-taste-erp-staging` alone. Permissions, every other one left at None:
+   - **Project Settings: Read**, for the workflow's check that the project is staging
+     and running;
+   - **API Keys: Read-write**, because `supabase link` reads the secret key with
+     `reveal`, which Read does not cover (found 2026-10-25, when a token with Read was
+     refused);
+   - **Connection Pooling: Read**, which `supabase link` reads too;
+   - **Edge Functions: Read-write**, to deploy the functions.
+
+   Since 2026-10-25 the workflow asks for the one project rather than listing the
+   account's, so no account-wide permission is needed. A classic token instead reaches
+   every project in the account, `spicy-meal-ordering` and `warehouse-factory-system`
+   included, and can run SQL as `postgres` on any of them without a database password:
+   never use one here. Even scoped, the token is the owner's to hold, and the
+   environment does not keep it from an agent acting as the owner (1).
 3. **`STAGING_DB_PASSWORD`**, the staging database's password. The connector generated one
    nobody holds, so it is reset in the dashboard first (Project Settings, Database), and
    kept in the password manager as well: GitHub never shows a secret again, and 5 needs
