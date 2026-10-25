@@ -161,7 +161,8 @@ What the owner sets, and never in a file:
    name typed. Then open the pending run and note the commit it shows: the run executes
    that commit, whatever `main` shows by the time it is approved. Read
    `.github/workflows/staging-deploy.yml` at that commit, and what has changed since the
-   last run you approved, and only then approve the pending deployment.
+   last run you approved, and only then approve the pending deployment. A paused project
+   is resumed first ("When staging is paused", below): a run cannot reach its database.
 5. **`erp_edge`'s password**, after the first run has created the role, from `psql` and
    never in the dashboard's SQL editor: Supabase logs every DDL statement `postgres` runs,
    `alter role … password` included, and the editor keeps what it ran. Connect with
@@ -230,6 +231,38 @@ The CLI bundles the functions in its own edge-runtime image, from `deno.json`'s 
 map; `deno.lock` binds CI's `deno check --frozen`, not that bundle. The pgTAP suites (§4)
 are not part of the workflow: run against the project they need the pgTAP extension
 enabled there, which is a further change of its own.
+
+### When staging is paused
+
+**The organisation is on Supabase's Free plan**, so staging is paused after a week of low
+database activity. Supabase emails a warning about a week before, and again once it is
+paused. A paid plan is never paused
+([Supabase, "Project Pausing"](https://supabase.com/docs/guides/platform/free-project-pausing)).
+Staging was found paused (`INACTIVE`) on 2026-10-25, ten days after it was created, with
+nothing using it.
+
+- **While it is paused, nothing answers:** not the database, not the functions, not the
+  console's sign-in. A `Deploy to staging` run cannot reach the database either, and
+  fails.
+- **Resuming is the owner's**, as any change to a hosted project is: the Supabase
+  dashboard, the organisation, the project, **Resume project**. Supabase says it returns
+  to its previous state, data and configuration included.
+- **It can be resumed for up to a year after the pause**, as Supabase's page said on
+  2026-10-25 (an older page of theirs gives 90 days). After that it cannot be resumed,
+  and staging would be a new project with a new ref: in `STAGING_REF` and wherever this
+  runbook names it, with items 3 and 5–9 done again for it (`STAGING_DB_PASSWORD`,
+  `erp_edge`'s password, `ERP_DATABASE_URL`, the PIN, `VITE_ERP_FUNCTIONS_URL` and
+  `ERP_ALLOWED_ORIGINS`). It would be rebuilt from `main`, not from a backup: staging
+  holds nothing that `main` and the seed do not.
+- **After a resume, check that the functions still reach the database.** Supabase's
+  daily backups do not keep the passwords of custom roles, and `erp_edge` is one
+  ([Supabase, "Database Backups"](https://supabase.com/docs/guides/platform/backups)).
+  The Free plan has no daily backups, and the docs do not say whether a resume keeps
+  them. If sign-in fails where it worked before the pause, set `erp_edge`'s password
+  again (5) and `ERP_DATABASE_URL` with it (6).
+- **Keeping it awake** takes a few database requests a day, which using the site gives
+  it; a week of nobody using it lets it pause again. Moving the organisation to a paid
+  plan stops pausing altogether, and is the owner's decision.
 
 ## 6. Configuration that is not in this repository
 
