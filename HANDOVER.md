@@ -187,8 +187,9 @@ Read through the Supabase connector on 2026-10-22 and again on 2026-10-25, read-
   - The seed's synthetic cashier PINs are in clear in this public repository, so anyone can
     sign in to staging as those cashiers.
   - Staging's `sign_in_log` grows until a rebuild.
-- **The access token reaches every project in the account.** The durable fix, staging in a
-  Supabase organisation of its own, is the owner's to make (runbook §1).
+- **The access token is scoped to staging alone** since 2026-10-25 (runbook, item 2), so it
+  no longer reaches the live projects. A separate organisation for staging (runbook §1)
+  would still keep the plan, billing and members apart, and is the owner's to decide.
 
 ---
 
@@ -203,8 +204,11 @@ Every step is the owner's. Values go in the dashboards, never in a file. The run
    Supabase's daily backups do not keep custom roles' passwords, and its docs do not say
    whether a resume does.
 1. **GitHub → Settings → Environments → `staging`:** deployment branches `main` only; the
-   owner as required reviewer; the environment secret (never a repository secret)
-   `SUPABASE_ACCESS_TOKEN`.
+   owner as required reviewer, with "Prevent self-review" and "Allow administrators to
+   bypass" off; the environment secret (never a repository secret)
+   `SUPABASE_ACCESS_TOKEN`, a scoped Supabase token reaching staging alone, with the five
+   permissions the runbook's item 2 lists. The environment and its secrets exist since
+   2026-10-25.
 2. **Reset the staging database password** in Supabase (Project Settings → Database):
    the connector generated one nobody holds. Add it to the `staging` environment as the
    secret `STAGING_DB_PASSWORD`, and keep it in a password manager: GitHub never shows a
